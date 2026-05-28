@@ -1,0 +1,474 @@
+const express = require("express");
+const router = express.Router();
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
+const mongoose = require("mongoose");
+const Order = require("../models/Order");
+const Product = require("../models/Product");
+const User = require("../models/User");
+const authMiddleware = require("../middleware/authMiddleware");
+
+const TRACKING_STEPS = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Out for Delivery", "Delivered"];
+const STATUS_TIMESTAMP_KEYS = {
+  "Order Placed": "orderPlaced",
+  Preparing: "preparing",
+  Packed: "packed",
+  "Rider Assigned": "riderAssigned",
+  "Out for Delivery": "outForDelivery",
+  Delivered: "delivered",
+  Cancelled: "cancelled"
+};
+
+const getEtaMinutes = (order) => {
+  if (order.orderStatus === "Delivered") return 0;
+  if (order.estimatedDeliveryTime) {
+    return Math.max(0, Math.ceil((new Date(order.estimatedDeliveryTime).getTime() - Date.now()) / 60000));
+  }
+  return order.estimatedArrivalMinutes || 0;
+};
+
+const buildTrackingPayload = async (order) => {
+  const orderObject = typeof order.toObject === "function" ? order.toObject() : order;
+  const stepIndex = TRACKING_STEPS.indexOf(orderObject.orderStatus);
+  const completedIndex = orderObject.orderStatus === "Cancelled" ? 0 : Math.max(stepIndex, 0);
+  const progress = orderObject.orderStatus === "Cancelled"
+    ? 0
+    : Math.round((completedIndex / (TRACKING_STEPS.length - 1)) * 100);
+
+  const rider = orderObject.riderId
+    ? await User.findById(orderObject.riderId).select("name phone role vehicleType isOnline currentLocation profileImage").lean()
+    : null;
+
+  const minutes = getEtaMinutes(orderObject);
+  const eta = {
+    estimatedDeliveryTime: orderObject.estimatedDeliveryTime,
+    estimatedArrivalMinutes: minutes,
+    label: orderObject.orderStatus === "Delivered"
+      ? "Delivered"
+      : minutes <= 2 && orderObject.riderAssigned
+        ? "Rider nearby"
+        : `Arriving in ${minutes} mins`
+  };
+
+  return {
+    order: orderObject,
+    rider: rider || (orderObject.riderAssigned ? {
+      name: orderObject.riderName,
+      phone: orderObject.riderPhone,
+      vehicleType: "Delivery Vehicle",
+      isOnline: false,
+      profileImage: ""
+    } : null),
+    eta,
+    progress,
+    timestamps: orderObject.statusTimestamps || {},
+    steps: TRACKING_STEPS
+  };
+};
+
+// Initialize Razorpay SDK instance safely
+const getRazorpayInstance = () => {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    console.error("❌ Razorpay Key configuration missing in environment variables!");
+  }
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || "mock_key_id",
+    key_secret: process.env.RAZORPAY_KEY_SECRET || "mock_key_secret"
+  });
+};
+
+// POST /api/payment/create-order
+router.post("/payment/create-order", authMiddleware, async (req, res) => {
+  console.log("=== CREATE ORDER HIT ===");
+  console.log("=== [BACKEND] POST /api/payment/create-order ===");
+  console.log("Request Body:", JSON.stringify(req.body, null, 2));
+  console.log("=== ORDER USER DATA ===");
+  console.log(req.body.user);
+  console.log("RAZORPAY_KEY_ID in env:", process.env.RAZORPAY_KEY_ID);
+  console.log("MongoDB connection state (readyState):", mongoose.connection.readyState);
+  
+  try {
+    const { amount, user, products, deliveryAddress } = req.body;
+
+    // 1. Validation
+    if (amount === undefined || amount === null) {
+      console.error("❌ Validation Error: Amount is missing");
+      return res.status(400).json({ message: "Amount is required" });
+    }
+
+    const numericAmount = Number(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      console.error(`❌ Validation Error: Amount must be a positive number. Received: ${amount}`);
+      return res.status(400).json({ message: `Amount must be a valid number greater than 0. Received: ${amount}` });
+    }
+
+    if (!user || typeof user !== "object" || !products || !deliveryAddress) {
+      console.error("❌ Validation Error: user, products, or deliveryAddress missing or invalid");
+      return res.status(400).json({ message: "User, products, and deliveryAddress are required" });
+    }
+
+    // 2. Initialize Razorpay
+    console.log("Initializing Razorpay instance...");
+    const razorpay = getRazorpayInstance();
+    const options = {
+      amount: Math.round(numericAmount * 100), // convert to paisa
+      currency: "INR",
+      receipt: `receipt_${Date.now()}`,
+    };
+
+    console.log("Creating order in Razorpay with options:", options);
+    const razorpayOrder = await razorpay.orders.create(options);
+    console.log("=== RAZORPAY ORDER CREATED ===");
+    console.log("Razorpay Order Created Successfully:", razorpayOrder);
+
+    const deliveryLatitude = req.body.deliveryLatitude || null;
+    const deliveryLongitude = req.body.deliveryLongitude || null;
+
+    // 3. Save pending order in MongoDB
+    const order = new Order({
+      user,
+      userId: req.user._id,
+      products,
+      totalAmount: numericAmount,
+      paymentMethod: "razorpay",
+      paymentStatus: "Pending",
+      razorpayOrderId: razorpayOrder.id,
+      deliveryAddress,
+      deliveryLatitude,
+      deliveryLongitude,
+      orderStatus: "Order Placed",
+      estimatedArrivalMinutes: 30,
+      estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000)
+    });
+
+    if (deliveryLatitude && deliveryLongitude) {
+      req.user.latitude = deliveryLatitude;
+      req.user.longitude = deliveryLongitude;
+      req.user.currentLocation = {
+        lat: deliveryLatitude,
+        lng: deliveryLongitude,
+        address: deliveryAddress
+      };
+      await req.user.save();
+      console.log(`=== CUSTOMER GPS ===\nUser ID: ${req.user._id}, Lat: ${deliveryLatitude}, Lng: ${deliveryLongitude}`);
+    }
+
+    console.log("=== [BACKEND DB SAVE] Attempting to save Pending Order to MongoDB ===");
+    console.log("Order Data to be saved:", JSON.stringify(order, null, 2));
+
+    try {
+      const savedOrder = await order.save();
+      console.log("=== ORDER SAVED ===");
+      console.log("=== [BACKEND DB SAVE SUCCESS] Pending Order Saved Successfully ===");
+      console.log("Saved Pending Order Document ID:", savedOrder._id);
+
+      return res.status(201).json({
+        keyId: process.env.RAZORPAY_KEY_ID,
+        orderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        order: savedOrder
+      });
+    } catch (dbError) {
+      console.error("❌ === [BACKEND DB SAVE ERROR] Failed to save Pending Order to MongoDB ===");
+      console.error("Error Message:", dbError.message);
+      console.error("Error Stack:", dbError.stack);
+      return res.status(500).json({
+        message: "Failed to persist pending order in database",
+        error: dbError.message,
+        stack: dbError.stack
+      });
+    }
+  } catch (error) {
+    console.error("❌ Create Razorpay Order Exception Failed!", error);
+    return res.status(500).json({ 
+      message: "Razorpay order creation failed", 
+      error: error.message,
+      stack: error.stack,
+      keyIdConfigured: !!process.env.RAZORPAY_KEY_ID,
+      secretConfigured: !!process.env.RAZORPAY_KEY_SECRET
+    });
+  }
+});
+
+// POST /api/payment/verify
+router.post("/payment/verify", async (req, res) => {
+  console.log("=== [BACKEND] POST /api/payment/verify ===");
+  console.log("Request Body:", JSON.stringify(req.body, null, 2));
+
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      console.error("❌ Verification Error: Missing params in req.body");
+      return res.status(400).json({ message: "Verification parameters are missing" });
+    }
+
+    // Cryptographic signature verification
+    console.log("Performing signature verification...");
+    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "mock_key_secret");
+    hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
+    const generatedSignature = hmac.digest("hex");
+
+    const isValidSignature = generatedSignature === razorpay_signature;
+    console.log("Is signature valid?", isValidSignature);
+
+    if (!isValidSignature) {
+      console.error("❌ Signature verification failed!");
+      try {
+        console.log("Attempting to locate pending order to mark as Failed...");
+        const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
+        if (order) {
+          order.paymentStatus = "Failed";
+          await order.save();
+          console.log("Order paymentStatus updated to Failed in DB for document ID:", order._id);
+        }
+      } catch (dbErr) {
+        console.error("❌ Failed to update failed order status in database:", dbErr.message);
+      }
+      return res.status(400).json({ success: false, message: "Invalid payment signature verification failed" });
+    }
+
+    console.log("Signature is valid! Retrieving pending order from DB...");
+    const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
+
+    if (!order) {
+      console.error(`❌ Database Error: Pending order not found in database for razorpayOrderId: ${razorpay_order_id}`);
+      return res.status(404).json({ 
+        message: "Pending order not found in database. Persistent order required to verify payment.",
+        razorpay_order_id
+      });
+    }
+
+    console.log("Retrieved Pending Order from DB:", JSON.stringify(order, null, 2));
+    
+    // 1. Update Payment Status to Paid
+    order.paymentStatus = "Paid";
+    order.razorpayPaymentId = razorpay_payment_id;
+    order.razorpaySignature = razorpay_signature;
+
+    console.log("=== [BACKEND DB UPDATE] Saving Paid Order to DB ===");
+    try {
+      const savedOrder = await order.save();
+      console.log("=== PAYMENT VERIFIED ===");
+      console.log("=== [BACKEND DB UPDATE SUCCESS] Paid Order Saved to MongoDB Successfully ===");
+      console.log("Saved Document ID:", savedOrder._id);
+
+      // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
+      console.log("Reducing inventory stock...");
+      for (const item of savedOrder.products) {
+        try {
+          const product = await Product.findOne({
+            $or: [
+              { _id: item.productId },
+              { id: item.productId }
+            ]
+          });
+
+          if (product) {
+            product.stock = Math.max(0, product.stock - item.quantity);
+            const savedProduct = await product.save();
+            console.log(`Successfully reduced stock for ${savedProduct.name} (ID: ${item.productId}) by ${item.quantity}. New Stock: ${savedProduct.stock}`);
+          } else {
+            console.warn(`⚠️ Product not found for stock reduction: ${item.productId}`);
+          }
+        } catch (dbError) {
+          console.error(`❌ Failed to update stock for product ${item.productId}:`, dbError.message);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Payment signature verified successfully and order updated in DB",
+        order: savedOrder
+      });
+    } catch (saveError) {
+      console.error("❌ === [BACKEND DB UPDATE ERROR] Failed to save Paid Order ===");
+      console.error("Error Message:", saveError.message);
+      return res.status(500).json({
+        message: "Failed to persist Paid order in database",
+        error: saveError.message,
+        stack: saveError.stack
+      });
+    }
+  } catch (error) {
+    console.error("❌ Payment Signature Verification Exception:", error);
+    return res.status(500).json({ 
+      message: "Error verifying payment signature", 
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// POST /api/orders (Standard COD Order flow)
+router.post("/orders", authMiddleware, async (req, res) => {
+  console.log("=== CREATE ORDER HIT ===");
+  console.log("=== [BACKEND] POST /api/orders (COD) ===");
+  console.log("Request Body:", JSON.stringify(req.body, null, 2));
+  console.log("=== ORDER USER DATA ===");
+  console.log(req.body.user);
+
+  try {
+    const { user, products, amount, deliveryAddress } = req.body;
+
+    if (!user || typeof user !== "object" || !products || !amount || !deliveryAddress) {
+      console.error("❌ COD Validation Error: Missing required fields or invalid user details");
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const deliveryLatitude = req.body.deliveryLatitude || null;
+    const deliveryLongitude = req.body.deliveryLongitude || null;
+
+    // 1. Create COD Order record
+    const order = new Order({
+      user,
+      userId: req.user._id,
+      products,
+      totalAmount: amount,
+      paymentMethod: "cod",
+      paymentStatus: "Pending", // COD remains pending until hand-delivered
+      deliveryAddress,
+      deliveryLatitude,
+      deliveryLongitude,
+      orderStatus: "Order Placed",
+      estimatedArrivalMinutes: 30,
+      estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000)
+    });
+
+    if (deliveryLatitude && deliveryLongitude) {
+      req.user.latitude = deliveryLatitude;
+      req.user.longitude = deliveryLongitude;
+      req.user.currentLocation = {
+        lat: deliveryLatitude,
+        lng: deliveryLongitude,
+        address: deliveryAddress
+      };
+      await req.user.save();
+      console.log(`=== CUSTOMER GPS ===\nUser ID: ${req.user._id}, Lat: ${deliveryLatitude}, Lng: ${deliveryLongitude}`);
+    }
+
+    console.log("=== [BACKEND DB SAVE] Saving COD Order to DB ===");
+    try {
+      const savedOrder = await order.save();
+      console.log("=== ORDER SAVED ===");
+      console.log("=== [BACKEND DB SAVE SUCCESS] COD Order Saved Successfully ===");
+      console.log("Saved Document ID:", savedOrder._id);
+
+      // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
+      console.log("Reducing inventory stock for COD order...");
+      for (const item of products) {
+        try {
+          const product = await Product.findOne({
+            $or: [
+              { _id: item.productId },
+              { id: item.productId }
+            ]
+          });
+
+          if (product) {
+            product.stock = Math.max(0, product.stock - item.quantity);
+            const savedProduct = await product.save();
+            console.log(`Reduced stock for ${savedProduct.name} (ID: ${item.productId}) by ${item.quantity}. New Stock: ${savedProduct.stock}`);
+          } else {
+            console.warn(`⚠️ Product not found for stock reduction: ${item.productId}`);
+          }
+        } catch (dbError) {
+          console.error(`❌ Failed to update stock for product ${item.productId}:`, dbError.message);
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: "COD order placed successfully",
+        order: savedOrder
+      });
+    } catch (saveError) {
+      console.error("❌ === [BACKEND DB SAVE ERROR] Failed to save COD Order ===");
+      console.error("Error Message:", saveError.message);
+      return res.status(500).json({
+        message: "Failed to persist COD order in database",
+        error: saveError.message,
+        stack: saveError.stack
+      });
+    }
+  } catch (error) {
+    console.error("❌ COD Order Placement Exception:", error);
+    return res.status(500).json({ 
+      message: "Failed to place COD order", 
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// GET /api/orders/my-orders
+// Returns order history for the logged-in customer (matched by their unique phone number)
+router.get("/orders/my-orders", authMiddleware, async (req, res) => {
+  console.log("=== [BACKEND] GET /api/orders/my-orders ===");
+  console.log("Loading history for User Phone:", req.user.phone);
+
+  try {
+    const orders = await Order.find({
+      $or: [
+        { userId: req.user._id },
+        { "user.phone": req.user.phone }
+      ]
+    }).sort({ createdAt: -1 }).lean();
+    console.log(`Successfully fetched ${orders.length} orders for client.`);
+    return res.json(orders);
+  } catch (error) {
+    console.error("❌ Get My Orders Exception:", error);
+    return res.status(500).json({ message: "Failed to load order history", error: error.message });
+  }
+});
+
+// GET /api/orders/track/:id
+// Returns live tracking details for the authenticated customer who owns this order.
+router.get("/orders/track/:id", authMiddleware, async (req, res) => {
+  console.log("=== CUSTOMER TRACK ORDER ===");
+  console.log("Order ID:", req.params.id);
+  console.log("Customer Phone:", req.user.phone);
+
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const isOwner = (order.userId && order.userId.toString() === req.user._id.toString()) || 
+                    (order.user?.phone === req.user.phone);
+    const isAssignedRider = order.riderId && order.riderId.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+
+    if (!isAdmin && !isOwner && !isAssignedRider) {
+      console.error("❌ Track Order Access Denied:", {
+        requesterPhone: req.user.phone,
+        requesterId: req.user._id,
+        orderUserPhone: order.user?.phone,
+        orderUserId: order.userId,
+        orderRiderId: order.riderId
+      });
+      return res.status(403).json({ message: "You can only track your own orders" });
+    }
+
+    const minutes = getEtaMinutes(order);
+    if (order.estimatedArrivalMinutes !== minutes && order.orderStatus !== "Delivered") {
+      order.estimatedArrivalMinutes = minutes;
+      await order.save();
+      console.log("=== ETA UPDATED ===");
+      console.log({ orderId: order._id, estimatedArrivalMinutes: minutes });
+    }
+
+    const payload = await buildTrackingPayload(order);
+    return res.json(payload);
+  } catch (error) {
+    console.error("❌ Track Order Error:", error);
+    return res.status(500).json({ message: "Failed to load tracking details", error: error.message });
+  }
+});
+
+module.exports = router;
