@@ -40,6 +40,10 @@ const supportChatSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    phone: {
+      type: String,
+      default: ""
+    },
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
@@ -47,7 +51,7 @@ const supportChatSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["connecting", "waiting", "connected", "closed"],
+      enum: ["connecting", "waiting", "active", "closed"],
       default: "waiting"
     },
     queuePosition: {

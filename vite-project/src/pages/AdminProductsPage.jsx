@@ -256,6 +256,23 @@ export default function AdminProductsPage() {
             <button onClick={() => navigate("/admin/riders")} style={navLinkStyle}>
               🛵 Riders Management
             </button>
+            <button onClick={() => navigate("/admin/support")} style={navLinkStyle}>
+              💬 Customer Support
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              style={{
+                ...navLinkStyle,
+                marginTop: "12px",
+                borderTop: "1px solid #E5E7EB",
+                borderRadius: "0",
+                paddingTop: "12px",
+                color: "#318616",
+                fontWeight: "800"
+              }}
+            >
+              🏪 Open Customer App
+            </button>
           </div>
         </nav>
 

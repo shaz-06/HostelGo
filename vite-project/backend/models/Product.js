@@ -13,11 +13,17 @@ const productSchema = new mongoose.Schema({
   weight: String,
   stock: Number,
   image: String,
+  section: String,
+  brand: String,
+  description: String,
+  eta: String,
+  isAd: Boolean,
   variants: [
     {
       weight: String,
       price: Number,
-      originalPrice: Number
+      originalPrice: Number,
+      stock: Number
     }
   ]
 });

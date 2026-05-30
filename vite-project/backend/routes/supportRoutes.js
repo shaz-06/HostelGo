@@ -38,7 +38,7 @@ const scheduleUserReplyTimeout = (chatId, io) => {
   const timer = setTimeout(async () => {
     try {
       const chat = await SupportChat.findById(chatId);
-      if (!chat || chat.status !== "connected") return;
+      if (!chat || chat.status !== "active") return;
 
       const connectedAt = [...chat.messages].reverse().find((msg) => (
         msg.role === "bot" && msg.message.includes("Please reply within 2 mins")
@@ -55,7 +55,7 @@ const scheduleUserReplyTimeout = (chatId, io) => {
       chat.messages.push({
         senderName: "System",
         role: "bot",
-        message: "Chat ended due to inactivity."
+        message: "Chat session ended due to inactivity."
       });
       await chat.save();
 
@@ -92,7 +92,7 @@ router.post("/support/start", authMiddleware, async (req, res) => {
     // Check for an existing active session
     let chat = await SupportChat.findOne({
       customerId: userId,
-      status: { $in: ["connecting", "waiting", "connected"] }
+      status: { $in: ["connecting", "waiting", "active"] }
     });
 
     if (chat) {
@@ -113,6 +113,7 @@ router.post("/support/start", authMiddleware, async (req, res) => {
     chat = new SupportChat({
       customerId: userId,
       customerName: req.user.name,
+      phone: req.user.phone || "",
       orderId: orderId,
       status: shouldQueue ? "waiting" : "connecting",
       queuePosition: position,
@@ -178,7 +179,7 @@ router.post("/support/message", authMiddleware, async (req, res) => {
     };
 
     chat.messages.push(newMessage);
-    if (newMessage.role === "user" && chat.status === "connected") {
+    if (newMessage.role === "user" && chat.status === "active") {
       cancelUserReplyTimeout(chatId);
     }
     await chat.save();
@@ -216,15 +217,20 @@ router.post("/support/connect", authMiddleware, adminMiddleware, async (req, res
       return res.status(400).json({ message: `Session status is already '${chat.status}'` });
     }
 
-    // Update status to connected
-    chat.status = "connected";
+    // Update status to active
+    chat.status = "active";
     chat.queuePosition = 0;
 
-    // Add connection system log
+    // Add connection system logs
     chat.messages.push({
       senderName: "System",
       role: "bot",
-      message: `Associate connected. Please reply within 2 mins to stay connected, else the chat will be ended.`
+      message: "🟢 Associate Connected"
+    });
+    chat.messages.push({
+      senderName: "System",
+      role: "bot",
+      message: "An associate has joined the conversation. Please reply within 2 minutes to stay connected."
     });
 
     await chat.save();
@@ -298,7 +304,7 @@ router.post("/support/close", authMiddleware, async (req, res) => {
     chat.messages.push({
       senderName: "System",
       role: "bot",
-      message: reason === "inactivity" ? "Chat ended due to inactivity." : "This support session has been resolved and closed."
+      message: reason === "inactivity" ? "Chat session ended due to inactivity." : "Associate has ended the conversation."
     });
 
     await chat.save();
@@ -375,7 +381,7 @@ router.get("/support/queue", authMiddleware, async (req, res) => {
   try {
     const chat = await SupportChat.findOne({
       customerId: req.user._id,
-      status: { $in: ["connecting", "waiting", "connected"] }
+      status: { $in: ["connecting", "waiting", "active"] }
     });
 
     if (!chat) {
@@ -405,12 +411,34 @@ router.get("/support/admin/chats", authMiddleware, adminMiddleware, async (req, 
   try {
     const incoming = await SupportChat.find({ status: "connecting" }).sort({ createdAt: 1 });
     const waiting = await SupportChat.find({ status: "waiting" }).sort({ createdAt: 1 });
-    const active = await SupportChat.find({ status: "connected" }).sort({ updatedAt: -1 });
+    const active = await SupportChat.find({ status: "active" }).sort({ updatedAt: -1 });
     const closed = await SupportChat.find({ status: "closed" }).sort({ updatedAt: -1 }).limit(50);
 
     return res.json({ incoming, waiting, active, closed, availability: getAvailability(req) });
   } catch (err) {
     console.error("❌ Support API: Failed to fetch admin chat lists:", err.message);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// 9. GET /api/support/chat/:chatId - Fetch single chat details (Admin or customer participant)
+router.get("/support/chat/:chatId", authMiddleware, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const chat = await SupportChat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: "Chat session not found" });
+    }
+    
+    // Verify participant
+    const isAdmin = req.user.role === "admin";
+    const isCustomer = String(chat.customerId) === String(req.user._id);
+    if (!isAdmin && !isCustomer) {
+      return res.status(403).json({ message: "Unauthorized access to chat" });
+    }
+    
+    return res.json({ chat });
+  } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });

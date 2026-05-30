@@ -2839,34 +2839,104 @@ const DYNAMIC_PRODUCTS = [
   }
 ];
 
-const normalize = (value) => value?.toLowerCase().trim();
+const normalizeCategoryName = (cat) => {
+  if (!cat) return "";
+  return cat.toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/,/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const normalize = (value) => normalizeCategoryName(value);
+
+const getCategoryMatch = (productCategory, targetCategory) => {
+  if (!productCategory || !targetCategory) return false;
+  const normProd = normalizeCategoryName(productCategory);
+  const normTarget = normalizeCategoryName(targetCategory);
+
+  const stripS = (str) => str.endsWith("s") ? str.slice(0, -1) : str;
+  const prodSingular = stripS(normProd);
+  const targetSingular = stripS(normTarget);
+
+  return normProd === normTarget ||
+    prodSingular === targetSingular ||
+    normProd.includes(targetSingular) ||
+    normTarget.includes(prodSingular);
+};
 
 const matchCategoryOrSub = (product, target) => {
   if (!target) return false;
-  const normTarget = normalize(target);
-  
-  const stripS = (str) => {
-    if (!str) return "";
-    return str.endsWith("s") ? str.slice(0, -1) : str;
-  };
-  const targetSingular = stripS(normTarget);
-
-  const checkValue = (val) => {
-    if (!val) return false;
-    const normVal = normalize(val);
-    const valSingular = stripS(normVal);
-    return normVal === normTarget || 
-           valSingular === targetSingular || 
-           normVal.includes(targetSingular) || 
-           targetSingular.includes(valSingular);
-  };
-
   return (
-    checkValue(product.subCategory) ||
-    checkValue(product.subcategory) ||
-    checkValue(product.category) ||
-    (Array.isArray(product.tags) && product.tags.some(t => checkValue(t)))
+    getCategoryMatch(product.category, target) ||
+    getCategoryMatch(product.subCategory, target) ||
+    getCategoryMatch(product.subcategory, target) ||
+    getCategoryMatch(product.section, target) ||
+    (Array.isArray(product.tags) && product.tags.some(t => getCategoryMatch(t, target)))
   );
+};
+
+const getTypeCategories = (type) => {
+  switch (type) {
+    case "fruits": return ["The Fruit Store"];
+    case "veggies": return ["The Veggie Store"];
+    case "dairy": return ["Dairy, Bread & Eggs", "Dairy, Bread and Eggs", "Dairy Bread & Eggs", "The Bread Store"];
+    case "meat": return ["Meat and Seafood", "Meat & Seafood"];
+    case "grocery": return ["Atta, Rice and Dal", "Atta, Rice & Dal"];
+    case "masalas": return ["Masalas"];
+    case "oils-ghee": return ["Oils and Ghee", "Oils & Ghee"];
+    case "cereals-breakfast": return ["Cereals & Breakfast", "Cereals and Breakfast"];
+    case "cold-drinks": return ["Cold Drinks and Juices", "Cold Drinks & Juices", "Beverages"];
+    case "ice-cream": return ["Ice Creams & Desserts", "Ice Creams and Desserts"];
+    case "chips-namkeens": return ["Chips and Namkeens", "Chips & Namkeens", "Snacks"];
+    case "chocolates": return ["Chocolates", "Snacks"];
+    case "biscuits-cakes": return ["Biscuits and Cakes", "Biscuits & Cakes", "Snacks"];
+    case "tea-coffee": return ["Tea, Coffee & Drinks", "Tea, Coffee and Drinks", "Beverages"];
+    case "sauces-spreads": return ["Sauces and Spreads", "Sauces & Spreads", "Premium Pickles"];
+    case "sweet-corner": return ["Sweet Corner"];
+    case "bath-body": return ["Bath and Body", "Bath & Body"];
+    case "hair-care": return ["Hair Care"];
+    case "skincare": return ["Skincare"];
+    case "health-pharma": return ["Health and Pharma", "Health & Pharma", "Sexual Wellness"];
+    case "home-kitchen": return ["Home and Kitchen", "Home & Kitchen"];
+    case "puja-store": return ["Puja Store"];
+    case "cleaners-repellents": return ["Cleaners & Repellents", "Cleaners and Repellents"];
+    case "electronics-appliances": return ["Electronics & Appliances", "Electronics and Appliances"];
+    default: return [];
+  }
+};
+
+const matchesType = (product, currentType) => {
+  if (!product || !currentType) return false;
+
+  const normType = normalizeCategoryName(currentType);
+
+  // 1. If product has section attribute, check it first
+  if (product.section) {
+    if (normalizeCategoryName(product.section) === normType) {
+      return true;
+    }
+  }
+
+  // 2. Map type to standard categories
+  const targetCategories = getTypeCategories(currentType);
+
+  // 3. Check if product category matches any of the mapped target categories
+  if (product.category && targetCategories.some(tc => getCategoryMatch(product.category, tc))) {
+    return true;
+  }
+
+  // 4. Check if product subCategory matches any of the mapped target categories
+  if (product.subCategory && targetCategories.some(tc => getCategoryMatch(product.subCategory, tc))) {
+    return true;
+  }
+
+  // 5. Check if product subcategory matches any of the mapped target categories
+  if (product.subcategory && targetCategories.some(tc => getCategoryMatch(product.subcategory, tc))) {
+    return true;
+  }
+
+  return false;
 };
 
 export default function SectionProductsPage({
@@ -2937,24 +3007,8 @@ export default function SectionProductsPage({
     window.dispatchEvent(new Event("local-cart-updated"));
   };
 
-  const [activeSidebar, setActiveSidebar] = useState(() => {
-    if (DYNAMIC_CONFIG[type]) return DYNAMIC_CONFIG[type].defaultSidebar;
-    if (type === "fruits") return "Mango";
-    if (type === "dairy") return "Milk";
-    if (type === "meat") return "Fresh Chicken";
-    if (type === "grocery") return "Atta";
-    if (type === "masalas") return "Whole Spices";
-    return "Fresh Vegetables";
-  });
-  const [activeQuickFilter, setActiveQuickFilter] = useState(() => {
-    if (DYNAMIC_CONFIG[type]) return DYNAMIC_CONFIG[type].defaultQuickFilter;
-    if (type === "fruits") return "Mango";
-    if (type === "dairy") return "Milk";
-    if (type === "meat") return "Curry Cut";
-    if (type === "grocery") return "Wheat Atta";
-    if (type === "masalas") return "Red Chilli Whole";
-    return "Vegetables";
-  });
+  const [activeSidebar, setActiveSidebar] = useState("All");
+  const [activeQuickFilter, setActiveQuickFilter] = useState("All");
 
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [filterOrganic, setFilterOrganic] = useState(false);
@@ -3023,8 +3077,8 @@ export default function SectionProductsPage({
     filtered = products.filter((p) => p.isTrending);
   } else if (type === "fruits") {
     sectionTitle = "🍎 Fresh Fruits";
-    let baseFruits = FRUIT_PRODUCTS;
-    
+    let baseFruits = products.filter(p => matchesType(p, "fruits"));
+
     // Apply Left Sidebar Category Filter
     if (activeSidebar === "Mango") {
       baseFruits = baseFruits.filter(p => matchCategoryOrSub(p, "Mango"));
@@ -3049,7 +3103,7 @@ export default function SectionProductsPage({
     } else if (activeSidebar === "Pooja & Festive") {
       baseFruits = baseFruits.filter(p => matchCategoryOrSub(p, "Pooja & Festive"));
     }
-    
+
     // Apply Quick Filter Badges
     if (activeQuickFilter === "Mango Kesar") {
       baseFruits = baseFruits.filter(p => p.name.includes("Kesar"));
@@ -3085,12 +3139,12 @@ export default function SectionProductsPage({
         return discount >= 20;
       });
     }
-    
+
     filtered = baseFruits;
   } else if (type === "veggies") {
     sectionTitle = "🥦 Fresh Vegetables";
-    let baseVeggies = products.filter((p) => p.category === "The Veggie Store");
-    
+    let baseVeggies = products.filter(p => matchesType(p, "veggies"));
+
     // Apply Left Sidebar Category Filter
     if (normalizedSearchQuery) {
       baseVeggies = baseVeggies.filter((p) => productMatchesSearch(p, normalizedSearchQuery));
@@ -3103,7 +3157,7 @@ export default function SectionProductsPage({
     } else if (activeSidebar === "Pooja & Festive") {
       baseVeggies = baseVeggies.filter(p => matchCategoryOrSub(p, "Pooja & Festive") || ["Coconut", "Mango", "Banana", "Lemon", "Garlic"].some(k => p.name.includes(k)));
     }
-    
+
     // Apply Quick Filter Badges
     if (!normalizedSearchQuery && activeQuickFilter === "Leafy and Seasonings") {
       baseVeggies = baseVeggies.filter(p => ["Spinach", "Coriander", "Mint", "Curry", "Fenugreek", "Onion", "Radish"].some(k => p.name.includes(k)));
@@ -3115,9 +3169,9 @@ export default function SectionProductsPage({
 
     // Apply Gourmet filter
     if (!normalizedSearchQuery && activeGourmet) {
-      baseVeggies = baseVeggies.filter(p => 
-        p.name.toLowerCase().includes("organic") || 
-        p.name.toLowerCase().includes("exotic") || 
+      baseVeggies = baseVeggies.filter(p =>
+        p.name.toLowerCase().includes("organic") ||
+        p.name.toLowerCase().includes("exotic") ||
         p.name.toLowerCase().includes("baby") ||
         p.name.toLowerCase().includes("capsicum") ||
         p.name.toLowerCase().includes("cauliflower") ||
@@ -3146,12 +3200,12 @@ export default function SectionProductsPage({
         return discount >= 20;
       });
     }
-    
+
     filtered = baseVeggies;
   } else if (type === "dairy") {
     sectionTitle = "🥛 Dairy, Bread & Eggs";
-    let baseDairy = DAIRY_PRODUCTS;
-    
+    let baseDairy = products.filter(p => matchesType(p, "dairy"));
+
     // Apply Left Sidebar Category Filter
     if (activeSidebar === "Milk") {
       baseDairy = baseDairy.filter(p => matchCategoryOrSub(p, "Milk"));
@@ -3182,7 +3236,7 @@ export default function SectionProductsPage({
     } else if (activeSidebar === "Top Deals") {
       baseDairy = baseDairy.filter(p => p.isTrending || p.originalPrice > p.price);
     }
-    
+
     // Apply Quick Filter Badges
     if (activeQuickFilter === "Amul") {
       baseDairy = baseDairy.filter(p => p.brand === "Amul");
@@ -3218,12 +3272,12 @@ export default function SectionProductsPage({
         return discount >= 20;
       });
     }
-    
+
     filtered = baseDairy;
   } else if (type === "meat") {
     sectionTitle = "🥩 Meat and Seafood";
-    let baseMeat = MEAT_PRODUCTS;
-    
+    let baseMeat = products.filter(p => matchesType(p, "meat"));
+
     // Apply Left Sidebar Category Filter
     if (activeSidebar === "Fresh Chicken") {
       baseMeat = baseMeat.filter(p => matchCategoryOrSub(p, "Fresh Chicken"));
@@ -3279,25 +3333,27 @@ export default function SectionProductsPage({
     filtered = baseMeat;
   } else if (type === "grocery") {
     sectionTitle = "🌾 Atta, Rice and Dal";
-    let baseGrocery = GROCERY_PRODUCTS;
-    
+    let baseGrocery = products.filter(p => matchesType(p, "grocery"));
+
     // Apply Left Sidebar Category Filter
-    if (activeSidebar === "Atta") {
-      baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "Atta"));
-    } else if (activeSidebar === "High Protein Atta") {
-      baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "High Protein Atta") || p.name.toLowerCase().includes("high protein"));
-    } else if (activeSidebar === "Rice") {
-      baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "Rice") || matchCategoryOrSub(p, "Basmati Rice"));
-    } else if (activeSidebar === "Basmati Rice") {
-      baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "Basmati Rice"));
-    } else if (activeSidebar === "Toor, Moong and Urad") {
-      baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "Toor, Moong and Urad"));
-    } else if (activeSidebar === "Premium Brands") {
-      baseGrocery = baseGrocery.filter(p => p.brand === "Aashirvaad" || p.brand === "Pillsbury" || p.brand === "Fortune");
-    } else if (activeSidebar === "Millets & Daliya") {
-      baseGrocery = baseGrocery.filter(p => p.name.toLowerCase().includes("millets") || p.name.toLowerCase().includes("multigrain") || p.name.toLowerCase().includes("multigrains"));
-    } else {
-      baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, activeSidebar));
+    if (activeSidebar && activeSidebar !== "All") {
+      if (activeSidebar === "Atta") {
+        baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "Atta"));
+      } else if (activeSidebar === "High Protein Atta") {
+        baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "High Protein Atta") || p.name.toLowerCase().includes("high protein"));
+      } else if (activeSidebar === "Rice") {
+        baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "Rice") || matchCategoryOrSub(p, "Basmati Rice"));
+      } else if (activeSidebar === "Basmati Rice") {
+        baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "Basmati Rice"));
+      } else if (activeSidebar === "Toor, Moong and Urad") {
+        baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, "Toor, Moong and Urad"));
+      } else if (activeSidebar === "Premium Brands") {
+        baseGrocery = baseGrocery.filter(p => p.brand === "Aashirvaad" || p.brand === "Pillsbury" || p.brand === "Fortune");
+      } else if (activeSidebar === "Millets & Daliya") {
+        baseGrocery = baseGrocery.filter(p => p.name.toLowerCase().includes("millets") || p.name.toLowerCase().includes("multigrain") || p.name.toLowerCase().includes("multigrains"));
+      } else {
+        baseGrocery = baseGrocery.filter(p => matchCategoryOrSub(p, activeSidebar));
+      }
     }
 
     // Apply Quick Filter Badges
@@ -3334,13 +3390,15 @@ export default function SectionProductsPage({
     filtered = baseGrocery;
   } else if (type === "masalas") {
     sectionTitle = "🌶️ Masalas";
-    let baseMasalas = MASALAS_PRODUCTS;
-    
+    let baseMasalas = products.filter(p => matchesType(p, "masalas"));
+
     // Apply Left Sidebar Category Filter
-    if (activeSidebar === "Whole Spices") {
-      baseMasalas = baseMasalas.filter(p => matchCategoryOrSub(p, "Whole Spices"));
-    } else {
-      baseMasalas = baseMasalas.filter(p => matchCategoryOrSub(p, activeSidebar));
+    if (activeSidebar && activeSidebar !== "All") {
+      if (activeSidebar === "Whole Spices") {
+        baseMasalas = baseMasalas.filter(p => matchCategoryOrSub(p, "Whole Spices"));
+      } else {
+        baseMasalas = baseMasalas.filter(p => matchCategoryOrSub(p, activeSidebar));
+      }
     }
 
     // Apply Quick Filter Badges
@@ -3377,13 +3435,15 @@ export default function SectionProductsPage({
     filtered = baseMasalas;
   } else if (DYNAMIC_CONFIG[type]) {
     sectionTitle = DYNAMIC_CONFIG[type].title;
-    let baseDynamic = DYNAMIC_PRODUCTS.filter(p => p.section === type);
-    
+    let baseDynamic = products.filter(p => matchesType(p, type));
+
     // Apply Left Sidebar Category Filter
-    if (activeSidebar === "Top Deals") {
-      baseDynamic = baseDynamic.filter(p => p.originalPrice > p.price || (p.variants && p.variants[0]?.originalPrice > p.variants[0]?.price));
-    } else {
-      baseDynamic = baseDynamic.filter(p => matchCategoryOrSub(p, activeSidebar));
+    if (activeSidebar && activeSidebar !== "All") {
+      if (activeSidebar === "Top Deals") {
+        baseDynamic = baseDynamic.filter(p => p.originalPrice > p.price || (p.variants && p.variants[0]?.originalPrice > p.variants[0]?.price));
+      } else {
+        baseDynamic = baseDynamic.filter(p => matchCategoryOrSub(p, activeSidebar));
+      }
     }
 
     // Apply Quick Filter Badges
@@ -3570,6 +3630,23 @@ export default function SectionProductsPage({
     );
   });
 
+  useEffect(() => {
+    if (!loading && products.length > 0) {
+      console.log("=== PRODUCT FLOW METRICS ===");
+      console.log("ALL PRODUCTS:", products.length);
+      console.log(
+        "DAIRY PRODUCTS:",
+        products.filter(p => getCategoryMatch(p.category, "Dairy, Bread & Eggs")).length
+      );
+      console.log("ACTIVE TYPE:", activeQuickFilter);
+      console.log("ACTIVE BRAND:", activeQuickFilter);
+      console.log("ACTIVE SUBCATEGORY:", activeSidebar);
+      console.log("FINAL:", searchedProducts.length);
+      console.log(searchedProducts);
+      console.log("=============================");
+    }
+  }, [products, type, activeSidebar, activeQuickFilter, displayedProducts, searchedProducts, loading]);
+
   const getProductId = (product) => {
     return String(product._id || product.id);
   };
@@ -3727,6 +3804,7 @@ export default function SectionProductsPage({
             }}
           >
             {[
+              { id: "All", name: "Show All", emoji: "🛍️" },
               { id: "Mango", name: "Mango", emoji: "🥭" },
               { id: "Fresh Fruits", name: "Fresh Fruits", emoji: "🍎" },
               { id: "Exotic Fruits", name: "Exotic Fruits", emoji: "🥝" },
@@ -3757,7 +3835,7 @@ export default function SectionProductsPage({
                     alignItems: "center",
                     padding: "16px 12px",
                     cursor: "pointer",
-                    borderLeft: isActive ? "4px solid #db2777" : "4px solid transparent",
+                    borderLeft: isActive ? "4px solid #318616" : "4px solid transparent",
                     background: isActive ? "#fdf2f8" : "transparent",
                     transition: "all 0.2s",
                     textAlign: "center",
@@ -3783,7 +3861,7 @@ export default function SectionProductsPage({
                     style={{
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isActive ? "#db2777" : "#4b5563",
+                      color: isActive ? "#318616" : "#4b5563",
                     }}
                   >
                     {item.name}
@@ -3800,8 +3878,8 @@ export default function SectionProductsPage({
               <button
                 onClick={() => setShowFiltersPanel(!showFiltersPanel)}
                 style={{
-                  background: showFiltersPanel ? "#FF4D4F" : "white",
-                  border: showFiltersPanel ? "1.5px solid #FF4D4F" : "1px solid #e5e7eb",
+                  background: showFiltersPanel ? "#318616" : "white",
+                  border: showFiltersPanel ? "1.5px solid #318616" : "1px solid #e5e7eb",
                   borderRadius: "12px",
                   padding: "8px 16px",
                   fontSize: "13px",
@@ -3818,8 +3896,8 @@ export default function SectionProductsPage({
                 Filters 🎛️
                 {(filterOrganic || filterUnder30 || filterInStock || filterDiscount) && (
                   <span style={{
-                    background: showFiltersPanel ? "white" : "#FF4D4F",
-                    color: showFiltersPanel ? "#FF4D4F" : "white",
+                    background: showFiltersPanel ? "white" : "#318616",
+                    color: showFiltersPanel ? "#318616" : "white",
                     borderRadius: "50%",
                     width: "18px",
                     height: "18px",
@@ -3900,9 +3978,9 @@ export default function SectionProductsPage({
                     key={f.id}
                     onClick={f.toggle}
                     style={{
-                      background: f.active ? "#FF4D4F" : "white",
+                      background: f.active ? "#318616" : "white",
                       color: f.active ? "white" : "#4b5563",
-                      border: f.active ? "1.5px solid #FF4D4F" : "1px solid #d1d5db",
+                      border: f.active ? "1.5px solid #318616" : "1px solid #d1d5db",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
@@ -3925,7 +4003,7 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: "transparent",
-                      color: "#ef4444",
+                      color: "#318616",
                       border: "none",
                       fontSize: "12px",
                       fontWeight: "800",
@@ -3965,12 +4043,12 @@ export default function SectionProductsPage({
                       }}
                       style={{
                         background: isPillActive ? "white" : "white",
-                        border: isPillActive ? "1.5px solid #b91c1c" : "1px solid #e5e7eb",
+                        border: isPillActive ? "1.5px solid #318616" : "1px solid #e5e7eb",
                         borderRadius: "20px",
                         padding: "6px 14px",
                         fontSize: "12px",
                         fontWeight: "800",
-                        color: isPillActive ? "#b91c1c" : "#374151",
+                        color: isPillActive ? "#318616" : "#374151",
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                       }}
@@ -3995,12 +4073,12 @@ export default function SectionProductsPage({
                       }}
                       style={{
                         background: isPillActive ? "white" : "white",
-                        border: isPillActive ? "1.5px solid #b91c1c" : "1px solid #e5e7eb",
+                        border: isPillActive ? "1.5px solid #318616" : "1px solid #e5e7eb",
                         borderRadius: "20px",
                         padding: "6px 14px",
                         fontSize: "12px",
                         fontWeight: "800",
-                        color: isPillActive ? "#b91c1c" : "#374151",
+                        color: isPillActive ? "#318616" : "#374151",
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                       }}
@@ -4131,6 +4209,7 @@ export default function SectionProductsPage({
             }}
           >
             {[
+              { id: "All", name: "Show All", emoji: "🛍️" },
               { id: "Milk", name: "Milk", emoji: "🥛" },
               { id: "Eggs", name: "Eggs", emoji: "🥚" },
               { id: "Curd and Yogurts", name: "Curd and Yogurts", emoji: "🥣" },
@@ -4160,7 +4239,7 @@ export default function SectionProductsPage({
                     alignItems: "center",
                     padding: "16px 12px",
                     cursor: "pointer",
-                    borderLeft: isActive ? "4px solid #db2777" : "4px solid transparent",
+                    borderLeft: isActive ? "4px solid #318616" : "4px solid transparent",
                     background: isActive ? "#fdf2f8" : "transparent",
                     transition: "all 0.2s",
                     textAlign: "center",
@@ -4186,7 +4265,7 @@ export default function SectionProductsPage({
                     style={{
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isActive ? "#db2777" : "#4b5563",
+                      color: isActive ? "#318616" : "#4b5563",
                     }}
                   >
                     {item.name}
@@ -4203,8 +4282,8 @@ export default function SectionProductsPage({
               <button
                 onClick={() => setShowFiltersPanel(!showFiltersPanel)}
                 style={{
-                  background: showFiltersPanel ? "#FF4D4F" : "white",
-                  border: showFiltersPanel ? "1.5px solid #FF4D4F" : "1px solid #e5e7eb",
+                  background: showFiltersPanel ? "#318616" : "white",
+                  border: showFiltersPanel ? "1.5px solid #318616" : "1px solid #e5e7eb",
                   borderRadius: "12px",
                   padding: "8px 16px",
                   fontSize: "13px",
@@ -4221,8 +4300,8 @@ export default function SectionProductsPage({
                 Filters 🎛️
                 {(filterOrganic || filterUnder30 || filterInStock || filterDiscount) && (
                   <span style={{
-                    background: showFiltersPanel ? "white" : "#FF4D4F",
-                    color: showFiltersPanel ? "#FF4D4F" : "white",
+                    background: showFiltersPanel ? "white" : "#318616",
+                    color: showFiltersPanel ? "#318616" : "white",
                     borderRadius: "50%",
                     width: "18px",
                     height: "18px",
@@ -4303,9 +4382,9 @@ export default function SectionProductsPage({
                     key={f.id}
                     onClick={f.toggle}
                     style={{
-                      background: f.active ? "#FF4D4F" : "white",
+                      background: f.active ? "#318616" : "white",
                       color: f.active ? "white" : "#4b5563",
-                      border: f.active ? "1.5px solid #FF4D4F" : "1px solid #d1d5db",
+                      border: f.active ? "1.5px solid #318616" : "1px solid #d1d5db",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
@@ -4364,12 +4443,12 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: isPillActive ? "white" : "white",
-                      border: isPillActive ? "1.5px solid #db2777" : "1px solid #e5e7eb",
+                      border: isPillActive ? "1.5px solid #318616" : "1px solid #e5e7eb",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isPillActive ? "#db2777" : "#374151",
+                      color: isPillActive ? "#318616" : "#374151",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
                     }}
@@ -4480,7 +4559,13 @@ export default function SectionProductsPage({
   }
 
   if (DYNAMIC_CONFIG[type]) {
-    const config = DYNAMIC_CONFIG[type];
+    const config = DYNAMIC_CONFIG[type] ? {
+      ...DYNAMIC_CONFIG[type],
+      sidebarItems: [
+        { id: "All", name: "Show All", emoji: "🛍️" },
+        ...DYNAMIC_CONFIG[type].sidebarItems
+      ]
+    } : null;
     return (
       <div
         style={{
@@ -4575,7 +4660,7 @@ export default function SectionProductsPage({
                     alignItems: "center",
                     padding: "16px 12px",
                     cursor: "pointer",
-                    borderLeft: isActive ? "4px solid #db2777" : "4px solid transparent",
+                    borderLeft: isActive ? "4px solid #318616" : "4px solid transparent",
                     background: isActive ? "#fdf2f8" : "transparent",
                     transition: "all 0.2s",
                     textAlign: "center",
@@ -4601,7 +4686,7 @@ export default function SectionProductsPage({
                     style={{
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isActive ? "#db2777" : "#4b5563",
+                      color: isActive ? "#318616" : "#4b5563",
                     }}
                   >
                     {item.name}
@@ -4618,8 +4703,8 @@ export default function SectionProductsPage({
               <button
                 onClick={() => setShowFiltersPanel(!showFiltersPanel)}
                 style={{
-                  background: showFiltersPanel ? "#FF4D4F" : "white",
-                  border: showFiltersPanel ? "1.5px solid #FF4D4F" : "1px solid #e5e7eb",
+                  background: showFiltersPanel ? "#318616" : "white",
+                  border: showFiltersPanel ? "1.5px solid #318616" : "1px solid #e5e7eb",
                   borderRadius: "12px",
                   padding: "8px 16px",
                   fontSize: "13px",
@@ -4636,8 +4721,8 @@ export default function SectionProductsPage({
                 Filters 🎛️
                 {(filterOrganic || filterUnder30 || filterInStock || filterDiscount) && (
                   <span style={{
-                    background: showFiltersPanel ? "white" : "#FF4D4F",
-                    color: showFiltersPanel ? "#FF4D4F" : "white",
+                    background: showFiltersPanel ? "white" : "#318616",
+                    color: showFiltersPanel ? "#318616" : "white",
                     borderRadius: "50%",
                     width: "18px",
                     height: "18px",
@@ -4718,9 +4803,9 @@ export default function SectionProductsPage({
                     key={f.id}
                     onClick={f.toggle}
                     style={{
-                      background: f.active ? "#FF4D4F" : "white",
+                      background: f.active ? "#318616" : "white",
                       color: f.active ? "white" : "#4b5563",
-                      border: f.active ? "1.5px solid #FF4D4F" : "1px solid #d1d5db",
+                      border: f.active ? "1.5px solid #318616" : "1px solid #d1d5db",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
@@ -4743,7 +4828,7 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: "transparent",
-                      color: "#ef4444",
+                      color: "#318616",
                       border: "none",
                       fontSize: "12px",
                       fontWeight: "800",
@@ -4771,12 +4856,12 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: isPillActive ? "white" : "white",
-                      border: isPillActive ? "1.5px solid #db2777" : "1px solid #e5e7eb",
+                      border: isPillActive ? "1.5px solid #318616" : "1px solid #e5e7eb",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isPillActive ? "#db2777" : "#374151",
+                      color: isPillActive ? "#318616" : "#374151",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
                     }}
@@ -4906,6 +4991,7 @@ export default function SectionProductsPage({
             }}
           >
             {[
+              { id: "All", name: "Show All", emoji: "🛍️" },
               { id: "Whole Spices", name: "Whole Spices", emoji: "🥣" },
               { id: "Sugar and Jaggery", name: "Sugar & Jaggery", emoji: "🪵" },
               { id: "Cold Grind", name: "Cold Grind", emoji: "🧂" },
@@ -4931,7 +5017,7 @@ export default function SectionProductsPage({
                     alignItems: "center",
                     padding: "16px 12px",
                     cursor: "pointer",
-                    borderLeft: isActive ? "4px solid #db2777" : "4px solid transparent",
+                    borderLeft: isActive ? "4px solid #318616" : "4px solid transparent",
                     background: isActive ? "#fdf2f8" : "transparent",
                     transition: "all 0.2s",
                     textAlign: "center",
@@ -4957,7 +5043,7 @@ export default function SectionProductsPage({
                     style={{
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isActive ? "#db2777" : "#4b5563",
+                      color: isActive ? "#318616" : "#4b5563",
                     }}
                   >
                     {item.name}
@@ -4974,8 +5060,8 @@ export default function SectionProductsPage({
               <button
                 onClick={() => setShowFiltersPanel(!showFiltersPanel)}
                 style={{
-                  background: showFiltersPanel ? "#FF4D4F" : "white",
-                  border: showFiltersPanel ? "1.5px solid #FF4D4F" : "1px solid #e5e7eb",
+                  background: showFiltersPanel ? "#318616" : "white",
+                  border: showFiltersPanel ? "1.5px solid #318616" : "1px solid #e5e7eb",
                   borderRadius: "12px",
                   padding: "8px 16px",
                   fontSize: "13px",
@@ -4992,8 +5078,8 @@ export default function SectionProductsPage({
                 Filters 🎛️
                 {(filterOrganic || filterUnder30 || filterInStock || filterDiscount) && (
                   <span style={{
-                    background: showFiltersPanel ? "white" : "#FF4D4F",
-                    color: showFiltersPanel ? "#FF4D4F" : "white",
+                    background: showFiltersPanel ? "white" : "#318616",
+                    color: showFiltersPanel ? "#318616" : "white",
                     borderRadius: "50%",
                     width: "18px",
                     height: "18px",
@@ -5074,9 +5160,9 @@ export default function SectionProductsPage({
                     key={f.id}
                     onClick={f.toggle}
                     style={{
-                      background: f.active ? "#FF4D4F" : "white",
+                      background: f.active ? "#318616" : "white",
                       color: f.active ? "white" : "#4b5563",
-                      border: f.active ? "1.5px solid #FF4D4F" : "1px solid #d1d5db",
+                      border: f.active ? "1.5px solid #318616" : "1px solid #d1d5db",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
@@ -5099,7 +5185,7 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: "transparent",
-                      color: "#ef4444",
+                      color: "#318616",
                       border: "none",
                       fontSize: "12px",
                       fontWeight: "800",
@@ -5136,12 +5222,12 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: isPillActive ? "white" : "white",
-                      border: isPillActive ? "1.5px solid #db2777" : "1px solid #e5e7eb",
+                      border: isPillActive ? "1.5px solid #318616" : "1px solid #e5e7eb",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isPillActive ? "#db2777" : "#374151",
+                      color: isPillActive ? "#318616" : "#374151",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
                     }}
@@ -5271,6 +5357,7 @@ export default function SectionProductsPage({
             }}
           >
             {[
+              { id: "All", name: "Show All", emoji: "🛍️" },
               { id: "Atta", name: "Atta", emoji: "🌾" },
               { id: "Rice", name: "Rice", emoji: "🍚" },
               { id: "Toor, Moong and Urad", name: "Toor, Moong & Urad", emoji: "🍲" },
@@ -5300,7 +5387,7 @@ export default function SectionProductsPage({
                     alignItems: "center",
                     padding: "16px 12px",
                     cursor: "pointer",
-                    borderLeft: isActive ? "4px solid #db2777" : "4px solid transparent",
+                    borderLeft: isActive ? "4px solid #318616" : "4px solid transparent",
                     background: isActive ? "#fdf2f8" : "transparent",
                     transition: "all 0.2s",
                     textAlign: "center",
@@ -5326,7 +5413,7 @@ export default function SectionProductsPage({
                     style={{
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isActive ? "#db2777" : "#4b5563",
+                      color: isActive ? "#318616" : "#4b5563",
                     }}
                   >
                     {item.name}
@@ -5398,8 +5485,8 @@ export default function SectionProductsPage({
               <button
                 onClick={() => setShowFiltersPanel(!showFiltersPanel)}
                 style={{
-                  background: showFiltersPanel ? "#FF4D4F" : "white",
-                  border: showFiltersPanel ? "1.5px solid #FF4D4F" : "1px solid #e5e7eb",
+                  background: showFiltersPanel ? "#318616" : "white",
+                  border: showFiltersPanel ? "1.5px solid #318616" : "1px solid #e5e7eb",
                   borderRadius: "12px",
                   padding: "8px 16px",
                   fontSize: "13px",
@@ -5416,8 +5503,8 @@ export default function SectionProductsPage({
                 Filters 🎛️
                 {(filterOrganic || filterUnder30 || filterInStock || filterDiscount) && (
                   <span style={{
-                    background: showFiltersPanel ? "white" : "#FF4D4F",
-                    color: showFiltersPanel ? "#FF4D4F" : "white",
+                    background: showFiltersPanel ? "white" : "#318616",
+                    color: showFiltersPanel ? "#318616" : "white",
                     borderRadius: "50%",
                     width: "18px",
                     height: "18px",
@@ -5498,9 +5585,9 @@ export default function SectionProductsPage({
                     key={f.id}
                     onClick={f.toggle}
                     style={{
-                      background: f.active ? "#FF4D4F" : "white",
+                      background: f.active ? "#318616" : "white",
                       color: f.active ? "white" : "#4b5563",
-                      border: f.active ? "1.5px solid #FF4D4F" : "1px solid #d1d5db",
+                      border: f.active ? "1.5px solid #318616" : "1px solid #d1d5db",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
@@ -5523,7 +5610,7 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: "transparent",
-                      color: "#ef4444",
+                      color: "#318616",
                       border: "none",
                       fontSize: "12px",
                       fontWeight: "800",
@@ -5560,12 +5647,12 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: isPillActive ? "white" : "white",
-                      border: isPillActive ? "1.5px solid #db2777" : "1px solid #e5e7eb",
+                      border: isPillActive ? "1.5px solid #318616" : "1px solid #e5e7eb",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isPillActive ? "#db2777" : "#374151",
+                      color: isPillActive ? "#318616" : "#374151",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
                     }}
@@ -5695,6 +5782,7 @@ export default function SectionProductsPage({
             }}
           >
             {[
+              { id: "All", name: "Show All", emoji: "🛍️" },
               { id: "Fresh Chicken", name: "Fresh Chicken", emoji: "🍗" },
               { id: "Fresh Seafood", name: "Fresh Seafood", emoji: "🍤" },
               { id: "Fresh Mutton", name: "Fresh Mutton", emoji: "🥩" },
@@ -5719,7 +5807,7 @@ export default function SectionProductsPage({
                     alignItems: "center",
                     padding: "16px 12px",
                     cursor: "pointer",
-                    borderLeft: isActive ? "4px solid #db2777" : "4px solid transparent",
+                    borderLeft: isActive ? "4px solid #318616" : "4px solid transparent",
                     background: isActive ? "#fdf2f8" : "transparent",
                     transition: "all 0.2s",
                     textAlign: "center",
@@ -5745,7 +5833,7 @@ export default function SectionProductsPage({
                     style={{
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isActive ? "#db2777" : "#4b5563",
+                      color: isActive ? "#318616" : "#4b5563",
                     }}
                   >
                     {item.name}
@@ -5762,8 +5850,8 @@ export default function SectionProductsPage({
               <button
                 onClick={() => setShowFiltersPanel(!showFiltersPanel)}
                 style={{
-                  background: showFiltersPanel ? "#FF4D4F" : "white",
-                  border: showFiltersPanel ? "1.5px solid #FF4D4F" : "1px solid #e5e7eb",
+                  background: showFiltersPanel ? "#318616" : "white",
+                  border: showFiltersPanel ? "1.5px solid #318616" : "1px solid #e5e7eb",
                   borderRadius: "12px",
                   padding: "8px 16px",
                   fontSize: "13px",
@@ -5780,8 +5868,8 @@ export default function SectionProductsPage({
                 Filters 🎛️
                 {(filterOrganic || filterUnder30 || filterInStock || filterDiscount) && (
                   <span style={{
-                    background: showFiltersPanel ? "white" : "#FF4D4F",
-                    color: showFiltersPanel ? "#FF4D4F" : "white",
+                    background: showFiltersPanel ? "white" : "#318616",
+                    color: showFiltersPanel ? "#318616" : "white",
                     borderRadius: "50%",
                     width: "18px",
                     height: "18px",
@@ -5862,9 +5950,9 @@ export default function SectionProductsPage({
                     key={f.id}
                     onClick={f.toggle}
                     style={{
-                      background: f.active ? "#FF4D4F" : "white",
+                      background: f.active ? "#318616" : "white",
                       color: f.active ? "white" : "#4b5563",
-                      border: f.active ? "1.5px solid #FF4D4F" : "1px solid #d1d5db",
+                      border: f.active ? "1.5px solid #318616" : "1px solid #d1d5db",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
@@ -5887,7 +5975,7 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: "transparent",
-                      color: "#ef4444",
+                      color: "#318616",
                       border: "none",
                       fontSize: "12px",
                       fontWeight: "800",
@@ -5924,12 +6012,12 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: isPillActive ? "white" : "white",
-                      border: isPillActive ? "1.5px solid #db2777" : "1px solid #e5e7eb",
+                      border: isPillActive ? "1.5px solid #318616" : "1px solid #e5e7eb",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isPillActive ? "#db2777" : "#374151",
+                      color: isPillActive ? "#318616" : "#374151",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
                     }}
@@ -6059,6 +6147,7 @@ export default function SectionProductsPage({
             }}
           >
             {[
+              { id: "All", name: "Show All", emoji: "🛍️" },
               { id: "Fresh Vegetables", name: "Fresh Vegetables", emoji: "🥦", image: "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=100" },
               { id: "Leafy and Seasonings", name: "Leafy & Seasonings", emoji: "🥬", image: "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=100" },
               { id: "Exotic Vegetables", name: "Exotic Vegetables", emoji: "🍆", image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=100" },
@@ -6079,7 +6168,7 @@ export default function SectionProductsPage({
                     alignItems: "center",
                     padding: "16px 12px",
                     cursor: "pointer",
-                    borderLeft: isActive ? "4px solid #db2777" : "4px solid transparent",
+                    borderLeft: isActive ? "4px solid #318616" : "4px solid transparent",
                     background: isActive ? "#fdf2f8" : "transparent",
                     transition: "all 0.2s",
                     textAlign: "center",
@@ -6105,7 +6194,7 @@ export default function SectionProductsPage({
                     style={{
                       fontSize: "12px",
                       fontWeight: "800",
-                      color: isActive ? "#db2777" : "#4b5563",
+                      color: isActive ? "#318616" : "#4b5563",
                     }}
                   >
                     {item.name}
@@ -6122,8 +6211,8 @@ export default function SectionProductsPage({
               <button
                 onClick={() => setShowFiltersPanel(!showFiltersPanel)}
                 style={{
-                  background: showFiltersPanel ? "#FF4D4F" : "white",
-                  border: showFiltersPanel ? "1.5px solid #FF4D4F" : "1px solid #e5e7eb",
+                  background: showFiltersPanel ? "#318616" : "white",
+                  border: showFiltersPanel ? "1.5px solid #318616" : "1px solid #e5e7eb",
                   borderRadius: "12px",
                   padding: "8px 16px",
                   fontSize: "13px",
@@ -6140,8 +6229,8 @@ export default function SectionProductsPage({
                 Filters 🎛️
                 {(filterOrganic || filterUnder30 || filterInStock || filterDiscount) && (
                   <span style={{
-                    background: showFiltersPanel ? "white" : "#FF4D4F",
-                    color: showFiltersPanel ? "#FF4D4F" : "white",
+                    background: showFiltersPanel ? "white" : "#318616",
+                    color: showFiltersPanel ? "#318616" : "white",
                     borderRadius: "50%",
                     width: "18px",
                     height: "18px",
@@ -6158,13 +6247,13 @@ export default function SectionProductsPage({
               <button
                 onClick={() => setActiveGourmet(!activeGourmet)}
                 style={{
-                  background: activeGourmet ? "#ea580c" : "white",
-                  border: activeGourmet ? "1.5px solid #ea580c" : "1.5px solid #fed7aa",
+                  background: activeGourmet ? "#318616" : "white",
+                  border: activeGourmet ? "1.5px solid #318616" : "1.5px solid #fed7aa",
                   borderRadius: "12px",
                   padding: "8px 16px",
                   fontSize: "13px",
                   fontWeight: "800",
-                  color: activeGourmet ? "white" : "#ea580c",
+                  color: activeGourmet ? "white" : "#318616",
                   cursor: "pointer",
                   transition: "all 0.2s",
                   boxShadow: activeGourmet ? "0 2px 8px rgba(234,88,12,0.2)" : "none",
@@ -6222,9 +6311,9 @@ export default function SectionProductsPage({
                     key={f.id}
                     onClick={f.toggle}
                     style={{
-                      background: f.active ? "#FF4D4F" : "white",
+                      background: f.active ? "#318616" : "white",
                       color: f.active ? "white" : "#4b5563",
-                      border: f.active ? "1.5px solid #FF4D4F" : "1px solid #d1d5db",
+                      border: f.active ? "1.5px solid #318616" : "1px solid #d1d5db",
                       borderRadius: "20px",
                       padding: "6px 14px",
                       fontSize: "12px",
@@ -6247,7 +6336,7 @@ export default function SectionProductsPage({
                     }}
                     style={{
                       background: "transparent",
-                      color: "#ef4444",
+                      color: "#318616",
                       border: "none",
                       fontSize: "12px",
                       fontWeight: "800",
@@ -6344,7 +6433,7 @@ export default function SectionProductsPage({
       }}
     >
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        
+
         {/* Navigation & Header Portal */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", flexWrap: "wrap", gap: "16px" }}>
           <div>

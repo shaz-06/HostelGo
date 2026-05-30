@@ -146,15 +146,18 @@ export default function ProductDetailsPage({
         </h2>
         <button
           onClick={() => navigate("/")}
+          onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
+          onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
           style={{
             marginTop: "16px",
-            background: "#FF4D4F",
+            background: "#318616",
             color: "white",
             border: "none",
             padding: "10px 20px",
             borderRadius: "12px",
             fontWeight: "700",
             cursor: "pointer",
+            transition: "background 0.2s",
           }}
         >
           Go Back Home
@@ -168,18 +171,21 @@ export default function ProductDetailsPage({
       {/* Back button */}
       <button
         onClick={() => navigate(-1)}
+        onMouseOver={(e) => (e.currentTarget.style.color = "#286f12")}
+        onMouseOut={(e) => (e.currentTarget.style.color = "#318616")}
         style={{
           marginBottom: "20px",
           display: "flex",
           alignItems: "center",
           gap: "8px",
-          color: "#FF4D4F",
+          color: "#318616",
           fontWeight: "700",
           fontSize: "15px",
           cursor: "pointer",
           border: "none",
           background: "none",
           padding: 0,
+          transition: "color 0.2s",
         }}
       >
         ← Back
@@ -236,8 +242,8 @@ export default function ProductDetailsPage({
                   top: "16px",
                   right: "16px",
                   background: "white",
-                  border: "2px solid #FF4D4F",
-                  color: "#FF4D4F",
+                  border: "2px solid #318616",
+                  color: "#318616",
                   width: "48px",
                   height: "48px",
                   borderRadius: "12px",
@@ -261,7 +267,7 @@ export default function ProductDetailsPage({
                   display: "flex",
                   alignItems: "center",
                   background: "white",
-                  border: "1px solid #FF4D4F",
+                  border: "1px solid #318616",
                   borderRadius: "12px",
                   height: "48px",
                   overflow: "hidden",
@@ -275,7 +281,7 @@ export default function ProductDetailsPage({
                     height: "100%",
                     background: "white",
                     border: "none",
-                    color: "#FF4D4F",
+                    color: "#318616",
                     fontSize: "20px",
                     fontWeight: "bold",
                     cursor: "pointer",
@@ -286,7 +292,7 @@ export default function ProductDetailsPage({
                 >
                   -
                 </button>
-                <span style={{ color: "#FF4D4F", fontWeight: "800", fontSize: "16px", padding: "0 8px", minWidth: "20px", textAlign: "center" }}>
+                <span style={{ color: "#318616", fontWeight: "800", fontSize: "16px", padding: "0 8px", minWidth: "20px", textAlign: "center" }}>
                   {quantity}
                 </span>
                 <button
@@ -302,7 +308,7 @@ export default function ProductDetailsPage({
                     height: "100%",
                     background: "white",
                     border: "none",
-                    color: "#FF4D4F",
+                    color: "#318616",
                     fontSize: "20px",
                     fontWeight: "bold",
                     cursor: "pointer",
@@ -321,7 +327,7 @@ export default function ProductDetailsPage({
         {/* Right Column: Details Info */}
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
-            <span style={{ background: "#FFF1F0", color: "#FF4D4F", fontSize: "12px", fontWeight: "700", padding: "6px 12px", borderRadius: "9999px", textTransform: "uppercase", tracking: "wider" }}>
+            <span style={{ background: "#EBF5EA", color: "#318616", fontSize: "12px", fontWeight: "700", padding: "6px 12px", borderRadius: "9999px", textTransform: "uppercase", tracking: "wider" }}>
               {activeProduct.category}
             </span>
 
@@ -330,7 +336,7 @@ export default function ProductDetailsPage({
             </h2>
 
             <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "8px", background: "#f3f4f6", padding: "6px 12px", borderRadius: "12px", width: "fit-content" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF4D4F" strokeWidth="2.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#318616" strokeWidth="2.5">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
@@ -351,9 +357,9 @@ export default function ProductDetailsPage({
                       style={{
                         padding: "10px 16px",
                         borderRadius: "12px",
-                        border: selectedVariantIndex === idx ? "1.5px solid #FF4D4F" : "1px solid #e5e7eb",
-                        background: selectedVariantIndex === idx ? "#FFF1F0" : "white",
-                        color: selectedVariantIndex === idx ? "#FF4D4F" : "#4b5563",
+                        border: selectedVariantIndex === idx ? "1.5px solid #318616" : "1px solid #e5e7eb",
+                        background: selectedVariantIndex === idx ? "#EBF5EA" : "white",
+                        color: selectedVariantIndex === idx ? "#318616" : "#4b5563",
                         fontSize: "13px",
                         fontWeight: "700",
                         cursor: "pointer",
@@ -424,29 +430,33 @@ export default function ProductDetailsPage({
             </div>
 
             {/* Highlights */}
-            <div style={{ marginTop: "16px" }}>
-              <h3 style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", letterSpacing: "1px", marginBottom: "8px" }}>HIGHLIGHTS</h3>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {activeProduct.highlights.map((h, i) => (
-                  <span key={i} style={{ background: "#f0fdf4", color: "#15803d", fontSize: "12px", fontWeight: "700", padding: "6px 12px", borderRadius: "8px" }}>
-                    ✓ {h}
-                  </span>
-                ))}
+            {activeProduct.highlights && Array.isArray(activeProduct.highlights) && activeProduct.highlights.length > 0 && (
+              <div style={{ marginTop: "16px" }}>
+                <h3 style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", letterSpacing: "1px", marginBottom: "8px" }}>HIGHLIGHTS</h3>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                  {activeProduct.highlights.map((h, i) => (
+                    <span key={i} style={{ background: "#f0fdf4", color: "#15803d", fontSize: "12px", fontWeight: "700", padding: "6px 12px", borderRadius: "8px" }}>
+                      ✓ {h}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Nutrition */}
-            <div style={{ marginTop: "16px" }}>
-              <h3 style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", letterSpacing: "1px", marginBottom: "8px" }}>NUTRITION INFO (approx.)</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
-                {Object.entries(activeProduct.nutrition).map(([key, val]) => (
-                  <div key={key} style={{ background: "#f9fafb", borderRadius: "12px", padding: "10px", textAlign: "center", border: "1px solid #f3f4f6" }}>
-                    <p style={{ fontSize: "10px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase", margin: 0 }}>{key}</p>
-                    <p style={{ fontSize: "13px", color: "#1f2937", fontWeight: "800", marginTop: "4px", margin: 0 }}>{val}</p>
-                  </div>
-                ))}
+            {activeProduct.nutrition && typeof activeProduct.nutrition === "object" && Object.keys(activeProduct.nutrition).length > 0 && (
+              <div style={{ marginTop: "16px" }}>
+                <h3 style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", letterSpacing: "1px", marginBottom: "8px" }}>NUTRITION INFO (approx.)</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+                  {Object.entries(activeProduct.nutrition).map(([key, val]) => (
+                    <div key={key} style={{ background: "#f9fafb", borderRadius: "12px", padding: "10px", textAlign: "center", border: "1px solid #f3f4f6" }}>
+                      <p style={{ fontSize: "10px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase", margin: 0 }}>{key}</p>
+                      <p style={{ fontSize: "13px", color: "#1f2937", fontWeight: "800", marginTop: "4px", margin: 0 }}>{val}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Bottom Action Button */}
@@ -480,8 +490,10 @@ export default function ProductDetailsPage({
                     }
                     addToCart(productToCart);
                   }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
+                  onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
                   style={{
-                    background: "#FF4D4F",
+                    background: "#318616",
                     color: "white",
                     width: "100%",
                     padding: "16px",
@@ -490,8 +502,8 @@ export default function ProductDetailsPage({
                     fontWeight: "bold",
                     fontSize: "16px",
                     cursor: "pointer",
-                    boxShadow: "0 4px 12px rgba(255, 77, 79, 0.15)",
-                    transition: "0.2s",
+                    boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
+                    transition: "all 0.2s",
                   }}
                 >
                   ADD TO CART
@@ -502,11 +514,11 @@ export default function ProductDetailsPage({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    background: "#FF4D4F",
+                    background: "#318616",
                     borderRadius: "16px",
                     width: "100%",
                     overflow: "hidden",
-                    boxShadow: "0 4px 12px rgba(255, 77, 79, 0.15)",
+                    boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
                   }}
                 >
                   <button
@@ -566,8 +578,8 @@ export default function ProductDetailsPage({
                 windowWidth < 768
                   ? "repeat(2, 1fr)"
                   : windowWidth < 1024
-                  ? "repeat(4, 1fr)"
-                  : "repeat(4, 1fr)",
+                    ? "repeat(4, 1fr)"
+                    : "repeat(4, 1fr)",
               gap: windowWidth < 768 ? "12px" : "20px",
             }}
           >

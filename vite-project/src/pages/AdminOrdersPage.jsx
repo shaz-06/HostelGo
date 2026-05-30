@@ -7,6 +7,7 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState("");
   const [error, setError] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("All");
 
   const fetchOrders = async () => {
     try {
@@ -159,12 +160,102 @@ export default function AdminOrdersPage() {
             <button onClick={() => navigate("/admin/riders")} style={navLinkStyle}>
               🛵 Riders Management
             </button>
+            <button onClick={() => navigate("/admin/support")} style={navLinkStyle}>
+              💬 Customer Support
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              style={{
+                ...navLinkStyle,
+                marginTop: "12px",
+                borderTop: "1px solid #E5E7EB",
+                borderRadius: "0",
+                paddingTop: "12px",
+                color: "#318616",
+                fontWeight: "800"
+              }}
+            >
+              🏪 Open Customer App
+            </button>
           </div>
         </nav>
 
         {/* Orders List Panel */}
         <main style={mainPanelStyle}>
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
+
+          {/* Top Summary Cards */}
+          {!loading && orders.length > 0 && (
+            <div style={statsGridStyle}>
+              {/* Total Revenue */}
+              <div style={statCardStyle("#318616")}>
+                <div style={statIconStyle("💰", "#f0fdf4", "#318616")} />
+                <div style={statContentStyle}>
+                  <span style={statLabelStyle}>Total Revenue</span>
+                  <span style={statValStyle}>
+                    ₹{orders.filter(o => o.paymentStatus === "Paid").reduce((sum, o) => sum + o.totalAmount, 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* COD Revenue */}
+              <div style={statCardStyle("#f59e0b")}>
+                <div style={statIconStyle("💵", "#fffbeb", "#f59e0b")} />
+                <div style={statContentStyle}>
+                  <span style={statLabelStyle}>COD Revenue</span>
+                  <span style={statValStyle}>
+                    ₹{orders.filter(o => o.paymentMethod?.toLowerCase() === "cod" && o.paymentStatus === "Paid").reduce((sum, o) => sum + o.totalAmount, 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Online Revenue */}
+              <div style={statCardStyle("#3b82f6")}>
+                <div style={statIconStyle("💳", "#eff6ff", "#3b82f6")} />
+                <div style={statContentStyle}>
+                  <span style={statLabelStyle}>Online Revenue</span>
+                  <span style={statValStyle}>
+                    ₹{orders.filter(o => o.paymentMethod?.toLowerCase() === "razorpay" && o.paymentStatus === "Paid").reduce((sum, o) => sum + o.totalAmount, 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Total Orders */}
+              <div style={statCardStyle("#6b7280")}>
+                <div style={statIconStyle("📦", "#f9fafb", "#6b7280")} />
+                <div style={statContentStyle}>
+                  <span style={statLabelStyle}>Total Orders</span>
+                  <span style={statValStyle}>{orders.length}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Top Payment Filters Row */}
+          {!loading && orders.length > 0 && (
+            <div style={filterBarContainerStyle}>
+              {[
+                { id: "All", label: "All Orders", count: orders.length },
+                { id: "COD", label: "COD Orders", count: orders.filter(o => o.paymentMethod?.toLowerCase() === "cod").length },
+                { id: "Online", label: "Online Payments", count: orders.filter(o => o.paymentMethod?.toLowerCase() === "razorpay").length },
+                { id: "Paid", label: "Paid Orders", count: orders.filter(o => o.paymentStatus === "Paid").length },
+                { id: "Pending", label: "Pending Payments", count: orders.filter(o => o.paymentStatus === "Pending").length },
+              ].map(filter => (
+                <button
+                  key={filter.id}
+                  onClick={() => setPaymentFilter(filter.id)}
+                  style={{
+                    ...filterBtnStyle,
+                    background: paymentFilter === filter.id ? "#318616" : "white",
+                    color: paymentFilter === filter.id ? "white" : "#4b5563",
+                    borderColor: paymentFilter === filter.id ? "#318616" : "#e5e7eb"
+                  }}
+                >
+                  {filter.label} <span style={filterCountBadgeStyle(paymentFilter === filter.id)}>{filter.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {orders.length === 0 ? (
             <div style={emptyCardStyle}>
@@ -174,7 +265,15 @@ export default function AdminOrdersPage() {
             </div>
           ) : (
             <div style={ordersListStyle}>
-              {orders.map((order) => (
+              {orders
+                .filter(order => {
+                  if (paymentFilter === "COD") return order.paymentMethod?.toLowerCase() === "cod";
+                  if (paymentFilter === "Online") return order.paymentMethod?.toLowerCase() === "razorpay";
+                  if (paymentFilter === "Paid") return order.paymentStatus === "Paid";
+                  if (paymentFilter === "Pending") return order.paymentStatus === "Pending";
+                  return true;
+                })
+                .map((order) => (
                 <div key={order._id} style={orderCardStyle}>
                   {/* Top Bar of Card */}
                   <div style={orderHeaderStyle}>
@@ -189,7 +288,7 @@ export default function AdminOrdersPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                       {/* Payment Badge */}
                       <span style={payBadgeStyle(order.paymentStatus)}>
-                        💰 {order.paymentStatus}
+                        💳 {order.paymentStatus}
                       </span>
 
                       {/* Dropdown status update */}
@@ -229,11 +328,19 @@ export default function AdminOrdersPage() {
                     </div>
 
                     <div style={detailsBlockStyle}>
-                      <span style={blockTitleStyle}>Financial Summary</span>
-                      <span style={amountTextStyle}>₹{order.totalAmount}</span>
-                      <span style={methodTextStyle}>Method: {order.paymentMethod?.toUpperCase()}</span>
-                      {order.razorpayPaymentId && (
-                        <span style={methodTextStyle}>Tx ID: {order.razorpayPaymentId}</span>
+                      <span style={blockTitleStyle}>Quick Info</span>
+                      <span style={{ ...amountTextStyle, color: "#318616" }}>₹{order.totalAmount}</span>
+                      <span style={methodTextStyle}>
+                        {order.paymentMethod?.toLowerCase() === "cod" ? (
+                          <span style={{ color: "#d97706", fontWeight: "800" }}>🟡 COD</span>
+                        ) : (
+                          <span style={{ color: "#2563eb", fontWeight: "800" }}>🟢 Prepaid</span>
+                        )}
+                      </span>
+                      {order.orderStatus && (
+                        <span style={{ fontSize: "11px", color: "#4b5563", fontWeight: "600" }}>
+                          Stage: {order.orderStatus}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -253,7 +360,55 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Delivery progress tracker (Bonus) */}
+                  {/* Dedicated Payment details section */}
+                  <div style={paymentSectionStyle}>
+                    <span style={blockTitleStyle}>💳 Payment Details</span>
+                    <div style={paymentGridStyle}>
+                      <div style={detailsBlockStyle}>
+                        <span style={paymentLabelStyle}>Payment Type</span>
+                        {order.paymentMethod?.toLowerCase() === "cod" ? (
+                          <span style={codBadgeStyle}>🟡 Cash On Delivery</span>
+                        ) : (
+                          <span style={onlineBadgeStyle}>🟢 Online Payment Received</span>
+                        )}
+                      </div>
+                      <div style={detailsBlockStyle}>
+                        <span style={paymentLabelStyle}>Payment Status</span>
+                        <span style={payBadgeStyle(order.paymentStatus)}>{order.paymentStatus || "Pending"}</span>
+                      </div>
+                      <div style={detailsBlockStyle}>
+                        <span style={paymentLabelStyle}>Payment ID</span>
+                        <span style={paymentValueStyle}>{order.paymentId || order.razorpayPaymentId || "N/A"}</span>
+                      </div>
+                      <div style={detailsBlockStyle}>
+                        <span style={paymentLabelStyle}>Order ID</span>
+                        <span style={{ ...paymentValueStyle, fontFamily: "monospace", fontSize: "12px" }}>{order._id}</span>
+                      </div>
+                      <div style={detailsBlockStyle}>
+                        <span style={paymentLabelStyle}>Paid Amount</span>
+                        <span style={{ ...paymentValueStyle, fontWeight: "800", color: "#111827" }}>
+                          ₹{order.paymentStatus === "Paid" ? order.amount || order.totalAmount : 0}
+                        </span>
+                      </div>
+                      <div style={detailsBlockStyle}>
+                        <span style={paymentLabelStyle}>Payment Time</span>
+                        <span style={paymentValueStyle}>
+                          {order.paidAt ? new Date(order.paidAt).toLocaleString() : order.paymentStatus === "Paid" ? new Date(order.updatedAt || order.createdAt).toLocaleString() : "N/A"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Admin helper notice instruction block */}
+                    <div style={order.paymentMethod?.toLowerCase() === "cod" ? codHelperStyle : onlineHelperStyle}>
+                      {order.paymentMethod?.toLowerCase() === "cod" ? (
+                        <span>💵 <strong>Rider Collection:</strong> Customer must pay rider <strong>₹{order.totalAmount}</strong> in cash/UPI upon delivery.</span>
+                      ) : (
+                        <span>✅ <strong>Prepaid:</strong> Payment already received online via Razorpay.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Delivery progress tracker */}
                   {order.orderStatus !== "Cancelled" && (
                     <div style={trackerContainerStyle}>
                       <div style={trackerLabelsStyle}>
@@ -728,4 +883,170 @@ const cancelledBannerStyle = {
   fontSize: "12px",
   fontWeight: "700",
   textAlign: "center",
+};
+
+// Summary metrics styling
+const statsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: "20px",
+  marginBottom: "12px"
+};
+
+const statCardStyle = (accentColor) => ({
+  background: "#FFFFFF",
+  border: "1.5px solid #E5E7EB",
+  borderTop: `4px solid ${accentColor}`,
+  borderRadius: "20px",
+  padding: "20px",
+  display: "flex",
+  alignItems: "center",
+  gap: "16px",
+  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.02)",
+  cursor: "default",
+});
+
+const statIconStyle = (emoji, bg, color) => ({
+  fontSize: "24px",
+  width: "50px",
+  height: "50px",
+  borderRadius: "14px",
+  background: bg,
+  color: color,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+});
+
+const statContentStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "2px",
+};
+
+const statLabelStyle = {
+  fontSize: "12px",
+  fontWeight: "800",
+  color: "#6B7280",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+};
+
+const statValStyle = {
+  fontSize: "24px",
+  fontWeight: "900",
+  color: "#111827",
+};
+
+// Filter row styling
+const filterBarContainerStyle = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+  background: "white",
+  border: "1.5px solid #e5e7eb",
+  padding: "12px 20px",
+  borderRadius: "20px",
+  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.01)",
+  marginBottom: "16px"
+};
+
+const filterBtnStyle = {
+  padding: "8px 16px",
+  borderRadius: "12px",
+  border: "1.5px solid #e5e7eb",
+  fontSize: "12px",
+  fontWeight: "800",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  transition: "all 0.15s ease",
+};
+
+const filterCountBadgeStyle = (isActive) => ({
+  fontSize: "10px",
+  padding: "2px 6px",
+  borderRadius: "6px",
+  background: isActive ? "rgba(255,255,255,0.2)" : "#f3f4f6",
+  color: isActive ? "white" : "#6b7280",
+  fontWeight: "800"
+});
+
+// Card level Payment section styling
+const paymentSectionStyle = {
+  padding: "16px",
+  background: "#F9FAFB",
+  border: "1.5px solid #E5E7EB",
+  borderRadius: "16px",
+  marginBottom: "18px",
+};
+
+const paymentGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+  gap: "16px",
+  marginBottom: "14px"
+};
+
+const paymentLabelStyle = {
+  fontSize: "10px",
+  fontWeight: "800",
+  color: "#9ca3af",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px"
+};
+
+const paymentValueStyle = {
+  fontSize: "13px",
+  fontWeight: "700",
+  color: "#374151",
+  marginTop: "2px",
+  wordBreak: "break-all"
+};
+
+const codBadgeStyle = {
+  fontSize: "11px",
+  fontWeight: "800",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  background: "#fffbeb",
+  color: "#d97706",
+  border: "1.5px solid rgba(217, 119, 6, 0.15)",
+  alignSelf: "flex-start",
+  marginTop: "2px"
+};
+
+const onlineBadgeStyle = {
+  fontSize: "11px",
+  fontWeight: "800",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  background: "#f0fdf4",
+  color: "#16a34a",
+  border: "1.5px solid rgba(22, 163, 74, 0.15)",
+  alignSelf: "flex-start",
+  marginTop: "2px"
+};
+
+const codHelperStyle = {
+  background: "#fffbeb",
+  border: "1.5px solid rgba(217, 119, 6, 0.15)",
+  borderRadius: "10px",
+  color: "#b45309",
+  padding: "10px 14px",
+  fontSize: "12px",
+  fontWeight: "600",
+  lineHeight: "1.4"
+};
+
+const onlineHelperStyle = {
+  background: "#f0fdf4",
+  border: "1.5px solid rgba(22, 163, 74, 0.15)",
+  borderRadius: "10px",
+  color: "#15803d",
+  padding: "10px 14px",
+  fontSize: "12px",
+  fontWeight: "600",
+  lineHeight: "1.4"
 };

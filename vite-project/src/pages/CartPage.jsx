@@ -729,8 +729,10 @@ export default function CartPage({
                                 navigate(user?.location ? "/payment" : "/details");
                             }
                         }}
+                        onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
+                        onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
                         style={{
-                            background: "#FF4D4F",
+                            background: "#318616",
                             color: "white",
                             border: "none",
                             padding: "14px 28px",
@@ -741,7 +743,8 @@ export default function CartPage({
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            boxShadow: "0 4px 12px rgba(255,77,79,0.25)",
+                            boxShadow: "0 4px 12px rgba(49,134,22,0.25)",
+                            transition: "all 0.2s",
                         }}
                     >
                         {!isLoggedIn 

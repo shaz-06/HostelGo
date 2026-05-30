@@ -280,7 +280,7 @@ export default function PaymentPage({ cart, setCart }) {
             contact: user.phone,
           },
           theme: {
-            color: "#FF4D4F",
+            color: "#318616",
           },
           modal: {
             ondismiss: function () {
@@ -357,7 +357,7 @@ export default function PaymentPage({ cart, setCart }) {
             transition: "color 0.2s",
           }}
           onMouseOver={(e) => {
-            if (!isProcessing) e.target.style.color = "#FF4D4F";
+            if (!isProcessing) e.target.style.color = "#318616";
           }}
           onMouseOut={(e) => {
             if (!isProcessing) e.target.style.color = "#6b7280";
@@ -369,7 +369,7 @@ export default function PaymentPage({ cart, setCart }) {
         {/* Progress Header */}
         <div style={{ marginBottom: "28px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-            <span style={{ fontSize: "12px", fontWeight: "700", color: "#FF4D4F", textTransform: "uppercase", letterSpacing: "1px" }}>
+            <span style={{ fontSize: "12px", fontWeight: "700", color: "#318616", textTransform: "uppercase", letterSpacing: "1px" }}>
               Step 3 of 3
             </span>
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#d1d5db" }}></span>
@@ -512,7 +512,7 @@ export default function PaymentPage({ cart, setCart }) {
               }}
             >
               <span>Total Payable</span>
-              <span style={{ color: "#FF4D4F", fontSize: "20px" }}>₹{total}</span>
+              <span style={{ color: "#318616", fontSize: "20px" }}>₹{total}</span>
             </div>
           </div>
         </div>
@@ -526,12 +526,12 @@ export default function PaymentPage({ cart, setCart }) {
             height: "58px",
             border: "none",
             borderRadius: "18px",
-            background: isProcessing ? "#9ca3af" : "linear-gradient(135deg, #FF4D4F 0%, #E03E40 100%)",
+            background: isProcessing ? "#9ca3af" : "linear-gradient(135deg, #318616 0%, #286f12 100%)",
             color: "white",
             fontSize: "18px",
             fontWeight: "755",
             cursor: isProcessing ? "not-allowed" : "pointer",
-            boxShadow: isProcessing ? "none" : "0 10px 20px rgba(255, 77, 79, 0.2)",
+            boxShadow: isProcessing ? "none" : "0 10px 20px rgba(49, 134, 22, 0.2)",
             transition: "all 0.2s ease",
             display: "flex",
             alignItems: "center",
@@ -541,13 +541,13 @@ export default function PaymentPage({ cart, setCart }) {
           onMouseOver={(e) => {
             if (!isProcessing) {
               e.currentTarget.style.transform = "translateY(-1px)";
-              e.currentTarget.style.boxShadow = "0 12px 24px rgba(37, 99, 235, 0.3)";
+              e.currentTarget.style.boxShadow = "0 12px 24px rgba(40, 111, 18, 0.3)";
             }
           }}
           onMouseOut={(e) => {
             if (!isProcessing) {
               e.currentTarget.style.transform = "none";
-              e.currentTarget.style.boxShadow = "0 10px 20px rgba(37, 99, 235, 0.2)";
+              e.currentTarget.style.boxShadow = "0 10px 20px rgba(40, 111, 18, 0.2)";
             }
           }}
         >
@@ -596,8 +596,8 @@ const optionStyle = (active) => ({
   alignItems: "center",
   padding: "16px 20px",
   borderRadius: "16px",
-  border: active ? "2.5px solid #FF4D4F" : "1.5px solid #e5e7eb",
-  background: active ? "rgba(255, 77, 79, 0.04)" : "white",
+  border: active ? "2.5px solid #318616" : "1.5px solid #e5e7eb",
+  background: active ? "rgba(49, 134, 22, 0.04)" : "white",
   cursor: "pointer",
   transition: "all 0.15s ease",
   boxSizing: "border-box",
@@ -607,5 +607,5 @@ const radioStyle = {
   width: "18px",
   height: "18px",
   cursor: "pointer",
-  accentColor: "#FF4D4F",
+  accentColor: "#318616",
 };

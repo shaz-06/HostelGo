@@ -577,26 +577,52 @@ function AppContent() {
     ? products.filter(p => p.category === activeProduct.category && p._id !== activeProduct._id).slice(0, 4)
     : [];
 
+  const normalizeCategoryName = (cat) => {
+    if (!cat) return "";
+    return cat.toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/,/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const getCategoryMatch = (productCategory, targetCategory) => {
+    if (!productCategory || !targetCategory) return false;
+    const normProd = normalizeCategoryName(productCategory);
+    const normTarget = normalizeCategoryName(targetCategory);
+    
+    const stripS = (str) => str.endsWith("s") ? str.slice(0, -1) : str;
+    const prodSingular = stripS(normProd);
+    const targetSingular = stripS(normTarget);
+    
+    return normProd === normTarget ||
+      prodSingular === targetSingular ||
+      normProd.includes(targetSingular) ||
+      normTarget.includes(prodSingular);
+  };
+
   // Filter products based on search query and category
   const filteredProducts = products.filter((product) => {
-    const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!product) return false;
+    const matchesCategory = selectedCategory === "All" || getCategoryMatch(product.category, selectedCategory);
+    const matchesSearch =
+      (product.name && product.name.toLowerCase().includes((searchQuery || "").toLowerCase())) ||
+      (product.category && product.category.toLowerCase().includes((searchQuery || "").toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
   // Group products into lists by category for the "All" view with section headings
   const trendingProducts = products.filter(p => p.isTrending);
-  const fruitProducts = filteredProducts.filter(p => p.category === "The Fruit Store");
-  const veggieProducts = filteredProducts.filter(p => p.category === "The Veggie Store");
-  const dairyProducts = filteredProducts.filter(p => p.category === "Dairy, Bread & Eggs");
-  const snackProducts = filteredProducts.filter(p => p.category === "Snacks");
-  const beverageProducts = filteredProducts.filter(p => p.category === "Beverages");
-  const exclusiveDeals = (products || []).filter(p => p.category === "Exclusive Deals");
-  const mosquitoProducts = (products || []).filter(p => p.category === "Cleaners & Repellents");
-  const breadProducts = (products || []).filter(p => p.category === "The Bread Store");
-  const pickleProducts = (products || []).filter(p => p.category === "Premium Pickles");
-  const wellnessProducts = (products || []).filter(p => p.category === "Sexual Wellness");
+  const fruitProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "The Fruit Store"));
+  const veggieProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "The Veggie Store"));
+  const dairyProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "Dairy, Bread & Eggs") || getCategoryMatch(p.category, "Dairy, Bread and Eggs") || getCategoryMatch(p.category, "Dairy Bread & Eggs"));
+  const snackProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "Snacks"));
+  const beverageProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "Beverages"));
+  const exclusiveDeals = (products || []).filter(p => getCategoryMatch(p.category, "Exclusive Deals"));
+  const mosquitoProducts = (products || []).filter(p => getCategoryMatch(p.category, "Cleaners & Repellents"));
+  const breadProducts = (products || []).filter(p => getCategoryMatch(p.category, "The Bread Store"));
+  const pickleProducts = (products || []).filter(p => getCategoryMatch(p.category, "Premium Pickles"));
+  const wellnessProducts = (products || []).filter(p => getCategoryMatch(p.category, "Sexual Wellness"));
 
   const sections = [
     {
@@ -1048,6 +1074,26 @@ function AppContent() {
                     border: "1px solid #e5e7eb",
                   }}
                 >
+                  {/* Admin Dashboard Switcher */}
+                  {user?.role === "admin" && (
+                    <div
+                      onClick={() => {
+                        setShowMenu(false);
+                        navigate("/admin");
+                      }}
+                      style={{
+                        ...menuItemStyle,
+                        color: "#318616",
+                        fontWeight: "800",
+                        borderBottom: "1px solid #f3f4f6"
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "#f0fdf4")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      📊 Admin Dashboard
+                    </div>
+                  )}
+
                   {/* Profile */}
                   <div
                     onClick={() => {
@@ -1118,7 +1164,7 @@ function AppContent() {
                 cursor: "pointer",
                 transition: "color 0.2s",
               }}
-              onMouseOver={(e) => (e.target.style.color = "#FF4D4F")}
+              onMouseOver={(e) => (e.target.style.color = "#318616")}
               onMouseOut={(e) => (e.target.style.color = "#1f2937")}
             >
               Login
@@ -1127,8 +1173,18 @@ function AppContent() {
 
           <button
             onClick={() => navigate("/cart")}
+            onMouseOver={(e) => {
+              if (totalItems > 0) {
+                e.currentTarget.style.background = "#286f12";
+              }
+            }}
+            onMouseOut={(e) => {
+              if (totalItems > 0) {
+                e.currentTarget.style.background = "#318616";
+              }
+            }}
             style={{
-              background: totalItems > 0 ? "#FF4D4F" : "#f3f4f6",
+              background: totalItems > 0 ? "#318616" : "#f3f4f6",
               color: totalItems > 0 ? "white" : "#1f2937",
               border: "none",
               borderRadius: "14px",
@@ -1226,7 +1282,7 @@ function AppContent() {
                           height: "76px",
                           borderRadius: "50%",
                           overflow: "hidden",
-                          border: selectedCategory === cat.name ? "3px solid #FF4D4F" : "1px solid #e5e7eb",
+                          border: selectedCategory === cat.name ? "3px solid #318616" : "1px solid #e5e7eb",
                           padding: "2px",
                           background: "white",
                           transition: "0.2s",
@@ -1248,7 +1304,7 @@ function AppContent() {
                         style={{
                           fontSize: "12px",
                           fontWeight: selectedCategory === cat.name ? "700" : "600",
-                          color: selectedCategory === cat.name ? "#FF4D4F" : "#4b5563",
+                          color: selectedCategory === cat.name ? "#318616" : "#4b5563",
                           marginTop: "8px",
                           maxWidth: "80px",
                           lineHeight: "1.2"
@@ -1445,7 +1501,7 @@ function AppContent() {
                     {totalItems > 0 && (
                       <div
                         style={{
-                          background: totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#FF4D4F",
+                          background: totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#318616",
                           color: "white",
                           padding: windowWidth < 768 ? "12px 16px" : "16px 24px",
                           borderRadius: windowWidth < 768 ? "0" : "18px",
@@ -1499,14 +1555,23 @@ function AppContent() {
 
                           <button
                             onClick={() => setShowCart(true)}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.color = totalPrice >= FREE_DELIVERY_THRESHOLD ? "#15803d" : "#286f12";
+                              e.currentTarget.style.transform = "scale(1.03)";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.color = totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#318616";
+                              e.currentTarget.style.transform = "none";
+                            }}
                             style={{
                               background: "white",
-                              color: totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#FF4D4F",
+                              color: totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#318616",
                               border: "none",
                               padding: "12px 22px",
                               borderRadius: "12px",
                               fontWeight: "700",
                               cursor: "pointer",
+                              transition: "all 0.2s",
                             }}
                           >
                             View Cart →
@@ -1614,14 +1679,17 @@ function AppContent() {
                       });
                       setSelectedProduct(null);
                     }}
+                    onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
+                    onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
                     style={{
-                      background: "#FF4D4F",
+                      background: "#318616",
                       color: "white",
                       border: "none",
                       padding: "10px 20px",
                       borderRadius: "10px",
                       cursor: "pointer",
                       fontWeight: "bold",
+                      transition: "background 0.2s",
                     }}
                   >
                     ADD
@@ -1857,22 +1925,24 @@ function AppContent() {
                   style={{
                     width: "100%",
                     padding: "14px",
-                    background: "#FF4D4F",
+                    background: "#318616",
                     color: "white",
                     borderRadius: "12px",
                     border: "none",
                     fontWeight: "bold",
                     fontSize: "16px",
                     cursor: "pointer",
-                    boxShadow: "0 4px 12px rgba(255, 77, 79, 0.2)",
-                    transition: "0.2s"
+                    boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)",
+                    transition: "all 0.2s"
                   }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
+                  onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
                   onClick={() => {
                     alert(`🎉 Order placed successfully! Your items will be delivered in 30 mins.`);
                     setCart({});
                     setShowCart(false);
                   }}
-                  className="hover:bg-blue-700 active:scale-[0.98]"
+                  className="active:scale-[0.98]"
                 >
                   Proceed to Checkout
                 </button>

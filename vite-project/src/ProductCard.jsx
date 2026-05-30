@@ -16,14 +16,17 @@ function ProductCard({
 }) {
   const navigate = useNavigate();
 
+  if (!product) return null;
+
   // Support both backend/database 'id' and frontend '_id'
-  const productId = product._id || product.id;
+  const productId = product._id || product.id || String(Math.random());
 
-  const price = product.price || (product.variants && product.variants[0] ? product.variants[0].price : 0);
-  const originalPrice = product.originalPrice || (product.variants && product.variants[0] ? product.variants[0].originalPrice : price);
-  const weight = product.weight || (product.variants && product.variants[0] ? product.variants[0].weight : "");
+  const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+  const price = product.price !== undefined && product.price !== null ? product.price : (hasVariants && product.variants[0] ? product.variants[0].price : 0);
+  const originalPrice = product.originalPrice !== undefined && product.originalPrice !== null ? product.originalPrice : (hasVariants && product.variants[0] && product.variants[0].originalPrice !== undefined ? product.variants[0].originalPrice : price);
+  const weight = product.weight || (hasVariants && product.variants[0] ? product.variants[0].weight : "");
 
-  const defaultWeight = product.variants && product.variants[0] ? product.variants[0].weight : "";
+  const defaultWeight = hasVariants && product.variants[0] ? product.variants[0].weight : "";
   const cartKey = productId + (defaultWeight ? `_${defaultWeight}` : "");
   
   const activeItems = Array.isArray(cartItems) ? cartItems : [];
@@ -134,8 +137,8 @@ function ProductCard({
       <div>
         <div style={{ position: "relative" }}>
           <img
-            src={product.image}
-            alt={product.name}
+            src={product.image || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500"}
+            alt={product.name || "Product"}
             style={{
               width: "100%",
               height: windowWidth < 768 ? "90px" : "120px",

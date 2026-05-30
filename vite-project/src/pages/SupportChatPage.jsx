@@ -59,6 +59,7 @@ export default function SupportChatPage() {
 
   // Load customer's active session on mount
   useEffect(() => {
+    document.title = "Chat With Us";
     if (!token) {
       navigate("/login", { state: { from: { pathname: "/support/chat" } } });
       return;
@@ -200,6 +201,42 @@ export default function SupportChatPage() {
     };
   }, []);
 
+  // Shared MongoDB Document Synchronizer (Polling Backup Loop)
+  useEffect(() => {
+    if (!chatSession?._id || chatSession.status === "closed") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/api/support/chat/${chatSession._id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.chat) {
+            setChatSession(data.chat);
+            setLocalMessages(data.chat.messages || []);
+            if (data.chat.status === "active" && data.chat.messages) {
+              const joinMsg = data.chat.messages.find(m => m.message.includes("joined the conversation") || m.message.includes("Associate Connected"));
+              if (joinMsg) {
+                setPartnerName("Associate");
+              }
+            }
+            if (data.chat.status === "closed") {
+              setShowRatingModal(true);
+              clearInterval(interval);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Support Sync: Polling error:", err);
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [chatSession?._id, chatSession?.status, token]);
+
   // Bot Click Handlers
   const handleBotOption = (option) => {
     const userMsg = {
@@ -212,7 +249,7 @@ export default function SupportChatPage() {
     setLocalMessages(prev => [...prev, userMsg]);
     setIsBotOptionsActive(false);
 
-    if (option === "📦 Track my order") {
+    if (option === "Where is my order?") {
       if (recentOrders.length === 0) {
         addBotReply("You haven't placed any orders yet! Head back to the store to start shopping. 🛒", () => {
           setIsBotOptionsActive(true);
@@ -222,19 +259,23 @@ export default function SupportChatPage() {
           setSelectedOrder("select");
         });
       }
-    } else if (option === "💳 Payment issue") {
-      addBotReply("If your transaction failed but money was debited, it will be automatically refunded within 3-5 business days. For urgent billing issues, please click 'Chat with Associate'.", () => {
+    } else if (option === "Payment issue") {
+      addBotReply("If your transaction failed but money was debited, it will be automatically refunded by your bank within 3-5 business days. For urgent billing issues or manual verifications, please click 'Chat with Associate'.", () => {
         setIsBotOptionsActive(true);
       });
-    } else if (option === "🛒 Missing item") {
-      addBotReply("We apologize if any item was missing. Please click 'Chat with Associate' to connect with our support team so we can arrange a refund or redelivery.", () => {
+    } else if (option === "Refund & cancellation") {
+      addBotReply("You can cancel any order before it is packed for shipment directly from your Order History page to receive an instant refund to your original payment method. If the order is already shipped or delivered, please request help via an associate.", () => {
         setIsBotOptionsActive(true);
       });
-    } else if (option === "🚚 Delivery delayed") {
-      addBotReply("We are extremely sorry for the delay! Our team is packing your products with the highest priority and our rider will reach you shortly.", () => {
+    } else if (option === "Product issue") {
+      addBotReply("We are sorry to hear you're facing issues with a product. If it is defective, incorrect, or missing parts, we can help arrange a replacement or refund. Please connect with an associate to resolve this quickly.", () => {
         setIsBotOptionsActive(true);
       });
-    } else if (option === "💬 Chat with Associate") {
+    } else if (option === "Account issue") {
+      addBotReply("For issues related to updating phone numbers, emails, passwords, addresses, or account access, please select 'Chat with Associate' for security verification and assistance.", () => {
+        setIsBotOptionsActive(true);
+      });
+    } else if (option === "Chat with Associate") {
       addBotReply("Checking live associate availability...", () => {
         connectToLiveSupport();
       });
@@ -269,6 +310,10 @@ export default function SupportChatPage() {
       setLocalMessages(prev => [...prev, botReply]);
       if (onComplete) onComplete();
     }, 1800);
+  };
+
+  const handleReconnect = () => {
+    connectToLiveSupport();
   };
 
   // Convert Bot session to Live Support waitlist
@@ -461,7 +506,7 @@ export default function SupportChatPage() {
           .typing-dot {
             width: 7px;
             height: 7px;
-            background: #FF4D4F;
+            background: #318616;
             border-radius: 50%;
             display: inline-block;
             animation: bounce 1.0s infinite ease-in-out;
@@ -507,6 +552,30 @@ export default function SupportChatPage() {
               transform: scale(0.86);
             }
           }
+          @keyframes searchingBounce {
+            0%, 100% {
+              transform: translateY(0);
+              background: #f97316;
+            }
+            50% {
+              transform: translateY(-8px);
+              background: #22c55e;
+            }
+          }
+          .system-searching-dot {
+            width: 10px;
+            height: 10px;
+            background: #f97316;
+            border-radius: 50%;
+            display: inline-block;
+            animation: searchingBounce 1.2s infinite ease-in-out;
+          }
+          .system-searching-dot:nth-child(2) {
+            animation-delay: 0.2s;
+          }
+          .system-searching-dot:nth-child(3) {
+            animation-delay: 0.4s;
+          }
           .hourglass-spin {
             display: inline-block;
             animation: spinHourglass 3.0s infinite cubic-bezier(0.77, 0, 0.175, 1);
@@ -523,11 +592,29 @@ export default function SupportChatPage() {
         {/* CHAT CONSOLE HEADER */}
         <div style={headerStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={logoBadgeStyle}>⚡ Support</span>
+            <span style={{
+              ...logoBadgeStyle,
+              background: chatSession?.status === "active" 
+                ? "#dcfce7" 
+                : chatSession?.status === "waiting" || chatSession?.status === "connecting" 
+                  ? "#ffedd5" 
+                  : "#f3f4f6",
+              color: chatSession?.status === "active" 
+                ? "#318616" 
+                : chatSession?.status === "waiting" || chatSession?.status === "connecting" 
+                  ? "#f97316" 
+                  : "#6b7280"
+            }}>
+              {chatSession?.status === "active" 
+                ? "🟢 Active" 
+                : chatSession?.status === "waiting" || chatSession?.status === "connecting" 
+                  ? "🟠 Waiting" 
+                  : "⚫ Closed"}
+            </span>
             <div>
-              <h2 style={headerTitleStyle}>Buyto Instant Help</h2>
+              <h2 style={headerTitleStyle}>Chat With Us</h2>
               <span style={headerSubtitleStyle}>
-                {chatSession?.status === "connected"
+                {chatSession?.status === "active"
                   ? `Connected with ${partnerName || "Associate"}`
                   : chatSession?.status === "connecting"
                     ? "Connecting to associate"
@@ -549,12 +636,64 @@ export default function SupportChatPage() {
           </div>
         </div>
 
+        {/* GREEN BANNER IF ACTIVE */}
+        {chatSession?.status === "active" && (
+          <div style={greenBannerStyle}>
+            <div style={{ fontWeight: "850", fontSize: "13px", marginBottom: "2px" }}>
+              🟢 Associate Connected
+            </div>
+            <div style={{ fontSize: "11px", fontWeight: "600", opacity: 0.9 }}>
+              Please reply within 2 minutes to stay connected.
+            </div>
+          </div>
+        )}
+
         {/* MESSAGES DISPLAY SCROLL AREA */}
         <div style={messagesWindowStyle}>
 
           {localMessages.map((msg, index) => {
             const isBot = msg.role === "bot";
             const isSelf = msg.role === "user";
+
+            const isSystem = msg.senderName === "System" || (isBot && (
+              msg.message.includes("joined the chat") || 
+              msg.message.includes("ended due to inactivity") || 
+              msg.message.includes("ended the conversation") ||
+              msg.message.includes("joined the conversation") ||
+              msg.message.includes("Associate Connected")
+            ));
+            
+            // If it's a System or Timeout notification, render a centered system alert
+            if (isSystem) {
+              return (
+                <div
+                  key={index}
+                  className="message-animate"
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    margin: "16px 0",
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "#fffbeb",
+                      color: "#78350f",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      borderRadius: "10px",
+                      padding: "8px 18px",
+                      textAlign: "center",
+                      maxWidth: "85%",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                      border: "1px solid #fef3c7"
+                    }}
+                  >
+                    {msg.message}
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div
@@ -569,24 +708,25 @@ export default function SupportChatPage() {
                 <div
                   style={{
                     maxWidth: "75%",
-                    background: isSelf ? "#FF4D4F" : isBot ? "#f3f4f6" : "#ffffff",
-                    color: isSelf ? "white" : "#111827",
-                    borderRadius: "20px",
-                    borderTopRightRadius: isSelf ? "4px" : "20px",
-                    borderTopLeftRadius: !isSelf ? "4px" : "20px",
-                    padding: "12px 18px",
-                    boxShadow: isSelf ? "0 4px 12px rgba(255, 77, 79, 0.15)" : "0 2px 8px rgba(0,0,0,0.04)",
+                    background: isSelf ? "#d9fdd3" : "#ffffff",
+                    color: "#111b21",
+                    borderRadius: "16px",
+                    borderTopRightRadius: isSelf ? "2px" : "16px",
+                    borderTopLeftRadius: !isSelf ? "2px" : "16px",
+                    padding: "10px 14px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                     border: isSelf ? "none" : "1px solid #e5e7eb",
                     fontSize: "14px",
                     lineHeight: "1.5",
                   }}
                 >
-                  <div style={{ fontWeight: "750", fontSize: "11px", opacity: 0.8, marginBottom: "4px", textTransform: "none", letterSpacing: "0.5px" }}>
+                  <div style={{ fontWeight: "750", fontSize: "11px", opacity: 0.8, marginBottom: "4px", color: isSelf ? "#15803d" : "#0284c7" }}>
                     {msg.senderName}
                   </div>
                   <div>{msg.message}</div>
-                  <div style={{ fontSize: "9px", opacity: 0.6, marginTop: "6px", textAlign: "right" }}>
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px", fontSize: "9px", opacity: 0.5, marginTop: "4px" }}>
+                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    {isSelf && <span style={{ color: "#53bdeb", fontWeight: "bold" }}>✓✓</span>}
                   </div>
                 </div>
               </div>
@@ -605,18 +745,18 @@ export default function SupportChatPage() {
               <div
                 style={{
                   maxWidth: "75%",
-                  background: "#f3f4f6",
-                  color: "#111827",
-                  borderRadius: "20px",
-                  borderTopLeftRadius: "4px",
-                  padding: "12px 18px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                  background: "#ffffff",
+                  color: "#111b21",
+                  borderRadius: "16px",
+                  borderTopLeftRadius: "2px",
+                  padding: "10px 14px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                   border: "1px solid #e5e7eb",
                   fontSize: "14px",
                   lineHeight: "1.5",
                 }}
               >
-                <div style={{ fontWeight: "750", fontSize: "11px", opacity: 0.8, marginBottom: "6px", color: "#4b5563" }}>
+                <div style={{ fontWeight: "750", fontSize: "11px", opacity: 0.8, marginBottom: "6px", color: "#0284c7" }}>
                   Buyto BOT
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 0" }}>
@@ -665,15 +805,22 @@ export default function SupportChatPage() {
             <div style={chipsContainerStyle}>
               <h4 style={chipsHeadingStyle}>Suggested Questions</h4>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {["📦 Track my order", "💳 Payment issue", "🛒 Missing item", "🚚 Delivery delayed", "💬 Chat with Associate"].map((option) => (
+                {[
+                  "Where is my order?",
+                  "Payment issue",
+                  "Refund & cancellation",
+                  "Product issue",
+                  "Account issue",
+                  "Chat with Associate"
+                ].map((option) => (
                   <button
                     key={option}
                     onClick={() => handleBotOption(option)}
                     style={chipButtonStyle}
                     onMouseOver={(e) => {
-                      e.target.style.background = "#FF4D4F";
+                      e.target.style.background = "#318616";
                       e.target.style.color = "white";
-                      e.target.style.borderColor = "#FF4D4F";
+                      e.target.style.borderColor = "#318616";
                     }}
                     onMouseOut={(e) => {
                       e.target.style.background = "white";
@@ -688,78 +835,52 @@ export default function SupportChatPage() {
             </div>
           )}
 
-          {/* CONNECTING PANEL */}
-          {chatSession?.status === "connecting" && (
-            <div style={connectingPanelStyle} className="message-animate">
-              <div style={connectionSpinnerStyle} />
-              <h3 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: "800", color: "#1f2937" }}>
-                Connecting to associate{ellipsis}
-              </h3>
-              <p style={{ margin: 0, fontSize: "13px", color: "#6b7280", fontWeight: "600" }}>
-                We found live support online. Your request is on the associate dashboard now.
-              </p>
-              <div style={liveStatusRowStyle}>
-                <span style={liveDotStyle} />
-                <span>{availability?.availableCount || 1} associate online</span>
-              </div>
-            </div>
-          )}
-
-          {/* QUEUE LOADING PANEL */}
-          {chatSession?.status === "waiting" && queueInfo && (
+          {/* CONNECTING & QUEUE LOADING PANEL */}
+          {(chatSession?.status === "connecting" || chatSession?.status === "waiting") && (
             <div style={queuePanelStyle} className="message-animate">
-              <div style={queueIconStyle} className="hourglass-spin">⏳</div>
-              <h3 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: "800", color: "#1f2937" }}>
-                Searching for available associate{ellipsis}
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", marginBottom: "16px" }}>
+                <span className="system-searching-dot" />
+                <span className="system-searching-dot" />
+                <span className="system-searching-dot" />
+              </div>
+              
+              <h3 style={{ margin: "0 0 6px 0", fontSize: "15px", fontWeight: "800", color: "#1f2937" }}>
+                Looking for an available associate...
               </h3>
               <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: "#6b7280", fontWeight: "600" }}>
-                All our support associates are busy with other customers.
+                Please wait while we connect you with an associate.
               </p>
 
-              {/* Queue Position and Wait time display with Key to trigger animation on update */}
-              <div
-                key={queueInfo.queuePosition}
-                className="message-animate"
-                style={{
-                  background: "#F9FAFB",
-                  borderRadius: "14px",
-                  padding: "12px",
-                  border: "1px solid #e5e7eb",
-                  marginBottom: "20px",
-                  display: "flex",
-                  justifyContent: "space-around",
-                  alignItems: "center"
-                }}
-              >
-                <div>
-                  <span style={{ fontSize: "11px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase" }}>Queue Position</span>
-                  <div style={{ fontSize: "20px", fontWeight: "850", color: "#FF4D4F", marginTop: "2px" }}>
-                    #{queueInfo.queuePosition}
-                  </div>
-                </div>
-                <div style={{ width: "1px", height: "30px", background: "#e5e7eb" }} />
-                <div>
-                  <span style={{ fontSize: "11px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase" }}>Est. Wait Time</span>
-                  <div style={{ fontSize: "20px", fontWeight: "850", color: "#111827", marginTop: "2px" }}>
-                    {queueInfo.estimatedWaitTime} {queueInfo.estimatedWaitTime === 1 ? "min" : "mins"}
-                  </div>
-                </div>
-              </div>
-
-              <div style={progressContainerStyle}>
+              {chatSession.status === "waiting" && queueInfo && (
                 <div
+                  key={queueInfo.queuePosition}
+                  className="message-animate"
                   style={{
-                    ...progressFillStyle,
-                    width: `${Math.max(12, Math.min(100, 100 - ((queueInfo.queuePosition - 1) * 18)))}%`,
-                    background: queueInfo.queuePosition > 3 ? "#FF4D4F" : queueInfo.queuePosition > 1 ? "#F8CB46" : "#22C55E",
-                    transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.8s ease",
-                    animation: "none"
+                    background: "#F9FAFB",
+                    borderRadius: "14px",
+                    padding: "12px",
+                    border: "1px solid #e5e7eb",
+                    marginBottom: "16px",
+                    display: "flex",
+                    justifyContent: "space-around",
+                    alignItems: "center"
                   }}
-                />
-              </div>
-              <p style={{ margin: "8px 0 20px 0", fontSize: "11px", color: "#9ca3af", fontWeight: "800", textTransform: "uppercase" }}>
-                Live queue · updates automatically
-              </p>
+                >
+                  <div>
+                    <span style={{ fontSize: "10px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase" }}>Queue Position</span>
+                    <div style={{ fontSize: "18px", fontWeight: "850", color: "#f97316", marginTop: "2px" }}>
+                      #{queueInfo.queuePosition}
+                    </div>
+                  </div>
+                  <div style={{ width: "1px", height: "30px", background: "#e5e7eb" }} />
+                  <div>
+                    <span style={{ fontSize: "10px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase" }}>Est. Wait Time</span>
+                    <div style={{ fontSize: "18px", fontWeight: "850", color: "#111827", marginTop: "2px" }}>
+                      {queueInfo.estimatedWaitTime} min{queueInfo.estimatedWaitTime > 1 ? "s" : ""}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <button onClick={() => navigate("/")} style={comeBackLaterBtnStyle}>
                 Come back later
@@ -770,8 +891,8 @@ export default function SupportChatPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* BOTTOM MESSAGE INPUT BAR */}
-        {chatSession && chatSession.status === "connected" && (
+        {/* BOTTOM MESSAGE INPUT BAR - ACTIVE IN WAITING & CONNECTING & ACTIVE */}
+        {chatSession && ["active", "waiting", "connecting"].includes(chatSession.status) && (
           <form onSubmit={handleSendMessage} style={inputFormStyle}>
             <input
               type="text"
@@ -780,10 +901,38 @@ export default function SupportChatPage() {
               onChange={handleInputChange}
               style={textInputStyle}
             />
-            <button type="submit" style={sendBtnStyle}>
+            <button type="submit" style={{ ...sendBtnStyle, background: "#318616", boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)" }}>
               Send 🚀
             </button>
           </form>
+        )}
+
+        {/* BOTTOM MESSAGE INPUT BAR - DISABLED IF CLOSED */}
+        {chatSession && chatSession.status === "closed" && (
+          <div>
+            <div style={{ ...inputFormStyle, opacity: 0.6, pointerEvents: "none" }}>
+              <input
+                type="text"
+                placeholder="Chat has ended. Message box is disabled."
+                disabled
+                style={{ ...textInputStyle, background: "#f3f4f6" }}
+              />
+              <button disabled style={{ ...sendBtnStyle, background: "#9ca3af" }}>
+                Send 🚀
+              </button>
+            </div>
+            
+            <div style={reconnectContainerStyle}>
+              <p style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: "700", color: "#4b5563", textAlign: "center" }}>
+                {localMessages[localMessages.length - 1]?.message === "Chat session ended due to inactivity." 
+                  ? "Chat session ended due to inactivity." 
+                  : "Associate has ended the conversation."}
+              </p>
+              <button onClick={handleReconnect} style={reconnectBtnStyle}>
+                Reconnect with Associate 🔌
+              </button>
+            </div>
+          </div>
         )}
 
       </div>
@@ -895,6 +1044,15 @@ const headerSubtitleStyle = {
   fontSize: "12px",
   color: "#6b7280",
   fontWeight: "600"
+};
+
+const greenBannerStyle = {
+  background: "#dcfce7",
+  borderBottom: "1.5px solid #bbf7d0",
+  color: "#15803d",
+  padding: "10px 20px",
+  textAlign: "center",
+  boxSizing: "border-box"
 };
 
 const closeConsoleBtnStyle = {
@@ -1173,12 +1331,35 @@ const feedbackInputStyle = {
 const submitFeedbackBtnStyle = {
   width: "100%",
   height: "48px",
-  background: "#FF4D4F",
+  background: "#318616",
   color: "white",
   border: "none",
   borderRadius: "14px",
   fontWeight: "750",
   fontSize: "14px",
   cursor: "pointer",
-  boxShadow: "0 4px 12px rgba(255,77,79,0.25)"
+  boxShadow: "0 4px 12px rgba(49, 134, 22, 0.25)"
+};
+
+const reconnectContainerStyle = {
+  padding: "16px 20px",
+  borderTop: "1px solid #e5e7eb",
+  background: "#ffffff",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center"
+};
+
+const reconnectBtnStyle = {
+  width: "100%",
+  height: "46px",
+  background: "#318616",
+  color: "white",
+  border: "none",
+  borderRadius: "12px",
+  fontWeight: "750",
+  fontSize: "14px",
+  cursor: "pointer",
+  boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)",
+  transition: "all 0.2s ease"
 };

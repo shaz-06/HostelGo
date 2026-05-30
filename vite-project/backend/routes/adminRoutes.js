@@ -246,7 +246,7 @@ router.post("/products", async (req, res) => {
   console.log("Body:", JSON.stringify(req.body, null, 2));
 
   try {
-    const { name, category, price, originalPrice, weight, stock, image, variants, isTrending, subCategory } = req.body;
+    const { name, category, price, originalPrice, weight, stock, image, variants, isTrending, subCategory, section, brand, description, eta, isAd } = req.body;
     
     if (!name || !category || price === undefined || stock === undefined) {
       return res.status(400).json({ message: "Name, category, price, and stock are required fields" });
@@ -268,6 +268,11 @@ router.post("/products", async (req, res) => {
       image: image || "https://images.unsplash.com/photo-1542838132-92c53300491e",
       variants: variants || [],
       isTrending: !!isTrending,
+      section,
+      brand,
+      description,
+      eta,
+      isAd: isAd !== undefined ? !!isAd : undefined,
       tags: [category.toLowerCase(), name.toLowerCase()]
     });
 
@@ -288,7 +293,7 @@ router.put("/products/:id", async (req, res) => {
   console.log("Body:", JSON.stringify(req.body, null, 2));
 
   try {
-    const { name, category, price, originalPrice, weight, stock, image, variants, isTrending, subCategory } = req.body;
+    const { name, category, price, originalPrice, weight, stock, image, variants, isTrending, subCategory, section, brand, description, eta, isAd } = req.body;
     
     const product = await Product.findOne({
       $or: [
@@ -314,6 +319,11 @@ router.put("/products/:id", async (req, res) => {
     if (image !== undefined) product.image = image;
     if (variants !== undefined) product.variants = variants;
     if (isTrending !== undefined) product.isTrending = isTrending;
+    if (section !== undefined) product.section = section;
+    if (brand !== undefined) product.brand = brand;
+    if (description !== undefined) product.description = description;
+    if (eta !== undefined) product.eta = eta;
+    if (isAd !== undefined) product.isAd = isAd;
 
     const updatedProduct = await product.save();
     console.log("Product updated successfully:", updatedProduct._id);
