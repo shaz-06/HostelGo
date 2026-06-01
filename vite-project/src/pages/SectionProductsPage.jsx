@@ -2872,6 +2872,7 @@ const matchCategoryOrSub = (product, target) => {
     getCategoryMatch(product.subCategory, target) ||
     getCategoryMatch(product.subcategory, target) ||
     getCategoryMatch(product.section, target) ||
+    (product.name && getCategoryMatch(product.name, target)) ||
     (Array.isArray(product.tags) && product.tags.some(t => getCategoryMatch(t, target)))
   );
 };
@@ -3621,7 +3622,6 @@ export default function SectionProductsPage({
 
     return (
       normalize(product.name)?.includes(query) ||
-      normalize(product.category)?.includes(query) ||
       normalize(product.subCategory)?.includes(query) ||
       normalize(product.weight)?.includes(query) ||
       product.tags?.some((tag) =>

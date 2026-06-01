@@ -373,6 +373,7 @@ function AppContent() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const { user, logout } = useContext(AuthContext);
   const isLoggedIn = !!user;
@@ -601,15 +602,46 @@ function AppContent() {
       normTarget.includes(prodSingular);
   };
 
-  // Filter products based on search query and category
-  const filteredProducts = products.filter((product) => {
-    if (!product) return false;
-    const matchesCategory = selectedCategory === "All" || getCategoryMatch(product.category, selectedCategory);
-    const matchesSearch =
-      (product.name && product.name.toLowerCase().includes((searchQuery || "").toLowerCase())) ||
-      (product.category && product.category.toLowerCase().includes((searchQuery || "").toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
+  // Filter products based on search query and category (Optimized with useMemo)
+  const filteredProducts = React.useMemo(() => {
+    return products.filter((product) => {
+      if (!product) return false;
+      const matchesCategory = selectedCategory === "All" || searchQuery.trim() !== "" || getCategoryMatch(product.category, selectedCategory);
+      
+      const query = searchQuery.toLowerCase().trim();
+      if (!query) return matchesCategory;
+
+      const matchesSearch =
+        (product.name && product.name.toLowerCase().includes(query)) ||
+        (product.brand && product.brand.toLowerCase().includes(query)) ||
+        (product.category && product.category.toLowerCase().includes(query)) ||
+        (product.subCategory && product.subCategory.toLowerCase().includes(query)) ||
+        (product.subcategory && product.subcategory.toLowerCase().includes(query)) ||
+        (product.description && product.description.toLowerCase().includes(query)) ||
+        (product.weight && product.weight.toLowerCase().includes(query)) ||
+        (Array.isArray(product.tags) && product.tags.some(tag => tag && tag.toLowerCase().includes(query)));
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, searchQuery, selectedCategory]);
+
+  // Derive autocomplete suggestions from matching products
+  const suggestions = React.useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return [];
+
+    return products.filter((product) => {
+      if (!product) return false;
+      return (
+        (product.name && product.name.toLowerCase().includes(query)) ||
+        (product.brand && product.brand.toLowerCase().includes(query)) ||
+        (product.category && product.category.toLowerCase().includes(query)) ||
+        (product.subCategory && product.subCategory.toLowerCase().includes(query)) ||
+        (product.subcategory && product.subcategory.toLowerCase().includes(query)) ||
+        (Array.isArray(product.tags) && product.tags.some(tag => tag && tag.toLowerCase().includes(query)))
+      );
+    }).slice(0, 8);
+  }, [products, searchQuery]);
 
   // Group products into lists by category for the "All" view with section headings
   const trendingProducts = products.filter(p => p.isTrending);
@@ -968,7 +1000,14 @@ function AppContent() {
             type="text"
             placeholder=""
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 250)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (location.pathname !== "/") {
+                navigate("/");
+              }
+            }}
             style={{
               background: "#f3f4f6",
               borderRadius: "14px",
@@ -1036,6 +1075,68 @@ function AppContent() {
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
+
+          {/* Autocomplete Suggestions Dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                background: "white",
+                borderRadius: "14px",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                border: "1px solid #e5e7eb",
+                marginTop: "8px",
+                zIndex: 99999,
+                maxHeight: "320px",
+                overflowY: "auto",
+                padding: "8px 0",
+              }}
+            >
+              {suggestions.map((suggestion) => (
+                <div
+                  key={suggestion._id || suggestion.id}
+                  onClick={() => {
+                    setSearchQuery(suggestion.name);
+                    navigate(`/product/${suggestion._id || suggestion.id}`);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "10px 16px",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                    borderBottom: "1px solid #f3f4f6",
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = "#f3f4f6"}
+                  onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  <img
+                    src={suggestion.image || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=150"}
+                    alt={suggestion.name}
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "6px",
+                      objectFit: "contain",
+                      background: "#f9fafb",
+                    }}
+                  />
+                  <div style={{ flexGrow: 1, overflow: "hidden", textAlign: "left" }}>
+                    <p style={{ margin: 0, fontSize: "13px", fontWeight: "700", color: "#1f2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {suggestion.name}
+                    </p>
+                    <p style={{ margin: 0, fontSize: "11px", color: "#6b7280", fontWeight: "600" }}>
+                      {suggestion.brand || "Fresh"} • {suggestion.weight} • <span style={{ color: "#318616" }}>₹{suggestion.price}</span>
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right section */}
@@ -1477,7 +1578,7 @@ function AppContent() {
                         </h2>
                         {filteredProducts.length === 0 ? (
                           <p style={{ color: "#6b7280", fontSize: "16px", marginTop: "20px" }}>
-                            No products found matching your search.
+                            No products found.
                           </p>
                         ) : (
                           <div
