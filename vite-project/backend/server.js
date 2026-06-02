@@ -239,4 +239,20 @@ app.use("/api/admin", authMiddleware, adminMiddleware, adminRoutes);
 
 server.listen(PORT, () => {
   console.log(`Server Started on port ${PORT}`);
+
+  // Borzo integration startup check
+  const clientId = process.env.BORZO_CLIENT_ID;
+  const apiToken = process.env.BORZO_API_TOKEN;
+  const isTokenMock = !apiToken || apiToken === "mock_borzo_api_token_here" || apiToken.includes("[use token");
+  const isEnabled = !!(clientId && apiToken && !isTokenMock);
+  
+  const maskedToken = apiToken && apiToken.length > 8 
+    ? `${apiToken.slice(0, 4)}...${apiToken.slice(-4)}` 
+    : "Not Configured/Invalid";
+
+  console.log("\n=== [BORZO STARTUP AUDIT] ===");
+  console.log("Borzo Enabled:", isEnabled);
+  console.log("Client ID loaded:", clientId || "Not Configured");
+  console.log("Token loaded:", maskedToken);
+  console.log("==============================\n");
 });

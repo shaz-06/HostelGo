@@ -7,6 +7,7 @@ const Order = require("../models/Order");
 const Product = require("../models/Product");
 const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
+const { createBorzoOrder } = require("../utils/borzo");
 
 const TRACKING_STEPS = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Out for Delivery", "Delivered"];
 const STATUS_TIMESTAMP_KEYS = {
@@ -253,6 +254,24 @@ router.post("/payment/verify", async (req, res) => {
       console.log("=== [BACKEND DB UPDATE SUCCESS] Paid Order Saved to MongoDB Successfully ===");
       console.log("Saved Document ID:", savedOrder._id);
 
+      // Create Borzo delivery order automatically
+      try {
+        const borzoResult = await createBorzoOrder(savedOrder);
+        if (borzoResult && borzoResult.borzoOrderId) {
+          savedOrder.borzoOrderId = borzoResult.borzoOrderId;
+          savedOrder.borzoTrackingUrl = borzoResult.trackingUrl;
+          savedOrder.borzoDeliveryCost = borzoResult.deliveryCost;
+          savedOrder.borzoDeliveryStatus = "new";
+          savedOrder.orderStatus = "Order Placed";
+          savedOrder.statusTimestamps.orderPlaced = new Date();
+          await savedOrder.save();
+          console.log(`Borzo order created successfully: ${borzoResult.borzoOrderId}`);
+        }
+      } catch (borzoError) {
+        console.error("❌ Borzo Order Dispatch failed on payment verification:", borzoError.message);
+      }
+
+
       // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
       console.log("Reducing inventory stock...");
       for (const item of savedOrder.products) {
@@ -353,6 +372,24 @@ router.post("/orders", authMiddleware, async (req, res) => {
       console.log("=== ORDER SAVED ===");
       console.log("=== [BACKEND DB SAVE SUCCESS] COD Order Saved Successfully ===");
       console.log("Saved Document ID:", savedOrder._id);
+
+      // Create Borzo delivery order automatically
+      try {
+        const borzoResult = await createBorzoOrder(savedOrder);
+        if (borzoResult && borzoResult.borzoOrderId) {
+          savedOrder.borzoOrderId = borzoResult.borzoOrderId;
+          savedOrder.borzoTrackingUrl = borzoResult.trackingUrl;
+          savedOrder.borzoDeliveryCost = borzoResult.deliveryCost;
+          savedOrder.borzoDeliveryStatus = "new";
+          savedOrder.orderStatus = "Order Placed";
+          savedOrder.statusTimestamps.orderPlaced = new Date();
+          await savedOrder.save();
+          console.log(`Borzo order created successfully: ${borzoResult.borzoOrderId}`);
+        }
+      } catch (borzoError) {
+        console.error("❌ Borzo Order Dispatch failed on COD placement:", borzoError.message);
+      }
+
 
       // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
       console.log("Reducing inventory stock for COD order...");
@@ -468,6 +505,260 @@ router.get("/orders/track/:id", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("❌ Track Order Error:", error);
     return res.status(500).json({ message: "Failed to load tracking details", error: error.message });
+  }
+});
+
+// POST /api/borzo/webhook
+router.post("/borzo/webhook", async (req, res) => {
+  console.log("=== [BACKEND] POST /api/borzo/webhook ===");
+  console.log("Headers:", JSON.stringify(req.headers, null, 2));
+  console.log("Body:", JSON.stringify(req.body, null, 2));
+
+  try {
+    const { event_type, delivery, order: webhookOrder } = req.body;
+
+    const borzoOrderId = webhookOrder?.order_id || delivery?.order_id || delivery?.delivery_id;
+    const clientOrderId = webhookOrder?.client_order_id || delivery?.client_order_id;
+    const borzoStatus = webhookOrder?.status || delivery?.status;
+
+    if (!borzoOrderId && !clientOrderId) {
+      console.warn("⚠️ No identifiers found in Borzo webhook payload");
+      return res.status(400).json({ message: "No identifiers found in webhook payload" });
+    }
+
+    // Locate the order in MongoDB
+    const query = [];
+    if (clientOrderId && mongoose.isValidObjectId(clientOrderId)) {
+      query.push({ _id: clientOrderId });
+    }
+    if (borzoOrderId) {
+      query.push({ borzoOrderId: String(borzoOrderId) });
+    }
+
+    const order = await Order.findOne({ $or: query });
+    if (!order) {
+      console.warn(`⚠️ Order not found in database for webhook clientOrderId: ${clientOrderId}, borzoOrderId: ${borzoOrderId}`);
+      return res.status(404).json({ message: "Order not found in database" });
+    }
+
+    console.log(`Found Order ${order._id} for Borzo Order ${borzoOrderId}`);
+
+    // Update webhook raw debugging data
+    order.borzoWebhookData = req.body;
+
+    // Extract rider/courier information if present
+    const courier = webhookOrder?.courier || delivery?.courier;
+    if (courier) {
+      order.borzoRiderName = `${courier.name || ""} ${courier.surname || ""}`.trim() || order.borzoRiderName;
+      order.borzoRiderPhone = courier.phone || order.borzoRiderPhone;
+      order.riderName = order.borzoRiderName;
+      order.riderPhone = order.borzoRiderPhone;
+      order.riderAssigned = true;
+    }
+
+    // Extract delivery cost
+    const deliveryFee = webhookOrder?.delivery_fee_amount || delivery?.delivery_fee_amount;
+    if (deliveryFee) {
+      order.borzoDeliveryCost = Number(deliveryFee);
+    }
+
+    // Update raw Borzo status
+    if (borzoStatus) {
+      order.borzoDeliveryStatus = borzoStatus;
+    }
+
+    // Map Borzo status to HostelGo orderStatus
+    // Status Mapping:
+    // Borzo            Buyto
+    // new              Pending
+    // courier_assigned Rider Assigned
+    // picked_up        Picked Up
+    // on_the_way       Out for Delivery
+    // delivered        Delivered
+    // cancelled        Cancelled
+    // (Also mapping failure state to Delivery Failed)
+    let nextStatus = null;
+    switch (String(borzoStatus).toLowerCase()) {
+      case "new":
+      case "parked":
+        // Keep current Buyto prep stages (Order Placed, Preparing, Packed).
+        // Only set status to "Order Placed" if it is currently Pending or empty.
+        if (!order.orderStatus || order.orderStatus === "Pending") {
+          nextStatus = "Order Placed";
+        }
+        break;
+      case "courier_assigned":
+      case "ready_to_pickup":
+      case "ready_for_delivery":
+        nextStatus = "Rider Assigned";
+        break;
+      case "picked_up":
+        nextStatus = "Picked Up";
+        break;
+      case "on_the_way":
+      case "on_delivery":
+        nextStatus = "Out for Delivery";
+        break;
+      case "delivered":
+      case "closed":
+        nextStatus = "Delivered";
+        break;
+      case "cancelled":
+      case "canceled":
+        nextStatus = "Cancelled";
+        break;
+      case "delivery_failed":
+        nextStatus = "Delivery Failed";
+        break;
+      default:
+        console.log(`Unmapped Borzo status received: ${borzoStatus}`);
+    }
+
+    if (nextStatus) {
+      order.orderStatus = nextStatus;
+
+      // Update timestamps
+      const STATUS_TIMESTAMP_KEYS = {
+        "Pending": "pending",
+        "Order Placed": "orderPlaced",
+        "Preparing": "preparing",
+        "Packed": "packed",
+        "Rider Assigned": "riderAssigned",
+        "Picked Up": "pickedUp",
+        "Out for Delivery": "outForDelivery",
+        "Delivered": "delivered",
+        "Cancelled": "cancelled",
+        "Delivery Failed": "deliveryFailed"
+      };
+
+      const tsKey = STATUS_TIMESTAMP_KEYS[nextStatus];
+      if (tsKey) {
+        order.statusTimestamps[tsKey] = new Date();
+      }
+
+      if (nextStatus === "Delivered") {
+        order.deliveredAt = new Date();
+        order.paymentStatus = "Paid";
+      }
+    }
+
+    await order.save();
+    console.log(`Successfully updated Order ${order._id} status to: ${order.orderStatus}`);
+
+    // Emit live Socket.IO update if Socket.IO server is attached
+    const io = req.io || req.app.get("io");
+    if (io) {
+      io.to(order._id.toString()).emit("riderLocationUpdated", {
+        orderId: order._id,
+        status: order.orderStatus,
+        riderName: order.borzoRiderName || order.riderName,
+        riderPhone: order.borzoRiderPhone || order.riderPhone,
+        estimatedDeliveryTime: order.estimatedDeliveryTime
+      });
+      console.log(`Socket.IO event broadcast to room ${order._id}`);
+    }
+
+    return res.status(200).json({ success: true, message: "Webhook processed" });
+  } catch (error) {
+    console.error("❌ Webhook Processing Failure:", error.message);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/borzo/test
+router.get("/borzo/test", async (req, res) => {
+  console.log("=== [BACKEND] GET /api/borzo/test ===");
+  const apiToken = process.env.BORZO_API_TOKEN;
+  
+  if (!apiToken) {
+    return res.status(400).json({
+      success: false,
+      message: "BORZO_API_TOKEN is missing in env"
+    });
+  }
+
+  const url = "https://robotapitest-in.borzodelivery.com/api/business/1.6/orders";
+  const maskedToken = apiToken.length > 8 
+    ? `${apiToken.slice(0, 4)}...${apiToken.slice(-4)}` 
+    : "xxxx";
+
+  console.log(`Testing Borzo authentication against: ${url}`);
+  console.log(`X-DV-Auth-Token: ${maskedToken}`);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-DV-Auth-Token": apiToken
+      }
+    });
+
+    const text = await response.text();
+    console.log("Borzo test response HTTP status:", response.status);
+    console.log("Borzo test response body:", text);
+
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch (e) {
+      result = text;
+    }
+
+    return res.status(response.status).json({
+      success: response.ok,
+      httpStatus: response.status,
+      borzoResponse: result
+    });
+  } catch (error) {
+    console.error("Test auth route error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/borzo/test-order
+router.post("/borzo/test-order", async (req, res) => {
+  console.log("=== [BACKEND] POST /api/borzo/test-order ===");
+  
+  // Construct a minimal temporary order object
+  const mockOrder = {
+    deliveryAddress: req.body.deliveryAddress || "Indiranagar Metro Station, Bengaluru, Karnataka 560038",
+    deliveryLatitude: req.body.deliveryLatitude || 12.9784,
+    deliveryLongitude: req.body.deliveryLongitude || 77.6408,
+    paymentMethod: req.body.paymentMethod || "razorpay", // Default to prepaid to avoid Sandbox COD restrictions
+    totalAmount: req.body.totalAmount || 150,
+    user: {
+      name: req.body.name || "Test Receiver",
+      phone: req.body.phone || "9988776655"
+    }
+  };
+
+  try {
+    const borzoResult = await createBorzoOrder(mockOrder);
+    
+    if (!borzoResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: borzoResult.error,
+        borzoResponse: borzoResult.rawResponse
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      order_id: borzoResult.borzoOrderId,
+      tracking_url: borzoResult.trackingUrl,
+      deliveryCost: borzoResult.deliveryCost,
+      borzoResponse: borzoResult.rawResponse
+    });
+  } catch (error) {
+    console.error("Test order route error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

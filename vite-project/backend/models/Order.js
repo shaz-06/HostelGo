@@ -39,17 +39,20 @@ const orderSchema = new mongoose.Schema({
   deliveryLongitude: { type: Number, default: null },
   orderStatus: {
     type: String,
-    enum: ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Out for Delivery", "Delivered", "Cancelled"],
+    enum: ["Pending", "Order Placed", "Preparing", "Packed", "Rider Assigned", "Picked Up", "Out for Delivery", "Delivered", "Cancelled", "Delivery Failed"],
     default: "Order Placed"
   },
   statusTimestamps: {
+    pending: { type: Date, default: null },
     orderPlaced: { type: Date, default: Date.now },
     preparing: { type: Date, default: null },
     packed: { type: Date, default: null },
     riderAssigned: { type: Date, default: null },
+    pickedUp: { type: Date, default: null },
     outForDelivery: { type: Date, default: null },
     delivered: { type: Date, default: null },
-    cancelled: { type: Date, default: null }
+    cancelled: { type: Date, default: null },
+    deliveryFailed: { type: Date, default: null }
   },
   estimatedDeliveryTime: {
     type: Date,
@@ -83,6 +86,34 @@ const orderSchema = new mongoose.Schema({
   deliveredAt: {
     type: Date,
     default: null
+  },
+  borzoOrderId: {
+    type: String,
+    default: null
+  },
+  borzoTrackingUrl: {
+    type: String,
+    default: null
+  },
+  borzoDeliveryStatus: {
+    type: String,
+    default: null
+  },
+  borzoRiderName: {
+    type: String,
+    default: null
+  },
+  borzoRiderPhone: {
+    type: String,
+    default: null
+  },
+  borzoDeliveryCost: {
+    type: Number,
+    default: 0
+  },
+  borzoWebhookData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   createdAt: {
     type: Date,

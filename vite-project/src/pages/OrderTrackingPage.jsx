@@ -98,13 +98,156 @@ export default function OrderTrackingPage({ orderId }) {
     }
   }, [order]);
 
-  const activeIndex = useMemo(() => Math.max(0, stepLabels.indexOf(order?.orderStatus)), [order?.orderStatus]);
-  const etaMinutes = Math.max(0, Math.ceil(secondsLeft / 60));
-  const etaLabel = order?.orderStatus === "Delivered"
-    ? "Delivered"
-    : rider && etaMinutes <= 2
-      ? "Rider nearby"
-      : `Arriving in ${etaMinutes || tracking?.eta?.estimatedArrivalMinutes || 0} mins`;
+  const isBorzoOrder = !!order?.borzoOrderId;
+  const borzoStepLabels = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Picked Up", "Out for Delivery", "Delivered"];
+  const borzoTimestampKeys = {
+    "Order Placed": "orderPlaced",
+    "Preparing": "preparing",
+    "Packed": "packed",
+    "Rider Assigned": "riderAssigned",
+    "Picked Up": "pickedUp",
+    "Out for Delivery": "outForDelivery",
+    "Delivered": "delivered"
+  };
+
+  const stepsToUse = isBorzoOrder ? borzoStepLabels : stepLabels;
+  const timestampKeysToUse = isBorzoOrder ? borzoTimestampKeys : timestampKeys;
+
+  const activeIndex = useMemo(() => {
+    return Math.max(0, stepsToUse.indexOf(order?.orderStatus));
+  }, [order?.orderStatus, stepsToUse]);
+
+  const progressPercent = useMemo(() => {
+    if (!isBorzoOrder) return tracking?.progress || 0;
+    if (order?.orderStatus === "Cancelled" || order?.orderStatus === "Delivery Failed") return 0;
+    const idx = borzoStepLabels.indexOf(order?.orderStatus);
+    if (idx === -1) return 0;
+    return Math.round(((idx + 1) / borzoStepLabels.length) * 100);
+  }, [isBorzoOrder, order?.orderStatus, tracking?.progress]);
+
+  const formattedEtaTime = useMemo(() => {
+    if (!order?.estimatedDeliveryTime) return "";
+    return new Date(order.estimatedDeliveryTime).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }, [order?.estimatedDeliveryTime]);
+
+  const hasRider = !!(rider || order?.borzoRiderName || order?.riderName || order?.riderId || order?.riderAssigned);
+  const status = order?.orderStatus;
+
+  const getCalculatedEtaMinutes = () => {
+    if (status === "Delivered") {
+      return 0;
+    }
+
+    const STORE_LAT = 13.0835363;
+    const STORE_LNG = 77.6403678;
+
+    const customerLat = order?.deliveryLatitude ? Number(order.deliveryLatitude) : null;
+    const customerLng = order?.deliveryLongitude ? Number(order.deliveryLongitude) : null;
+
+    const riderLat = (rider?.currentLocation?.lat || rider?.latitude) ? Number(rider.currentLocation.lat || rider.latitude) : null;
+    const riderLng = (rider?.currentLocation?.lng || rider?.longitude) ? Number(rider.currentLocation.lng || rider.longitude) : null;
+
+    const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+      if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+      const R = 6371; // Radius of the Earth in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    const travelTimeStoreToCustomer = (() => {
+      const dist = getDistanceKm(STORE_LAT, STORE_LNG, customerLat, customerLng);
+      return dist !== null ? Math.max(5, Math.round(dist * 3)) : 15; // 15 mins default (~5km)
+    })();
+
+    const travelTimeRiderToStore = (() => {
+      const dist = getDistanceKm(riderLat, riderLng, STORE_LAT, STORE_LNG);
+      return dist !== null ? Math.max(2, Math.round(dist * 3)) : 5; // 5 mins default
+    })();
+
+    const travelTimeRiderToCustomer = (() => {
+      const dist = getDistanceKm(riderLat, riderLng, customerLat, customerLng);
+      return dist !== null ? Math.max(2, Math.round(dist * 3)) : null;
+    })();
+
+    const getBorzoTrackingEta = () => {
+      const webhook = order?.borzoWebhookData;
+      const rawEta = webhook?.order?.eta || webhook?.delivery?.eta;
+      if (rawEta) {
+        const num = Number(rawEta);
+        if (!isNaN(num) && num > 0) return num;
+      }
+      if (order?.estimatedDeliveryTime) {
+        const diffMs = new Date(order.estimatedDeliveryTime).getTime() - Date.now();
+        const mins = Math.max(0, Math.ceil(diffMs / 60000));
+        if (mins > 0) return mins;
+      }
+      return null;
+    };
+
+    // 1. Before Rider Assigned
+    const isBeforeRiderAssigned = ["Pending", "Order Placed", "Preparing", "Packed"].includes(status) && !hasRider;
+    if (isBeforeRiderAssigned) {
+      const packingTime = 8;
+      const riderAllocationBuffer = 10;
+      return packingTime + riderAllocationBuffer + travelTimeStoreToCustomer;
+    }
+
+    // 2. Rider Assigned
+    if (status === "Rider Assigned") {
+      const borzoEta = getBorzoTrackingEta();
+      if (borzoEta !== null && borzoEta > 0) {
+        return borzoEta;
+      }
+      // Otherwise continue distance-based calculation
+      return travelTimeRiderToStore + travelTimeStoreToCustomer;
+    }
+
+    // 3. Picked Up / Out For Delivery
+    if (status === "Picked Up" || status === "Out for Delivery") {
+      if (riderLat && riderLng) {
+        const eta = travelTimeRiderToCustomer;
+        if (eta !== null && eta > 0) {
+          return eta;
+        }
+      }
+      // Otherwise use Borzo tracking ETA
+      const borzoEta = getBorzoTrackingEta();
+      if (borzoEta !== null && borzoEta > 0) {
+        return borzoEta;
+      }
+    }
+
+    // Default Fallback
+    const borzoEta = getBorzoTrackingEta();
+    if (borzoEta !== null && borzoEta > 0) return borzoEta;
+    return travelTimeStoreToCustomer;
+  };
+
+  const calculatedMinutes = getCalculatedEtaMinutes();
+  let etaLabel = "Calculating ETA...";
+
+  if (status === "Delivered") {
+    etaLabel = "Delivered";
+  } else if (status === "Delivery Failed") {
+    etaLabel = "Delivery Failed";
+  } else if (status === "Cancelled") {
+    etaLabel = "Cancelled";
+  } else {
+    if (calculatedMinutes && calculatedMinutes > 0) {
+      etaLabel = `Estimated Arrival: ${calculatedMinutes} mins`;
+    } else {
+      etaLabel = "Calculating ETA...";
+    }
+  }
 
   if (loading) {
     return <div style={loadingStyle}>Loading live tracking...</div>;
@@ -161,17 +304,18 @@ export default function OrderTrackingPage({ orderId }) {
               <motion.div
                 style={progressFillStyle(statusColors[order?.orderStatus] || "#22c55e")}
                 initial={false}
-                animate={{ width: `${tracking?.progress || 0}%` }}
+                animate={{ width: `${progressPercent}%` }}
                 transition={{ duration: 0.55, ease: "easeOut" }}
               />
             </div>
 
             <div style={timelineStyle}>
               <div className="timeline-line" style={timelineLineStyle} />
-              {stepLabels.map((step, index) => {
-                const isDone = index < activeIndex || order?.orderStatus === "Delivered";
-                const isActive = index === activeIndex && order?.orderStatus !== "Delivered";
-                const timestamp = tracking?.timestamps?.[timestampKeys[step]];
+              {stepsToUse.map((step, index) => {
+                const isCancelledOrFailed = order?.orderStatus === "Cancelled" || order?.orderStatus === "Delivery Failed";
+                const isDone = isCancelledOrFailed ? false : (index < activeIndex || order?.orderStatus === "Delivered");
+                const isActive = isCancelledOrFailed ? false : (index === activeIndex && order?.orderStatus !== "Delivered");
+                const timestamp = tracking?.timestamps?.[timestampKeysToUse[step]];
 
                 return (
                   <motion.div
@@ -221,23 +365,49 @@ export default function OrderTrackingPage({ orderId }) {
         <aside style={sideColumnStyle}>
           <motion.section whileHover={{ y: -3 }} style={panelStyle}>
             <h2 style={sectionTitleStyle}>Delivery Partner</h2>
-            {rider ? (
+            {rider || (isBorzoOrder && (order?.borzoRiderName || order?.riderName)) ? (
               <div style={riderCardStyle}>
                 <div style={riderAvatarStyle}>
-                  {rider.profileImage ? <img src={rider.profileImage} alt={rider.name} style={avatarImgStyle} /> : rider.name?.slice(0, 2).toUpperCase()}
+                  {rider?.profileImage ? <img src={rider.profileImage} alt={rider.name} style={avatarImgStyle} /> : (rider?.name || order?.borzoRiderName || order?.riderName || "R").slice(0, 2).toUpperCase()}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <strong style={riderNameStyle}>{rider.name || order?.riderName}</strong>
-                  <p style={mutedStyle}>{rider.vehicleType || "Delivery Vehicle"}</p>
-                  <span style={onlineStyle(rider.isOnline)}>{rider.isOnline ? "Online" : "Offline"}</span>
+                  <strong style={riderNameStyle}>{order?.borzoRiderName || order?.riderName || rider?.name}</strong>
+                  <p style={mutedStyle}>{isBorzoOrder ? "Borzo Delivery Partner" : (rider?.vehicleType || "Delivery Vehicle")}</p>
+                  {!isBorzoOrder && <span style={onlineStyle(rider?.isOnline)}>{rider?.isOnline ? "Online" : "Offline"}</span>}
                 </div>
                 <div style={riderActionsStyle}>
-                  <a href={`tel:${rider.phone || order?.riderPhone || ""}`} style={actionBtnStyle}>Call Rider</a>
+                  <a href={`tel:${order?.borzoRiderPhone || order?.riderPhone || rider?.phone || ""}`} style={actionBtnStyle}>Call Rider</a>
                   <button style={ghostBtnStyle}>Message</button>
                 </div>
               </div>
             ) : (
-              <div style={emptyRiderStyle}>A rider will be assigned once your order is packed.</div>
+              <div style={emptyRiderStyle}>
+                {isBorzoOrder ? "Searching for courier" : "A rider will be assigned once your order is packed."}
+              </div>
+            )}
+            {isBorzoOrder && order?.borzoTrackingUrl && (
+              <div style={{ marginTop: 14 }}>
+                <a 
+                  href={order.borzoTrackingUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{
+                    display: "block",
+                    textDecoration: "none",
+                    textAlign: "center",
+                    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                    color: "white",
+                    padding: "12px",
+                    borderRadius: "12px",
+                    fontWeight: "800",
+                    fontSize: "14px",
+                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  🗺️ Track Rider on Borzo Map
+                </a>
+              </div>
             )}
           </motion.section>
 
@@ -247,7 +417,9 @@ export default function OrderTrackingPage({ orderId }) {
             <p style={mutedStyle}>
               {order?.orderStatus === "Delivered"
                 ? "Your order has reached the delivery address."
-                : "Tracking is polling live. Socket.IO can plug into this same payload later."}
+                : isBorzoOrder 
+                  ? "Your delivery is being handled by Borzo."
+                  : "Tracking is polling live. Socket.IO can plug into this same payload later."}
             </p>
           </section>
 

@@ -104,6 +104,29 @@ export default function AdminOrdersPage() {
     return "#FF4D4F";
   };
 
+  const getBorzoProgressWidth = (status) => {
+    switch (status) {
+      case "Rider Assigned": return "25%";
+      case "Picked Up": return "50%";
+      case "Out for Delivery": return "75%";
+      case "Delivered": return "100%";
+      default: return "0%";
+    }
+  };
+
+  const borzoTrackerLabelStyle = (label, currentStatus) => {
+    const statuses = ["Rider Assigned", "Picked Up", "Out for Delivery", "Delivered"];
+    const currentIdx = statuses.indexOf(currentStatus);
+    const labelIdx = statuses.indexOf(label);
+    
+    const isCompleted = labelIdx <= currentIdx;
+    return {
+      color: isCompleted ? "#2563eb" : "#6B7280",
+      fontWeight: isCompleted ? "850" : "600",
+    };
+  };
+
+
   if (loading) {
     return (
       <div style={loadingContainerStyle}>
@@ -408,27 +431,138 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Delivery progress tracker */}
-                  {order.orderStatus !== "Cancelled" && (
-                    <div style={trackerContainerStyle}>
-                      <div style={trackerLabelsStyle}>
-                        <span style={trackerLabelStyle("Order Placed", order.orderStatus)}>Order Placed</span>
-                        <span style={trackerLabelStyle("Preparing", order.orderStatus)}>Preparing</span>
-                        <span style={trackerLabelStyle("Packed", order.orderStatus)}>Packed</span>
-                        <span style={trackerLabelStyle("Rider Assigned", order.orderStatus)}>Rider Assigned</span>
-                        <span style={trackerLabelStyle("Out for Delivery", order.orderStatus)}>Out for Delivery</span>
-                        <span style={trackerLabelStyle("Delivered", order.orderStatus)}>Delivered</span>
+                  {/* Dedicated Borzo Delivery details section */}
+                  {order.borzoOrderId && (
+                    <div style={{ ...paymentSectionStyle, borderLeft: "4px solid #2563eb" }}>
+                      <span style={blockTitleStyle}>🛵 Borzo Delivery Details</span>
+                      <div style={paymentGridStyle}>
+                        <div style={detailsBlockStyle}>
+                          <span style={paymentLabelStyle}>Borzo Order ID</span>
+                          <span style={{ ...paymentValueStyle, fontFamily: "monospace", fontWeight: "800", color: "#2563eb" }}>
+                            {order.borzoOrderId}
+                          </span>
+                        </div>
+                        <div style={detailsBlockStyle}>
+                          <span style={paymentLabelStyle}>Raw Borzo Status</span>
+                          <span style={{ 
+                            fontSize: "11px", 
+                            fontWeight: "800", 
+                            padding: "4px 8px", 
+                            borderRadius: "6px", 
+                            background: "#eff6ff", 
+                            color: "#1e40af", 
+                            border: "1.5px solid rgba(37, 99, 235, 0.15)",
+                            alignSelf: "flex-start",
+                            marginTop: "2px"
+                          }}>
+                            {order.borzoDeliveryStatus || "New"}
+                          </span>
+                        </div>
+                        <div style={detailsBlockStyle}>
+                          <span style={paymentLabelStyle}>Delivery Cost</span>
+                          <span style={{ ...paymentValueStyle, fontWeight: "800", color: "#111827" }}>
+                            ₹{order.borzoDeliveryCost || 0}
+                          </span>
+                        </div>
+                        <div style={detailsBlockStyle}>
+                          <span style={paymentLabelStyle}>Tracking URL</span>
+                          {order.borzoTrackingUrl ? (
+                            <a 
+                              href={order.borzoTrackingUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              style={{
+                                color: "#2563eb",
+                                fontWeight: "800",
+                                fontSize: "13px",
+                                textDecoration: "underline",
+                                marginTop: "2px"
+                              }}
+                            >
+                              Track on Map ↗
+                            </a>
+                          ) : (
+                            <span style={paymentValueStyle}>N/A</span>
+                          )}
+                        </div>
+                        <div style={detailsBlockStyle}>
+                          <span style={paymentLabelStyle}>Assigned Rider</span>
+                          <span style={{ ...paymentValueStyle, fontWeight: "800" }}>
+                            {order.borzoRiderName || order.riderName || "None"}
+                          </span>
+                        </div>
+                        <div style={detailsBlockStyle}>
+                          <span style={paymentLabelStyle}>Rider Phone</span>
+                          <span style={paymentValueStyle}>
+                            {order.borzoRiderPhone || order.riderPhone || "N/A"}
+                          </span>
+                        </div>
                       </div>
                       
-                      <div style={progressBarBgStyle}>
-                        <div style={progressBarFillStyle(getProgressWidth(order.orderStatus), getProgressColor(order.orderStatus))} />
-                      </div>
+                      {/* Webhook logs debug section */}
+                      {order.borzoWebhookData && Object.keys(order.borzoWebhookData).length > 0 && (
+                        <details style={{ marginTop: "12px", borderTop: "1px dashed #e5e7eb", paddingTop: "8px" }}>
+                          <summary style={{ fontSize: "11px", fontWeight: "800", color: "#4b5563", cursor: "pointer" }}>
+                            🔍 View Raw Webhook Debug Data
+                          </summary>
+                          <pre style={{ 
+                            fontSize: "10px", 
+                            background: "#f1f5f9", 
+                            padding: "8px", 
+                            borderRadius: "8px", 
+                            marginTop: "6px", 
+                            overflowX: "auto", 
+                            color: "#334155",
+                            maxHeight: "150px"
+                          }}>
+                            {JSON.stringify(order.borzoWebhookData, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Delivery progress tracker */}
+                  {order.orderStatus !== "Cancelled" && order.orderStatus !== "Delivery Failed" && (
+                    <div style={trackerContainerStyle}>
+                      {order.borzoOrderId ? (
+                        <>
+                          <div style={trackerLabelsStyle}>
+                            <span style={borzoTrackerLabelStyle("Rider Assigned", order.orderStatus)}>Rider Assigned</span>
+                            <span style={borzoTrackerLabelStyle("Picked Up", order.orderStatus)}>Picked Up</span>
+                            <span style={borzoTrackerLabelStyle("Out for Delivery", order.orderStatus)}>Out for Delivery</span>
+                            <span style={borzoTrackerLabelStyle("Delivered", order.orderStatus)}>Delivered</span>
+                          </div>
+                          <div style={progressBarBgStyle}>
+                            <div style={progressBarFillStyle(getBorzoProgressWidth(order.orderStatus), "#2563eb")} />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={trackerLabelsStyle}>
+                            <span style={trackerLabelStyle("Order Placed", order.orderStatus)}>Order Placed</span>
+                            <span style={trackerLabelStyle("Preparing", order.orderStatus)}>Preparing</span>
+                            <span style={trackerLabelStyle("Packed", order.orderStatus)}>Packed</span>
+                            <span style={trackerLabelStyle("Rider Assigned", order.orderStatus)}>Rider Assigned</span>
+                            <span style={trackerLabelStyle("Out for Delivery", order.orderStatus)}>Out for Delivery</span>
+                            <span style={trackerLabelStyle("Delivered", order.orderStatus)}>Delivered</span>
+                          </div>
+                          <div style={progressBarBgStyle}>
+                            <div style={progressBarFillStyle(getProgressWidth(order.orderStatus), getProgressColor(order.orderStatus))} />
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
 
                   {order.orderStatus === "Cancelled" && (
                     <div style={cancelledBannerStyle}>
                       ❌ This order has been CANCELLED and will not be dispatched.
+                    </div>
+                  )}
+                  {order.orderStatus === "Delivery Failed" && (
+                    <div style={{ ...cancelledBannerStyle, background: "#FEF2F2", color: "#EF4444", border: "1.5px solid rgba(239, 68, 68, 0.15)" }}>
+                      ⚠️ Borzo Delivery FAILED. Please inspect debug logs or re-arrange shipment.
                     </div>
                   )}
                 </div>

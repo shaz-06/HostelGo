@@ -6,13 +6,16 @@ const Product = require("../models/Product");
 const User = require("../models/User");
 
 const STATUS_TIMESTAMP_KEYS = {
+  "Pending": "pending",
   "Order Placed": "orderPlaced",
   Preparing: "preparing",
   Packed: "packed",
   "Rider Assigned": "riderAssigned",
+  "Picked Up": "pickedUp",
   "Out for Delivery": "outForDelivery",
   Delivered: "delivered",
-  Cancelled: "cancelled"
+  Cancelled: "cancelled",
+  "Delivery Failed": "deliveryFailed"
 };
 
 // GET /api/admin/analytics
@@ -184,7 +187,7 @@ router.put("/orders/:id/status", async (req, res) => {
     return res.status(400).json({ message: "orderStatus is required" });
   }
 
-  const validStatuses = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Out for Delivery", "Delivered", "Cancelled"];
+  const validStatuses = ["Pending", "Order Placed", "Preparing", "Packed", "Rider Assigned", "Picked Up", "Out for Delivery", "Delivered", "Cancelled", "Delivery Failed"];
   if (!validStatuses.includes(orderStatus)) {
     return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
   }
