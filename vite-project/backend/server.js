@@ -7,6 +7,8 @@ require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 const Product = require("./models/Product");
 const User = require("./models/User");
 const Order = require("./models/Order");
+const Config = require("./models/Config");
+const DeliverySettings = require("./models/DeliverySettings");
 const paymentRoutes = require("./routes/paymentRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -65,6 +67,57 @@ mongoose.connect(process.env.MONGO_URI)
       }
     } catch (seedErr) {
       console.error("❌ Mongoose: Failed to seed default admin:", seedErr.message);
+    }
+
+    // Auto-seed default dynamic fees configuration if missing
+    try {
+      let feeConfig = await Config.findOne({ key: "fees_config" });
+      if (!feeConfig) {
+        console.log("Creating default dynamic fees config...");
+        feeConfig = new Config({
+          key: "fees_config",
+          handlingFee: 4,
+          smallCartThreshold: 150,
+          smallCartFee: 15,
+          deliveryFee: 29,
+          freeDeliveryThreshold: 99,
+          rainFee: 0,
+          lateNightFee: 0,
+          gstPercentage: 5,
+          gstFixedCharges: 2
+        });
+        await feeConfig.save();
+        console.log("=== FEE CONFIG SEED SUCCESS ===");
+        console.log("Config document:", JSON.stringify(feeConfig, null, 2));
+      } else {
+        console.log("=== FEE CONFIG SEED CHECK ===");
+        console.log("Config exists");
+        console.log("Config document:", JSON.stringify(feeConfig, null, 2));
+      }
+    } catch (configSeedErr) {
+      console.error("❌ Mongoose: Failed to seed dynamic fees config:", configSeedErr.message);
+    }
+
+    // Auto-seed default delivery settings if missing
+    try {
+      let deliverySettings = await DeliverySettings.findOne({ key: "delivery_settings" });
+      if (!deliverySettings) {
+        console.log("Creating default delivery settings...");
+        deliverySettings = new DeliverySettings({
+          key: "delivery_settings",
+          lateNightDeliveryEnabled: false,
+          rainyDeliveryEnabled: false
+        });
+        await deliverySettings.save();
+        console.log("=== DELIVERY SETTINGS SEED SUCCESS ===");
+        console.log("Settings document:", JSON.stringify(deliverySettings, null, 2));
+      } else {
+        console.log("=== DELIVERY SETTINGS SEED CHECK ===");
+        console.log("Settings exists");
+        console.log("Settings document:", JSON.stringify(deliverySettings, null, 2));
+      }
+    } catch (deliverySeedErr) {
+      console.error("❌ Mongoose: Failed to seed delivery settings config:", deliverySeedErr.message);
     }
   })
   .catch((err) => {

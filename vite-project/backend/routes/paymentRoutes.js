@@ -6,6 +6,8 @@ const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const User = require("../models/User");
+const Config = require("../models/Config");
+const DeliverySettings = require("../models/DeliverySettings");
 const authMiddleware = require("../middleware/authMiddleware");
 const { createBorzoOrder } = require("../utils/borzo");
 
@@ -89,7 +91,7 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
   console.log("MongoDB connection state (readyState):", mongoose.connection.readyState);
   
   try {
-    const { amount, user, products, deliveryAddress } = req.body;
+    const { amount, user, products, deliveryAddress, couponId, couponCode, couponDiscount, buyCoinsRedeemed, buyCoinsDiscount } = req.body;
 
     // 1. Validation
     if (amount === undefined || amount === null) {
@@ -139,7 +141,12 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
       deliveryLongitude,
       orderStatus: "Order Placed",
       estimatedArrivalMinutes: 30,
-      estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000)
+      estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000),
+      couponId: couponId || null,
+      couponCode: couponCode || "",
+      couponDiscount: Number(couponDiscount || 0),
+      buyCoinsRedeemed: Number(buyCoinsRedeemed || 0),
+      buyCoinsDiscount: Number(buyCoinsDiscount || 0)
     });
 
     if (deliveryLatitude && deliveryLongitude) {
@@ -254,6 +261,9 @@ router.post("/payment/verify", async (req, res) => {
       console.log("=== [BACKEND DB UPDATE SUCCESS] Paid Order Saved to MongoDB Successfully ===");
       console.log("Saved Document ID:", savedOrder._id);
 
+      const { consumeOrderDiscounts } = require("../utils/rewards");
+      await consumeOrderDiscounts(savedOrder);
+
       // Create Borzo delivery order automatically
       try {
         const borzoResult = await createBorzoOrder(savedOrder);
@@ -328,9 +338,9 @@ router.post("/orders", authMiddleware, async (req, res) => {
   console.log(req.body.user);
 
   try {
-    const { user, products, amount, deliveryAddress } = req.body;
+    const { user, products, amount, deliveryAddress, couponId, couponCode, couponDiscount, buyCoinsRedeemed, buyCoinsDiscount } = req.body;
 
-    if (!user || typeof user !== "object" || !products || !amount || !deliveryAddress) {
+    if (!user || typeof user !== "object" || !products || amount === undefined || !deliveryAddress) {
       console.error("❌ COD Validation Error: Missing required fields or invalid user details");
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -351,7 +361,12 @@ router.post("/orders", authMiddleware, async (req, res) => {
       deliveryLongitude,
       orderStatus: "Order Placed",
       estimatedArrivalMinutes: 30,
-      estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000)
+      estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000),
+      couponId: couponId || null,
+      couponCode: couponCode || "",
+      couponDiscount: Number(couponDiscount || 0),
+      buyCoinsRedeemed: Number(buyCoinsRedeemed || 0),
+      buyCoinsDiscount: Number(buyCoinsDiscount || 0)
     });
 
     if (deliveryLatitude && deliveryLongitude) {
@@ -372,6 +387,9 @@ router.post("/orders", authMiddleware, async (req, res) => {
       console.log("=== ORDER SAVED ===");
       console.log("=== [BACKEND DB SAVE SUCCESS] COD Order Saved Successfully ===");
       console.log("Saved Document ID:", savedOrder._id);
+
+      const { consumeOrderDiscounts } = require("../utils/rewards");
+      await consumeOrderDiscounts(savedOrder);
 
       // Create Borzo delivery order automatically
       try {
@@ -643,6 +661,12 @@ router.post("/borzo/webhook", async (req, res) => {
     }
 
     await order.save();
+
+    if (order.orderStatus === "Delivered") {
+      const { handleOrderDeliveredRewards } = require("../utils/rewards");
+      await handleOrderDeliveredRewards(order);
+    }
+
     console.log(`Successfully updated Order ${order._id} status to: ${order.orderStatus}`);
 
     // Emit live Socket.IO update if Socket.IO server is attached
@@ -758,6 +782,66 @@ router.post("/borzo/test-order", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// GET /api/config/fees
+// Returns current checkout fees configuration parameters
+router.get("/config/fees", async (req, res) => {
+  console.log("=== GET FEE CONFIGURATION HIT ===");
+  try {
+    const feeConfig = await Config.findOne({ key: "fees_config" });
+    if (!feeConfig) {
+      console.warn("Fee config not found in DB, returning defaults");
+      return res.json({
+        handlingFee: 4,
+        smallCartThreshold: 150,
+        smallCartFee: 15,
+        deliveryFee: 29,
+        freeDeliveryThreshold: 99,
+        rainFee: 0,
+        lateNightFee: 0,
+        gstPercentage: 5,
+        gstFixedCharges: 2
+      });
+    }
+    return res.json(feeConfig);
+  } catch (error) {
+    console.error("Failed to fetch fee configuration:", error);
+    return res.json({
+      handlingFee: 4,
+      smallCartThreshold: 150,
+      smallCartFee: 15,
+      deliveryFee: 29,
+      freeDeliveryThreshold: 99,
+      rainFee: 0,
+      lateNightFee: 0,
+      gstPercentage: 5,
+      gstFixedCharges: 2
+    });
+  }
+});
+
+// GET /api/delivery-settings
+// Returns current delivery settings/toggles for customer calculations
+router.get("/delivery-settings", async (req, res) => {
+  console.log("=== GET DELIVERY SETTINGS HIT (PUBLIC) ===");
+  try {
+    const settings = await DeliverySettings.findOne({ key: "delivery_settings" });
+    if (!settings) {
+      console.warn("Delivery settings not found in DB, returning defaults");
+      return res.json({
+        lateNightDeliveryEnabled: false,
+        rainyDeliveryEnabled: false
+      });
+    }
+    return res.json(settings);
+  } catch (error) {
+    console.error("Failed to fetch delivery settings:", error);
+    return res.json({
+      lateNightDeliveryEnabled: false,
+      rainyDeliveryEnabled: false
     });
   }
 });

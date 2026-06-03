@@ -115,6 +115,11 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: {}
   },
+  couponId: { type: mongoose.Schema.Types.ObjectId, ref: "Coupon", default: null },
+  couponCode: { type: String, default: "" },
+  couponDiscount: { type: Number, default: 0 },
+  buyCoinsRedeemed: { type: Number, default: 0 },
+  buyCoinsDiscount: { type: Number, default: 0 },
   createdAt: {
     type: Date,
     default: Date.now

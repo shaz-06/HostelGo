@@ -4,6 +4,9 @@ const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const User = require("../models/User");
+const Config = require("../models/Config");
+const DeliverySettings = require("../models/DeliverySettings");
+const Coupon = require("../models/Coupon");
 
 const STATUS_TIMESTAMP_KEYS = {
   "Pending": "pending",
@@ -74,7 +77,13 @@ router.get("/analytics", async (req, res) => {
       deliveredOrders,
       totalRiders,
       onlineRiders,
-      activeRiderDeliveries
+      activeRiderDeliveries,
+      totalCouponsGenerated: await Coupon.countDocuments({}),
+      totalCouponsRedeemed: await Coupon.countDocuments({ isUsed: true }),
+      totalBuyCoinsIssued: (await User.aggregate([{ $group: { _id: null, total: { $sum: "$buyCoinsLifetimeEarned" } } }]))[0]?.total || 0,
+      totalBuyCoinsRedeemed: (await User.aggregate([{ $group: { _id: null, total: { $sum: "$buyCoinsRedeemed" } } }]))[0]?.total || 0,
+      recentCoupons: await Coupon.find({}).populate("userId", "name email phone").sort({ createdAt: -1 }).limit(10).lean(),
+      recentBuyCoinOrders: await Order.find({ $or: [ { orderStatus: "Delivered" }, { buyCoinsRedeemed: { $gt: 0 } } ] }).sort({ updatedAt: -1 }).limit(10).lean()
     };
 
     console.log("Analytics calculated successfully:", analytics);
@@ -222,6 +231,11 @@ router.put("/orders/:id/status", async (req, res) => {
     const updatedOrder = await order.save();
     console.log("Order status updated successfully in DB:", updatedOrder._id);
 
+    if (orderStatus === "Delivered") {
+      const { handleOrderDeliveredRewards } = require("../utils/rewards");
+      await handleOrderDeliveredRewards(updatedOrder);
+    }
+
     return res.json(updatedOrder);
   } catch (error) {
     console.error("❌ Admin Status Update Error:", error);
@@ -360,6 +374,99 @@ router.delete("/products/:id", async (req, res) => {
   } catch (error) {
     console.error("❌ Product Admin Delete Error:", error);
     return res.status(500).json({ message: "Failed to delete product", error: error.message });
+  }
+});
+
+// PUT /api/admin/config/fees
+// Updates checkout fees configuration
+router.put("/config/fees", async (req, res) => {
+  console.log("=== ADMIN UPDATE FEE CONFIGURATION HIT ===");
+  try {
+    const {
+      handlingFee,
+      smallCartThreshold,
+      smallCartFee,
+      deliveryFee,
+      freeDeliveryThreshold,
+      rainFee,
+      lateNightFee,
+      gstPercentage,
+      gstFixedCharges
+    } = req.body;
+
+    let feeConfig = await Config.findOne({ key: "fees_config" });
+    if (!feeConfig) {
+      feeConfig = new Config({ key: "fees_config" });
+    }
+
+    if (handlingFee !== undefined) feeConfig.handlingFee = Number(handlingFee);
+    if (smallCartThreshold !== undefined) feeConfig.smallCartThreshold = Number(smallCartThreshold);
+    if (smallCartFee !== undefined) feeConfig.smallCartFee = Number(smallCartFee);
+    if (deliveryFee !== undefined) feeConfig.deliveryFee = Number(deliveryFee);
+    if (freeDeliveryThreshold !== undefined) feeConfig.freeDeliveryThreshold = Number(freeDeliveryThreshold);
+    if (rainFee !== undefined) feeConfig.rainFee = Number(rainFee);
+    if (lateNightFee !== undefined) feeConfig.lateNightFee = Number(lateNightFee);
+    if (gstPercentage !== undefined) feeConfig.gstPercentage = Number(gstPercentage);
+    if (gstFixedCharges !== undefined) feeConfig.gstFixedCharges = Number(gstFixedCharges);
+
+    const savedConfig = await feeConfig.save();
+    console.log("Fee configuration updated successfully by admin:", savedConfig);
+    return res.json({ success: true, config: savedConfig });
+  } catch (error) {
+    console.error("❌ Admin Fee Config Update Error:", error);
+    return res.status(500).json({ message: "Failed to update fee configuration", error: error.message });
+  }
+});
+
+// GET /api/admin/delivery-settings
+// Returns current delivery settings for admin panel
+router.get("/delivery-settings", async (req, res) => {
+  console.log("=== GET DELIVERY SETTINGS HIT (ADMIN) ===");
+  try {
+    let settings = await DeliverySettings.findOne({ key: "delivery_settings" });
+    if (!settings) {
+      settings = new DeliverySettings({ key: "delivery_settings" });
+      await settings.save();
+    }
+    return res.json(settings);
+  } catch (error) {
+    console.error("❌ Admin Get Delivery Settings Error:", error);
+    return res.status(500).json({ message: "Failed to get delivery settings", error: error.message });
+  }
+});
+
+// PUT /api/admin/delivery-settings
+// Updates delivery settings toggles
+router.put("/delivery-settings", async (req, res) => {
+  console.log("=== ADMIN UPDATE DELIVERY SETTINGS HIT ===");
+  try {
+    const { lateNightDeliveryEnabled, rainyDeliveryEnabled } = req.body;
+
+    let settings = await DeliverySettings.findOne({ key: "delivery_settings" });
+    if (!settings) {
+      settings = new DeliverySettings({ key: "delivery_settings" });
+    }
+
+    if (lateNightDeliveryEnabled !== undefined) {
+      settings.lateNightDeliveryEnabled = Boolean(lateNightDeliveryEnabled);
+    }
+    if (rainyDeliveryEnabled !== undefined) {
+      settings.rainyDeliveryEnabled = Boolean(rainyDeliveryEnabled);
+    }
+
+    const savedSettings = await settings.save();
+    console.log("Delivery settings updated successfully by admin:", savedSettings);
+
+    // Emit event to all connected Socket.IO clients in real-time
+    if (req.io) {
+      console.log("=== EMITTING deliverySettingsUpdated via Socket.IO ===");
+      req.io.emit("deliverySettingsUpdated", savedSettings);
+    }
+
+    return res.json({ success: true, settings: savedSettings });
+  } catch (error) {
+    console.error("❌ Admin Delivery Settings Update Error:", error);
+    return res.status(500).json({ message: "Failed to update delivery settings", error: error.message });
   }
 });
 

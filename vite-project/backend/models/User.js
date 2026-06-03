@@ -87,6 +87,18 @@ const userSchema = new mongoose.Schema(
     drivingLicenseVerified: {
       type: Boolean,
       default: false
+    },
+    buyCoins: {
+      type: Number,
+      default: 0
+    },
+    buyCoinsLifetimeEarned: {
+      type: Number,
+      default: 0
+    },
+    buyCoinsRedeemed: {
+      type: Number,
+      default: 0
     }
   },
   {

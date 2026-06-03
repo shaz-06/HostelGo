@@ -5,8 +5,66 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
+  const [deliverySettings, setDeliverySettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeView, setActiveView] = useState("overview"); // "overview" or "rewards"
+
+  const toggleLateNight = async () => {
+    try {
+      const token = localStorage.getItem("buyto_token");
+      const nextValue = !deliverySettings?.lateNightDeliveryEnabled;
+      const res = await fetch("http://localhost:8000/api/admin/delivery-settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          lateNightDeliveryEnabled: nextValue
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setDeliverySettings(data.settings);
+        }
+      } else {
+        alert("Failed to update late night delivery toggle");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error toggling late night delivery");
+    }
+  };
+
+  const toggleRainy = async () => {
+    try {
+      const token = localStorage.getItem("buyto_token");
+      const nextValue = !deliverySettings?.rainyDeliveryEnabled;
+      const res = await fetch("http://localhost:8000/api/admin/delivery-settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          rainyDeliveryEnabled: nextValue
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setDeliverySettings(data.settings);
+        }
+      } else {
+        alert("Failed to update rainy delivery toggle");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error toggling rainy delivery");
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,6 +116,17 @@ export default function AdminDashboard() {
         const ordersData = await ordersRes.json();
         setRecentOrders(ordersData.slice(0, 5)); // Keep latest 5 orders
 
+        // Fetch delivery settings
+        const settingsRes = await fetch("http://localhost:8000/api/admin/delivery-settings", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setDeliverySettings(settingsData);
+        }
+
         setLoading(false);
       } catch (err) {
         console.error("=== [FRONTEND DASHBOARD NETWORK ERROR] ===");
@@ -107,8 +176,11 @@ export default function AdminDashboard() {
           </div>
           
           <div style={navGroupStyle}>
-            <button onClick={() => navigate("/admin")} style={activeNavLinkStyle}>
-              📊 Dashboard
+            <button onClick={() => setActiveView("overview")} style={activeView === "overview" ? activeNavLinkStyle : navLinkStyle}>
+              📊 Dashboard Overview
+            </button>
+            <button onClick={() => setActiveView("rewards")} style={activeView === "rewards" ? activeNavLinkStyle : navLinkStyle}>
+              🎁 Customer Rewards
             </button>
             <button onClick={() => navigate("/admin/orders")} style={navLinkStyle}>
               📦 Orders Lifecycle
@@ -143,8 +215,10 @@ export default function AdminDashboard() {
         <main style={mainPanelStyle}>
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
 
-          {/* Aggregated Analytics Metric Cards */}
-          <div style={statsGridStyle}>
+          {activeView === "overview" && (
+            <>
+              {/* Aggregated Analytics Metric Cards */}
+              <div style={statsGridStyle}>
             {/* Sales Card */}
             <div style={statCardStyle("#FF4D4F")}>
               <div style={statIconStyle("💰", "#FFF1F0", "#FF4D4F")} />
@@ -262,6 +336,87 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Delivery Settings Card */}
+              <div style={cardLayoutStyle}>
+                <h3 style={cardTitleStyle}>Delivery Settings</h3>
+                <p style={{ color: "#6B7280", fontSize: "13px", marginTop: "4px", lineHeight: "1.5", fontWeight: 500 }}>
+                  Manage delivery surcharges dynamically.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
+                  {/* Late Night Delivery Toggle */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: "700", fontSize: "14px" }}>🌙 Late Night Delivery</div>
+                      <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
+                        Apply ₹30 surcharge for orders placed after 10 PM
+                      </div>
+                    </div>
+                    <div
+                      onClick={toggleLateNight}
+                      style={{
+                        width: "50px",
+                        height: "26px",
+                        background: deliverySettings?.lateNightDeliveryEnabled ? "#318616" : "#E5E7EB",
+                        borderRadius: "999px",
+                        position: "relative",
+                        cursor: "pointer",
+                        transition: "background-color 0.2s ease"
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          background: "white",
+                          borderRadius: "50%",
+                          position: "absolute",
+                          top: "3px",
+                          left: deliverySettings?.lateNightDeliveryEnabled ? "27px" : "3px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                          transition: "left 0.2s ease"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Rainy Delivery Toggle */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: "700", fontSize: "14px" }}>🌧️ Rainy Delivery</div>
+                      <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
+                        Apply ₹30 surcharge during rainy conditions
+                      </div>
+                    </div>
+                    <div
+                      onClick={toggleRainy}
+                      style={{
+                        width: "50px",
+                        height: "26px",
+                        background: deliverySettings?.rainyDeliveryEnabled ? "#318616" : "#E5E7EB",
+                        borderRadius: "999px",
+                        position: "relative",
+                        cursor: "pointer",
+                        transition: "background-color 0.2s ease"
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          background: "white",
+                          borderRadius: "50%",
+                          position: "absolute",
+                          top: "3px",
+                          left: deliverySettings?.rainyDeliveryEnabled ? "27px" : "3px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                          transition: "left 0.2s ease"
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div style={cardLayoutStyle}>
                 <h3 style={cardTitleStyle}>Quick Controls</h3>
                 <p style={{ color: "#6B7280", fontSize: "13px", marginTop: "4px", lineHeight: "1.5", fontWeight: 500 }}>
@@ -281,9 +436,191 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-        </main>
-      </div>
+        </>
+      )}
+
+        {activeView === "rewards" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            {/* Rewards Statistics Cards */}
+            <div style={statsGridStyle}>
+              {/* Total Coupons Generated */}
+              <div style={statCardStyle("#3b82f6")}>
+                <div style={statIconStyle("🎟️", "#eff6ff", "#3b82f6")} />
+                <div style={statContentStyle}>
+                  <span style={statLabelStyle}>Coupons Issued</span>
+                  <span style={statValStyle}>{analytics?.totalCouponsGenerated || 0}</span>
+                </div>
+              </div>
+
+              {/* Total Coupons Redeemed */}
+              <div style={statCardStyle("#10b981")}>
+                <div style={statIconStyle("🎁", "#ecfdf5", "#10b981")} />
+                <div style={statContentStyle}>
+                  <span style={statLabelStyle}>Coupons Redeemed</span>
+                  <span style={statValStyle}>{analytics?.totalCouponsRedeemed || 0}</span>
+                </div>
+              </div>
+
+              {/* Total BuyCoins Issued */}
+              <div style={statCardStyle("#fbbf24")}>
+                <div style={statIconStyle("🪙", "#fffbeb", "#d97706")} />
+                <div style={statContentStyle}>
+                  <span style={statLabelStyle}>BuyCoins Issued</span>
+                  <span style={statValStyle}>{analytics?.totalBuyCoinsIssued || 0}</span>
+                </div>
+              </div>
+
+              {/* Total BuyCoins Redeemed */}
+              <div style={statCardStyle("#ef4444")}>
+                <div style={statIconStyle("🪙", "#fef2f2", "#dc2626")} />
+                <div style={statContentStyle}>
+                  <span style={statLabelStyle}>BuyCoins Redeemed</span>
+                  <span style={statValStyle}>{analytics?.totalBuyCoinsRedeemed || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Activity Lists Grid */}
+            <div style={dashboardDetailsGridStyle}>
+              {/* Recent Coupon Activity */}
+              <div style={cardLayoutStyle}>
+                <div style={cardHeaderStyle}>
+                  <h3 style={cardTitleStyle}>Recent Coupon Activity</h3>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={tableStyle}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>User</th>
+                        <th style={thStyle}>Code</th>
+                        <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Generated Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!analytics?.recentCoupons || analytics.recentCoupons.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" style={emptyTdStyle}>No coupon activity recorded.</td>
+                        </tr>
+                      ) : (
+                        analytics.recentCoupons.map((coupon) => {
+                          const now = new Date();
+                          const isExpired = new Date(coupon.expiryDate) < now;
+                          let statusLabel = "Available";
+                          let statusColor = "#10b981";
+                          let statusBg = "rgba(16, 185, 129, 0.1)";
+
+                          if (coupon.isUsed) {
+                            statusLabel = "Used";
+                            statusColor = "#64748b";
+                            statusBg = "#e2e8f0";
+                          } else if (isExpired) {
+                            statusLabel = "Expired";
+                            statusColor = "#ef4444";
+                            statusBg = "rgba(239, 68, 68, 0.1)";
+                          }
+
+                          return (
+                            <tr key={coupon._id} style={trStyle}>
+                              <td style={tdCustomerStyle}>
+                                <div style={{ display: "flex", flexDirection: "column" }}>
+                                  <span style={{ fontWeight: "800", color: "#111827" }}>{coupon.userId?.name || "Guest"}</span>
+                                  <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{coupon.userId?.phone || ""}</span>
+                                </div>
+                              </td>
+                              <td>
+                                  <span style={{ fontFamily: "monospace", fontWeight: "800", color: "#FF4D4F" }}>{coupon.couponCode}</span>
+                              </td>
+                              <td>
+                                <span style={{
+                                  fontSize: "10px",
+                                  fontWeight: "855",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  color: statusColor,
+                                  background: statusBg,
+                                  textTransform: "uppercase"
+                                }}>
+                                  {statusLabel}
+                                </span>
+                              </td>
+                              <td style={{ fontSize: "12px", color: "#6B7280", fontWeight: "600" }}>
+                                {new Date(coupon.createdAt).toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Recent BuyCoin Activity */}
+              <div style={cardLayoutStyle}>
+                <div style={cardHeaderStyle}>
+                  <h3 style={cardTitleStyle}>Recent BuyCoin Activity</h3>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={tableStyle}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>User</th>
+                        <th style={thStyle}>Type</th>
+                        <th style={thStyle}>Coins</th>
+                        <th style={thStyle}>Order Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!analytics?.recentBuyCoinOrders || analytics.recentBuyCoinOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" style={emptyTdStyle}>No BuyCoin activity recorded.</td>
+                        </tr>
+                      ) : (
+                        analytics.recentBuyCoinOrders.map((order) => {
+                          const isRedemption = order.buyCoinsRedeemed > 0;
+                          const coinAmt = isRedemption ? order.buyCoinsRedeemed : Math.floor(order.totalAmount / 100);
+                          return (
+                            <tr key={order._id} style={trStyle}>
+                              <td style={tdCustomerStyle}>
+                                <div style={{ display: "flex", flexDirection: "column" }}>
+                                  <span style={{ fontWeight: "800", color: "#111827" }}>{order.user?.name || "Guest"}</span>
+                                  <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{order.user?.phone || ""}</span>
+                                </div>
+                              </td>
+                              <td>
+                                <span style={{
+                                  fontSize: "10px",
+                                  fontWeight: "855",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  color: isRedemption ? "#dc2626" : "#16a34a",
+                                  background: isRedemption ? "#fef2f2" : "#f0fdf4",
+                                  textTransform: "uppercase"
+                                }}>
+                                  {isRedemption ? "Redeemed" : "Earned"}
+                                </span>
+                              </td>
+                              <td style={{ fontWeight: "800", color: isRedemption ? "#dc2626" : "#16a34a" }}>
+                                {isRedemption ? "-" : "+"}{coinAmt} 🪙
+                              </td>
+                              <td style={{ fontSize: "12px", color: "#6B7280", fontWeight: "700" }}>
+                                ₹{order.totalAmount}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
+  </div>
   );
 }
 

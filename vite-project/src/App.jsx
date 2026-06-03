@@ -648,8 +648,10 @@ function AppContent() {
   const fruitProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "The Fruit Store"));
   const veggieProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "The Veggie Store"));
   const dairyProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "Dairy, Bread & Eggs") || getCategoryMatch(p.category, "Dairy, Bread and Eggs") || getCategoryMatch(p.category, "Dairy Bread & Eggs"));
+  const meatProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "Meat and Seafood"));
   const snackProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "Snacks"));
   const beverageProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "Beverages"));
+  const groceryProducts = filteredProducts.filter(p => getCategoryMatch(p.category, "Atta, Rice and Dal"));
   const exclusiveDeals = (products || []).filter(p => getCategoryMatch(p.category, "Exclusive Deals"));
   const mosquitoProducts = (products || []).filter(p => getCategoryMatch(p.category, "Cleaners & Repellents"));
   const breadProducts = (products || []).filter(p => getCategoryMatch(p.category, "The Bread Store"));
@@ -1357,12 +1359,20 @@ function AppContent() {
                       image: "https://images.unsplash.com/photo-1588710922810-ee4047b470d9?w=200&auto=format&fit=crop&q=80",
                     },
                     {
+                      name: "Meat & Seafood",
+                      image: "https://images.unsplash.com/photo-1532407191490-e847be1540c6?w=200&auto=format&fit=crop&q=80",
+                    },
+                    {
                       name: "Snacks",
                       image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=200&auto=format&fit=crop&q=80",
                     },
                     {
                       name: "Beverages",
                       image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=200&auto=format&fit=crop&q=80",
+                    },
+                    {
+                      name: "Atta, Rice & Dal",
+                      image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&auto=format&fit=crop&q=80",
                     }
                   ].map((cat) => (
                     <div
@@ -1497,6 +1507,22 @@ function AppContent() {
                           />
                         )}
 
+                        {meatProducts.length > 0 && (
+                          <HorizontalProductSection
+                            title="Meat & Seafood"
+                            emoji="🥩"
+                            products={meatProducts.slice(0, 6)}
+                            onShowAll={() => navigate("/section/meat")}
+                            openProduct={openProduct}
+                            setSelectedProduct={setSelectedProduct}
+                            addToCart={addToCart}
+                            removeFromCart={removeFromCart}
+                            cart={cart}
+                            windowWidth={windowWidth}
+                            getCartKey={getCartKey}
+                          />
+                        )}
+
                         {snackProducts.length > 0 && (
                           <HorizontalProductSection
                             title="Snacks & Munchies"
@@ -1519,6 +1545,22 @@ function AppContent() {
                             emoji="🥤"
                             products={beverageProducts.slice(0, 6)}
                             onShowAll={() => navigate("/section/beverages")}
+                            openProduct={openProduct}
+                            setSelectedProduct={setSelectedProduct}
+                            addToCart={addToCart}
+                            removeFromCart={removeFromCart}
+                            cart={cart}
+                            windowWidth={windowWidth}
+                            getCartKey={getCartKey}
+                          />
+                        )}
+
+                        {groceryProducts.length > 0 && (
+                          <HorizontalProductSection
+                            title="Atta, Rice & Dal"
+                            emoji="🌾"
+                            products={groceryProducts.slice(0, 6)}
+                            onShowAll={() => navigate("/section/grocery")}
                             openProduct={openProduct}
                             setSelectedProduct={setSelectedProduct}
                             addToCart={addToCart}

@@ -147,4 +147,31 @@ router.get("/me", authMiddleware, async (req, res) => {
   });
 });
 
+// GET /api/auth/coupons
+router.get("/coupons", authMiddleware, async (req, res) => {
+  try {
+    const Coupon = require("../models/Coupon");
+    const coupons = await Coupon.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, coupons });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch coupons", error: error.message });
+  }
+});
+
+// GET /api/auth/coupons/active
+router.get("/coupons/active", authMiddleware, async (req, res) => {
+  try {
+    const Coupon = require("../models/Coupon");
+    const now = new Date();
+    const coupons = await Coupon.find({
+      userId: req.user._id,
+      isUsed: false,
+      expiryDate: { $gt: now }
+    }).sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, coupons });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch active coupons", error: error.message });
+  }
+});
+
 module.exports = router;

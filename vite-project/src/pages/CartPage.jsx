@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
+import { calculateBill } from "../utils/billCalculator";
+import CartBillDetails from "../components/CartBillDetails";
 
 export default function CartPage({
     cartItems,
@@ -10,11 +13,66 @@ export default function CartPage({
 }) {
     const [noBagPledge, setNoBagPledge] = useState(false);
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+    const [config, setConfig] = useState({
+        handlingFee: 0,
+        gstPercentage: 5,
+        gstFixedCharges: 2
+    });
+    const [deliverySettings, setDeliverySettings] = useState({
+        lateNightDeliveryEnabled: false,
+        rainyDeliveryEnabled: false
+    });
 
     useEffect(() => {
         const handleResize = () => setWindowWidth(window.innerWidth);
         window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
+
+        // Fetch billing fees config on mount
+        fetch("http://localhost:8000/api/config/fees")
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    setConfig(data);
+                }
+            })
+            .catch(err => console.error("Failed to load fee configuration:", err));
+
+        // Fetch delivery settings on mount
+        fetch("http://localhost:8000/api/delivery-settings")
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    setDeliverySettings(data);
+                }
+            })
+            .catch(err => console.error("Failed to load delivery settings:", err));
+
+        // Connect to Socket.IO for real-time delivery settings updates
+        const socket = io("http://localhost:8000");
+        socket.on("deliverySettingsUpdated", (updatedSettings) => {
+            console.log("🔌 Socket: delivery settings updated in real-time:", updatedSettings);
+            if (updatedSettings) {
+                setDeliverySettings(updatedSettings);
+            }
+        });
+
+        // Fail-safe fallback polling every 30 seconds
+        const pollInterval = setInterval(() => {
+            fetch("http://localhost:8000/api/delivery-settings")
+                .then(res => res.json())
+                .then(data => {
+                    if (data) {
+                        setDeliverySettings(data);
+                    }
+                })
+                .catch(err => console.error("Failed to poll delivery settings:", err));
+        }, 30000);
+
+        return () => {
+            window.removeEventListener("resize", handleResize);
+            socket.disconnect();
+            clearInterval(pollInterval);
+        };
     }, []);
     const subtotal = cartItems.reduce(
         (acc, item) => acc + item.price * item.quantity,
@@ -25,14 +83,8 @@ export default function CartPage({
         0
     );
 
-    const handlingFee = subtotal > 0 ? 4 : 0;
-    const smallCartFee = subtotal > 0 && subtotal < 150 ? 15 : 0;
-    const FREE_DELIVERY_THRESHOLD = 99;
-    const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : 29;
-    const gstAndCharges = subtotal > 0 ? Math.round(subtotal * 0.05 + 2) : 0;
-
-    const total = subtotal > 0 ? subtotal + handlingFee + smallCartFee + deliveryFee + gstAndCharges : 0;
-    const originalTotal = originalSubtotal > 0 ? originalSubtotal + handlingFee + smallCartFee + deliveryFee + gstAndCharges : 0;
+    const billBreakdown = calculateBill(subtotal, originalSubtotal, config, deliverySettings);
+    const { total, originalTotal } = billBreakdown;
     const user = localStorage.getItem("buyto_user") ? JSON.parse(localStorage.getItem("buyto_user")) : null;
     const navigate = useNavigate();
 
@@ -439,170 +491,8 @@ export default function CartPage({
                         )}
 
                         {/* BILL DETAILS CARD */}
-                        <div
-                            style={{
-                                background: "white",
-                                borderRadius: windowWidth < 768 ? "18px" : "28px",
-                                padding: windowWidth < 768 ? "16px" : "28px",
-                                boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
-                                marginBottom: "24px",
-                            }}
-                        >
-                            {/* BILL ROWS */}
-                            <h2 style={{ marginTop: 0, marginBottom: "20px", fontSize: windowWidth < 768 ? "16px" : "20px" }}>
-                                Bill Details
-                            </h2>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    marginBottom: "18px",
-                                    color: "#4b5563",
-                                    fontSize: "20px",
-                                }}
-                            >
-                                <span>Item Total</span>
-
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "10px",
-                                    }}
-                                >
-                                    {originalSubtotal > subtotal && (
-                                        <span
-                                            style={{
-                                                textDecoration: "line-through",
-                                                color: "#9ca3af",
-                                                fontSize: "18px",
-                                            }}
-                                        >
-                                            ₹{originalSubtotal}
-                                        </span>
-                                    )}
-
-                                    <span
-                                        style={{
-                                            fontWeight: "600",
-                                            color: "#111827",
-                                        }}
-                                    >
-                                        ₹{subtotal}
-                                    </span>
-                                </div>
-                            </div>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    marginBottom: "12px",
-                                    fontSize: "16px",
-                                    color: "#4b5563",
-                                }}
-                            >
-                                <span>Handling Fee</span>
-                                <span>₹{handlingFee}</span>
-                            </div>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    marginBottom: "12px",
-                                    fontSize: "16px",
-                                    color: "#4b5563",
-                                }}
-                            >
-                                <span>Small Cart Fee</span>
-                                <span>₹{smallCartFee}</span>
-                            </div>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    marginBottom: "12px",
-                                    fontSize: "16px",
-                                    color: "#4b5563",
-                                }}
-                            >
-                                <span>Delivery Partner Fee</span>
-                                {deliveryFee === 0 ? (
-                                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                        <span style={{ textDecoration: "line-through", color: "#9CA3AF", fontSize: "14px" }}>₹29</span>
-                                        <span style={{ color: "#16A34A", fontWeight: 700 }}>FREE</span>
-                                    </div>
-                                ) : (
-                                    <span>₹29</span>
-                                )}
-                            </div>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    marginBottom: "16px",
-                                    fontSize: "16px",
-                                    color: "#4b5563",
-                                }}
-                            >
-                                <span>GST and Charges</span>
-                                <span>₹{gstAndCharges}</span>
-                            </div>
-                            <hr
-                                style={{
-                                    border: "none",
-                                    borderTop: "1px solid #e5e7eb",
-                                    marginBottom: "16px",
-                                }}
-                            />
-
-                            {/* TOTAL SECTION */}
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    fontWeight: "700",
-                                    fontSize: windowWidth < 768 ? "16px" : "20px",
-                                    marginTop: "18px",
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        fontSize: "20px",
-                                        fontWeight: "700",
-                                        color: "#111827",
-                                    }}
-                                >To Pay
-                                </span>
-
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "baseline",
-                                        gap: "8px",
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            textDecoration: "line-through",
-                                            fontSize: "22px",
-                                            fontWeight: "500",
-                                            color: "#6b7280"
-
-                                        }}
-                                    >₹{originalTotal}
-                                    </span>
-
-                                    <span
-                                        style={{
-                                            fontSize: "28px",
-                                            fontWeight: "700",
-                                            color: "#111827",
-                                        }}
-                                    >₹{total}
-                                    </span>
-                                </div>
-                            </div>
+                        <div style={{ marginBottom: "24px" }}>
+                            <CartBillDetails billBreakdown={billBreakdown} />
                         </div>
 
                         {/* NOTE CARD */}

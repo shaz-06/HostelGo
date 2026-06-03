@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import { AuthContext } from "../context/AuthContext";
+import { calculateBill } from "../utils/billCalculator";
+import CartBillDetails from "../components/CartBillDetails";
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -26,6 +29,39 @@ export default function PaymentPage({ cart, setCart }) {
   const { token } = useContext(AuthContext);
   const [isProcessing, setIsProcessing] = useState(false);
   const [gpsCoords, setGpsCoords] = useState(null);
+  const [userCoins, setUserCoins] = useState(0);
+  const [activeCoupons, setActiveCoupons] = useState([]);
+  const [selectedCoupon, setSelectedCoupon] = useState(null);
+  const [redeemCoins, setRedeemCoins] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchRewardsData = async () => {
+      try {
+        const meRes = await fetch("http://localhost:8000/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.success && meData.user) {
+            setUserCoins(meData.user.buyCoins || 0);
+          }
+        }
+        const couponRes = await fetch("http://localhost:8000/api/auth/coupons/active", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (couponRes.ok) {
+          const couponData = await couponRes.json();
+          if (couponData.success && couponData.coupons) {
+            setActiveCoupons(couponData.coupons);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching rewards details in PaymentPage:", err);
+      }
+    };
+    fetchRewardsData();
+  }, [token]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -67,16 +103,73 @@ export default function PaymentPage({ cart, setCart }) {
   const [paymentMethod, setPaymentMethod] = useState("cod"); // 'cod' or 'razorpay'
 
   // Cart Calculations
+  const [config, setConfig] = useState({
+    handlingFee: 0,
+    gstPercentage: 5,
+    gstFixedCharges: 2
+  });
+  const [deliverySettings, setDeliverySettings] = useState({
+    lateNightDeliveryEnabled: false,
+    rainyDeliveryEnabled: false
+  });
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/config/fees")
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setConfig(data);
+        }
+      })
+      .catch(err => console.error("Failed to load fee configuration in PaymentPage:", err));
+
+    fetch("http://localhost:8000/api/delivery-settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setDeliverySettings(data);
+        }
+      })
+      .catch(err => console.error("Failed to load delivery settings in PaymentPage:", err));
+
+    // Connect to Socket.IO for real-time updates
+    const socket = io("http://localhost:8000");
+    socket.on("deliverySettingsUpdated", (updatedSettings) => {
+        console.log("🔌 Socket: delivery settings updated in real-time (payment):", updatedSettings);
+        if (updatedSettings) {
+            setDeliverySettings(updatedSettings);
+        }
+    });
+
+    // Fallback polling every 30 seconds
+    const pollInterval = setInterval(() => {
+        fetch("http://localhost:8000/api/delivery-settings")
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    setDeliverySettings(data);
+                }
+            })
+            .catch(err => console.error("Failed to poll delivery settings in PaymentPage:", err));
+    }, 30000);
+
+    return () => {
+        socket.disconnect();
+        clearInterval(pollInterval);
+    };
+  }, []);
+
   const subtotal = Object.values(cart || {}).reduce(
     (acc, item) => acc + item.product.price * item.quantity,
     0
   );
-  const handlingFee = subtotal > 0 ? 4 : 0;
-  const smallCartFee = subtotal > 0 && subtotal < 150 ? 15 : 0;
-  const FREE_DELIVERY_THRESHOLD = 99;
-  const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : 29;
-  const gstAndCharges = subtotal > 0 ? Math.round(subtotal * 0.05 + 2) : 0;
-  const total = subtotal > 0 ? subtotal + handlingFee + smallCartFee + deliveryFee + gstAndCharges : 0;
+  const originalSubtotal = Object.values(cart || {}).reduce(
+    (acc, item) => acc + (item.product.originalPrice || item.product.price) * item.quantity,
+    0
+  );
+
+  const billBreakdown = calculateBill(subtotal, originalSubtotal, config, deliverySettings, selectedCoupon, redeemCoins ? userCoins : 0);
+  const { total } = billBreakdown;
 
   const handlePlaceOrder = async () => {
     console.log("=== PAYMENT START ===");
@@ -126,7 +219,12 @@ export default function PaymentPage({ cart, setCart }) {
             amount: total,
             deliveryAddress,
             deliveryLatitude: gpsCoords ? gpsCoords.latitude : null,
-            deliveryLongitude: gpsCoords ? gpsCoords.longitude : null
+            deliveryLongitude: gpsCoords ? gpsCoords.longitude : null,
+            couponId: billBreakdown.couponId,
+            couponCode: billBreakdown.couponCode,
+            couponDiscount: billBreakdown.couponDiscount,
+            buyCoinsRedeemed: billBreakdown.buyCoinsRedeemed,
+            buyCoinsDiscount: billBreakdown.buyCoinsDiscount
           })
         });
 
@@ -189,7 +287,12 @@ export default function PaymentPage({ cart, setCart }) {
             products,
             deliveryAddress,
             deliveryLatitude: gpsCoords ? gpsCoords.latitude : null,
-            deliveryLongitude: gpsCoords ? gpsCoords.longitude : null
+            deliveryLongitude: gpsCoords ? gpsCoords.longitude : null,
+            couponId: billBreakdown.couponId,
+            couponCode: billBreakdown.couponCode,
+            couponDiscount: billBreakdown.couponDiscount,
+            buyCoinsRedeemed: billBreakdown.buyCoinsRedeemed,
+            buyCoinsDiscount: billBreakdown.buyCoinsDiscount
           })
         });
 
@@ -456,65 +559,166 @@ export default function PaymentPage({ cart, setCart }) {
           </div>
         </div>
 
-        {/* Order Summary */}
+        {/* Customer Retention: Coupons and BuyCoins */}
         <div
           style={{
-            background: "#f9fafb",
+            background: "#ffffff",
             borderRadius: "20px",
             padding: "20px",
-            marginBottom: "28px",
+            marginBottom: "24px",
             border: "1px solid #e5e7eb",
+            display: "flex",
+            flexDirection: "column",
+            gap: "18px",
           }}
         >
-          <h3 style={{ margin: "0 0 14px 0", fontSize: "15px", fontWeight: "750", color: "#374151" }}>
-            Order Summary
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "14px", color: "#4b5563" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Items Subtotal</span>
-              <span style={{ fontWeight: "600", color: "#1f2937" }}>₹{subtotal}</span>
+          {/* Coupon Section */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+              <span style={{ fontSize: "18px" }}>🎁</span>
+              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "750", color: "#374151" }}>
+                Apply Coupon
+              </h3>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Handling Fee</span>
-              <span>₹{handlingFee}</span>
-            </div>
-            {smallCartFee > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Small Cart Fee</span>
-                <span>₹{smallCartFee}</span>
+            
+            {activeCoupons.length === 0 ? (
+              <p style={{ margin: 0, fontSize: "13px", color: "#6b7280", fontStyle: "italic" }}>
+                No active coupons available.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {activeCoupons.map((coupon) => {
+                  const isEligible = subtotal >= coupon.minOrderValue;
+                  const isApplied = selectedCoupon?._id === coupon._id;
+                  return (
+                    <div
+                      key={coupon._id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "12px 14px",
+                        borderRadius: "12px",
+                        background: isApplied ? "rgba(16, 185, 129, 0.05)" : "#f9fafb",
+                        border: isApplied ? "1.5px solid #10b981" : "1px dashed #cbd5e1",
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span
+                            style={{
+                              background: "linear-gradient(135deg, #FF4D4F 0%, #E03E40 100%)",
+                              color: "white",
+                              fontSize: "11px",
+                              fontWeight: "800",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              letterSpacing: "0.5px"
+                            }}
+                          >
+                            {coupon.couponCode}
+                          </span>
+                          <span style={{ fontSize: "13px", fontWeight: "700", color: "#1f2937" }}>
+                            ₹{coupon.discountAmount} OFF
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px", fontWeight: "500" }}>
+                          Min Order: ₹{coupon.minOrderValue} • Expires in: 48h
+                        </div>
+                      </div>
+                      
+                      {isApplied ? (
+                        <button
+                          onClick={() => setSelectedCoupon(null)}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "#ef4444",
+                            fontWeight: "800",
+                            fontSize: "13px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Remove
+                        </button>
+                      ) : (
+                        <button
+                          disabled={!isEligible}
+                          onClick={() => setSelectedCoupon(coupon)}
+                          style={{
+                            background: isEligible ? "#318616" : "#e5e7eb",
+                            color: isEligible ? "white" : "#9ca3af",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "6px 12px",
+                            fontWeight: "750",
+                            fontSize: "12px",
+                            cursor: isEligible ? "pointer" : "not-allowed",
+                            transition: "all 0.15s ease"
+                          }}
+                        >
+                          Apply
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Delivery Fee</span>
-              {deliveryFee === 0 ? (
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <span style={{ textDecoration: "line-through", color: "#9CA3AF", fontSize: "14px" }}>₹29</span>
-                  <span style={{ color: "#16A34A", fontWeight: "700" }}>FREE</span>
-                </div>
-              ) : (
-                <span>₹29</span>
-              )}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>GST and Charges</span>
-              <span>₹{gstAndCharges}</span>
-            </div>
-            <div
-              style={{
-                borderTop: "1.5px solid #e5e7eb",
-                paddingTop: "12px",
-                marginTop: "4px",
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: "16px",
-                fontWeight: "800",
-                color: "#111827",
-              }}
-            >
-              <span>Total Payable</span>
-              <span style={{ color: "#318616", fontSize: "20px" }}>₹{total}</span>
-            </div>
           </div>
+
+          <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: 0 }} />
+
+          {/* BuyCoins Section */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContext: "space-between", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "18px" }}>🪙</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "750", color: "#374151" }}>
+                    Use BuyCoins
+                  </h3>
+                  <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#6b7280", fontWeight: "500" }}>
+                    Available: {userCoins} Coins (₹{userCoins})
+                  </p>
+                </div>
+              </div>
+              
+              <input
+                type="checkbox"
+                disabled={userCoins <= 0}
+                checked={redeemCoins}
+                onChange={(e) => setRedeemCoins(e.target.checked)}
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  accentColor: "#318616",
+                  cursor: userCoins > 0 ? "pointer" : "not-allowed"
+                }}
+              />
+            </div>
+            {redeemCoins && userCoins > 0 && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  fontSize: "12px",
+                  color: "#16a34a",
+                  fontWeight: "700",
+                  background: "rgba(22, 163, 74, 0.05)",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(22, 163, 74, 0.2)"
+                }}
+              >
+                🎉 Redeeming ₹{billBreakdown.buyCoinsDiscount} discount! (Max 50 coins per order)
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Order Summary */}
+        <div style={{ marginBottom: "28px" }}>
+          <CartBillDetails billBreakdown={billBreakdown} />
         </div>
 
         {/* Pay Button */}

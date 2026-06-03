@@ -33,6 +33,17 @@ export default function OrderTrackingPage({ orderId }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [showDeliveredModal, setShowDeliveredModal] = useState(false);
+  const [hasTriggeredDelivered, setHasTriggeredDelivered] = useState(false);
+
+  useEffect(() => {
+    if (tracking?.order?.orderStatus === "Delivered" && !hasTriggeredDelivered) {
+      setShowDeliveredModal(true);
+      setHasTriggeredDelivered(true);
+    } else if (tracking?.order?.orderStatus !== "Delivered") {
+      setHasTriggeredDelivered(false);
+    }
+  }, [tracking?.order?.orderStatus, hasTriggeredDelivered]);
 
   const loadTracking = useCallback(async () => {
     try {
@@ -455,6 +466,137 @@ export default function OrderTrackingPage({ orderId }) {
           </section>
         </aside>
       </main>
+
+      {showDeliveredModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(12px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+            padding: "20px",
+            fontFamily: "'Outfit', 'Inter', sans-serif",
+            animation: "fadeIn 0.3s ease-out"
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              maxWidth: "460px",
+              width: "100%",
+              borderRadius: "28px",
+              padding: "36px",
+              textAlign: "center",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              transform: "scale(1)",
+              animation: "slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)"
+            }}
+          >
+            <div style={{ fontSize: "64px", marginBottom: "16px", animation: "bounce 2s infinite" }}>🎉</div>
+            <h1 style={{ fontSize: "24px", fontWeight: "900", color: "#0f172a", margin: "0 0 8px 0" }}>
+              Order Delivered Successfully!
+            </h1>
+            <p style={{ color: "#64748b", fontSize: "14px", margin: "0 0 24px 0", fontWeight: "500" }}>
+              Thank you for ordering with Buyto! Your rewards have been added to your account.
+            </p>
+
+            {/* Rewards Card */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                borderRadius: "20px",
+                padding: "20px",
+                border: "1.5px solid #fbbf24",
+                marginBottom: "24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px"
+              }}
+            >
+              <div>
+                <span style={{ fontSize: "11px", fontWeight: "800", color: "#b45309", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Loyalty Points Added
+                </span>
+                <div style={{ fontSize: "22px", fontWeight: "900", color: "#78350f", marginTop: "2px" }}>
+                  +{Math.floor((order?.totalAmount || 0) / 100)} BuyCoins
+                </div>
+              </div>
+
+              <hr style={{ border: "none", borderTop: "1px dashed #fbbf24", margin: 0 }} />
+
+              <div>
+                <span style={{
+                  display: "inline-block",
+                  background: "linear-gradient(135deg, #FF4D4F 0%, #E03E40 100%)",
+                  color: "white",
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  marginBottom: "4px"
+                }}>
+                  Next Order Coupon
+                </span>
+                <div style={{ fontSize: "16px", fontWeight: "900", color: "#0f172a" }}>
+                  🎁 AGAIN20 Unlocked
+                </div>
+                <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#64748b", fontWeight: "600" }}>
+                  Get ₹20 OFF on your next order above ₹199
+                </p>
+                <div style={{ fontSize: "11px", color: "#e03e40", fontWeight: "700", marginTop: "4px" }}>
+                  Valid for 48 Hours
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowDeliveredModal(false)}
+              style={{
+                width: "100%",
+                height: "50px",
+                border: "none",
+                borderRadius: "14px",
+                background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)",
+                color: "white",
+                fontSize: "15px",
+                fontWeight: "750",
+                cursor: "pointer",
+                boxShadow: "0 10px 20px rgba(17, 24, 39, 0.15)",
+                transition: "all 0.2s ease"
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-1px)"}
+              onMouseOut={(e) => e.currentTarget.style.transform = "none"}
+            >
+              Awesome!
+            </button>
+          </div>
+
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideUp {
+              from { transform: translateY(20px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+            @keyframes bounce {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-8px); }
+            }
+          `}} />
+        </div>
+      )}
     </div>
   );
 }

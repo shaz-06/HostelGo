@@ -299,6 +299,10 @@ router.put("/orders/:id/delivered", async (req, res) => {
     }
     await order.save();
 
+    // Award customer rewards (BuyCoins and AGAIN20 Coupon) on order delivery
+    const { handleOrderDeliveredRewards } = require("../utils/rewards");
+    await handleOrderDeliveredRewards(order);
+
     const rider = await User.findByIdAndUpdate(
       req.user._id,
       {
