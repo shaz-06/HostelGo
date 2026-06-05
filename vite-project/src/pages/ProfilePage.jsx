@@ -13,12 +13,19 @@ export default function ProfilePage() {
   const [coupons, setCoupons] = useState([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("orders"); // "orders", "coupons", "wallet"
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
     const fetchLiveUser = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/auth/me", {
+        const res = await fetch(window.API_BASE_URL + "/api/auth/me", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -35,7 +42,7 @@ export default function ProfilePage() {
     const fetchCoupons = async () => {
       try {
         setCouponsLoading(true);
-        const res = await fetch("http://localhost:8000/api/auth/coupons", {
+        const res = await fetch(window.API_BASE_URL + "/api/auth/coupons", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -60,7 +67,7 @@ export default function ProfilePage() {
       if (!token) return;
       try {
         setLoading(true);
-        const res = await fetch("http://localhost:8000/api/orders/my-orders", {
+        const res = await fetch(window.API_BASE_URL + "/api/orders/my-orders", {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -103,10 +110,10 @@ export default function ProfilePage() {
 
   return (
     <div style={pageContainerStyle}>
-      <div style={layoutGridStyle}>
+      <div style={layoutGridStyle(windowWidth < 768)}>
         
         {/* User Card */}
-        <aside style={userCardStyle}>
+        <aside style={userCardStyle(windowWidth < 768)}>
           <div style={avatarStyle}>
             {liveUser?.name?.substring(0, 2).toUpperCase() || "US"}
           </div>
@@ -483,16 +490,18 @@ const pageContainerStyle = {
   boxSizing: "border-box",
 };
 
-const layoutGridStyle = {
+const layoutGridStyle = (isMobile) => ({
   maxWidth: "960px",
   margin: "0 auto",
-  display: "grid",
-  gridTemplateColumns: "300px 1fr",
+  display: isMobile ? "flex" : "grid",
+  flexDirection: isMobile ? "column" : "row",
+  gridTemplateColumns: isMobile ? "none" : "300px 1fr",
   gap: "32px",
   alignItems: "start",
-};
+  width: "100%",
+});
 
-const userCardStyle = {
+const userCardStyle = (isMobile) => ({
   background: "white",
   border: "1px solid #e2e8f0",
   borderRadius: "28px",
@@ -501,7 +510,8 @@ const userCardStyle = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-};
+  width: isMobile ? "100%" : "300px",
+});
 
 const avatarStyle = {
   width: "72px",

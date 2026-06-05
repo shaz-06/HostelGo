@@ -275,4 +275,3 @@ const backBtnStyle = {
   cursor: "pointer",
   fontWeight: "600",
 };
-

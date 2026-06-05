@@ -47,7 +47,7 @@ export default function OrderTrackingPage({ orderId }) {
 
   const loadTracking = useCallback(async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/orders/track/${orderId}`, {
+      const res = await fetch(window.API_BASE_URL + `/api/orders/track/${orderId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -71,7 +71,7 @@ export default function OrderTrackingPage({ orderId }) {
 
   useEffect(() => {
     if (!orderId) return;
-    const socket = io("http://localhost:8000");
+    const socket = io(window.API_BASE_URL);
 
     socket.on("connect", () => {
       console.log("🔌 OrderTrackingPage connected to Socket.IO. Joining room:", orderId);

@@ -28,7 +28,7 @@ export default function CartPage({
         window.addEventListener("resize", handleResize);
 
         // Fetch billing fees config on mount
-        fetch("http://localhost:8000/api/config/fees")
+        fetch(window.API_BASE_URL + "/api/config/fees")
             .then(res => res.json())
             .then(data => {
                 if (data) {
@@ -38,7 +38,7 @@ export default function CartPage({
             .catch(err => console.error("Failed to load fee configuration:", err));
 
         // Fetch delivery settings on mount
-        fetch("http://localhost:8000/api/delivery-settings")
+        fetch(window.API_BASE_URL + "/api/delivery-settings")
             .then(res => res.json())
             .then(data => {
                 if (data) {
@@ -48,7 +48,7 @@ export default function CartPage({
             .catch(err => console.error("Failed to load delivery settings:", err));
 
         // Connect to Socket.IO for real-time delivery settings updates
-        const socket = io("http://localhost:8000");
+        const socket = io(window.API_BASE_URL);
         socket.on("deliverySettingsUpdated", (updatedSettings) => {
             console.log("🔌 Socket: delivery settings updated in real-time:", updatedSettings);
             if (updatedSettings) {
@@ -58,7 +58,7 @@ export default function CartPage({
 
         // Fail-safe fallback polling every 30 seconds
         const pollInterval = setInterval(() => {
-            fetch("http://localhost:8000/api/delivery-settings")
+            fetch(window.API_BASE_URL + "/api/delivery-settings")
                 .then(res => res.json())
                 .then(data => {
                     if (data) {

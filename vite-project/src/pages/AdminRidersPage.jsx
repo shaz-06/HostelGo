@@ -13,7 +13,7 @@ export default function AdminRidersPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch("http://localhost:8000/api/admin/riders", {
+      const res = await fetch(window.API_BASE_URL + "/api/admin/riders", {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -34,7 +34,7 @@ export default function AdminRidersPage() {
   const toggleSuspend = async (rider) => {
     try {
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch(`http://localhost:8000/api/admin/riders/${rider._id}/suspend`, {
+      const res = await fetch(window.API_BASE_URL + `/api/admin/riders/${rider._id}/suspend`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ isSuspended: !rider.isSuspended })

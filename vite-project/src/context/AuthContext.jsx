@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
     const checkUserSession = async () => {
       if (token) {
         try {
-          const res = await fetch("http://localhost:8000/api/auth/me", {
+          const res = await fetch(window.API_BASE_URL + "/api/auth/me", {
             headers: {
               Authorization: `Bearer ${token}`
             }
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     console.log("=== [FRONTEND AUTH LOGIN] ===");
-    const res = await fetch("http://localhost:8000/api/auth/login", {
+    const res = await fetch(window.API_BASE_URL + "/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (name, email, phone, password) => {
     console.log("=== [FRONTEND AUTH SIGNUP] ===");
-    const res = await fetch("http://localhost:8000/api/auth/signup", {
+    const res = await fetch(window.API_BASE_URL + "/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, phone, password })

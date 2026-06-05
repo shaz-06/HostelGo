@@ -14,7 +14,7 @@ export default function RiderLogin() {
     try {
       setError("");
       setLoading(true);
-      const res = await fetch("http://localhost:8000/api/rider/login", {
+      const res = await fetch(window.API_BASE_URL + "/api/rider/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)

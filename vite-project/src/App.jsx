@@ -107,7 +107,7 @@ function GlobalLayout({ children }) {
       const token = localStorage.getItem("buyto_token");
       if (!token) return;
       try {
-        const res = await fetch(`http://localhost:8000/api/orders/track/${latestOrderId}`, {
+        const res = await fetch(window.API_BASE_URL + `/api/orders/track/${latestOrderId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -153,7 +153,7 @@ function GlobalLayout({ children }) {
   useEffect(() => {
     if (!latestOrderId || !activeOrder) return;
 
-    const socket = io("http://localhost:8000");
+    const socket = io(window.API_BASE_URL);
 
     socket.on("connect", () => {
       console.log("🔌 Popup connected to Socket.IO. Joining room:", latestOrderId);
@@ -404,7 +404,7 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/products")
+    fetch(window.API_BASE_URL + "/api/products")
       .then((res) => res.json())
       .then((data) => {
         console.log(data);
@@ -1649,7 +1649,7 @@ function AppContent() {
                           padding: windowWidth < 768 ? "12px 16px" : "16px 24px",
                           borderRadius: windowWidth < 768 ? "0" : "18px",
                           position: "fixed",
-                          bottom: windowWidth < 768 ? "0" : "20px",
+                          bottom: windowWidth < 768 ? "64px" : "20px",
                           left: windowWidth < 768 ? "0" : "50%",
                           right: windowWidth < 768 ? "0" : "auto",
                           transform: windowWidth < 768 ? "none" : "translateX(-50%)",
@@ -1844,6 +1844,90 @@ function AppContent() {
         </div>
       )}
 
+      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      {windowWidth < 768 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: "64px",
+            background: "white",
+            borderTop: "1px solid #e5e7eb",
+            display: "flex",
+            justifyContent: "space-around",
+            alignItems: "center",
+            zIndex: 999,
+            boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
+            paddingBottom: "env(safe-area-inset-bottom)"
+          }}
+        >
+          <div
+            onClick={() => { setSelectedCategory("All"); setSelectedProductId(null); navigate("/"); }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px" }}
+          >
+            <span style={{ fontSize: "20px" }}>🏠</span>
+            <span style={{ fontSize: "10px", fontWeight: "700", color: selectedCategory === "All" && location.pathname === "/" ? "#318616" : "#6b7280" }}>Shop</span>
+          </div>
+
+          <div
+            onClick={() => { setSelectedCategory("All"); setSelectedProductId(null); navigate("/"); 
+                            setTimeout(() => {
+                              const el = document.getElementById("product-listings-anchor");
+                              if (el) el.scrollIntoView({ behavior: "smooth" });
+                            }, 100);
+            }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px" }}
+          >
+            <span style={{ fontSize: "20px" }}>🗂️</span>
+            <span style={{ fontSize: "10px", fontWeight: "700", color: "#6b7280" }}>Categories</span>
+          </div>
+
+          <div
+            onClick={() => navigate("/cart")}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px", position: "relative" }}
+          >
+            <span style={{ fontSize: "20px" }}>🧺</span>
+            {totalItems > 0 && (
+              <span style={{
+                position: "absolute",
+                top: "-4px",
+                right: "-6px",
+                background: "#ef4444",
+                color: "white",
+                fontSize: "9px",
+                fontWeight: "800",
+                borderRadius: "50%",
+                width: "16px",
+                height: "16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                {totalItems}
+              </span>
+            )}
+            <span style={{ fontSize: "10px", fontWeight: "700", color: location.pathname === "/cart" ? "#318616" : "#6b7280" }}>Cart</span>
+          </div>
+
+          <div
+            onClick={() => navigate(isLoggedIn ? "/profile" : "/login")}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px" }}
+          >
+            <span style={{ fontSize: "20px" }}>👤</span>
+            <span style={{ fontSize: "10px", fontWeight: "700", color: location.pathname === "/profile" ? "#318616" : "#6b7280" }}>Profile</span>
+          </div>
+
+          <div
+            onClick={() => navigate(isLoggedIn ? "/support/chat" : "/login")}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px" }}
+          >
+            <span style={{ fontSize: "20px" }}>🎧</span>
+            <span style={{ fontSize: "10px", fontWeight: "700", color: location.pathname === "/support/chat" ? "#318616" : "#6b7280" }}>Support</span>
+          </div>
+        </div>
+      )}
 
     </div>
   );

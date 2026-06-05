@@ -61,7 +61,7 @@ export default function AdminSupportPage() {
 
   const fetchChatLists = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/support/admin/chats", {
+      const res = await fetch(window.API_BASE_URL + "/api/support/admin/chats", {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -83,7 +83,7 @@ export default function AdminSupportPage() {
   const initializeSocket = () => {
     if (socketRef.current) return;
 
-    const socket = io("http://localhost:8000");
+    const socket = io(window.API_BASE_URL);
     socketRef.current = socket;
 
     socket.on("connect", () => {
@@ -176,7 +176,7 @@ export default function AdminSupportPage() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/support/chat/${selectedChat._id}`, {
+        const res = await fetch(window.API_BASE_URL + `/api/support/chat/${selectedChat._id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -212,7 +212,7 @@ export default function AdminSupportPage() {
   // Bridge customer waitlist
   const handleConnectChat = async (chatId) => {
     try {
-      const res = await fetch("http://localhost:8000/api/support/connect", {
+      const res = await fetch(window.API_BASE_URL + "/api/support/connect", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -235,7 +235,7 @@ export default function AdminSupportPage() {
 
   const handleWaitChat = async (chatId) => {
     try {
-      const res = await fetch("http://localhost:8000/api/support/wait", {
+      const res = await fetch(window.API_BASE_URL + "/api/support/wait", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -255,7 +255,7 @@ export default function AdminSupportPage() {
   // Resolve chat session
   const handleResolveChat = async (chatId) => {
     try {
-      const res = await fetch("http://localhost:8000/api/support/close", {
+      const res = await fetch(window.API_BASE_URL + "/api/support/close", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -304,7 +304,7 @@ export default function AdminSupportPage() {
     setLocalMessages((prev) => [...prev, optimisticMsg]);
 
     try {
-      await fetch("http://localhost:8000/api/support/message", {
+      await fetch(window.API_BASE_URL + "/api/support/message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

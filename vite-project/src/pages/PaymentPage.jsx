@@ -38,7 +38,7 @@ export default function PaymentPage({ cart, setCart }) {
     if (!token) return;
     const fetchRewardsData = async () => {
       try {
-        const meRes = await fetch("http://localhost:8000/api/auth/me", {
+        const meRes = await fetch(window.API_BASE_URL + "/api/auth/me", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (meRes.ok) {
@@ -47,7 +47,7 @@ export default function PaymentPage({ cart, setCart }) {
             setUserCoins(meData.user.buyCoins || 0);
           }
         }
-        const couponRes = await fetch("http://localhost:8000/api/auth/coupons/active", {
+        const couponRes = await fetch(window.API_BASE_URL + "/api/auth/coupons/active", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (couponRes.ok) {
@@ -114,7 +114,7 @@ export default function PaymentPage({ cart, setCart }) {
   });
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/config/fees")
+    fetch(window.API_BASE_URL + "/api/config/fees")
       .then(res => res.json())
       .then(data => {
         if (data) {
@@ -123,7 +123,7 @@ export default function PaymentPage({ cart, setCart }) {
       })
       .catch(err => console.error("Failed to load fee configuration in PaymentPage:", err));
 
-    fetch("http://localhost:8000/api/delivery-settings")
+    fetch(window.API_BASE_URL + "/api/delivery-settings")
       .then(res => res.json())
       .then(data => {
         if (data) {
@@ -133,7 +133,7 @@ export default function PaymentPage({ cart, setCart }) {
       .catch(err => console.error("Failed to load delivery settings in PaymentPage:", err));
 
     // Connect to Socket.IO for real-time updates
-    const socket = io("http://localhost:8000");
+    const socket = io(window.API_BASE_URL);
     socket.on("deliverySettingsUpdated", (updatedSettings) => {
         console.log("🔌 Socket: delivery settings updated in real-time (payment):", updatedSettings);
         if (updatedSettings) {
@@ -143,7 +143,7 @@ export default function PaymentPage({ cart, setCart }) {
 
     // Fallback polling every 30 seconds
     const pollInterval = setInterval(() => {
-        fetch("http://localhost:8000/api/delivery-settings")
+        fetch(window.API_BASE_URL + "/api/delivery-settings")
             .then(res => res.json())
             .then(data => {
                 if (data) {
@@ -202,7 +202,7 @@ export default function PaymentPage({ cart, setCart }) {
       if (paymentMethod === "cod") {
         // 1. Cash on Delivery placement
         console.log("=== CREATE ORDER REQUEST ===");
-        const response = await fetch("http://localhost:8000/api/orders", {
+        const response = await fetch(window.API_BASE_URL + "/api/orders", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -270,7 +270,7 @@ export default function PaymentPage({ cart, setCart }) {
         }
 
         console.log("=== CREATE ORDER REQUEST ===");
-        const response = await fetch("http://localhost:8000/api/payment/create-order", {
+        const response = await fetch(window.API_BASE_URL + "/api/payment/create-order", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -322,7 +322,7 @@ export default function PaymentPage({ cart, setCart }) {
             try {
               setIsProcessing(true);
               console.log("=== RAZORPAY PAYMENT SUCCESS ===");
-              const verifyRes = await fetch("http://localhost:8000/api/payment/verify", {
+              const verifyRes = await fetch(window.API_BASE_URL + "/api/payment/verify", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",

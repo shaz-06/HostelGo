@@ -38,7 +38,7 @@ export default function AdminProductsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch("http://localhost:8000/api/admin/products", {
+      const res = await fetch(window.API_BASE_URL + "/api/admin/products", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -78,7 +78,7 @@ export default function AdminProductsPage() {
   const handleInlineUpdate = async (productId, field, value) => {
     try {
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch(`http://localhost:8000/api/admin/products/${productId}`, {
+      const res = await fetch(window.API_BASE_URL + `/api/admin/products/${productId}`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
@@ -116,7 +116,7 @@ export default function AdminProductsPage() {
 
     try {
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch(`http://localhost:8000/api/admin/products/${productId}`, {
+      const res = await fetch(window.API_BASE_URL + `/api/admin/products/${productId}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -153,7 +153,7 @@ export default function AdminProductsPage() {
 
     try {
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch("http://localhost:8000/api/admin/products", {
+      const res = await fetch(window.API_BASE_URL + "/api/admin/products", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

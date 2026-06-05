@@ -13,7 +13,7 @@ export default function AdminOrdersPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch("http://localhost:8000/api/admin/orders", {
+      const res = await fetch(window.API_BASE_URL + "/api/admin/orders", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -48,7 +48,7 @@ export default function AdminOrdersPage() {
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch(`http://localhost:8000/api/admin/orders/${orderId}/status`, {
+      const res = await fetch(window.API_BASE_URL + `/api/admin/orders/${orderId}/status`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",

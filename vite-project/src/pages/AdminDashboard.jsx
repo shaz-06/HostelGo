@@ -14,7 +14,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("buyto_token");
       const nextValue = !deliverySettings?.lateNightDeliveryEnabled;
-      const res = await fetch("http://localhost:8000/api/admin/delivery-settings", {
+      const res = await fetch(window.API_BASE_URL + "/api/admin/delivery-settings", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("buyto_token");
       const nextValue = !deliverySettings?.rainyDeliveryEnabled;
-      const res = await fetch("http://localhost:8000/api/admin/delivery-settings", {
+      const res = await fetch(window.API_BASE_URL + "/api/admin/delivery-settings", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
         const token = localStorage.getItem("buyto_token");
 
         // Fetch analytics
-        const analyticsRes = await fetch("http://localhost:8000/api/admin/analytics", {
+        const analyticsRes = await fetch(window.API_BASE_URL + "/api/admin/analytics", {
           headers: {
             "Authorization": `Bearer ${token}`
           }
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
         setAnalytics(analyticsData);
 
         // Fetch recent orders
-        const ordersRes = await fetch("http://localhost:8000/api/admin/orders", {
+        const ordersRes = await fetch(window.API_BASE_URL + "/api/admin/orders", {
           headers: {
             "Authorization": `Bearer ${token}`
           }
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
         setRecentOrders(ordersData.slice(0, 5)); // Keep latest 5 orders
 
         // Fetch delivery settings
-        const settingsRes = await fetch("http://localhost:8000/api/admin/delivery-settings", {
+        const settingsRes = await fetch(window.API_BASE_URL + "/api/admin/delivery-settings", {
           headers: {
             "Authorization": `Bearer ${token}`
           }

@@ -1,0 +1,17 @@
+{
+  "short_name": "Buyto",
+  "name": "Buyto Instant",
+  "description": "Superfast 10-minute delivery for fresh fruits, groceries, snacks, and daily essentials.",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#318616",
+  "display": "standalone",
+  "orientation": "portrait"
+}

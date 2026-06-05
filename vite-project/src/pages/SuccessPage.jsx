@@ -117,7 +117,7 @@ export default function SuccessPage() {
     const fetchOrderDetails = async () => {
       try {
         const token = localStorage.getItem("buyto_token");
-        const res = await fetch(`http://localhost:8000/api/orders/track/${latestOrderId}`, {
+        const res = await fetch(window.API_BASE_URL + `/api/orders/track/${latestOrderId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -154,7 +154,7 @@ export default function SuccessPage() {
   useEffect(() => {
     if (!latestOrderId) return;
 
-    const socket = io("http://localhost:8000");
+    const socket = io(window.API_BASE_URL);
 
     socket.on("connect", () => {
       console.log("🔌 SuccessPage connected to Socket.IO. Joining room:", latestOrderId);

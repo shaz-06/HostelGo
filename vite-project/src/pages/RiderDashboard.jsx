@@ -4,7 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import RiderOrders from "./RiderOrders";
 import { io } from "socket.io-client";
 
-const api = "http://localhost:8000/api/rider";
+const api = window.API_BASE_URL + "/api/rider";
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 export default function RiderDashboard() {
@@ -54,7 +54,7 @@ export default function RiderDashboard() {
     if (!activeOrderId || !rider.isOnline) return;
 
     console.log("=== RIDER LIVE GEOLOCATION START ===");
-    const socket = io("http://localhost:8000");
+    const socket = io(window.API_BASE_URL);
 
     socket.on("connect", () => {
       console.log("🔌 Rider connected to Socket.IO. Joining order room:", activeOrderId);

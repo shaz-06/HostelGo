@@ -67,7 +67,7 @@ export default function SupportChatPage() {
 
     const checkActiveSession = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/support/queue", {
+        const res = await fetch(window.API_BASE_URL + "/api/support/queue", {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -85,7 +85,7 @@ export default function SupportChatPage() {
     checkActiveSession();
 
     // Fetch recent orders for bot
-    fetch("http://localhost:8000/api/orders/my-orders", {
+    fetch(window.API_BASE_URL + "/api/orders/my-orders", {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -99,7 +99,7 @@ export default function SupportChatPage() {
 
   const fetchSessionDetails = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/support/start", {
+      const res = await fetch(window.API_BASE_URL + "/api/support/start", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -127,7 +127,7 @@ export default function SupportChatPage() {
   const initializeSocket = (chatId) => {
     if (socketRef.current) return;
 
-    const socket = io("http://localhost:8000");
+    const socket = io(window.API_BASE_URL);
     socketRef.current = socket;
 
     socket.on("connect", () => {
@@ -207,7 +207,7 @@ export default function SupportChatPage() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/support/chat/${chatSession._id}`, {
+        const res = await fetch(window.API_BASE_URL + `/api/support/chat/${chatSession._id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -319,7 +319,7 @@ export default function SupportChatPage() {
   // Convert Bot session to Live Support waitlist
   const connectToLiveSupport = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/support/start", {
+      const res = await fetch(window.API_BASE_URL + "/api/support/start", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -371,7 +371,7 @@ export default function SupportChatPage() {
     }
 
     try {
-      const res = await fetch("http://localhost:8000/api/support/message", {
+      const res = await fetch(window.API_BASE_URL + "/api/support/message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -431,7 +431,7 @@ export default function SupportChatPage() {
   const handleCloseSession = async () => {
     if (!chatSession) return;
     try {
-      const res = await fetch("http://localhost:8000/api/support/close", {
+      const res = await fetch(window.API_BASE_URL + "/api/support/close", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -451,7 +451,7 @@ export default function SupportChatPage() {
 
   const submitRatingFeedback = async () => {
     try {
-      await fetch("http://localhost:8000/api/support/close", {
+      await fetch(window.API_BASE_URL + "/api/support/close", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

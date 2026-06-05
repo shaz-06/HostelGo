@@ -92,7 +92,7 @@ export default function ProductDetailsPage({
     } else {
       // Fallback: Fetch products from API and find it
       setLoading(true);
-      fetch("http://localhost:8000/api/products")
+      fetch(window.API_BASE_URL + "/api/products")
         .then((res) => res.json())
         .then((data) => {
           setAllProducts(data);
