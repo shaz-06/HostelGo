@@ -8,7 +8,7 @@ import UserDetails from "./pages/UserDetails";
 let apiBase = '';
 if (import.meta.env.MODE === 'production') {
   // Production: Use the configured VITE_API_URL only. Do not fall back to local network IPs.
-  apiBase = import.meta.env.VITE_API_URL || 'https://api.buyto.co.in';
+  apiBase = import.meta.env.VITE_API_URL || 'https://buyto-api.onrender.com';
 } else {
   // Development:
   if (import.meta.env.VITE_API_URL) {
