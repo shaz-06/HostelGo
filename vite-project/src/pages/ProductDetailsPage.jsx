@@ -19,6 +19,7 @@ export default function ProductDetailsPage({
   const [allProducts, setAllProducts] = useState(products);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
 
   // Dynamic enrichment for product details page
   const enrichProduct = (product) => {
@@ -90,20 +91,28 @@ export default function ProductDetailsPage({
       setActiveProduct(enrichProduct(found));
       setLoading(false);
     } else {
-      // Fallback: Fetch products from API and find it
       setLoading(true);
+      console.log("=== DETAILS API FETCH INITIATED ===", window.API_BASE_URL + "/api/products");
       fetch(window.API_BASE_URL + "/api/products")
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
         .then((data) => {
+          console.log("=== DETAILS API FETCH SUCCESS ===", data.length, "products loaded");
           setAllProducts(data);
           const item = data.find((p) => p._id === id || p.id === id);
           if (item) {
             setActiveProduct(enrichProduct(item));
           }
+          setApiError(null);
           setLoading(false);
         })
         .catch((err) => {
-          console.error(err);
+          console.error("=== DETAILS API FETCH FAILED ===", err);
+          setApiError(`Failed to load product details: ${err.message}`);
           setLoading(false);
         });
     }
@@ -127,6 +136,49 @@ export default function ProductDetailsPage({
       setSelectedProduct={setSelectedProduct}
     />
   );
+
+  if (apiError) {
+    return (
+      <div style={{ background: "white", borderRadius: "24px", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.03)", marginTop: "24px" }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            color: "#318616",
+            fontWeight: "700",
+            fontSize: "15px",
+            cursor: "pointer",
+            border: "none",
+            background: "none",
+            padding: 0,
+          }}
+        >
+          ← Back
+        </button>
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #fee2e2",
+            borderRadius: "16px",
+            padding: "16px",
+            color: "#991b1b",
+            textAlign: "left",
+            fontFamily: "'Outfit', 'Inter', sans-serif"
+          }}
+        >
+          <h3 style={{ margin: "0 0 8px 0", fontSize: "16px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>⚠️</span> Connection Error
+          </h3>
+          <p style={{ margin: 0, fontSize: "14px", fontWeight: "500", opacity: 0.9 }}>
+            {apiError}. Resolved URL: {window.API_BASE_URL}/api/products
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -2940,6 +2940,115 @@ const matchesType = (product, currentType) => {
   return false;
 };
 
+  const fruitsSidebar = [
+  { id: "All", name: "Show All", emoji: "🛍️" },
+  { id: "Mango", name: "Mango", emoji: "🥭" },
+  { id: "Fresh Fruits", name: "Fresh Fruits", emoji: "🍎" },
+  { id: "Exotic Fruits", name: "Exotic Fruits", emoji: "🥝" },
+  { id: "Seasonal Fruits", name: "Seasonal Fruits", emoji: "🍉" },
+  { id: "Cut Fruits and Juices", name: "Cut Fruits & Juices", emoji: "🥤" },
+  { id: "Pooja & Festive", name: "Pooja & Festive", emoji: "🪔" },
+  { id: "Premium Produce", name: "Premium Produce", emoji: "🌟" },
+  { id: "Certified Organics", name: "Certified Organics", emoji: "📦" },
+  { id: "Fresh Vegetables", name: "Fresh Vegetables", emoji: "🥦" },
+  { id: "Bouquet & Plants", name: "Bouquet & Plants", emoji: "💐" },
+  { id: "Frozen Fruits", name: "Frozen Fruits", emoji: "❄️" },
+];
+
+const veggiesSidebar = [
+  { id: "All", name: "Show All", emoji: "🛍️" },
+  { id: "Fresh Vegetables", name: "Fresh Vegetables", emoji: "🥦" },
+  { id: "Leafy and Seasonings", name: "Leafy & Seasonings", emoji: "🥬" },
+  { id: "Exotic Vegetables", name: "Exotic Vegetables", emoji: "🍆" },
+  { id: "Certified Organics", name: "Certified Organics", emoji: "📦" },
+  { id: "Pooja & Festive", name: "Pooja & Festive", emoji: "🪔" },
+];
+
+const dairySidebar = [
+  { id: "All", name: "Show All", emoji: "🛍️" },
+  { id: "Milk", name: "Milk", emoji: "🥛" },
+  { id: "Eggs", name: "Eggs", emoji: "🥚" },
+  { id: "Curd and Yogurts", name: "Curd and Yogurts", emoji: "🥣" },
+  { id: "Fresh Bakery", name: "Fresh Bakery", emoji: "🥐" },
+  { id: "Butter", name: "Butter", emoji: "🧈" },
+  { id: "Bread and Buns", name: "Bread and Buns", emoji: "🍞" },
+  { id: "Cheese", name: "Cheese", emoji: "🧀" },
+  { id: "Batters and Chutneys", name: "Batters & Chutneys", emoji: "🏺" },
+  { id: "Lassi and Buttermilk", name: "Lassi & Buttermilk", emoji: "🥛" },
+  { id: "Milkshakes and More", name: "Milkshakes & More", emoji: "🥤" },
+  { id: "Indian Breads", name: "Indian Breads", emoji: "🫓" },
+  { id: "Dairy Alternatives", name: "Dairy Alternatives", emoji: "🌱" },
+  { id: "Paneer and Tofu", name: "Paneer and Tofu", emoji: "🍲" },
+  { id: "Top Deals", name: "Top Deals", emoji: "🏷️" },
+];
+
+const masalasSidebar = [
+  { id: "All", name: "Show All", emoji: "🛍️" },
+  { id: "Whole Spices", name: "Whole Spices", emoji: "🥣" },
+  { id: "Sugar and Jaggery", name: "Sugar & Jaggery", emoji: "🪵" },
+  { id: "Cold Grind", name: "Cold Grind", emoji: "🧂" },
+  { id: "Powdered Spices", name: "Powdered Spices", emoji: "🥣" },
+  { id: "Salt", name: "Salt", emoji: "🧂" },
+  { id: "Ready Masala", name: "Ready Masala", emoji: "🥘" },
+  { id: "Pickles & Chutney", name: "Pickles & Chutney", emoji: "🫙" },
+  { id: "Herbs & Seasoning", name: "Herbs & Seasoning", emoji: "🌿" },
+  { id: "Paste and Puree", name: "Paste & Puree", emoji: "🏺" },
+  { id: "Top Deals", name: "Top Deals", emoji: "🏷️" },
+];
+
+const grocerySidebar = [
+  { id: "All", name: "Show All", emoji: "🛍️" },
+  { id: "Atta", name: "Atta", emoji: "🌾" },
+  { id: "Rice", name: "Rice", emoji: "🍚" },
+  { id: "Toor, Moong and Urad", name: "Toor, Moong & Urad", emoji: "🍲" },
+  { id: "High Protein Atta", name: "High Protein Atta", emoji: "🌾" },
+  { id: "Basmati Rice", name: "Basmati Rice", emoji: "🍚" },
+  { id: "Besan, Sooji and Maida", name: "Besan, Sooji & Maida", emoji: "🥣" },
+  { id: "Rajma, Chola and Others", name: "Rajma, Chola & Others", emoji: "🍲" },
+  { id: "Poha & Puffed Rice", name: "Poha & Puffed Rice", emoji: "🌾" },
+  { id: "Premium Brands", name: "Premium Brands", emoji: "🌟" },
+  { id: "Soya Chunk & Badi", name: "Soya Chunk & Badi", emoji: "🫘" },
+  { id: "Other Flours", name: "Other Flours", emoji: "🥣" },
+  { id: "Millets & Daliya", name: "Millets & Daliya", emoji: "🌾" },
+  { id: "Ready to Cook Flour Mix", name: "Ready to Cook Flour Mix", emoji: "🫓" },
+  { id: "Top Deals", name: "Top Deals", emoji: "🏷️" },
+];
+
+const meatSidebar = [
+  { id: "All", name: "Show All", emoji: "🛍️" },
+  { id: "Fresh Chicken", name: "Fresh Chicken", emoji: "🍗" },
+  { id: "Fresh Seafood", name: "Fresh Seafood", emoji: "🍤" },
+  { id: "Fresh Mutton", name: "Fresh Mutton", emoji: "🥩" },
+  { id: "Ready to Cook", name: "Ready to Cook", emoji: "🍳" },
+  { id: "Meat Combos", name: "Meat Combos", emoji: "🍱" },
+  { id: "Frozen Food", name: "Frozen Food", emoji: "❄️" },
+  { id: "Plant Based Meat", name: "Plant Based Meat", emoji: "🌱" },
+  { id: "Eggs", name: "Eggs", emoji: "🥚" },
+  { id: "Cold Cuts", name: "Cold Cuts", emoji: "🥓" },
+];
+
+const getSidebarItems = (type) => {
+  if (DYNAMIC_CONFIG[type]) {
+    return DYNAMIC_CONFIG[type].sidebarItems || [];
+  }
+  if (type === "fruits") return fruitsSidebar;
+  if (type === "veggies") return veggiesSidebar;
+  if (type === "dairy") return dairySidebar;
+  if (type === "masalas") return masalasSidebar;
+  if (type === "grocery") return grocerySidebar;
+  if (type === "meat") return meatSidebar;
+  
+  if (type === "snacks") return [{ id: "All", name: "Show All", emoji: "🍿" }];
+  if (type === "beverages") return [{ id: "All", name: "Show All", emoji: "🥤" }];
+  if (type === "exclusive-deals") return [{ id: "All", name: "Show All", emoji: "🏷️" }];
+  if (type === "mosquitoes") return [{ id: "All", name: "Show All", emoji: "🦟" }];
+  if (type === "bread-store") return [{ id: "All", name: "Show All", emoji: "🍞" }];
+  if (type === "pickles") return [{ id: "All", name: "Show All", emoji: "🥒" }];
+  if (type === "sexual-wellness") return [{ id: "All", name: "Show All", emoji: "💝" }];
+
+  return [];
+};
+
 export default function SectionProductsPage({
   cart: propsCart,
   setCart: propsSetCart,
@@ -2962,6 +3071,7 @@ export default function SectionProductsPage({
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("default");
 
@@ -3038,14 +3148,23 @@ export default function SectionProductsPage({
   };
 
   useEffect(() => {
+    console.log("=== SECTION API FETCH INITIATED ===", window.API_BASE_URL + "/api/products");
     fetch(window.API_BASE_URL + "/api/products")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
+        console.log("=== SECTION API FETCH SUCCESS ===", data.length, "products loaded");
         setProducts(data);
+        setApiError(null);
         setLoading(false);
       })
       .catch((err) => {
-        console.error(err);
+        console.error("=== SECTION API FETCH FAILED ===", err);
+        setApiError(`Failed to load products: ${err.message}`);
         setLoading(false);
       });
   }, []);
@@ -3722,6 +3841,537 @@ export default function SectionProductsPage({
       );
     });
   };
+
+  const renderMobileCategoryPage = () => {
+    const sidebarItems = getSidebarItems(type);
+    const cleanSectionTitle = sectionTitle.replace(/^[^\s]+\s+/, "");
+    const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+    const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#f9fafb",
+          fontFamily: "'Outfit', 'Inter', sans-serif",
+          paddingBottom: totalItems > 0 ? "148px" : "84px",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <style>{`
+          .hide-scrollbar::-webkit-scrollbar {
+            display: none !important;
+          }
+          .hide-scrollbar {
+            -ms-overflow-style: none !important;
+            scrollbar-width: none !important;
+          }
+          @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+          }
+        `}</style>
+
+        {/* Sticky Mobile Header */}
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 1000,
+            background: "white",
+            borderBottom: "1px solid #e5e7eb",
+            width: "100%",
+          }}
+        >
+          {/* Top Title Bar with ← Back and Title */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              padding: "12px 16px 4px 16px",
+              gap: "4px",
+            }}
+          >
+            <button
+              onClick={() => navigate("/")}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#6b7280",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                minHeight: "44px",
+                width: "fit-content",
+              }}
+            >
+              ← Back
+            </button>
+            <h1 style={{ fontSize: "22px", fontWeight: "800", color: "#1f2937", margin: 0, paddingBottom: "4px" }}>
+              {cleanSectionTitle}
+            </h1>
+          </div>
+
+          {/* Sticky Search Bar */}
+          <div style={{ padding: "0 16px 12px 16px" }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                type="text"
+                placeholder={`Search in ${cleanSectionTitle}`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 16px 10px 40px",
+                  borderRadius: "12px",
+                  border: "1px solid #e5e7eb",
+                  background: "#f3f4f6",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  outline: "none",
+                  height: "44px",
+                  boxSizing: "border-box",
+                }}
+              />
+              <span style={{ position: "absolute", left: "14px", color: "#9ca3af", fontSize: "16px" }}>
+                🔍
+              </span>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    background: "none",
+                    border: "none",
+                    color: "#9ca3af",
+                    fontSize: "16px",
+                    cursor: "pointer",
+                    minHeight: "44px",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Categories Carousel/Chips */}
+        {sidebarItems.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              overflowX: "scroll",
+              WebkitOverflowScrolling: "touch",
+              scrollBehavior: "smooth",
+              gap: "8px",
+              padding: "12px 16px",
+              background: "white",
+              borderBottom: "1px solid #e5e7eb",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+            className="hide-scrollbar"
+          >
+            {sidebarItems.map((item) => {
+              const isActive = activeSidebar === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveSidebar(item.id);
+                    if (type === "fruits") {
+                      setActiveQuickFilter(item.id === "Mango" ? "Mango Kesar" : "All");
+                    } else if (type === "veggies") {
+                      setActiveQuickFilter("Vegetables");
+                    } else {
+                      setActiveQuickFilter("All");
+                    }
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    background: isActive ? "#dcfce7" : "#f3f4f6",
+                    color: isActive ? "#15803d" : "#374151",
+                    border: isActive ? "1.5px solid #15803d" : "1px solid transparent",
+                    borderRadius: "20px",
+                    padding: "6px 14px",
+                    fontSize: "13px",
+                    fontWeight: "800",
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    minHeight: "40px",
+                  }}
+                >
+                  <span>{item.emoji}</span>
+                  <span>{item.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Filters and Sorting Strip */}
+        <div
+          style={{
+            display: "flex",
+            overflowX: "scroll",
+            WebkitOverflowScrolling: "touch",
+            scrollBehavior: "smooth",
+            gap: "8px",
+            padding: "8px 16px",
+            background: "#f9fafb",
+            borderBottom: "1px solid #e5e7eb",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+          className="hide-scrollbar"
+        >
+          {/* Sort Option Chip */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{
+              background: "white",
+              border: "1px solid #e5e7eb",
+              borderRadius: "20px",
+              padding: "6px 12px",
+              fontSize: "12px",
+              fontWeight: "800",
+              color: "#374151",
+              outline: "none",
+              cursor: "pointer",
+              minHeight: "40px",
+            }}
+          >
+            <option value="default">Sort: Popular</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="discount">Discount: High to Low</option>
+          </select>
+
+          {[
+            { id: "organic", name: "🌿 Organic", active: filterOrganic, toggle: () => setFilterOrganic(!filterOrganic) },
+            { id: "inStock", name: "🟢 In Stock", active: filterInStock, toggle: () => setFilterInStock(!filterInStock) },
+            { id: "under30", name: "💸 Under ₹30", active: filterUnder30, toggle: () => setFilterUnder30(!filterUnder30) },
+            { id: "discount", name: "🏷️ 20%+ Off", active: filterDiscount, toggle: () => setFilterDiscount(!filterDiscount) },
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={f.toggle}
+              style={{
+                background: f.active ? "#15803d" : "white",
+                color: f.active ? "white" : "#374151",
+                border: f.active ? "1px solid #15803d" : "1px solid #e5e7eb",
+                borderRadius: "20px",
+                padding: "6px 12px",
+                fontSize: "12px",
+                fontWeight: "800",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                minHeight: "40px",
+              }}
+            >
+              {f.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Product Grid Area */}
+        <div style={{ padding: "12px", width: "100%", boxSizing: "border-box" }}>
+          {loading ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gap: "10px",
+                width: "100%",
+              }}
+            >
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: "12px",
+                    background: "white",
+                    borderRadius: "16px",
+                    border: "1px solid #f0f0f0",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    height: "260px",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div style={{ height: "110px", background: "#f3f4f6", borderRadius: "10px", animation: "pulse 1.5s infinite" }} />
+                  <div style={{ height: "12px", width: "50px", background: "#f3f4f6", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+                  <div style={{ height: "14px", width: "100%", background: "#f3f4f6", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+                  <div style={{ height: "14px", width: "70%", background: "#f3f4f6", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+                  <div style={{ height: "44px", background: "#f3f4f6", borderRadius: "8px", animation: "pulse 1.5s infinite", marginTop: "auto" }} />
+                </div>
+              ))}
+            </div>
+          ) : searchedProducts.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "60px 20px",
+                background: "white",
+                borderRadius: "20px",
+                border: "1px solid #f0f0f0",
+                marginTop: "20px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                boxSizing: "border-box",
+              }}
+            >
+              <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔍</div>
+              <h3 style={{ color: "#1f2937", fontSize: "18px", fontWeight: "800", margin: "0 0 8px 0" }}>
+                No products found
+              </h3>
+              <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 24px 0", maxWidth: "260px" }}>
+                Try adjusting your search queries or clearing your filters to see more products.
+              </p>
+              <button
+                onClick={() => {
+                  setFilterOrganic(false);
+                  setFilterUnder30(false);
+                  setFilterInStock(false);
+                  setFilterDiscount(false);
+                  setSearchQuery("");
+                  setActiveSidebar("All");
+                  setActiveQuickFilter("All");
+                }}
+                style={{
+                  background: "#12C24B",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "12px",
+                  padding: "0 24px",
+                  fontSize: "14px",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                  minHeight: "44px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 12px rgba(18,194,75,0.2)",
+                  transition: "background 0.2s",
+                }}
+              >
+                Clear Filters
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gap: "10px",
+                width: "100%",
+              }}
+            >
+              {searchedProducts.map((product) => (
+                <ProductCard
+                  key={product._id || product.id}
+                  product={product}
+                  addToCart={addToCart}
+                  removeFromCart={removeFromCart}
+                  onAddToCart={addToCart}
+                  navigate={navigate}
+                  cart={cart}
+                  cartItems={cartItems}
+                  windowWidth={windowWidth}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Cart visibility bar */}
+        {totalItems > 0 && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: "calc(64px + env(safe-area-inset-bottom))",
+              left: 0,
+              right: 0,
+              height: "56px",
+              background: "#12C24B",
+              color: "white",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "0 20px",
+              zIndex: 998,
+              boxShadow: "0 -4px 10px rgba(0,0,0,0.1)",
+              cursor: "pointer",
+            }}
+            onClick={() => navigate("/cart")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontWeight: "800", fontSize: "14px" }}>
+                {totalItems} {totalItems === 1 ? "Item" : "Items"}
+              </span>
+              <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "14px" }}>|</span>
+              <span style={{ fontWeight: "900", fontSize: "16px" }}>
+                ₹{totalPrice}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", minHeight: "44px" }}>
+              <span style={{ fontWeight: "800", fontSize: "14px", display: "flex", alignItems: "center", gap: "4px" }}>
+                View Cart ➔
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Persistent Mobile Bottom Navigation Bar */}
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: "calc(64px + env(safe-area-inset-bottom))",
+            background: "white",
+            borderTop: "1px solid #e5e7eb",
+            display: "flex",
+            justifyContent: "space-around",
+            alignItems: "center",
+            zIndex: 999,
+            boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            onClick={() => { setActiveSidebar("All"); navigate("/"); }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px", minHeight: "44px", minWidth: "44px", justifyContent: "center" }}
+          >
+            <span style={{ fontSize: "20px" }}>🏠</span>
+            <span style={{ fontSize: "10px", fontWeight: "800", color: "#6b7280" }}>Shop</span>
+          </div>
+
+          <div
+            onClick={() => {
+              navigate("/");
+              setTimeout(() => {
+                const el = document.getElementById("product-listings-anchor");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }, 100);
+            }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px", minHeight: "44px", minWidth: "44px", justifyContent: "center" }}
+          >
+            <span style={{ fontSize: "20px" }}>🗂️</span>
+            <span style={{ fontSize: "10px", fontWeight: "800", color: "#6b7280" }}>Categories</span>
+          </div>
+
+          <div
+            onClick={() => navigate("/cart")}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px", position: "relative", minHeight: "44px", minWidth: "44px", justifyContent: "center" }}
+          >
+            <span style={{ fontSize: "20px" }}>🧺</span>
+            {totalItems > 0 && (
+              <span style={{
+                position: "absolute",
+                top: "0px",
+                right: "0px",
+                background: "#ef4444",
+                color: "white",
+                fontSize: "9px",
+                fontWeight: "900",
+                borderRadius: "50%",
+                width: "15px",
+                height: "15px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+                {totalItems}
+              </span>
+            )}
+            <span style={{ fontSize: "10px", fontWeight: "800", color: "#6b7280" }}>Cart</span>
+          </div>
+
+          <div
+            onClick={() => navigate("/profile")}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px", minHeight: "44px", minWidth: "44px", justifyContent: "center" }}
+          >
+            <span style={{ fontSize: "20px" }}>👤</span>
+            <span style={{ fontSize: "10px", fontWeight: "800", color: "#6b7280" }}>Profile</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (apiError) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: "#f9fafb",
+        padding: "40px 24px",
+        fontFamily: "'Outfit', 'Inter', sans-serif",
+      }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          <button
+            onClick={() => navigate("/")}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#6b7280",
+              fontSize: "14px",
+              fontWeight: "700",
+              cursor: "pointer",
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              marginBottom: "16px",
+            }}
+          >
+            ← Back to Catalog
+          </button>
+          <div
+            style={{
+              background: "#fef2f2",
+              border: "1px solid #fee2e2",
+              borderRadius: "16px",
+              padding: "16px",
+              color: "#991b1b",
+              textAlign: "left",
+            }}
+          >
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "16px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>⚠️</span> Connection Error
+            </h3>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: "500", opacity: 0.9 }}>
+              {apiError}. Resolved URL: {window.API_BASE_URL}/api/products
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (windowWidth < 768) {
+    return renderMobileCategoryPage();
+  }
 
   if (type === "fruits") {
     return (

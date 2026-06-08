@@ -1,17 +1,32 @@
 {
-  "short_name": "Buyto",
+  "short_name": "Buyto Instant",
   "name": "Buyto Instant",
   "description": "Superfast 10-minute delivery for fresh fruits, groceries, snacks, and daily essentials.",
   "icons": [
     {
-      "src": "favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any"
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "48x48"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "start_url": "/",
-  "background_color": "#ffffff",
-  "theme_color": "#318616",
+  "background_color": "#12C24B",
+  "theme_color": "#12C24B",
   "display": "standalone",
   "orientation": "portrait"
 }

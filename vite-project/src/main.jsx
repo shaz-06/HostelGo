@@ -5,15 +5,26 @@ import './index.css'
 import UserDetails from "./pages/UserDetails";
 
 // Dynamically resolve API URL depending on client platform
-let apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-if (window.Capacitor || window.location.protocol === 'capacitor:') {
-  if (import.meta.env.MODE === 'production') {
-    apiBase = import.meta.env.VITE_API_URL || 'https://api.buyto.co.in';
-  } else {
-    apiBase = 'http://10.0.2.2:8000';
-  }
+let apiBase = '';
+if (import.meta.env.MODE === 'production') {
+  // Production: Use the configured VITE_API_URL only. Do not fall back to local network IPs.
+  apiBase = import.meta.env.VITE_API_URL || 'https://api.buyto.co.in';
 } else {
-  apiBase = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? 'https://api.buyto.co.in' : 'http://localhost:8000');
+  // Development:
+  if (import.meta.env.VITE_API_URL) {
+    apiBase = import.meta.env.VITE_API_URL;
+  } else if (window.Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:') {
+    // Under live reload, window.location.hostname is the Mac's IP (e.g. 192.168.x.x)
+    const host = window.location.hostname;
+    if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== '0.0.0.0') {
+      apiBase = `http://${host}:8000`;
+    } else {
+      apiBase = 'http://10.0.2.2:8000'; // Default Android emulator loopback
+    }
+  } else {
+    // Browser development
+    apiBase = 'http://localhost:8000';
+  }
 }
 window.API_BASE_URL = apiBase;
 

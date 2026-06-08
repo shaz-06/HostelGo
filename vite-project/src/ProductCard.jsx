@@ -96,6 +96,249 @@ function ProductCard({
     handleRemove(e);
   };
 
+  if (windowWidth < 768) {
+    return (
+      <div
+        onClick={handleCardClick}
+        style={{
+          background: "white",
+          borderRadius: "16px",
+          padding: "12px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+          border: "1px solid #f0f0f0",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          transition: "transform 0.2s ease",
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        {hasDiscount && (
+          <div
+            style={{
+              position: "absolute",
+              top: "8px",
+              left: "8px",
+              background: "#2563eb",
+              color: "white",
+              padding: "2px 6px",
+              borderRadius: "6px",
+              fontSize: "10px",
+              fontWeight: "800",
+              zIndex: 10,
+            }}
+          >
+            {discountPercentage}% OFF
+          </div>
+        )}
+        
+        {/* Upper content section */}
+        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
+          <div style={{ width: "100%", textAlign: "center", background: "#f9fafb", borderRadius: "12px", padding: "8px 0", display: "flex", alignItems: "center", justifyContent: "center", height: "110px" }}>
+            <img
+              src={product.image || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500"}
+              alt={product.name || "Product"}
+              style={{
+                maxWidth: "100%",
+                maxHeight: "100%",
+                height: "auto",
+                width: "auto",
+                objectFit: "contain",
+                borderRadius: "8px",
+              }}
+              loading="lazy"
+            />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", width: "fit-content", marginTop: "8px" }}>
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="3">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span style={{ fontSize: "9px", color: "#6b7280", fontWeight: "700" }}>
+              {product.eta || "30 MINS"}
+            </span>
+          </div>
+
+          <h2
+            style={{
+              fontSize: "13px",
+              fontWeight: "600",
+              lineHeight: "16px",
+              color: "#1f2937",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              marginTop: "8px",
+              height: "32px",
+              margin: "8px 0 2px 0",
+            }}
+          >
+            {product.name}
+          </h2>
+
+          <div
+            onClick={(e) => {
+              if (product.variants && product.variants.length > 1) {
+                e.stopPropagation();
+                if (setSelectedProduct) {
+                  setSelectedProduct(product);
+                }
+              }
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              cursor: product.variants?.length > 1 ? "pointer" : "default",
+              color: "#6b7280",
+              fontSize: "12px",
+              fontWeight: "500",
+              marginBottom: "8px",
+            }}
+          >
+            <span>{weight}</span>
+            {product.variants?.length > 1 && (
+              <span style={{ color: "#2563eb", fontSize: "9px" }}>
+                ▼
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Separator line */}
+        <div
+          style={{
+            borderTop: "1px dashed #e5e7eb",
+            margin: "8px 0",
+          }}
+        />
+
+        {/* Price and ADD button section */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            minHeight: "44px",
+          }}
+        >
+          <div>
+            {hasDiscount && (
+              <p style={{ color: "#00a05a", fontWeight: "700", fontSize: "10px", margin: 0 }}>
+                {discountPercentage}% OFF
+              </p>
+            )}
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "2px" }}>
+              <span style={{ fontWeight: "800", fontSize: "15px", color: "#1f2937" }}>
+                ₹{price}
+              </span>
+              {originalPrice > price && (
+                <span
+                  style={{
+                    textDecoration: "line-through",
+                    color: "#9ca3af",
+                    fontSize: "11px",
+                  }}
+                >
+                  ₹{originalPrice}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center" }}>
+            {quantity === 0 ? (
+              <button
+                onClick={handleAdd}
+                className="active:scale-95 transition-transform"
+                style={{
+                  background: "white",
+                  border: "1.5px solid #12C24B",
+                  color: "#12C24B",
+                  minHeight: "44px",
+                  minWidth: "76px",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                  boxShadow: "0 2px 4px rgba(18,194,75,0.08)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxSizing: "border-box",
+                }}
+              >
+                ADD
+              </button>
+            ) : (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  background: "#12C24B",
+                  borderRadius: "8px",
+                  minHeight: "44px",
+                  minWidth: "76px",
+                  boxShadow: "0 2px 4px rgba(18,194,75,0.08)",
+                  boxSizing: "border-box",
+                }}
+              >
+                <button
+                  onClick={handleDecrease}
+                  style={{
+                    flex: 1,
+                    height: "100%",
+                    minHeight: "44px",
+                    background: "transparent",
+                    border: "none",
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "800",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                >
+                  -
+                </button>
+                <span style={{ color: "white", fontWeight: "800", fontSize: "13px", minWidth: "16px", textAlign: "center" }}>
+                  {quantity}
+                </span>
+                <button
+                  onClick={handleIncrease}
+                  style={{
+                    flex: 1,
+                    height: "100%",
+                    minHeight: "44px",
+                    background: "transparent",
+                    border: "none",
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "800",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={handleCardClick}

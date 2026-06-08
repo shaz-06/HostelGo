@@ -1,6 +1,8 @@
 import React, { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { BRANDING } from "../config/branding";
+import BuytoLogo from "../components/common/BuytoLogo";
 
 export default function RiderSignup() {
   const navigate = useNavigate();
@@ -44,8 +46,13 @@ export default function RiderSignup() {
   return (
     <div style={authPageStyle}>
       <form onSubmit={submit} style={authCardStyle}>
-        <span style={brandStyle}>⚡ Buyto Instant Rider</span>
-        <h1 style={titleStyle}>Partner Signup</h1>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+          <BuytoLogo size="xl" />
+          <span style={{ ...brandStyle, color: "#318616", fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px", margin: 0 }}>
+            Delivery Partner
+          </span>
+        </div>
+        <h1 style={{ ...titleStyle, textAlign: "center" }}>Partner Signup</h1>
         <p style={copyStyle}>Aadhaar and driving license verification are prepared as onboarding placeholders.</p>
         {error && <div style={errorStyle}>⚠️ {error}</div>}
         <input 

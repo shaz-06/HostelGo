@@ -1,9 +1,8 @@
 const Razorpay = require("razorpay");
-const path = require("path");
-require("dotenv").config({ path: path.resolve(__dirname, "../backend/.env") });
+require("dotenv").config({ path: "../backend/.env" });
 
 console.log("RAZORPAY_KEY_ID:", process.env.RAZORPAY_KEY_ID);
-console.log("RAZORPAY_KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET ? "Loaded" : "Not Loaded");
+console.log("RAZORPAY_KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET ? "Loaded (hidden)" : "Not Loaded");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,

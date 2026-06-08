@@ -1,6 +1,8 @@
 import React, { useState, useContext } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { BRANDING } from "../config/branding";
+import BuytoLogo from "../components/common/BuytoLogo";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -51,7 +53,9 @@ export default function LoginPage() {
     <div style={pageContainerStyle}>
       <div style={cardStyle}>
         <div style={headerStyle}>
-          <span style={logoStyle}>⚡ Buyto Instant</span>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+            <BuytoLogo size="xl" />
+          </div>
           <h1 style={titleStyle}>Welcome Back</h1>
           <p style={subtitleStyle}>Sign in to access your instant delivery cart</p>
         </div>

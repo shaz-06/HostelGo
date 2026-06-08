@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useContext } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { BRANDING } from "./config/branding";
+import BuytoLogo from "./components/common/BuytoLogo";
+import { App as CapApp } from "@capacitor/app";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import RiderProtectedRoute from "./components/RiderProtectedRoute";
@@ -81,6 +84,68 @@ function GlobalLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [hideTrackingCard, setHideTrackingCard] = useState(!!localStorage.getItem("hideTrackingCard"));
+  const [showExitModal, setShowExitModal] = useState(false);
+
+  const handleAppBack = () => {
+    const currentPath = window.location.pathname;
+    if (currentPath.startsWith("/payment") || currentPath.startsWith("/checkout")) {
+      navigate("/cart");
+    } else if (currentPath.startsWith("/track-order/")) {
+      navigate("/profile");
+    } else {
+      if (window.history.length > 1) {
+        navigate(-1);
+      } else {
+        navigate("/");
+      }
+    }
+  };
+
+  const handleExitConfirm = () => {
+    if (window.Capacitor?.isNativePlatform?.()) {
+      CapApp.exitApp();
+    } else {
+      setShowExitModal(false);
+      window.history.go(-2);
+    }
+  };
+
+  // Capacitor native hardware back button handler
+  useEffect(() => {
+    const listenerPromise = CapApp.addListener("backButton", (event) => {
+      const currentPath = window.location.pathname;
+      if (currentPath === "/" || currentPath === "/home") {
+        setShowExitModal(true);
+      } else {
+        handleAppBack();
+      }
+    });
+
+    return () => {
+      listenerPromise.then((l) => l.remove());
+    };
+  }, [navigate]);
+
+  // PWA / Browser back gesture handler using history trapping
+  useEffect(() => {
+    const currentPath = location.pathname;
+
+    if (currentPath === "/" || currentPath === "/home") {
+      if (window.history.state?.noBack !== true) {
+        window.history.pushState({ noBack: true }, "");
+      }
+
+      const handlePopState = (e) => {
+        window.history.pushState({ noBack: true }, "");
+        setShowExitModal(true);
+      };
+
+      window.addEventListener("popstate", handlePopState);
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     setHideTrackingCard(!!localStorage.getItem("hideTrackingCard"));
@@ -282,14 +347,192 @@ function GlobalLayout({ children }) {
           </div>
         </div>
       )}
+      {showExitModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 99999,
+            padding: "20px",
+            fontFamily: "'Outfit', 'Inter', sans-serif",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "24px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "320px",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+              textAlign: "center",
+            }}
+          >
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "20px", fontWeight: "800", color: "#1f2937" }}>
+              Exit Buyto?
+            </h3>
+            <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#6b7280", fontWeight: "500" }}>
+              Are you sure you want to exit?
+            </p>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                onClick={() => setShowExitModal(false)}
+                style={{
+                  flex: 1,
+                  background: "#f3f4f6",
+                  color: "#4b5563",
+                  border: "none",
+                  borderRadius: "14px",
+                  fontSize: "14px",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                  minHeight: "44px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExitConfirm}
+                style={{
+                  flex: 1,
+                  background: "#ef4444",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "14px",
+                  fontSize: "14px",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                  minHeight: "44px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                Exit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [splashFade, setSplashFade] = useState(false);
+
+  useEffect(() => {
+    const timerFade = setTimeout(() => {
+      setSplashFade(true);
+    }, 2000);
+    const timerDismiss = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => {
+      clearTimeout(timerFade);
+      clearTimeout(timerDismiss);
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>
+        {showSplash && (
+          <div
+            onClick={() => {
+              setSplashFade(true);
+              setTimeout(() => setShowSplash(false), 500);
+            }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "linear-gradient(135deg, #43cc34 0%, #02a144 50%, #018c48 100%)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 999999,
+              opacity: splashFade ? 0 : 1,
+              transition: "opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1)",
+              cursor: "pointer",
+              userSelect: "none",
+              overflow: "hidden",
+            }}
+          >
+            {/* Subtle radial glow background behind the logo */}
+            <div
+              style={{
+                position: "absolute",
+                width: "600px",
+                height: "600px",
+                background: "radial-gradient(circle, rgba(18, 194, 75, 0.4) 0%, rgba(18, 194, 75, 0) 70%)",
+                filter: "blur(40px)",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
+
+            {/* Outer subtle glow/shadow container */}
+            <div
+              style={{
+                position: "relative",
+                zIndex: 2,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                maxWidth: "600px",
+                width: "90%",
+                aspectRatio: "1.25",
+                animation: "pulseLogo 3s infinite ease-in-out, scaleUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+              }}
+            >
+              <BuytoLogo
+                responsive={false}
+                clickable={false}
+                imgStyle={{
+                  width: "60vw",
+                  maxWidth: "500px",
+                  height: "auto",
+                  objectFit: "contain",
+                  maskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 75%)",
+                  WebkitMaskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 75%)",
+                }}
+              />
+            </div>
+
+            <style>{`
+              @keyframes pulseLogo {
+                0%, 100% {
+                  transform: scale(1);
+                  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.2)) drop-shadow(0 0 50px rgba(18, 194, 75, 0.3));
+                }
+                50% {
+                  transform: scale(1.03);
+                  filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 70px rgba(18, 194, 75, 0.5));
+                }
+              }
+              @keyframes scaleUp {
+                0% {
+                  opacity: 0;
+                  transform: scale(0.9);
+                }
+                100% {
+                  opacity: 1;
+                  transform: scale(1);
+                }
+              }
+            `}</style>
+          </div>
+        )}
         <GlobalLayout>
           <AppContent />
         </GlobalLayout>
@@ -305,6 +548,7 @@ function AppContent() {
   const [products, setProducts] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
   const [cartItems, setCartItems] = useState(() => {
     const saved = localStorage.getItem("buyto_cart") || localStorage.getItem("cart");
     if (saved) {
@@ -404,15 +648,23 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    console.log("=== API FETCH INITIATED ===", window.API_BASE_URL + "/api/products");
     fetch(window.API_BASE_URL + "/api/products")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
-        console.log(data);
+        console.log("=== API FETCH SUCCESS ===", data.length, "products loaded");
         setProducts(data);
+        setApiError(null);
         setLoading(false);
       })
       .catch((err) => {
-        console.log(err);
+        console.error("=== API FETCH FAILED ===", err);
+        setApiError(`Failed to load products: ${err.message}. Resolved URL: ${window.API_BASE_URL}/api/products`);
         setLoading(false);
       });
   }, []);
@@ -950,29 +1202,10 @@ function AppContent() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: windowWidth < 768 ? "12px" : "24px", width: windowWidth < 768 ? "100%" : "auto", justifyContent: "space-between" }}>
           {/* Logo */}
-          <div
+          <BuytoLogo
+            size="xl"
             onClick={() => { setSelectedProductId(null); setSelectedCategory("All"); }}
-            style={{ display: "flex", flexDirection: "column", cursor: "pointer" }}
-          >
-            <span
-              style={{
-                fontSize: windowWidth < 768 ? "18px" : "22px",
-                fontWeight: "900",
-                letterSpacing: "-0.5px",
-              }}
-            >
-              ⚡{" "}
-              <span style={{ color: "#F8CB46" }}>
-                Buyto
-              </span>{" "}
-              <span style={{ color: "#318616" }}>
-                Instant
-              </span>
-            </span>
-            <span style={{ fontSize: windowWidth < 768 ? "9px" : "11px", fontWeight: "800", color: "#6B7280", marginTop: "-1px", letterSpacing: "1px", textTransform: "uppercase" }}>
-              Superfast Delivery
-            </span>
-          </div>
+          />
 
           <div style={{ height: "30px", width: "1px", background: "#e5e7eb", display: windowWidth < 768 ? "none" : "block" }} />
 
@@ -1015,7 +1248,7 @@ function AppContent() {
               borderRadius: "14px",
               padding: windowWidth < 768 ? "10px 14px" : "14px 18px",
               paddingLeft: "44px",
-              width: windowWidth < 768 ? "100%" : "500px",
+              width: windowWidth < 768 ? "100%" : windowWidth < 1024 ? "300px" : "500px",
               border: "none",
               fontSize: windowWidth < 768 ? "13px" : "15px",
               fontWeight: "500",
@@ -1434,6 +1667,27 @@ function AppContent() {
                 ) : (
                   /* PRODUCT CATALOG PAGE */
                   <div>
+                    {apiError && (
+                      <div
+                        style={{
+                          background: "#fef2f2",
+                          border: "1px solid #fee2e2",
+                          borderRadius: "16px",
+                          padding: "16px",
+                          color: "#991b1b",
+                          marginBottom: "24px",
+                          textAlign: "left",
+                          fontFamily: "'Outfit', 'Inter', sans-serif"
+                        }}
+                      >
+                        <h3 style={{ margin: "0 0 8px 0", fontSize: "16px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span>⚠️</span> Connection Error
+                        </h3>
+                        <p style={{ margin: 0, fontSize: "14px", fontWeight: "500", opacity: 0.9 }}>
+                          {apiError}
+                        </p>
+                      </div>
+                    )}
                     {selectedCategory === "All" && !searchQuery ? (
                       <div>
                         <CategoryGridNavigator
