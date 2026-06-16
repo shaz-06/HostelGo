@@ -83,6 +83,27 @@ const riderIcon = new L.DivIcon({
 export default function SuccessPage() {
   const navigate = useNavigate();
 
+  // Load checkout summary for reordering
+  const [checkoutSummary, setCheckoutSummary] = useState(null);
+  useEffect(() => {
+    const saved = localStorage.getItem("buyto_checkout_summary");
+    if (saved) {
+      setCheckoutSummary(JSON.parse(saved));
+    }
+  }, []);
+
+  const handleReorderList = () => {
+    if (checkoutSummary && checkoutSummary.originalList) {
+      const itemsToRestore = checkoutSummary.originalList.map(name => ({
+        name,
+        completed: false
+      }));
+      localStorage.setItem("shoppingListItems", JSON.stringify(itemsToRestore));
+      alert("Shopping list restored! You can edit and reorder now.");
+      navigate("/shopping-list");
+    }
+  };
+
   // Try reading logged-in user first, then fallback to guest checkout details
   const user = localStorage.getItem("buyto_user")
     ? JSON.parse(localStorage.getItem("buyto_user"))
@@ -179,7 +200,7 @@ export default function SuccessPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)",
+        background: "#ffffff",
         padding: "40px 24px",
         fontFamily: "'Outfit', 'Inter', sans-serif",
       }}
@@ -479,6 +500,31 @@ export default function SuccessPage() {
                 onMouseOut={(e) => (e.currentTarget.style.transform = "none")}
               >
                 Track Live Order Status 🚚
+              </button>
+            )}
+
+            {/* Reorder Shopping List CTA */}
+            {checkoutSummary && checkoutSummary.originalList && (
+              <button
+                onClick={handleReorderList}
+                style={{
+                  width: "100%",
+                  height: "56px",
+                  border: "none",
+                  borderRadius: "16px",
+                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  color: "white",
+                  fontSize: "16px",
+                  fontWeight: "900",
+                  cursor: "pointer",
+                  marginBottom: "12px",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 10px 20px rgba(16, 185, 129, 0.2)",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
+                onMouseOut={(e) => (e.currentTarget.style.transform = "none")}
+              >
+                Reorder This List 🔁
               </button>
             )}
 

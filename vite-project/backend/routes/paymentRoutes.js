@@ -91,7 +91,7 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
   console.log("MongoDB connection state (readyState):", mongoose.connection.readyState);
   
   try {
-    const { amount, user, products, deliveryAddress, couponId, couponCode, couponDiscount, buyCoinsRedeemed, buyCoinsDiscount } = req.body;
+    const { amount, user, products, deliveryAddress, couponId, couponCode, couponDiscount, buyCoinsRedeemed, buyCoinsDiscount, noBagPledge } = req.body;
 
     // 1. Validation
     if (amount === undefined || amount === null) {
@@ -146,7 +146,8 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
       couponCode: couponCode || "",
       couponDiscount: Number(couponDiscount || 0),
       buyCoinsRedeemed: Number(buyCoinsRedeemed || 0),
-      buyCoinsDiscount: Number(buyCoinsDiscount || 0)
+      buyCoinsDiscount: Number(buyCoinsDiscount || 0),
+      noBagPledge: Boolean(noBagPledge)
     });
 
     if (deliveryLatitude && deliveryLongitude) {
@@ -166,6 +167,10 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
 
     try {
       const savedOrder = await order.save();
+      if (req.body.addressId) {
+        const Address = require("../models/Address");
+        await Address.updateOne({ _id: req.body.addressId }, { lastUsedAt: new Date() }).catch(err => console.error(err));
+      }
       console.log("=== ORDER SAVED ===");
       console.log("=== [BACKEND DB SAVE SUCCESS] Pending Order Saved Successfully ===");
       console.log("Saved Pending Order Document ID:", savedOrder._id);
@@ -264,6 +269,24 @@ router.post("/payment/verify", async (req, res) => {
       const { consumeOrderDiscounts } = require("../utils/rewards");
       await consumeOrderDiscounts(savedOrder);
 
+      // Auto-remove purchased products from Save For Later if configured
+      try {
+        const { AUTO_REMOVE_SAVED_PRODUCT_AFTER_PURCHASE } = require("../config/savedProductsConfig");
+        if (AUTO_REMOVE_SAVED_PRODUCT_AFTER_PURCHASE) {
+          const userObj = await User.findById(savedOrder.userId);
+          if (userObj && userObj.savedProducts && userObj.savedProducts.length > 0) {
+            const purchasedProductIds = savedOrder.products.map(p => p.productId ? p.productId.toString() : "");
+            userObj.savedProducts = userObj.savedProducts.filter(item => 
+              item.productId && !purchasedProductIds.includes(item.productId.toString())
+            );
+            await userObj.save();
+            console.log(`Auto-removed purchased products from User ${userObj._id}'s Save For Later list.`);
+          }
+        }
+      } catch (err) {
+        console.error("Auto-remove saved products failed:", err.message);
+      }
+
       // Create Borzo delivery order automatically
       try {
         const borzoResult = await createBorzoOrder(savedOrder);
@@ -338,7 +361,7 @@ router.post("/orders", authMiddleware, async (req, res) => {
   console.log(req.body.user);
 
   try {
-    const { user, products, amount, deliveryAddress, couponId, couponCode, couponDiscount, buyCoinsRedeemed, buyCoinsDiscount } = req.body;
+    const { user, products, amount, deliveryAddress, couponId, couponCode, couponDiscount, buyCoinsRedeemed, buyCoinsDiscount, noBagPledge } = req.body;
 
     if (!user || typeof user !== "object" || !products || amount === undefined || !deliveryAddress) {
       console.error("❌ COD Validation Error: Missing required fields or invalid user details");
@@ -366,7 +389,8 @@ router.post("/orders", authMiddleware, async (req, res) => {
       couponCode: couponCode || "",
       couponDiscount: Number(couponDiscount || 0),
       buyCoinsRedeemed: Number(buyCoinsRedeemed || 0),
-      buyCoinsDiscount: Number(buyCoinsDiscount || 0)
+      buyCoinsDiscount: Number(buyCoinsDiscount || 0),
+      noBagPledge: Boolean(noBagPledge)
     });
 
     if (deliveryLatitude && deliveryLongitude) {
@@ -384,12 +408,34 @@ router.post("/orders", authMiddleware, async (req, res) => {
     console.log("=== [BACKEND DB SAVE] Saving COD Order to DB ===");
     try {
       const savedOrder = await order.save();
+      if (req.body.addressId) {
+        const Address = require("../models/Address");
+        await Address.updateOne({ _id: req.body.addressId }, { lastUsedAt: new Date() }).catch(err => console.error(err));
+      }
       console.log("=== ORDER SAVED ===");
       console.log("=== [BACKEND DB SAVE SUCCESS] COD Order Saved Successfully ===");
       console.log("Saved Document ID:", savedOrder._id);
 
       const { consumeOrderDiscounts } = require("../utils/rewards");
       await consumeOrderDiscounts(savedOrder);
+
+      // Auto-remove purchased products from Save For Later if configured
+      try {
+        const { AUTO_REMOVE_SAVED_PRODUCT_AFTER_PURCHASE } = require("../config/savedProductsConfig");
+        if (AUTO_REMOVE_SAVED_PRODUCT_AFTER_PURCHASE) {
+          const userObj = await User.findById(savedOrder.userId);
+          if (userObj && userObj.savedProducts && userObj.savedProducts.length > 0) {
+            const purchasedProductIds = savedOrder.products.map(p => p.productId ? p.productId.toString() : "");
+            userObj.savedProducts = userObj.savedProducts.filter(item => 
+              item.productId && !purchasedProductIds.includes(item.productId.toString())
+            );
+            await userObj.save();
+            console.log(`Auto-removed purchased products from User ${userObj._id}'s Save For Later list.`);
+          }
+        }
+      } catch (err) {
+        console.error("Auto-remove saved products failed:", err.message);
+      }
 
       // Create Borzo delivery order automatically
       try {

@@ -7,6 +7,9 @@ const User = require("../models/User");
 const Config = require("../models/Config");
 const DeliverySettings = require("../models/DeliverySettings");
 const Coupon = require("../models/Coupon");
+const DeliveryServiceZone = require("../models/DeliveryServiceZone");
+const UnserviceableRequest = require("../models/UnserviceableRequest");
+const Category = require("../models/Category");
 
 const STATUS_TIMESTAMP_KEYS = {
   "Pending": "pending",
@@ -467,6 +470,206 @@ router.put("/delivery-settings", async (req, res) => {
   } catch (error) {
     console.error("❌ Admin Delivery Settings Update Error:", error);
     return res.status(500).json({ message: "Failed to update delivery settings", error: error.message });
+  }
+});
+
+// Haversine formula helper function
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// GET /api/admin/delivery-summary-stats
+router.get("/delivery-summary-stats", async (req, res) => {
+  try {
+    const activeZones = await DeliveryServiceZone.find({ active: true }).lean();
+    const totalActiveZones = activeZones.length;
+    const totalRadiusCoverage = activeZones.reduce((sum, zone) => sum + (zone.radiusKm || 0), 0);
+    const totalNotifyRequests = await UnserviceableRequest.countDocuments();
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const ordersToday = await Order.find({ createdAt: { $gte: startOfToday } }).lean();
+
+    let serviceableOrdersToday = 0;
+    for (const order of ordersToday) {
+      if (order.deliveryLatitude && order.deliveryLongitude) {
+        const isServiceable = activeZones.some(zone => {
+          const dist = haversineDistance(
+            order.deliveryLatitude,
+            order.deliveryLongitude,
+            zone.latitude,
+            zone.longitude
+          );
+          return dist <= zone.radiusKm;
+        });
+        if (isServiceable) {
+          serviceableOrdersToday++;
+        }
+      }
+    }
+
+    return res.json({
+      activeZonesCount: totalActiveZones,
+      totalRadiusCoverage,
+      notifyRequestsCount: totalNotifyRequests,
+      serviceableOrdersToday
+    });
+  } catch (error) {
+    console.error("❌ Delivery Summary Stats Error:", error);
+    return res.status(500).json({ message: "Failed to get stats", error: error.message });
+  }
+});
+
+// GET /api/admin/delivery-zones
+router.get("/delivery-zones", async (req, res) => {
+  try {
+    const zones = await DeliveryServiceZone.find().sort({ createdAt: -1 }).lean();
+    return res.json(zones);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch delivery zones", error: error.message });
+  }
+});
+
+// POST /api/admin/delivery-zones
+router.post("/delivery-zones", async (req, res) => {
+  try {
+    const { name, address, latitude, longitude, radiusKm, active } = req.body;
+    if (!name || !address || latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ message: "Name, address, latitude, and longitude are required" });
+    }
+
+    const zone = new DeliveryServiceZone({
+      name,
+      address,
+      latitude,
+      longitude,
+      radiusKm: radiusKm !== undefined ? Number(radiusKm) : 3,
+      active: active !== undefined ? Boolean(active) : true
+    });
+
+    const savedZone = await zone.save();
+    return res.status(201).json(savedZone);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to create delivery zone", error: error.message });
+  }
+});
+
+// PUT /api/admin/delivery-zones/:id
+router.put("/delivery-zones/:id", async (req, res) => {
+  try {
+    const { name, address, latitude, longitude, radiusKm, active } = req.body;
+    const zone = await DeliveryServiceZone.findById(req.params.id);
+    if (!zone) {
+      return res.status(404).json({ message: "Delivery zone not found" });
+    }
+
+    if (name !== undefined) zone.name = name;
+    if (address !== undefined) zone.address = address;
+    if (latitude !== undefined) zone.latitude = Number(latitude);
+    if (longitude !== undefined) zone.longitude = Number(longitude);
+    if (radiusKm !== undefined) zone.radiusKm = Number(radiusKm);
+    if (active !== undefined) zone.active = Boolean(active);
+
+    const updatedZone = await zone.save();
+    return res.json(updatedZone);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update delivery zone", error: error.message });
+  }
+});
+
+// DELETE /api/admin/delivery-zones/:id
+router.delete("/delivery-zones/:id", async (req, res) => {
+  try {
+    const result = await DeliveryServiceZone.deleteOne({ _id: req.params.id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "Delivery zone not found" });
+    }
+    return res.json({ success: true, message: "Delivery zone deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete delivery zone", error: error.message });
+  }
+});
+
+// GET /api/admin/unserviceable-requests
+router.get("/unserviceable-requests", async (req, res) => {
+  try {
+    const requests = await UnserviceableRequest.find().sort({ createdAt: -1 }).lean();
+    return res.json(requests);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch unserviceable requests", error: error.message });
+  }
+});
+
+// GET /api/admin/categories
+router.get("/categories", async (req, res) => {
+  try {
+    const categories = await Category.find().sort({ priority: -1, name: 1 }).lean();
+    return res.json(categories);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch categories", error: error.message });
+  }
+});
+
+// POST /api/admin/categories
+router.post("/categories", async (req, res) => {
+  try {
+    const { name, image, icon, showInHeader, priority } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: "Category name is required" });
+    }
+    const category = new Category({
+      name,
+      image,
+      icon,
+      showInHeader: showInHeader !== undefined ? Boolean(showInHeader) : true,
+      priority: priority !== undefined ? Number(priority) : 0
+    });
+    const saved = await category.save();
+    return res.status(201).json(saved);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to create category", error: error.message });
+  }
+});
+
+// PUT /api/admin/categories/:id
+router.put("/categories/:id", async (req, res) => {
+  try {
+    const { name, image, icon, showInHeader, priority } = req.body;
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+    if (name !== undefined) category.name = name;
+    if (image !== undefined) category.image = image;
+    if (icon !== undefined) category.icon = icon;
+    if (showInHeader !== undefined) category.showInHeader = Boolean(showInHeader);
+    if (priority !== undefined) category.priority = Number(priority);
+
+    const updated = await category.save();
+    return res.json(updated);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update category", error: error.message });
+  }
+});
+
+// DELETE /api/admin/categories/:id
+router.delete("/categories/:id", async (req, res) => {
+  try {
+    const result = await Category.deleteOne({ _id: req.params.id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+    return res.json({ success: true, message: "Category deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete category", error: error.message });
   }
 });
 

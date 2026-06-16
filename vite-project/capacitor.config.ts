@@ -22,10 +22,23 @@ const config: CapacitorConfig = {
   appId: 'com.buyto.app',
   appName: 'Buyto',
   webDir: 'dist',
+  backgroundColor: '#f7a80a',
   server: isLiveReload ? {
     url: `http://${getLocalIPAddress()}:5175`,
     cleartext: true
-  } : undefined
+  } : undefined,
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 0,
+      launchAutoHide: false,
+      backgroundColor: '#f7a80a',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true
+    }
+  }
 };
 
 export default config;

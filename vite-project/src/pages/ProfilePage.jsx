@@ -12,8 +12,23 @@ export default function ProfilePage() {
   const [liveUser, setLiveUser] = useState(user);
   const [coupons, setCoupons] = useState([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("orders"); // "orders", "coupons", "wallet"
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    return (tab && ["orders", "coupons", "wallet"].includes(tab)) ? tab : "orders";
+  });
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [wallet, setWallet] = useState(null);
+  const [walletTransactions, setWalletTransactions] = useState([]);
+  const [walletLoading, setWalletLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab && ["orders", "coupons", "wallet"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [window.location.search]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -61,6 +76,31 @@ export default function ProfilePage() {
     fetchLiveUser();
     fetchCoupons();
   }, [token]);
+  
+  useEffect(() => {
+    if (!token) return;
+    const fetchWallet = async () => {
+      try {
+        setWalletLoading(true);
+        const res = await fetch(window.API_BASE_URL + "/api/buycoins/wallet", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setWallet(data.wallet);
+            setWalletTransactions(data.transactions);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch wallet:", err);
+      } finally {
+        setWalletLoading(false);
+      }
+    };
+
+    fetchWallet();
+  }, [token, activeTab]);
 
   useEffect(() => {
     const fetchMyOrders = async () => {
@@ -319,7 +359,7 @@ export default function ProfilePage() {
                 <div style={emptyOrdersStyle}>
                   <span style={{ fontSize: "36px" }}>🎟️</span>
                   <h3 style={{ margin: "12px 0 6px 0", color: "#0f172a" }}>No Coupons Available</h3>
-                  <p style={{ color: "#64748b", fontSize: "13px" }}>You will unlock an AGAIN20 coupon after your first order is delivered!</p>
+                  <p style={{ color: "#64748b", fontSize: "13px" }}>You will unlock an AGAIN15 coupon after your first order is delivered!</p>
                 </div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "16px", marginTop: "16px" }}>
@@ -384,7 +424,7 @@ export default function ProfilePage() {
                           ₹{coupon.discountAmount} OFF
                         </h3>
                         <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: "#64748b", fontWeight: "600" }}>
-                          Minimum Order: ₹{coupon.minOrderValue}
+                          Minimum Order: ₹{coupon.minimumOrderValue || coupon.minOrderValue || 149}
                         </p>
 
                         <div style={{
@@ -429,10 +469,10 @@ export default function ProfilePage() {
                     Current Balance
                   </span>
                   <h1 style={{ fontSize: "36px", fontWeight: "900", color: "#78350f", margin: "4px 0 0 0" }}>
-                    {liveUser?.buyCoins || 0} Coins
+                    {wallet ? wallet.availableCoins : (liveUser?.buyCoins || 0)} Coins
                   </h1>
                   <span style={{ fontSize: "14px", fontWeight: "700", color: "#b45309", marginTop: "2px", display: "inline-block" }}>
-                    Current Value: ₹{liveUser?.buyCoins || 0}
+                    Current Value: ₹{wallet ? wallet.availableCoins : (liveUser?.buyCoins || 0)}
                   </span>
                 </div>
                 <span style={{ fontSize: "56px" }}>🪙</span>
@@ -451,7 +491,7 @@ export default function ProfilePage() {
                 }}>
                   <span style={{ fontSize: "12px", color: "#64748b", fontWeight: "700" }}>Lifetime Earned</span>
                   <span style={{ fontSize: "24px", fontWeight: "900", color: "#10b981" }}>
-                    {liveUser?.buyCoinsLifetimeEarned || 0} Coins
+                    {wallet ? wallet.lifetimeEarned : (liveUser?.buyCoinsLifetimeEarned || 0)} Coins
                   </span>
                 </div>
 
@@ -467,10 +507,71 @@ export default function ProfilePage() {
                 }}>
                   <span style={{ fontSize: "12px", color: "#64748b", fontWeight: "700" }}>Redeemed Coins</span>
                   <span style={{ fontSize: "24px", fontWeight: "900", color: "#FF4D4F" }}>
-                    {liveUser?.buyCoinsRedeemed || 0} Coins
+                    {wallet ? wallet.lifetimeRedeemed : (liveUser?.buyCoinsRedeemed || 0)} Coins
                   </span>
                 </div>
               </div>
+
+              <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", marginTop: "32px", marginBottom: "16px" }}>
+                Recent Activity ⚡
+              </h3>
+              
+              {walletLoading ? (
+                <div style={{ color: "#64748b", fontSize: "13px", padding: "12px 0" }}>Loading activity...</div>
+              ) : walletTransactions.length === 0 ? (
+                <div style={{ color: "#64748b", fontSize: "13px", padding: "12px 0", fontStyle: "italic" }}>
+                  No recent BuyCoins activity.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {walletTransactions.map((tx) => {
+                    const isPositive = ["earn", "bonus"].includes(tx.type);
+                    let displayDesc = "";
+                    if (tx.type === "earn") {
+                      displayDesc = `Order #${tx.orderId ? tx.orderId.substring(tx.orderId.length - 6).toUpperCase() : "N/A"}`;
+                    } else if (tx.type === "bonus") {
+                      displayDesc = tx.source === "first_order_bonus" ? "First Order Bonus" : "Manual Adjustment Bonus";
+                    } else if (tx.type === "redeem") {
+                      displayDesc = `Redeemed on Order #${tx.orderId ? tx.orderId.substring(tx.orderId.length - 6).toUpperCase() : "N/A"}`;
+                    } else if (tx.type === "expire") {
+                      displayDesc = "Expired";
+                    }
+                    
+                    return (
+                      <div
+                        key={tx._id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "14px 18px",
+                          borderRadius: "16px",
+                          background: "#f8fafc",
+                          border: "1px solid #f1f5f9"
+                        }}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ fontSize: "14px", fontWeight: "750", color: "#1f2937" }}>
+                            {displayDesc}
+                          </span>
+                          <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "600" }}>
+                            {new Date(tx.createdAt).toLocaleDateString()} at {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "15px",
+                            fontWeight: "900",
+                            color: isPositive ? "#10b981" : "#ef4444"
+                          }}
+                        >
+                          {isPositive ? "+" : "-"}{tx.coins}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
         </main>
@@ -483,7 +584,7 @@ export default function ProfilePage() {
 // STYLES
 const pageContainerStyle = {
   minHeight: "100vh",
-  background: "#f8fafc",
+  background: "transparent",
   color: "#0f172a",
   fontFamily: "'Outfit', 'Inter', sans-serif",
   padding: "40px 24px",

@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ProductCard from "../ProductCard";
+import { cachedFetch } from "../utils/apiCache";
+import { usePerfLogger } from "../utils/perfLogger";
+import { AuthContext } from "../context/AuthContext";
 
 export default function ProductDetailsPage({
   products = [],
@@ -12,14 +15,79 @@ export default function ProductDetailsPage({
   getCartKey,
   setSelectedProduct,
 }) {
+  usePerfLogger("ProductDetailsPage");
   const { id } = useParams();
   const navigate = useNavigate();
+  const { saveForLaterIds, toggleSaveForLater } = useContext(AuthContext);
 
   const [activeProduct, setActiveProduct] = useState(null);
   const [allProducts, setAllProducts] = useState(products);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
+
+  const [wishlistIds, setWishlistIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem("buyto_wishlist");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [toastMsg, setToastMsg] = useState("");
+  const [showActions, setShowActions] = useState(false);
+  const [isSavedIconAnimating, setIsSavedIconAnimating] = useState(false);
+  const toastTimeoutRef = useRef(null);
+
+  const isSaved = Array.isArray(saveForLaterIds) && activeProduct && saveForLaterIds.includes(String(activeProduct._id || activeProduct.id));
+  const isWishlisted = wishlistIds.includes(id);
+
+  const handleToggleWishlist = () => {
+    let updated;
+    if (isWishlisted) {
+      updated = wishlistIds.filter((item) => item !== id);
+    } else {
+      updated = [...wishlistIds, id];
+    }
+    setWishlistIds(updated);
+    localStorage.setItem("buyto_wishlist", JSON.stringify(updated));
+  };
+
+  const handleToggleSaveForLater = async () => {
+    if (toggleSaveForLater && activeProduct) {
+      const result = await toggleSaveForLater(activeProduct);
+      if (result && result.success) {
+        if (toastTimeoutRef.current) {
+          clearTimeout(toastTimeoutRef.current);
+        }
+        if (result.isSaved) {
+          setToastMsg("✓ Saved for Later");
+          setIsSavedIconAnimating(true);
+          setTimeout(() => setIsSavedIconAnimating(false), 150);
+        } else {
+          setToastMsg("Removed from Saved for Later");
+        }
+        toastTimeoutRef.current = setTimeout(() => {
+          setToastMsg("");
+        }, 1500);
+      }
+    }
+  };
+
+  const handleAddToList = () => {
+    try {
+      const active = localStorage.getItem("shoppingListItems");
+      const list = active ? JSON.parse(active) : [];
+      list.push({ name: activeProduct.name, completed: false });
+      localStorage.setItem("shoppingListItems", JSON.stringify(list));
+      setToastMsg("✓ Added to Shopping List!");
+      setShowActions(false);
+      setTimeout(() => setToastMsg(""), 2000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Dynamic enrichment for product details page
   const enrichProduct = (product) => {
@@ -93,13 +161,7 @@ export default function ProductDetailsPage({
     } else {
       setLoading(true);
       console.log("=== DETAILS API FETCH INITIATED ===", window.API_BASE_URL + "/api/products");
-      fetch(window.API_BASE_URL + "/api/products")
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-          }
-          return res.json();
-        })
+      cachedFetch(window.API_BASE_URL + "/api/products")
         .then((data) => {
           console.log("=== DETAILS API FETCH SUCCESS ===", data.length, "products loaded");
           setAllProducts(data);
@@ -247,7 +309,9 @@ export default function ProductDetailsPage({
         {/* Left Column: Big Image & Top-Right Button */}
         <div style={{ position: "relative", height: "fit-content" }}>
           <img
-            src={activeProduct.image}
+            src={getOptimizedImageUrl(activeProduct.image, "full")}
+            fetchpriority="high"
+            loading="eager"
             alt={activeProduct.name}
             style={{
               width: "100%",
@@ -513,109 +577,215 @@ export default function ProductDetailsPage({
 
           {/* Bottom Action Button */}
           <div style={{ marginTop: "24px", borderTop: "1px solid #f3f4f6", paddingTop: "16px" }}>
-            {(() => {
-              const currentWeight = activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-                ? activeProduct.variants[selectedVariantIndex].weight
-                : activeProduct.weight;
+            <div style={{ display: "flex", gap: "12px", alignItems: "center", width: "100%" }}>
+              {/* Wishlist Button */}
+              <button
+                onClick={handleToggleWishlist}
+                style={{
+                  flex: "0 0 52px",
+                  height: "52px",
+                  borderRadius: "16px",
+                  border: "1.5px solid #f3f4f6",
+                  background: isWishlisted ? "#fee2e2" : "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "22px",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+                }}
+                title="Wishlist"
+              >
+                {isWishlisted ? "❤️" : "♡"}
+              </button>
 
-              const productToCart = {
-                ...activeProduct,
-                selectedWeight: currentWeight,
-                price: activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-                  ? activeProduct.variants[selectedVariantIndex].price
-                  : activeProduct.price
-              };
-
-              const cartItem = cartItems.find(
-                (item) =>
-                  String(item._id || item.id) ===
-                  String(productToCart._id || productToCart.id)
-              );
-              const quantity = cartItem ? cartItem.quantity : 0;
-
-              return quantity === 0 ? (
-                <button
-                  onClick={() => {
-                    if (quantity >= activeProduct.stock) {
-                      alert(`Only ${activeProduct.stock} items available`);
-                      return;
-                    }
-                    addToCart(productToCart);
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
-                  onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
-                  style={{
-                    background: "#318616",
-                    color: "white",
-                    width: "100%",
-                    padding: "16px",
-                    borderRadius: "16px",
-                    border: "none",
-                    fontWeight: "bold",
-                    fontSize: "16px",
-                    cursor: "pointer",
-                    boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
-                    transition: "all 0.2s",
-                  }}
+              {/* Save For Later Button */}
+              <button
+                onClick={handleToggleSaveForLater}
+                style={{
+                  flex: "0 0 52px",
+                  height: "52px",
+                  borderRadius: "16px",
+                  border: "1.5px solid #f3f4f6",
+                  background: isSaved ? "#ebf5ea" : "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "transform 150ms ease, background 0.2s ease, border 0.2s ease",
+                  transform: isSavedIconAnimating ? "scale(1.15)" : "scale(1)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+                }}
+                title="Save for Later"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill={isSaved ? "#10b981" : "none"}
+                  stroke={isSaved ? "#10b981" : "#94a3b8"}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  ADD TO CART
-                </button>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "#318616",
-                    borderRadius: "16px",
-                    width: "100%",
-                    overflow: "hidden",
-                    boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
-                  }}
-                >
-                  <button
-                    onClick={() => removeFromCart(productToCart)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "white",
-                      fontSize: "24px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      padding: "12px 24px",
-                    }}
-                  >
-                    -
-                  </button>
-                  <span style={{ color: "white", fontWeight: "800", fontSize: "16px" }}>
-                    {quantity} Items In Cart
-                  </span>
-                  <button
-                    onClick={() => {
-                      if (quantity >= activeProduct.stock) {
-                        alert(`Only ${activeProduct.stock} items available`);
-                        return;
-                      }
-                      addToCart(productToCart);
-                    }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "white",
-                      fontSize: "24px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      padding: "12px 24px",
-                    }}
-                  >
-                    +
-                  </button>
-                </div>
-              );
-            })()}
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                </svg>
+              </button>
+
+              {/* Cart Button wrapper */}
+              <div style={{ flexGrow: 1 }}>
+                {(() => {
+                  const currentWeight = activeProduct.variants && activeProduct.variants[selectedVariantIndex]
+                    ? activeProduct.variants[selectedVariantIndex].weight
+                    : activeProduct.weight;
+
+                  const productToCart = {
+                    ...activeProduct,
+                    selectedWeight: currentWeight,
+                    price: activeProduct.variants && activeProduct.variants[selectedVariantIndex]
+                      ? activeProduct.variants[selectedVariantIndex].price
+                      : activeProduct.price
+                  };
+
+                  const cartItem = cartItems.find(
+                    (item) =>
+                      String(item._id || item.id) ===
+                      String(productToCart._id || productToCart.id)
+                  );
+                  const quantity = cartItem ? cartItem.quantity : 0;
+
+                  return quantity === 0 ? (
+                    <button
+                      onClick={() => {
+                        if (quantity >= activeProduct.stock) {
+                          alert(`Only ${activeProduct.stock} items available`);
+                          return;
+                        }
+                        addToCart(productToCart);
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
+                      style={{
+                        background: "#318616",
+                        color: "white",
+                        width: "100%",
+                        padding: "16px",
+                        borderRadius: "16px",
+                        border: "none",
+                        fontWeight: "bold",
+                        fontSize: "15px",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
+                        transition: "all 0.2s",
+                        height: "52px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}
+                    >
+                      ADD TO CART
+                    </button>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        background: "#318616",
+                        borderRadius: "16px",
+                        width: "100%",
+                        overflow: "hidden",
+                        boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
+                        height: "52px"
+                      }}
+                    >
+                      <button
+                        onClick={() => removeFromCart(productToCart)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "white",
+                          fontSize: "24px",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          padding: "0 24px",
+                          height: "100%"
+                        }}
+                      >
+                        -
+                      </button>
+                      <span style={{ color: "white", fontWeight: "800", fontSize: "15px" }}>
+                        {quantity} Items In Cart
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (quantity >= activeProduct.stock) {
+                            alert(`Only ${activeProduct.stock} items available`);
+                            return;
+                          }
+                          addToCart(productToCart);
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "white",
+                          fontSize: "24px",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          padding: "0 24px",
+                          height: "100%"
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {toastMsg && (
+        <>
+          <style>{`
+            @keyframes toastSlideUp {
+              0% { transform: translate(-50%, 10px); opacity: 0; }
+              15% { transform: translate(-50%, 0); opacity: 1; }
+              85% { transform: translate(-50%, 0); opacity: 1; }
+              100% { transform: translate(-50%, -10px); opacity: 0; }
+            }
+          `}</style>
+          <div
+            style={{
+              position: "fixed",
+              bottom: (cartItems && cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0) ? "130px" : "90px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "rgba(30, 41, 59, 0.95)",
+              color: "white",
+              padding: "10px 20px",
+              borderRadius: "999px",
+              boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+              zIndex: 99999,
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: "13px",
+              fontWeight: "600",
+              pointerEvents: "none",
+              animation: "toastSlideUp 1500ms ease-in-out forwards",
+              textAlign: "center",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              whiteSpace: "nowrap"
+            }}
+          >
+            {toastMsg}
+          </div>
+        </>
+      )}
 
       {/* Similar Products */}
       {similarProducts.length > 0 && (

@@ -1,5 +1,41 @@
-import React from "react";
+import React, { useState, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { getOptimizedImageUrl } from "./utils/imageOptimizer";
+import { AuthContext } from "./context/AuthContext";
+
+const BookmarkIcon = ({ filled, color }) => (
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill={filled ? color : "none"}
+    stroke={color}
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+const bookmarkBtnStyle = (isSaved, isAnimating) => ({
+  position: "absolute",
+  top: "10px",
+  right: "10px",
+  background: "rgba(255, 255, 255, 0.95)",
+  border: "none",
+  width: "30px",
+  height: "30px",
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  cursor: "pointer",
+  zIndex: 25,
+  transition: "transform 150ms ease, background 0.2s ease",
+  transform: isAnimating ? "scale(1.15)" : "scale(1)"
+});
 
 function ProductCard({
   product,
@@ -15,6 +51,11 @@ function ProductCard({
   cartItems,
 }) {
   const navigate = useNavigate();
+  const { saveForLaterIds, toggleSaveForLater } = useContext(AuthContext);
+  const [toastMsg, setToastMsg] = useState("");
+  const [isSavedIconAnimating, setIsSavedIconAnimating] = useState(false);
+  const toastTimeoutRef = useRef(null);
+  const [showActions, setShowActions] = useState(false);
 
   if (!product) return null;
 
@@ -42,6 +83,47 @@ function ProductCard({
   const discountPercentage = hasDiscount
     ? Math.round(((originalPrice - price) / originalPrice) * 100)
     : 0;
+
+  const isSaved = Array.isArray(saveForLaterIds) && saveForLaterIds.includes(String(product._id || product.id));
+
+  const handleSaveClick = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (toggleSaveForLater) {
+      const result = await toggleSaveForLater(product);
+      if (result && result.success) {
+        if (toastTimeoutRef.current) {
+          clearTimeout(toastTimeoutRef.current);
+        }
+        if (result.isSaved) {
+          setToastMsg("✓ Saved for Later");
+          setIsSavedIconAnimating(true);
+          setTimeout(() => setIsSavedIconAnimating(false), 150);
+        } else {
+          setToastMsg("Removed from Saved for Later");
+        }
+        toastTimeoutRef.current = setTimeout(() => {
+          setToastMsg("");
+        }, 1500);
+      }
+    }
+  };
+
+  const handleAddToList = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      const active = localStorage.getItem("shoppingListItems");
+      const list = active ? JSON.parse(active) : [];
+      list.push({ name: product.name, completed: false });
+      localStorage.setItem("shoppingListItems", JSON.stringify(list));
+      setToastMsg("✓ Added to Shopping List!");
+      setShowActions(false);
+      setTimeout(() => setToastMsg(""), 2000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleCardClick = () => {
     console.log("Product clicked:", product);
@@ -117,6 +199,13 @@ function ProductCard({
           boxSizing: "border-box",
         }}
       >
+        <button
+          onClick={handleSaveClick}
+          style={bookmarkBtnStyle(isSaved, isSavedIconAnimating)}
+          title="Save for Later"
+        >
+          <BookmarkIcon filled={isSaved} color={isSaved ? "#10b981" : "#94a3b8"} />
+        </button>
         {hasDiscount && (
           <div
             style={{
@@ -140,7 +229,7 @@ function ProductCard({
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
           <div style={{ width: "100%", textAlign: "center", background: "#f9fafb", borderRadius: "12px", padding: "8px 0", display: "flex", alignItems: "center", justifyContent: "center", height: "110px" }}>
             <img
-              src={product.image || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500"}
+              src={getOptimizedImageUrl(product.image, "thumbnail")}
               alt={product.name || "Product"}
               style={{
                 maxWidth: "100%",
@@ -335,6 +424,45 @@ function ProductCard({
             )}
           </div>
         </div>
+        
+        {toastMsg && (
+          <>
+            <style>{`
+              @keyframes toastSlideUp {
+                0% { transform: translate(-50%, 10px); opacity: 0; }
+                15% { transform: translate(-50%, 0); opacity: 1; }
+                85% { transform: translate(-50%, 0); opacity: 1; }
+                100% { transform: translate(-50%, -10px); opacity: 0; }
+              }
+            `}</style>
+            <div
+              style={{
+                position: "fixed",
+                bottom: (cartItems && cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0) ? "130px" : "90px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "rgba(30, 41, 59, 0.95)",
+                color: "white",
+                padding: "10px 20px",
+                borderRadius: "999px",
+                boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+                zIndex: 99999,
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: "13px",
+                fontWeight: "600",
+                pointerEvents: "none",
+                animation: "toastSlideUp 1500ms ease-in-out forwards",
+                textAlign: "center",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                whiteSpace: "nowrap"
+              }}
+            >
+              {toastMsg}
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -359,6 +487,13 @@ function ProductCard({
       }}
       className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
     >
+      <button
+        onClick={handleSaveClick}
+        style={bookmarkBtnStyle(isSaved, isSavedIconAnimating)}
+        title="Save for Later"
+      >
+        <BookmarkIcon filled={isSaved} color={isSaved ? "#10b981" : "#94a3b8"} />
+      </button>
       {hasDiscount && (
         <div
           style={{
@@ -380,7 +515,7 @@ function ProductCard({
       <div>
         <div style={{ position: "relative" }}>
           <img
-            src={product.image || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500"}
+            src={getOptimizedImageUrl(product.image, "medium")}
             alt={product.name || "Product"}
             style={{
               width: "100%",
@@ -564,8 +699,47 @@ function ProductCard({
           </div>
         </div>
       </div>
+
+      {toastMsg && (
+        <>
+          <style>{`
+            @keyframes toastSlideUp {
+              0% { transform: translate(-50%, 10px); opacity: 0; }
+              15% { transform: translate(-50%, 0); opacity: 1; }
+              85% { transform: translate(-50%, 0); opacity: 1; }
+              100% { transform: translate(-50%, -10px); opacity: 0; }
+            }
+          `}</style>
+          <div
+            style={{
+              position: "fixed",
+              bottom: (cartItems && cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0) ? "130px" : "90px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "rgba(30, 41, 59, 0.95)",
+              color: "white",
+              padding: "10px 20px",
+              borderRadius: "999px",
+              boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+              zIndex: 99999,
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: "13px",
+              fontWeight: "600",
+              pointerEvents: "none",
+              animation: "toastSlideUp 1500ms ease-in-out forwards",
+              textAlign: "center",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              whiteSpace: "nowrap"
+            }}
+          >
+            {toastMsg}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-export default ProductCard;
+export default React.memo(ProductCard);

@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema({
   id: String,
-  name: String,
-  category: String,
-  subCategory: String,
+  name: { type: String, index: true },
+  category: { type: String, index: true },
+  subCategory: { type: String, index: true },
   subcategory: String,
   tags: [String],
   isTrending: Boolean,
@@ -14,10 +14,11 @@ const productSchema = new mongoose.Schema({
   stock: Number,
   image: String,
   section: String,
-  brand: String,
+  brand: { type: String, index: true },
   description: String,
   eta: String,
   isAd: Boolean,
+  slug: { type: String, index: true },
   variants: [
     {
       weight: String,
@@ -25,7 +26,11 @@ const productSchema = new mongoose.Schema({
       originalPrice: Number,
       stock: Number
     }
-  ]
+  ],
+  saveCount: {
+    type: Number,
+    default: 0
+  }
 });
 
 module.exports = mongoose.model("Product", productSchema);

@@ -24,15 +24,59 @@ const loadRazorpayScript = () => {
   });
 };
 
-export default function PaymentPage({ cart, setCart }) {
+export default function PaymentPage({ 
+  cart, 
+  setCart,
+  activeCoupons = [],
+  selectedCoupon = null,
+  setSelectedCoupon = () => {}
+}) {
   const navigate = useNavigate();
   const { token } = useContext(AuthContext);
   const [isProcessing, setIsProcessing] = useState(false);
   const [gpsCoords, setGpsCoords] = useState(null);
   const [userCoins, setUserCoins] = useState(0);
-  const [activeCoupons, setActiveCoupons] = useState([]);
-  const [selectedCoupon, setSelectedCoupon] = useState(null);
-  const [redeemCoins, setRedeemCoins] = useState(false);
+  const [coinsToRedeem, setCoinsToRedeem] = useState(() => Number(localStorage.getItem("buyto_coins_redeem") || 0));
+
+  const [isAddressServiceable, setIsAddressServiceable] = useState(true);
+  const [checkingServiceability, setCheckingServiceability] = useState(true);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+
+  useEffect(() => {
+    const checkServiceability = async () => {
+      const savedUser = localStorage.getItem("buyto_user") ? JSON.parse(localStorage.getItem("buyto_user")) : null;
+      const coords = savedUser?.coords;
+      if (!coords || coords.length < 2) {
+        setIsAddressServiceable(false);
+        setCheckingServiceability(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(window.API_BASE_URL + "/api/auth/verify-serviceability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            latitude: coords[0],
+            longitude: coords[1]
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setIsAddressServiceable(data.serviceable);
+        } else {
+          setIsAddressServiceable(false);
+        }
+      } catch (err) {
+        console.error("Error checking serviceability in PaymentPage:", err);
+        setIsAddressServiceable(false);
+      } finally {
+        setCheckingServiceability(false);
+      }
+    };
+    checkServiceability();
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -45,15 +89,6 @@ export default function PaymentPage({ cart, setCart }) {
           const meData = await meRes.json();
           if (meData.success && meData.user) {
             setUserCoins(meData.user.buyCoins || 0);
-          }
-        }
-        const couponRes = await fetch(window.API_BASE_URL + "/api/auth/coupons/active", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (couponRes.ok) {
-          const couponData = await couponRes.json();
-          if (couponData.success && couponData.coupons) {
-            setActiveCoupons(couponData.coupons);
           }
         }
       } catch (err) {
@@ -168,7 +203,7 @@ export default function PaymentPage({ cart, setCart }) {
     0
   );
 
-  const billBreakdown = calculateBill(subtotal, originalSubtotal, config, deliverySettings, selectedCoupon, redeemCoins ? userCoins : 0);
+  const billBreakdown = calculateBill(subtotal, originalSubtotal, config, deliverySettings, selectedCoupon, coinsToRedeem);
   const { total } = billBreakdown;
 
   const handlePlaceOrder = async () => {
@@ -224,7 +259,9 @@ export default function PaymentPage({ cart, setCart }) {
             couponCode: billBreakdown.couponCode,
             couponDiscount: billBreakdown.couponDiscount,
             buyCoinsRedeemed: billBreakdown.buyCoinsRedeemed,
-            buyCoinsDiscount: billBreakdown.buyCoinsDiscount
+            buyCoinsDiscount: billBreakdown.buyCoinsDiscount,
+            noBagPledge: localStorage.getItem("buyto_no_bag_pledge") === "true",
+            addressId: localStorage.getItem("buyto_selected_address_id") || null
           })
         });
 
@@ -292,7 +329,9 @@ export default function PaymentPage({ cart, setCart }) {
             couponCode: billBreakdown.couponCode,
             couponDiscount: billBreakdown.couponDiscount,
             buyCoinsRedeemed: billBreakdown.buyCoinsRedeemed,
-            buyCoinsDiscount: billBreakdown.buyCoinsDiscount
+            buyCoinsDiscount: billBreakdown.buyCoinsDiscount,
+            noBagPledge: localStorage.getItem("buyto_no_bag_pledge") === "true",
+            addressId: localStorage.getItem("buyto_selected_address_id") || null
           })
         });
 
@@ -417,11 +456,45 @@ export default function PaymentPage({ cart, setCart }) {
     }
   };
 
+  const handleNotifyMe = async () => {
+    if (!waitlistEmail) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      const savedUser = localStorage.getItem("buyto_user") ? JSON.parse(localStorage.getItem("buyto_user")) : null;
+      const coords = savedUser?.coords || [13.628, 74.693];
+      const res = await fetch(window.API_BASE_URL + "/api/auth/notify-me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: user.name || "Guest User",
+          email: waitlistEmail,
+          phone: user.phone || "0000000000",
+          address: user.location || "Central Address",
+          latitude: coords[0],
+          longitude: coords[1]
+        })
+      });
+
+      if (res.ok) {
+        setWaitlistSubmitted(true);
+      } else {
+        const errData = await res.json();
+        alert(errData.message || "Failed to join waitlist");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error joining waitlist");
+    }
+  };
+
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)",
+        background: "#ffffff",
         padding: "40px 24px",
         fontFamily: "'Outfit', 'Inter', sans-serif",
         display: "flex",
@@ -441,7 +514,88 @@ export default function PaymentPage({ cart, setCart }) {
           border: "1px solid rgba(255, 255, 255, 0.6)",
         }}
       >
-        {/* Back Button */}
+        {checkingServiceability ? (
+          <div style={{ textAlign: "center", padding: "40px" }}>
+            <span style={{ fontSize: "24px" }}>🔄</span>
+            <p style={{ marginTop: "12px", color: "#6b7280", fontWeight: "600" }}>Checking delivery zone serviceability...</p>
+          </div>
+        ) : !isAddressServiceable ? (
+          <div>
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <span style={{ fontSize: "48px" }}>📍</span>
+              <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#ef4444", margin: "16px 0 8px 0" }}>Service Unavailable</h2>
+              <p style={{ color: "#6b7280", fontSize: "15px", lineHeight: "1.6", margin: 0 }}>
+                We're currently expanding our services.<br />
+                Buyto is not yet available in your area.
+              </p>
+              <p style={{ color: "#4b5563", fontSize: "14px", marginTop: "12px", fontWeight: "500" }}>
+                Join our waitlist and we'll notify you when we launch nearby.
+              </p>
+            </div>
+
+            {waitlistSubmitted ? (
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "16px", borderRadius: "16px", textAlign: "center", color: "#16a34a", fontWeight: "700", marginBottom: "24px" }}>
+                🎉 You're on the list! We will notify you as soon as we start deliveries here.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+                <input
+                  type="email"
+                  placeholder="Enter email to join waitlist"
+                  value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "16px 20px",
+                    borderRadius: "16px",
+                    border: "1.5px solid #e5e7eb",
+                    fontSize: "16px",
+                    fontWeight: "500",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    background: "#f9fafb"
+                  }}
+                />
+                <button
+                  onClick={handleNotifyMe}
+                  style={{
+                    width: "100%",
+                    background: "linear-gradient(135deg, #FF4D4F 0%, #E03E40 100%)",
+                    color: "white",
+                    border: "none",
+                    padding: "16px",
+                    borderRadius: "16px",
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    boxShadow: "0 8px 16px rgba(255, 77, 79, 0.2)"
+                  }}
+                >
+                  Notify Me
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => navigate("/details")}
+              style={{
+                width: "100%",
+                background: "#f3f4f6",
+                color: "#374151",
+                border: "none",
+                padding: "16px",
+                borderRadius: "16px",
+                fontSize: "16px",
+                fontWeight: "700",
+                cursor: "pointer"
+              }}
+            >
+              Choose Another Address
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Back Button */}
         <button
           onClick={() => navigate("/cart")}
           disabled={isProcessing}
@@ -580,6 +734,51 @@ export default function PaymentPage({ cart, setCart }) {
                 Apply Coupon
               </h3>
             </div>
+
+            {/* FIRST20 Banner suggestion */}
+            {activeCoupons.some(c => c.couponCode === "FIRST20") && subtotal >= 149 && !selectedCoupon && (
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                  border: "1.5px solid #f59e0b",
+                  borderRadius: "16px",
+                  padding: "16px",
+                  marginBottom: "16px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  boxShadow: "0 4px 15px rgba(245, 158, 11, 0.08)",
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#b45309" }}>
+                    🎉 FIRST20 Available
+                  </h4>
+                  <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#b45309", fontWeight: "600" }}>
+                    Save ₹20 on this order
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const first20 = activeCoupons.find(c => c.couponCode === "FIRST20");
+                    if (first20) setSelectedCoupon(first20, "payment");
+                  }}
+                  style={{
+                    background: "#d97706",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "6px 12px",
+                    fontWeight: "750",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 10px rgba(217, 119, 6, 0.2)",
+                  }}
+                >
+                  Apply Coupon
+                </button>
+              </div>
+            )}
             
             {activeCoupons.length === 0 ? (
               <p style={{ margin: 0, fontSize: "13px", color: "#6b7280", fontStyle: "italic" }}>
@@ -588,7 +787,8 @@ export default function PaymentPage({ cart, setCart }) {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {activeCoupons.map((coupon) => {
-                  const isEligible = subtotal >= coupon.minOrderValue;
+                  const minVal = coupon.minimumOrderValue || coupon.minOrderValue || 149;
+                  const isEligible = subtotal >= minVal;
                   const isApplied = selectedCoupon?._id === coupon._id;
                   return (
                     <div
@@ -623,13 +823,13 @@ export default function PaymentPage({ cart, setCart }) {
                           </span>
                         </div>
                         <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px", fontWeight: "500" }}>
-                          Min Order: ₹{coupon.minOrderValue} • Expires in: 48h
+                          Min Order: ₹{minVal} • Expires in: 48h
                         </div>
                       </div>
                       
                       {isApplied ? (
                         <button
-                          onClick={() => setSelectedCoupon(null)}
+                          onClick={() => setSelectedCoupon(null, "payment")}
                           style={{
                             background: "transparent",
                             border: "none",
@@ -644,7 +844,7 @@ export default function PaymentPage({ cart, setCart }) {
                       ) : (
                         <button
                           disabled={!isEligible}
-                          onClick={() => setSelectedCoupon(coupon)}
+                          onClick={() => setSelectedCoupon(coupon, "payment")}
                           style={{
                             background: isEligible ? "#318616" : "#e5e7eb",
                             color: isEligible ? "white" : "#9ca3af",
@@ -671,7 +871,7 @@ export default function PaymentPage({ cart, setCart }) {
 
           {/* BuyCoins Section */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContext: "space-between", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "18px" }}>🪙</span>
                 <div>
@@ -684,23 +884,58 @@ export default function PaymentPage({ cart, setCart }) {
                 </div>
               </div>
               
-              <input
-                type="checkbox"
-                disabled={userCoins <= 0}
-                checked={redeemCoins}
-                onChange={(e) => setRedeemCoins(e.target.checked)}
-                style={{
-                  width: "20px",
-                  height: "20px",
-                  accentColor: "#318616",
-                  cursor: userCoins > 0 ? "pointer" : "not-allowed"
-                }}
-              />
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <button
+                  type="button"
+                  disabled={coinsToRedeem <= 0}
+                  onClick={() => setCoinsToRedeem(prev => Math.max(0, prev - 1))}
+                  style={{
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "8px",
+                    background: "white",
+                    width: "30px",
+                    height: "30px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    cursor: coinsToRedeem <= 0 ? "not-allowed" : "pointer",
+                    color: "#334155"
+                  }}
+                >
+                  -
+                </button>
+                <span style={{ fontSize: "14px", fontWeight: "750", color: "#1f2937", minWidth: "60px", textAlign: "center" }}>
+                  {coinsToRedeem} Coins
+                </span>
+                <button
+                  type="button"
+                  disabled={coinsToRedeem >= Math.min(userCoins, 20)}
+                  onClick={() => setCoinsToRedeem(prev => Math.min(Math.min(userCoins, 20), prev + 1))}
+                  style={{
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "8px",
+                    background: "white",
+                    width: "30px",
+                    height: "30px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    cursor: coinsToRedeem >= Math.min(userCoins, 20) ? "not-allowed" : "pointer",
+                    color: "#334155"
+                  }}
+                >
+                  +
+                </button>
+              </div>
             </div>
-            {redeemCoins && userCoins > 0 && (
+            {coinsToRedeem > 0 && (
               <div
                 style={{
-                  marginTop: "10px",
+                  marginTop: "12px",
                   fontSize: "12px",
                   color: "#16a34a",
                   fontWeight: "700",
@@ -710,7 +945,7 @@ export default function PaymentPage({ cart, setCart }) {
                   border: "1px solid rgba(22, 163, 74, 0.2)"
                 }}
               >
-                🎉 Redeeming ₹{billBreakdown.buyCoinsDiscount} discount! (Max 50 coins per order)
+                🎉 Redeeming ₹{billBreakdown.buyCoinsDiscount} discount! (Max 20 coins per order)
               </div>
             )}
           </div>
@@ -782,6 +1017,8 @@ export default function PaymentPage({ cart, setCart }) {
             <span>Place Order ⚡</span>
           )}
         </button>
+          </>
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `

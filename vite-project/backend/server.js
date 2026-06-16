@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+const compression = require("compression");
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 
 const Product = require("./models/Product");
@@ -9,18 +10,33 @@ const User = require("./models/User");
 const Order = require("./models/Order");
 const Config = require("./models/Config");
 const DeliverySettings = require("./models/DeliverySettings");
+const Category = require("./models/Category");
 const paymentRoutes = require("./routes/paymentRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
 const riderRoutes = require("./routes/riderRoutes");
 const supportRoutes = require("./routes/supportRoutes");
+const buyCoinRoutes = require("./routes/buyCoinRoutes");
+const addressRoutes = require("./routes/addressRoutes");
+const saveForLaterRoutes = require("./routes/saveForLaterRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 const adminMiddleware = require("./middleware/adminMiddleware");
 
 const app = express();
 
+app.use(compression());
 app.use(cors());
 app.use(express.json());
+
+// Development Response Time Logger
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`[PERF] ${req.method} ${req.originalUrl} - ${duration}ms`);
+  });
+  next();
+});
 
 // In-memory fallback data for development if MongoDB Atlas is unreachable
 const mockProducts = require("./seed");
@@ -119,6 +135,52 @@ mongoose.connect(process.env.MONGO_URI)
     } catch (deliverySeedErr) {
       console.error("❌ Mongoose: Failed to seed delivery settings config:", deliverySeedErr.message);
     }
+
+    // Auto-seed Categories if missing
+    try {
+      let categoryCount = await Category.countDocuments();
+      if (categoryCount === 0) {
+        console.log("Creating default category list...");
+        const defaultCategories = [
+          { name: "The Fruit Store", icon: "🍎", image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=200&auto=format&fit=crop&q=80", priority: 10 },
+          { name: "The Veggie Store", icon: "🥬", image: "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=200&auto=format&fit=crop&q=80", priority: 9 },
+          { name: "Dairy, Bread & Eggs", icon: "🥛", image: "https://images.unsplash.com/photo-1588710922810-ee4047b470d9?w=200&auto=format&fit=crop&q=80", priority: 8 },
+          { name: "Meat and Seafood", icon: "🥩", image: "https://images.unsplash.com/photo-1532407191490-e847be1540c6?w=200&auto=format&fit=crop&q=80", priority: 7 },
+          { name: "Snacks", icon: "🍿", image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=200&auto=format&fit=crop&q=80", priority: 6 },
+          { name: "Beverages", icon: "🥤", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=200&auto=format&fit=crop&q=80", priority: 5 },
+          { name: "Atta, Rice and Dal", icon: "🌾", image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&auto=format&fit=crop&q=80", priority: 4 },
+          { name: "Exclusive Deals", icon: "🔥", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&auto=format&fit=crop&q=80", priority: 3 },
+          { name: "Cleaners & Repellents", icon: "🧹", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200&auto=format&fit=crop&q=80", priority: 2 },
+          { name: "The Bread Store", icon: "🍞", image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&auto=format&fit=crop&q=80", priority: 1 },
+          { name: "Premium Pickles", icon: "🥒", image: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=200&auto=format&fit=crop&q=80", priority: 0 },
+          { name: "Sexual Wellness", icon: "❤️", image: "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=200&auto=format&fit=crop&q=80", priority: -1 }
+        ];
+
+        // Also check existing products for other categories not in default list
+        const products = await Product.find({}, "category").lean();
+        const existingCatNames = new Set(products.map(p => p.category).filter(Boolean));
+        const defaultCatNames = new Set(defaultCategories.map(c => c.name));
+
+        for (const catName of existingCatNames) {
+          if (!defaultCatNames.has(catName)) {
+            defaultCategories.push({
+              name: catName,
+              icon: "🛍️",
+              image: "",
+              priority: -2
+            });
+          }
+        }
+
+        await Category.insertMany(defaultCategories);
+        console.log("=== CATEGORY SEED SUCCESS ===");
+      } else {
+        console.log("=== CATEGORY SEED CHECK ===");
+        console.log("Categories exist count:", categoryCount);
+      }
+    } catch (catSeedErr) {
+      console.error("❌ Mongoose: Failed to seed categories:", catSeedErr.message);
+    }
   })
   .catch((err) => {
     console.warn("⚠️ MongoDB Connection Failed! Falling back to local in-memory products list.");
@@ -146,6 +208,35 @@ app.get("/api/products", async (req, res) => {
     res.status(500).json({
       message: "Server Error"
     });
+  }
+});
+
+app.get("/api/categories", async (req, res) => {
+  try {
+    if (isConnected) {
+      const categories = await Category.find().lean();
+      res.json(categories);
+    } else {
+      // Fallback for offline mode
+      const defaultCategories = [
+        { name: "The Fruit Store", icon: "🍎", image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=200&auto=format&fit=crop&q=80", priority: 10, showInHeader: true },
+        { name: "The Veggie Store", icon: "🥬", image: "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=200&auto=format&fit=crop&q=80", priority: 9, showInHeader: true },
+        { name: "Dairy, Bread & Eggs", icon: "🥛", image: "https://images.unsplash.com/photo-1588710922810-ee4047b470d9?w=200&auto=format&fit=crop&q=80", priority: 8, showInHeader: true },
+        { name: "Meat and Seafood", icon: "🥩", image: "https://images.unsplash.com/photo-1532407191490-e847be1540c6?w=200&auto=format&fit=crop&q=80", priority: 7, showInHeader: true },
+        { name: "Snacks", icon: "🍿", image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=200&auto=format&fit=crop&q=80", priority: 6, showInHeader: true },
+        { name: "Beverages", icon: "🥤", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=200&auto=format&fit=crop&q=80", priority: 5, showInHeader: true },
+        { name: "Atta, Rice and Dal", icon: "🌾", image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&auto=format&fit=crop&q=80", priority: 4, showInHeader: true },
+        { name: "Exclusive Deals", icon: "🔥", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&auto=format&fit=crop&q=80", priority: 3, showInHeader: true },
+        { name: "Cleaners & Repellents", icon: "🧹", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200&auto=format&fit=crop&q=80", priority: 2, showInHeader: true },
+        { name: "The Bread Store", icon: "🍞", image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&auto=format&fit=crop&q=80", priority: 1, showInHeader: true },
+        { name: "Premium Pickles", icon: "🥒", image: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=200&auto=format&fit=crop&q=80", priority: 0, showInHeader: true },
+        { name: "Sexual Wellness", icon: "❤️", image: "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=200&auto=format&fit=crop&q=80", priority: -1, showInHeader: true }
+      ];
+      res.json(defaultCategories);
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
@@ -289,6 +380,9 @@ app.use("/api", supportRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/rider", riderRoutes);
 app.use("/api/admin", authMiddleware, adminMiddleware, adminRoutes);
+app.use("/api/buycoins", buyCoinRoutes);
+app.use("/api/addresses", addressRoutes);
+app.use("/api/save-for-later", saveForLaterRoutes);
 
 server.listen(PORT, () => {
   console.log(`Server Started on port ${PORT}`);

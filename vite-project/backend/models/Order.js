@@ -120,6 +120,7 @@ const orderSchema = new mongoose.Schema({
   couponDiscount: { type: Number, default: 0 },
   buyCoinsRedeemed: { type: Number, default: 0 },
   buyCoinsDiscount: { type: Number, default: 0 },
+  noBagPledge: { type: Boolean, default: false },
   createdAt: {
     type: Date,
     default: Date.now

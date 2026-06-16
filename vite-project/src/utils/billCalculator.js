@@ -45,18 +45,18 @@ export function calculateBill(subtotal, originalSubtotal, config = {}, deliveryS
   let couponDiscount = 0;
   let appliedCouponCode = "";
   let appliedCouponId = null;
-  if (couponApplied && itemTotal >= (couponApplied.minOrderValue || 199)) {
+  if (couponApplied && itemTotal >= (couponApplied.minimumOrderValue || couponApplied.minOrderValue || 149)) {
     couponDiscount = Math.min(couponApplied.discountAmount || 20, preDiscountTotal);
     appliedCouponCode = couponApplied.couponCode;
     appliedCouponId = couponApplied._id;
   }
 
-  // BuyCoins discount (1 coin = ₹1 discount, max 50 coins per order, must not exceed remaining bill value)
+  // BuyCoins discount (1 coin = ₹1 discount, max 20 coins per order, must not reduce order value below platform minimum of ₹1)
   const remaining = Math.max(0, preDiscountTotal - couponDiscount);
-  const coinsRedeemed = Math.min(buyCoinsToRedeem, 50, remaining);
+  const coinsRedeemed = Math.min(buyCoinsToRedeem, 20, Math.max(0, remaining - 1));
   const buyCoinsDiscount = coinsRedeemed;
 
-  const total = itemTotal > 0 ? Math.max(0, remaining - buyCoinsDiscount) : 0;
+  const total = itemTotal > 0 ? Math.max(1, remaining - buyCoinsDiscount) : 0;
 
   // Original total calculation (for visual styling/crossed-out comparisons)
   const originalSmallCart = (originalItemTotal > 0 && originalItemTotal < 149) ? 20 : 0;

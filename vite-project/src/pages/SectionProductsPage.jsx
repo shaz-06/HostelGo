@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import ProductCard from "../ProductCard";
+import { cachedFetch } from "../utils/apiCache";
+import { usePerfLogger } from "../utils/perfLogger";
 
 const DAIRY_PRODUCTS = [
   {
@@ -2877,6 +2879,16 @@ const matchCategoryOrSub = (product, target) => {
   );
 };
 
+const getCategorySlug = (cat) => {
+  if (!cat) return "";
+  return cat.toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+};
+
 const getTypeCategories = (type) => {
   switch (type) {
     case "fruits": return ["The Fruit Store"];
@@ -2903,6 +2915,12 @@ const getTypeCategories = (type) => {
     case "puja-store": return ["Puja Store"];
     case "cleaners-repellents": return ["Cleaners & Repellents", "Cleaners and Repellents"];
     case "electronics-appliances": return ["Electronics & Appliances", "Electronics and Appliances"];
+    case "electronics": return ["Electronics & Appliances", "Electronics and Appliances", "Electronics"];
+    case "fashion": return ["Fashion"];
+    case "hostel-essentials": return ["Hostel Essentials"];
+    case "beauty-personal-care": return ["Beauty & Personal Care", "Beauty and Personal Care", "Beauty"];
+    case "emergency-items": return ["Emergency Items"];
+    case "daily-needs": return ["Daily Needs"];
     default: return [];
   }
 };
@@ -2934,6 +2952,11 @@ const matchesType = (product, currentType) => {
 
   // 5. Check if product subcategory matches any of the mapped target categories
   if (product.subcategory && targetCategories.some(tc => getCategoryMatch(product.subcategory, tc))) {
+    return true;
+  }
+
+  // 6. Check custom category slug match
+  if (product.category && getCategorySlug(product.category) === currentType) {
     return true;
   }
 
@@ -3057,6 +3080,7 @@ export default function SectionProductsPage({
   addToCart: propsAddToCart,
   removeFromCart: propsRemoveFromCart,
 }) {
+  usePerfLogger("SectionProductsPage");
   const { type: paramType } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -3149,13 +3173,7 @@ export default function SectionProductsPage({
 
   useEffect(() => {
     console.log("=== SECTION API FETCH INITIATED ===", window.API_BASE_URL + "/api/products");
-    fetch(window.API_BASE_URL + "/api/products")
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
+    cachedFetch(window.API_BASE_URL + "/api/products")
       .then((data) => {
         console.log("=== SECTION API FETCH SUCCESS ===", data.length, "products loaded");
         setProducts(data);
@@ -3703,6 +3721,10 @@ export default function SectionProductsPage({
   } else if (type === "sexual-wellness") {
     sectionTitle = "💝 Sexual wellness";
     filtered = products.filter((p) => p.category === "Sexual Wellness");
+  } else if (products.some((p) => p.category && getCategorySlug(p.category) === type)) {
+    const matchedCategory = products.find((p) => p.category && getCategorySlug(p.category) === type).category;
+    sectionTitle = matchedCategory;
+    filtered = products.filter((p) => p.category === matchedCategory);
   } else {
     sectionTitle = "🔍 Product Catalog";
     filtered = products;

@@ -1,0 +1,3 @@
+module.exports = {
+  AUTO_REMOVE_SAVED_PRODUCT_AFTER_PURCHASE: process.env.AUTO_REMOVE_SAVED_PRODUCT_AFTER_PURCHASE === "true" || false
+};

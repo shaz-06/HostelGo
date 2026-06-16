@@ -99,7 +99,30 @@ const userSchema = new mongoose.Schema(
     buyCoinsRedeemed: {
       type: Number,
       default: 0
-    }
+    },
+    savedLists: [
+      {
+        name: { type: String, required: true },
+        items: [
+          {
+            name: { type: String, required: true },
+            completed: { type: Boolean, default: false }
+          }
+        ]
+      }
+    ],
+    savedProducts: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product"
+        },
+        addedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ]
   },
   {
     timestamps: true

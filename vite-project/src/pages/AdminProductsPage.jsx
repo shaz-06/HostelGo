@@ -21,7 +21,26 @@ export default function AdminProductsPage() {
     isTrending: false
   });
 
-  const categories = [
+  const [categoriesList, setCategoriesList] = useState([]);
+  
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await fetch(window.API_BASE_URL + "/api/categories");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setCategoriesList(data.map(c => c.name));
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching categories in AdminProductsPage:", err);
+      }
+    };
+    fetchCats();
+  }, []);
+
+  const defaultCategories = [
     "The Fruit Store",
     "The Veggie Store",
     "Dairy, Bread & Eggs",
@@ -31,8 +50,14 @@ export default function AdminProductsPage() {
     "Cleaners & Repellents",
     "The Bread Store",
     "Premium Pickles",
-    "Sexual Wellness"
+    "Sexual Wellness",
+    "Electronics",
+    "Fashion",
+    "Hostel Essentials",
+    "Beauty"
   ];
+
+  const categories = categoriesList.length > 0 ? categoriesList : defaultCategories;
 
   const fetchProducts = async () => {
     try {

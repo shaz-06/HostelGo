@@ -548,10 +548,10 @@ export default function OrderTrackingPage({ orderId }) {
                   Next Order Coupon
                 </span>
                 <div style={{ fontSize: "16px", fontWeight: "900", color: "#0f172a" }}>
-                  🎁 AGAIN20 Unlocked
+                  🎁 AGAIN15 Unlocked
                 </div>
                 <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#64748b", fontWeight: "600" }}>
-                  Get ₹20 OFF on your next order above ₹199
+                  Get ₹15 OFF on your next order above ₹149
                 </p>
                 <div style={{ fontSize: "11px", color: "#e03e40", fontWeight: "700", marginTop: "4px" }}>
                   Valid for 48 Hours
@@ -601,8 +601,8 @@ export default function OrderTrackingPage({ orderId }) {
   );
 }
 
-const loadingStyle = { minHeight: "100vh", background: "#f8fafc", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit','Inter',sans-serif", fontWeight: 900 };
-const pageStyle = { minHeight: "100vh", background: "#f8fafc", color: "#0f172a", padding: "20px", boxSizing: "border-box", fontFamily: "'Outfit','Inter',sans-serif" };
+const loadingStyle = { minHeight: "100vh", background: "#ffffff", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit','Inter',sans-serif", fontWeight: 900 };
+const pageStyle = { minHeight: "100vh", background: "#ffffff", color: "#0f172a", padding: "20px", boxSizing: "border-box", fontFamily: "'Outfit','Inter',sans-serif" };
 const headerStyle = { maxWidth: 1180, margin: "0 auto 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 };
 const backBtnStyle = { border: "1px solid #e2e8f0", background: "white", color: "#0f172a", borderRadius: 999, padding: "9px 13px", fontWeight: 850, cursor: "pointer", transition: "all 0.2s" };
 const titleStyle = { fontSize: 32, lineHeight: 1.1, margin: "14px 0 6px", color: "#0f172a", letterSpacing: 0 };

@@ -43,6 +43,12 @@ export default function UserDetails() {
   const [mapCenter, setMapCenter] = useState([13.0827, 80.2707]);
   const [markerPos, setMarkerPos] = useState([13.0827, 80.2707]);
 
+  // Serviceability and Waitlist state
+  const [checkingServiceability, setCheckingServiceability] = useState(false);
+  const [showUnserviceableModal, setShowUnserviceableModal] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+
   const detectLocation = () => {
     if (!navigator.geolocation) {
       alert("Geolocation not supported");
@@ -51,8 +57,18 @@ export default function UserDetails() {
 
     setLoadingLocation(true);
 
+    console.log("=== GEOLOCATION DEBUG START ===");
+    console.log("Secure Context:", window.isSecureContext);
+    console.log("Protocol:", window.location.protocol);
+    console.log("Hostname:", window.location.hostname);
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        console.log("LOCATION SUCCESS");
+        console.log("Latitude:", position.coords.latitude);
+        console.log("Longitude:", position.coords.longitude);
+        console.log("Accuracy:", position.coords.accuracy);
+
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         const newPos = [lat, lng];
@@ -73,9 +89,20 @@ export default function UserDetails() {
 
         setLoadingLocation(false);
       },
-      () => {
-        alert("Location permission denied");
+      (error) => {
+        console.error("LOCATION FAILED");
+        console.error("Error Code:", error.code);
+        console.error("Error Message:", error.message);
+
+        alert(
+          `Location Error\n\nCode: ${error.code}\nMessage: ${error.message}`
+        );
         setLoadingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
       }
     );
   };
@@ -106,35 +133,91 @@ export default function UserDetails() {
     reverseGeocode(coords[0], coords[1]);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!name || !phone || !location) {
       alert("Please fill all required details");
       return;
     }
 
-    localStorage.setItem(
-      "buyto_user",
-      JSON.stringify({
-        name,
-        phone,
-        location,
-        roomNumber,
-        coords: markerPos,
-      })
-    );
-    localStorage.setItem("userName", name);
-    localStorage.setItem("userLocation", location);
-    localStorage.setItem("roomNumber", roomNumber || "");
+    setCheckingServiceability(true);
+    try {
+      const res = await fetch(window.API_BASE_URL + "/api/auth/verify-serviceability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: markerPos[0],
+          longitude: markerPos[1]
+        })
+      });
 
-    // Mock payment navigation or real payment page if it exists
-    navigate("/payment");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.serviceable) {
+          localStorage.setItem(
+            "buyto_user",
+            JSON.stringify({
+              name,
+              phone,
+              location,
+              roomNumber,
+              coords: markerPos,
+            })
+          );
+          localStorage.setItem("userName", name);
+          localStorage.setItem("userLocation", location);
+          localStorage.setItem("roomNumber", roomNumber || "");
+          navigate("/payment");
+        } else {
+          setShowUnserviceableModal(true);
+        }
+      } else {
+        alert("Failed to verify delivery serviceability. Please try again.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error checking delivery serviceability");
+    } finally {
+      setCheckingServiceability(false);
+    }
+  };
+
+  const handleNotifyMe = async () => {
+    if (!waitlistEmail) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      const res = await fetch(window.API_BASE_URL + "/api/auth/notify-me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email: waitlistEmail,
+          phone,
+          address: location,
+          latitude: markerPos[0],
+          longitude: markerPos[1]
+        })
+      });
+
+      if (res.ok) {
+        setWaitlistSubmitted(true);
+      } else {
+        const errData = await res.json();
+        alert(errData.message || "Failed to join waitlist");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error joining waitlist");
+    }
   };
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)",
+        background: "#ffffff",
         padding: "40px 24px",
         fontFamily: "'Outfit', 'Inter', sans-serif",
         display: "flex",
@@ -155,7 +238,86 @@ export default function UserDetails() {
           transition: "transform 0.3s ease",
         }}
       >
-        {/* Back Button */}
+        {showUnserviceableModal ? (
+          <div>
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <span style={{ fontSize: "48px" }}>📍</span>
+              <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#ef4444", margin: "16px 0 8px 0" }}>Service Unavailable</h2>
+              <p style={{ color: "#6b7280", fontSize: "15px", lineHeight: "1.6", margin: 0 }}>
+                We're currently expanding our services.<br />
+                Buyto is not yet available in your area.
+              </p>
+              <p style={{ color: "#4b5563", fontSize: "14px", marginTop: "12px", fontWeight: "500" }}>
+                Join our waitlist and we'll notify you when we launch nearby.
+              </p>
+            </div>
+
+            {waitlistSubmitted ? (
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "16px", borderRadius: "16px", textAlign: "center", color: "#16a34a", fontWeight: "700", marginBottom: "24px" }}>
+                🎉 You're on the list! We will notify you as soon as we start deliveries here.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+                <input
+                  type="email"
+                  placeholder="Enter email to join waitlist"
+                  value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "16px 20px",
+                    borderRadius: "16px",
+                    border: "1.5px solid #e5e7eb",
+                    fontSize: "16px",
+                    fontWeight: "500",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    background: "#f9fafb"
+                  }}
+                />
+                <button
+                  onClick={handleNotifyMe}
+                  style={{
+                    width: "100%",
+                    background: "linear-gradient(135deg, #FF4D4F 0%, #E03E40 100%)",
+                    color: "white",
+                    border: "none",
+                    padding: "16px",
+                    borderRadius: "16px",
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    boxShadow: "0 8px 16px rgba(255, 77, 79, 0.2)"
+                  }}
+                >
+                  Notify Me
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setShowUnserviceableModal(false);
+                setWaitlistSubmitted(false);
+              }}
+              style={{
+                width: "100%",
+                background: "#f3f4f6",
+                color: "#374151",
+                border: "none",
+                padding: "16px",
+                borderRadius: "16px",
+                fontSize: "16px",
+                fontWeight: "700",
+                cursor: "pointer"
+              }}
+            >
+              Choose Another Address
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Back Button */}
         <button
           onClick={() => navigate("/cart")}
           style={{
@@ -489,6 +651,8 @@ export default function UserDetails() {
         >
           Continue to Payment 💳
         </button>
+          </>
+        )}
       </div>
     </div>
   );
