@@ -229,7 +229,7 @@ function ProductCard({
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
           <div style={{ width: "100%", textAlign: "center", background: "#f9fafb", borderRadius: "12px", padding: "8px 0", display: "flex", alignItems: "center", justifyContent: "center", height: "110px" }}>
             <img
-              src={getOptimizedImageUrl(product.image, "thumbnail")}
+              src={getOptimizedImageUrl(product.image, "thumbnail", product)}
               alt={product.name || "Product"}
               style={{
                 maxWidth: "100%",
@@ -515,7 +515,7 @@ function ProductCard({
       <div>
         <div style={{ position: "relative" }}>
           <img
-            src={getOptimizedImageUrl(product.image, "medium")}
+            src={getOptimizedImageUrl(product.image, "medium", product)}
             alt={product.name || "Product"}
             style={{
               width: "100%",

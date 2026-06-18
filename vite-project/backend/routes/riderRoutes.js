@@ -230,6 +230,13 @@ router.put("/orders/:id/accept", async (req, res) => {
       return res.status(409).json({ message: "Order is no longer available for pickup" });
     }
 
+    try {
+      const { sendOrderStatusNotification } = require("../services/notificationService");
+      sendOrderStatusNotification(order, "Rider Assigned").catch(err => console.error(err));
+    } catch (err) {
+      console.error(err);
+    }
+
     console.log("=== RIDER ASSIGNED ===");
     console.log({
       orderId: order._id,
@@ -257,6 +264,13 @@ router.put("/orders/:id/accept", async (req, res) => {
         if (updated) {
           console.log("=== ETA UPDATED ===");
           console.log({ orderId: updated._id, estimatedArrivalMinutes: updated.estimatedArrivalMinutes });
+          
+          try {
+            const { sendOrderStatusNotification } = require("../services/notificationService");
+            sendOrderStatusNotification(updated, "Out for Delivery").catch(err => console.error(err));
+          } catch (err) {
+            console.error(err);
+          }
         }
       } catch (transitionError) {
         console.error("❌ Auto Out For Delivery Transition Error:", transitionError.message);
@@ -298,6 +312,13 @@ router.put("/orders/:id/delivered", async (req, res) => {
       order.paymentStatus = "Paid";
     }
     await order.save();
+
+    try {
+      const { sendOrderStatusNotification } = require("../services/notificationService");
+      sendOrderStatusNotification(order, "Delivered").catch(err => console.error(err));
+    } catch (err) {
+      console.error(err);
+    }
 
     // Award customer rewards (BuyCoins and AGAIN15 Coupon) on order delivery
     const { handleOrderDeliveredRewards } = require("../utils/rewards");

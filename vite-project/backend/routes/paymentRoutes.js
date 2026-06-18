@@ -10,6 +10,7 @@ const Config = require("../models/Config");
 const DeliverySettings = require("../models/DeliverySettings");
 const authMiddleware = require("../middleware/authMiddleware");
 const { createBorzoOrder } = require("../utils/borzo");
+const { sendOrderStatusNotification } = require("../services/notificationService");
 
 const TRACKING_STEPS = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Out for Delivery", "Delivered"];
 const STATUS_TIMESTAMP_KEYS = {
@@ -304,6 +305,11 @@ router.post("/payment/verify", async (req, res) => {
         console.error("❌ Borzo Order Dispatch failed on payment verification:", borzoError.message);
       }
 
+      // Send push notification for successful order placement
+      sendOrderStatusNotification(savedOrder, "Order Placed").catch(err => {
+        console.error("Failed to send order placed notification:", err);
+      });
+
 
       // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
       console.log("Reducing inventory stock...");
@@ -453,6 +459,11 @@ router.post("/orders", authMiddleware, async (req, res) => {
       } catch (borzoError) {
         console.error("❌ Borzo Order Dispatch failed on COD placement:", borzoError.message);
       }
+
+      // Send push notification for successful COD order placement
+      sendOrderStatusNotification(savedOrder, "Order Placed").catch(err => {
+        console.error("Failed to send COD order placed notification:", err);
+      });
 
 
       // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)

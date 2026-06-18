@@ -10,15 +10,25 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import RiderProtectedRoute from "./components/RiderProtectedRoute";
 import CategoryDiscovery from "./components/CategoryDiscovery";
+import PromoBannerCarousel from "./components/PromoBannerCarousel";
 import { classifyProduct, canonicalCategory } from "./utils/productClassifier";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import { io } from "socket.io-client";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import Footer from "./components/Footer";
+import AboutPage from "./pages/AboutPage";
+import ContactPage from "./pages/ContactPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsPage from "./pages/TermsPage";
+import RefundPolicyPage from "./pages/RefundPolicyPage";
+import ShippingPolicyPage from "./pages/ShippingPolicyPage";
+import FAQPage from "./pages/FAQPage";
 import HorizontalProductSection from "./HorizontalProductSection";
 import TrendingThisWeek from "./components/TrendingThisWeek";
 import MobileBannerCarousel from "./components/mobile/MobileBannerCarousel";
 import Header, { CategoryStrip } from "./components/common/Header";
+import { requestPermissions, registerDevice, registerListeners } from "./services/pushNotifications";
 
 // Lazy-loaded components & pages
 const AddressSelectorModal = lazy(() => import("./components/common/AddressSelectorModal"));
@@ -29,6 +39,7 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const PaymentPage = lazy(() => import("./pages/PaymentPage"));
 const SuccessPage = lazy(() => import("./pages/SuccessPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
 const SectionProductsPage = lazy(() => import("./pages/SectionProductsPage"));
 const ProductDetailsPage = lazy(() => import("./pages/ProductDetailsPage"));
@@ -468,7 +479,7 @@ function App() {
           >
             {/* The main relative 1024x1024 canvas wrapper */}
             <div className="splash-canvas">
-              
+
               {/* Slogan Main */}
               <img src="/images/splash/slogan_main.png" className="splash-slogan-main" alt="Buy Smart Delivered Fast" />
 
@@ -1052,8 +1063,42 @@ function AppContent({ onReady }) {
     };
   }, [location.pathname, products]);
 
-  const { user, token, logout } = useContext(AuthContext);
+  const { user, token, logout, syncFCMToken } = useContext(AuthContext);
   const isLoggedIn = !!user;
+
+  // Set up Firebase Push Notifications at app startup
+  useEffect(() => {
+    const initPushNotifications = async () => {
+      // 1. Register event listeners for notifications & clicks
+      registerListeners(
+        (fcmTokenValue) => {
+          console.log("[App Push] FCM Token received:", fcmTokenValue);
+          // Sync with backend immediately if the user is already logged in
+          if (token) {
+            syncFCMToken(token);
+          }
+        },
+        (notification) => {
+          console.log("[App Push] Received push notification in foreground:", notification);
+        },
+        (notification) => {
+          console.log("[App Push] Action performed (notification clicked):", notification);
+          // Navigate to Notifications page
+          navigate("/notifications");
+        }
+      );
+
+      // 2. Request permissions
+      const granted = await requestPermissions();
+      if (granted) {
+        // 3. Register device if permission granted
+        await registerDevice();
+      }
+    };
+
+    initPushNotifications();
+  }, [token]);
+
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   const [activeCoupons, setActiveCoupons] = useState([]);
@@ -1151,7 +1196,7 @@ function AppContent({ onReady }) {
               setUserLocation(addressLineText);
               setRoomNumber(def.roomNumber || "");
             }
-          } catch (e) {}
+          } catch (e) { }
         }
       }
     };
@@ -1192,9 +1237,9 @@ function AppContent({ onReady }) {
       elements.forEach((el) => {
         if (el.scrollWidth > window.innerWidth) {
           console.warn(
-            "⚠️ OVERFLOW OFFENDER:", 
-            el.tagName, 
-            el.className ? `.${el.className.split(' ').join('.')}` : '', 
+            "⚠️ OVERFLOW OFFENDER:",
+            el.tagName,
+            el.className ? `.${el.className.split(' ').join('.')}` : '',
             el.id ? `#${el.id}` : '',
             `(${el.scrollWidth}px > ${window.innerWidth}px)`
           );
@@ -1798,6 +1843,23 @@ function AppContent({ onReady }) {
     return el;
   }
 
+  if (location.pathname === "/notifications") {
+    const el = (
+      <ProtectedRoute>
+        <NotificationsPage />
+      </ProtectedRoute>
+    );
+    if (windowWidth < 768) {
+      return (
+        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
+          {el}
+          <MobileBottomNavigation />
+        </div>
+      );
+    }
+    return el;
+  }
+
   if (location.pathname === "/categories") {
     const el = <CategoriesPage />;
     if (windowWidth < 768) {
@@ -1822,6 +1884,85 @@ function AppContent({ onReady }) {
       );
     }
     return el;
+  }
+
+  if (location.pathname === "/about") {
+    const el = (
+      <>
+        <AboutPage />
+        <Footer />
+      </>
+    );
+
+    if (windowWidth < 768) {
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px`
+          }}
+        >
+          {el}
+          <MobileBottomNavigation />
+        </div>
+      );
+    }
+
+    return el;
+  }
+
+  if (location.pathname === "/contact") {
+    return (
+      <>
+        <ContactPage />
+        <Footer />
+      </>
+    )
+  };
+
+  if (location.pathname === "/privacy-policy") {
+    return (
+      <>
+        <PrivacyPolicyPage />
+        <Footer />
+      </>
+    );
+  }
+
+  if (location.pathname === "/terms") {
+    return (
+      <>
+        <TermsPage />
+        <Footer />
+      </>
+    );
+  }
+
+  if (location.pathname === "/refund-policy") {
+    return (
+      <>
+        <RefundPolicyPage />
+        <Footer />
+      </>
+    );
+  }
+
+  if (location.pathname === "/shipping-policy") {
+    return (
+      <>
+        <ShippingPolicyPage />
+        <Footer />
+      </>
+    );
+  }
+
+  if (location.pathname === "/faq") {
+    return (
+      <>
+        <FAQPage />
+        <Footer />
+      </>
+    );
   }
 
   if (location.pathname === "/support/chat") {
@@ -2075,6 +2216,8 @@ function AppContent({ onReady }) {
               </>
             }
           />
+
+          <Route path="/" element={<HomePage />} />
         </Routes>
 
         {/* Floating premium cart banner (visible on mobile home/product pages when cart has items) */}
@@ -2278,6 +2421,7 @@ function AppContent({ onReady }) {
                           <MobileBannerCarousel />
                         </div>
                         <CategoryDiscovery products={products} />
+                        <PromoBannerCarousel />
                         <div id="product-listings-anchor" style={{ height: "1px", margin: "16px 0" }} />
 
                         {trendingProducts.length > 0 && (

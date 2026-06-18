@@ -1,13 +1,16 @@
+import { getFallbackImage } from "./categoryImages";
+
 /**
  * Optimizes image URLs by appending/modifying width parameters for supported platforms (e.g. Unsplash).
  * @param {string} url - The original image URL.
  * @param {'thumbnail' | 'medium' | 'full'} size - Target size bucket.
+ * @param {object} product - Optional product object to resolve category fallbacks.
  */
-export function getOptimizedImageUrl(url, size = 'medium') {
-  if (!url) return "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500";
+export function getOptimizedImageUrl(url, size = 'medium', product = null) {
+  const imageUrl = url || getFallbackImage(product);
 
   // Check if it's an Unsplash URL
-  if (url.includes("images.unsplash.com")) {
+  if (imageUrl.includes("images.unsplash.com")) {
     // Determine target width
     let width = 400; // default medium
     if (size === 'thumbnail') width = 150;
@@ -15,7 +18,7 @@ export function getOptimizedImageUrl(url, size = 'medium') {
 
     // Clean existing width parameters if any
     try {
-      const urlObj = new URL(url);
+      const urlObj = new URL(imageUrl);
       urlObj.searchParams.set("w", String(width));
       urlObj.searchParams.set("auto", "format");
       urlObj.searchParams.set("fit", "crop");
@@ -23,10 +26,10 @@ export function getOptimizedImageUrl(url, size = 'medium') {
       return urlObj.toString();
     } catch (e) {
       // Fallback simple string replace if invalid URL object
-      return url.replace(/w=\d+/, `w=${width}`);
+      return imageUrl.replace(/w=\d+/, `w=${width}`);
     }
   }
 
   // Return original for non-unsplash images
-  return url;
+  return imageUrl;
 }

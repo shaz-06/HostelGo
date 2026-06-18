@@ -234,6 +234,13 @@ router.put("/orders/:id/status", async (req, res) => {
     const updatedOrder = await order.save();
     console.log("Order status updated successfully in DB:", updatedOrder._id);
 
+    try {
+      const { sendOrderStatusNotification } = require("../services/notificationService");
+      await sendOrderStatusNotification(updatedOrder, orderStatus);
+    } catch (notifErr) {
+      console.error("Failed to send order status notification:", notifErr.message);
+    }
+
     if (orderStatus === "Delivered") {
       const { handleOrderDeliveredRewards } = require("../utils/rewards");
       await handleOrderDeliveredRewards(updatedOrder);
@@ -670,6 +677,24 @@ router.delete("/categories/:id", async (req, res) => {
     return res.json({ success: true, message: "Category deleted successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Failed to delete category", error: error.message });
+  }
+});
+
+// POST /api/admin/send-broadcast
+// Sends promotional broadcast push notifications
+router.post("/send-broadcast", async (req, res) => {
+  const { target, title, body, data } = req.body;
+  if (!title || !body) {
+    return res.status(400).json({ message: "Title and body are required for broadcast" });
+  }
+
+  try {
+    const { sendBroadcastNotification } = require("../services/notificationService");
+    const result = await sendBroadcastNotification({ target, title, body, data });
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Broadcast endpoint error:", error);
+    return res.status(500).json({ message: "Failed to broadcast notifications", error: error.message });
   }
 });
 

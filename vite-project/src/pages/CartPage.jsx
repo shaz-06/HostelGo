@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { calculateBill } from "../utils/billCalculator";
 import CartBillDetails from "../components/CartBillDetails";
+import { getOptimizedImageUrl } from "../utils/imageOptimizer";
 import { MOBILE_NAV_TOTAL_OFFSET } from "../constants/layoutConstants";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -792,7 +793,7 @@ export default function CartPage({
                                     </span>
                                 )}
                                 <img
-                                    src={prod.image}
+                                    src={getOptimizedImageUrl(prod.image, "thumbnail", prod)}
                                     alt={prod.name}
                                     style={{
                                         width: "100%",
@@ -876,7 +877,7 @@ export default function CartPage({
                     {cartItems.map((item) => (
                         <div key={item._id || item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "16px", borderBottom: "1px solid #f3f4f6" }}>
                             <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-                                <img src={item.image} alt={item.name} style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "14px" }} />
+                                <img src={getOptimizedImageUrl(item.image, "thumbnail", item)} alt={item.name} style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "14px" }} />
                                 <div>
                                     <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1f2937" }}>{item.name}</h4>
 
@@ -1000,7 +1001,7 @@ export default function CartPage({
                                             {discount}% OFF
                                         </span>
                                     )}
-                                    <img src={prod.image} alt={prod.name} style={{ width: "100%", height: "80px", objectFit: "contain", borderRadius: "10px", marginBottom: "6px" }} />
+                                    <img src={getOptimizedImageUrl(prod.image, "thumbnail", prod)} alt={prod.name} style={{ width: "100%", height: "80px", objectFit: "contain", borderRadius: "10px", marginBottom: "6px" }} />
                                     <div>
                                         <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#1f2937", margin: "0 0 2px 0", height: "30px", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                                             {prod.name}
@@ -1360,7 +1361,7 @@ export default function CartPage({
                             }}
                         >
                             <span style={{ position: "absolute", top: "4px", left: "4px", background: "#3b82f6", color: "white", fontSize: "8px", fontWeight: "850", padding: "2px 5px", borderRadius: "4px", textTransform: "uppercase", zIndex: 1 }}>Hostel Kit</span>
-                            <img src={prod.image} alt={prod.name} style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "10px", marginTop: "12px", marginBottom: "6px" }} />
+                            <img src={getOptimizedImageUrl(prod.image, "thumbnail", prod)} alt={prod.name} style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "10px", marginTop: "12px", marginBottom: "6px" }} />
                             <div>
                                 <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#1f2937", margin: "0 0 2px 0", height: "30px", overflow: "hidden" }}>{prod.name}</h4>
                                 <p style={{ color: "#6b7280", fontSize: "10px", margin: "0 0 6px 0" }}>{prod.weight}</p>

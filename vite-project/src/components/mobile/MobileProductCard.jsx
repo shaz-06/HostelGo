@@ -148,7 +148,7 @@ function MobileProductCard({
         }}
       >
         <img
-          src={getOptimizedImageUrl(product.image, "thumbnail")}
+          src={getOptimizedImageUrl(product.image, "thumbnail", product)}
           alt={product.name}
           style={{
             maxWidth: "100%",

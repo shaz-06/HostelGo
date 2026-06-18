@@ -8,6 +8,8 @@ export default function AdminProductsPage() {
   const [error, setError] = useState("");
   const [toastMessage, setToastMessage] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Form State for Adding/Editing Product
   const [newProduct, setNewProduct] = useState({
@@ -22,7 +24,7 @@ export default function AdminProductsPage() {
   });
 
   const [categoriesList, setCategoriesList] = useState([]);
-  
+
   useEffect(() => {
     const fetchCats = async () => {
       try {
@@ -74,7 +76,7 @@ export default function AdminProductsPage() {
         try {
           const errData = await res.json();
           errMsg = errData.message || errMsg;
-        } catch (e) {}
+        } catch (e) { }
         console.error("=== [FRONTEND PRODUCTS FETCH ERROR] ===");
         console.error("Status Code:", status);
         console.error("Response Message:", errMsg);
@@ -105,7 +107,7 @@ export default function AdminProductsPage() {
       const token = localStorage.getItem("buyto_token");
       const res = await fetch(window.API_BASE_URL + `/api/admin/products/${productId}`, {
         method: "PUT",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
@@ -118,7 +120,7 @@ export default function AdminProductsPage() {
         try {
           const errData = await res.json();
           errMsg = errData.message || errMsg;
-        } catch (e) {}
+        } catch (e) { }
         console.error("=== [FRONTEND PRODUCT INLINE UPDATE ERROR] ===");
         console.error("Status Code:", status);
         console.error("Response Message:", errMsg);
@@ -154,18 +156,58 @@ export default function AdminProductsPage() {
         try {
           const errData = await res.json();
           errMsg = errData.message || errMsg;
-        } catch (e) {}
+        } catch (e) { }
         console.error("=== [FRONTEND PRODUCT DELETE ERROR] ===");
         console.error("Status Code:", status);
         console.error("Response Message:", errMsg);
         throw new Error(errMsg);
       }
-      
+
       setProducts((prev) => prev.filter((p) => p._id !== productId && p.id !== productId));
       showToast("Product deleted successfully!");
     } catch (err) {
       console.error(err);
       alert(`Error deleting product: ${err.message}`);
+    }
+  };
+
+  const uploadProductImage = async () => {
+    if (!imageFile) {
+      alert("Please select an image");
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      const formData = new FormData();
+      formData.append("image", imageFile);
+
+      const res = await fetch(
+        window.API_BASE_URL + "/api/upload",
+        {
+          method: "POST",
+          body: formData
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        setNewProduct(prev => ({
+          ...prev,
+          image: data.imageUrl
+        }));
+
+        alert("Image uploaded successfully");
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -180,7 +222,7 @@ export default function AdminProductsPage() {
       const token = localStorage.getItem("buyto_token");
       const res = await fetch(window.API_BASE_URL + "/api/admin/products", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
@@ -198,7 +240,7 @@ export default function AdminProductsPage() {
         try {
           const errData = await res.json();
           errMsg = errData.message || errMsg;
-        } catch (e) {}
+        } catch (e) { }
         console.error("=== [FRONTEND PRODUCT CREATE ERROR] ===");
         console.error("Status Code:", status);
         console.error("Response Message:", errMsg);
@@ -267,7 +309,7 @@ export default function AdminProductsPage() {
               <span style={{ color: "#6B7280", fontSize: "12px", fontWeight: "600" }}>Administrator</span>
             </div>
           </div>
-          
+
           <div style={navGroupStyle}>
             <button onClick={() => navigate("/admin")} style={navLinkStyle}>
               📊 Dashboard
@@ -354,7 +396,7 @@ export default function AdminProductsPage() {
                           <span style={categoryTagStyle}>{product.category}</span>
                         </td>
                         <td style={tdPaddingStyle}>{product.weight || "1 unit"}</td>
-                        
+
                         {/* Inline price edit */}
                         <td style={tdPaddingStyle}>
                           <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -404,7 +446,7 @@ export default function AdminProductsPage() {
               <h2 style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#111827" }}>Register New Product</h2>
               <button onClick={() => setShowAddModal(false)} style={closeModalBtnStyle}>✕</button>
             </div>
-            
+
             <form onSubmit={handleAddProductSubmit} style={formStyle}>
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Product Name *</label>
@@ -480,14 +522,43 @@ export default function AdminProductsPage() {
               </div>
 
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Product Image URL</label>
+                <label style={labelStyle}>Product Image</label>
+
                 <input
-                  type="text"
-                  placeholder="https://images.unsplash.com/..."
-                  value={newProduct.image}
-                  onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
-                  style={inputStyle}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files[0])}
                 />
+
+                <button
+                  type="button"
+                  onClick={uploadProductImage}
+                  style={{
+                    marginTop: "10px",
+                    padding: "10px",
+                    borderRadius: "10px",
+                    border: "none",
+                    background: "#318616",
+                    color: "white",
+                    cursor: "pointer"
+                  }}
+                >
+                  {uploadingImage ? "Uploading..." : "Upload Image"}
+                </button>
+
+                {newProduct.image && (
+                  <img
+                    src={newProduct.image}
+                    alt="preview"
+                    style={{
+                      width: "120px",
+                      height: "120px",
+                      objectFit: "cover",
+                      marginTop: "12px",
+                      borderRadius: "12px"
+                    }}
+                  />
+                )}
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "10px 0" }}>

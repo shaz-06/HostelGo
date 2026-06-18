@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
+import { initializePushNotifications } from "../services/pushNotifications";
 
 export const AuthContext = createContext();
 
@@ -7,12 +8,47 @@ export const AuthProvider = ({ children }) => {
     const saved = localStorage.getItem("buyto_user") || localStorage.getItem("hostelgoUser");
     return saved ? JSON.parse(saved) : null;
   });
-  
+
   const [token, setToken] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get("token");
+    if (urlToken) {
+      // Clean up URL query parameters so the token is not visible
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+      localStorage.setItem("buyto_token", urlToken);
+      return urlToken;
+    }
     return localStorage.getItem("buyto_token") || null;
   });
 
   const [loading, setLoading] = useState(true);
+
+  const syncFCMToken = async (authToken) => {
+    try {
+      const fcmToken = localStorage.getItem("fcm_token");
+      if (!fcmToken) {
+        console.log("[AuthContext] No FCM token available in localStorage to sync.");
+        return;
+      }
+      console.log("[AuthContext] Syncing FCM token with backend...");
+      const res = await fetch(window.API_BASE_URL + "/api/users/fcm-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ token: fcmToken })
+      });
+      if (res.ok) {
+        console.log("[AuthContext] FCM token synced successfully with backend.");
+      } else {
+        console.error("[AuthContext] Failed to sync FCM token with backend:", res.status);
+      }
+    } catch (err) {
+      console.error("[AuthContext] Error syncing FCM token:", err);
+    }
+  };
 
   useEffect(() => {
     // Keep user state validated with backend on initial load if token exists
@@ -29,6 +65,7 @@ export const AuthProvider = ({ children }) => {
             setUser(data.user);
             localStorage.setItem("buyto_user", JSON.stringify(data.user));
             localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
+            syncFCMToken(token);
           } else {
             // Expired or invalid token
             logout();
@@ -90,7 +127,7 @@ export const AuthProvider = ({ children }) => {
         if (Array.isArray(ids) && ids.length > 0) {
           console.log("Syncing guest Save For Later products to backend...", ids);
           await Promise.all(
-            ids.map(productId => 
+            ids.map(productId =>
               fetch(window.API_BASE_URL + `/api/save-for-later/${productId}`, {
                 method: "POST",
                 headers: {
@@ -170,12 +207,18 @@ export const AuthProvider = ({ children }) => {
 
     setToken(data.token);
     setUser(data.user);
-    
+
     // Set localStorage credentials
     localStorage.setItem("buyto_token", data.token);
     localStorage.setItem("buyto_user", JSON.stringify(data.user));
     localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
-    
+
+    //Initialize Firebase Push Notifications
+    await initializePushNotifications();
+
+    //Sync token to backend
+    syncFCMToken(data.token);
+
     return data;
   };
 
@@ -186,6 +229,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("buyto_token", authToken);
     localStorage.setItem("buyto_user", JSON.stringify(authUser));
     localStorage.setItem("hostelgoUser", JSON.stringify(authUser));
+    syncFCMToken(authToken);
   };
 
   const signup = async (name, email, phone, password) => {
@@ -211,12 +255,31 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("buyto_token", data.token);
     localStorage.setItem("buyto_user", JSON.stringify(data.user));
     localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
-    
+
+    //Initialize Firebase Push Notifications
+    await initializePushNotifications();
+
+    //Sync token to backend
+    syncFCMToken(data.token);
+
     return data;
   };
 
   const logout = () => {
     console.log("=== [FRONTEND AUTH LOGOUT] ===");
+
+    const activeToken = token || localStorage.getItem("buyto_token");
+    if (activeToken) {
+      fetch(window.API_BASE_URL + "/api/users/fcm-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${activeToken}`
+        },
+        body: JSON.stringify({ token: null })
+      }).catch(err => console.error("Error removing FCM token from backend on logout:", err));
+    }
+
     setToken(null);
     setUser(null);
     setSaveForLaterIds([]);
@@ -228,7 +291,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, setAuthSession, saveForLaterIds, toggleSaveForLater }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, setAuthSession, saveForLaterIds, toggleSaveForLater, syncFCMToken }}>
       {children}
     </AuthContext.Provider>
   );

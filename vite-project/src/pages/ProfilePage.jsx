@@ -53,7 +53,7 @@ export default function ProfilePage() {
         console.error("Failed to fetch live profile:", err);
       }
     };
-    
+
     const fetchCoupons = async () => {
       try {
         setCouponsLoading(true);
@@ -76,7 +76,7 @@ export default function ProfilePage() {
     fetchLiveUser();
     fetchCoupons();
   }, [token]);
-  
+
   useEffect(() => {
     if (!token) return;
     const fetchWallet = async () => {
@@ -151,7 +151,7 @@ export default function ProfilePage() {
   return (
     <div style={pageContainerStyle}>
       <div style={layoutGridStyle(windowWidth < 768)}>
-        
+
         {/* User Card */}
         <aside style={userCardStyle(windowWidth < 768)}>
           <div style={avatarStyle}>
@@ -159,7 +159,7 @@ export default function ProfilePage() {
           </div>
           <h2 style={userNameStyle}>{liveUser?.name}</h2>
           <span style={roleBadgeStyle}>{liveUser?.role?.toUpperCase()}</span>
-          
+
           <div style={infoGroupStyle}>
             <div style={infoRowStyle}>
               <span style={infoLabelStyle}>Email</span>
@@ -180,6 +180,111 @@ export default function ProfilePage() {
             <button onClick={() => navigate("/")} style={homeBtnStyle}>
               🏪 Back to Store
             </button>
+            <button
+              onClick={() => navigate("/about")}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                cursor: "pointer",
+                marginBottom: "12px"
+              }}
+            >
+              ℹ️ About Buyto
+            </button>
+
+            <button
+              onClick={() => navigate("/contact")}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                cursor: "pointer",
+                marginBottom: "12px"
+              }}
+            >
+              📞 Contact Us
+            </button>
+
+            <button
+              onClick={() => navigate("/privacy-policy")}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                cursor: "pointer",
+                marginBottom: "12px"
+              }}
+            >
+              🔒 Privacy Policy
+            </button>
+
+            <button
+              onClick={() => navigate("/terms")}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                cursor: "pointer",
+                marginBottom: "12px"
+              }}
+            >
+              📜 Terms & Conditions
+            </button>
+
+            <button
+              onClick={() => navigate("/refund-policy")}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                cursor: "pointer",
+                marginBottom: "12px"
+              }}
+            >
+              💸 Refund Policy
+            </button>
+
+            <button
+              onClick={() => navigate("/shipping-policy")}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                cursor: "pointer",
+                marginBottom: "12px"
+              }}
+            >
+              🚚 Shipping Policy
+            </button>
+
+            <button
+              onClick={() => navigate("/faq")}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                cursor: "pointer",
+                marginBottom: "12px"
+              }}
+            >
+              ❓ FAQ
+            </button>
+
             <button onClick={handleLogoutClick} style={logoutBtnStyle}>
               🚪 Log Out
             </button>
@@ -515,7 +620,7 @@ export default function ProfilePage() {
               <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", marginTop: "32px", marginBottom: "16px" }}>
                 Recent Activity ⚡
               </h3>
-              
+
               {walletLoading ? (
                 <div style={{ color: "#64748b", fontSize: "13px", padding: "12px 0" }}>Loading activity...</div>
               ) : walletTransactions.length === 0 ? (
@@ -536,7 +641,7 @@ export default function ProfilePage() {
                     } else if (tx.type === "expire") {
                       displayDesc = "Expired";
                     }
-                    
+
                     return (
                       <div
                         key={tx._id}
@@ -814,14 +919,14 @@ const payBadgeStyle = (status) => ({
     status === "Paid"
       ? "#e6fffa"
       : status === "Pending"
-      ? "#fffbeb"
-      : "#fef2f2",
+        ? "#fffbeb"
+        : "#fef2f2",
   color:
     status === "Paid"
       ? "#0d9488"
       : status === "Pending"
-      ? "#d97706"
-      : "#dc2626",
+        ? "#d97706"
+        : "#dc2626",
 });
 
 const statusBadgeStyle = (status) => ({
@@ -833,14 +938,14 @@ const statusBadgeStyle = (status) => ({
     status === "Delivered"
       ? "#ecfdf5"
       : status === "Cancelled"
-      ? "#fef2f2"
-      : "rgba(255, 77, 79, 0.1)",
+        ? "#fef2f2"
+        : "rgba(255, 77, 79, 0.1)",
   color:
     status === "Delivered"
       ? "#10b981"
       : status === "Cancelled"
-      ? "#dc2626"
-      : "#FF4D4F",
+        ? "#dc2626"
+        : "#FF4D4F",
 });
 
 const itemsListStyle = {
@@ -885,7 +990,7 @@ const trackerLabelStyle = (label, currentStatus) => {
   const statuses = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Out for Delivery", "Delivered"];
   const currentIdx = statuses.indexOf(currentStatus);
   const labelIdx = statuses.indexOf(label);
-  
+
   const isCompleted = labelIdx <= currentIdx;
   return {
     color: isCompleted ? "#3b82f6" : "#cbd5e1",

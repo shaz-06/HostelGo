@@ -309,7 +309,7 @@ export default function ProductDetailsPage({
         {/* Left Column: Big Image & Top-Right Button */}
         <div style={{ position: "relative", height: "fit-content" }}>
           <img
-            src={getOptimizedImageUrl(activeProduct.image, "full")}
+            src={getOptimizedImageUrl(activeProduct.image, "full", activeProduct)}
             fetchpriority="high"
             loading="eager"
             alt={activeProduct.name}

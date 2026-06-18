@@ -1,3 +1,5 @@
+require("./firebase");
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -19,6 +21,8 @@ const supportRoutes = require("./routes/supportRoutes");
 const buyCoinRoutes = require("./routes/buyCoinRoutes");
 const addressRoutes = require("./routes/addressRoutes");
 const saveForLaterRoutes = require("./routes/saveForLaterRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
+const userRoutes = require("./routes/userRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 const adminMiddleware = require("./middleware/adminMiddleware");
 
@@ -43,9 +47,10 @@ const mockProducts = require("./seed");
 
 let isConnected = false;
 
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGODB_URI)
   .then(async () => {
-    console.log("MongoDB Connected");
+    console.log("✅ MongoDB Connected");
+    console.log("Database: buyto");
     isConnected = true;
 
     // Auto-seed default Admin account if missing or incorrect
@@ -374,7 +379,7 @@ try {
 } catch {
   console.log("ℹ️ Socket.IO package not installed. Skipping socket server initialization.");
 }
-
+app.use("/api/upload", uploadRoutes);
 app.use("/api", paymentRoutes);
 app.use("/api", supportRoutes);
 app.use("/api/auth", authRoutes);
@@ -383,6 +388,7 @@ app.use("/api/admin", authMiddleware, adminMiddleware, adminRoutes);
 app.use("/api/buycoins", buyCoinRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/save-for-later", saveForLaterRoutes);
+app.use("/api/users", userRoutes);
 
 server.listen(PORT, () => {
   console.log(`Server Started on port ${PORT}`);
@@ -392,9 +398,9 @@ server.listen(PORT, () => {
   const apiToken = process.env.BORZO_API_TOKEN;
   const isTokenMock = !apiToken || apiToken === "mock_borzo_api_token_here" || apiToken.includes("[use token");
   const isEnabled = !!(clientId && apiToken && !isTokenMock);
-  
-  const maskedToken = apiToken && apiToken.length > 8 
-    ? `${apiToken.slice(0, 4)}...${apiToken.slice(-4)}` 
+
+  const maskedToken = apiToken && apiToken.length > 8
+    ? `${apiToken.slice(0, 4)}...${apiToken.slice(-4)}`
     : "Not Configured/Invalid";
 
   console.log("\n=== [BORZO STARTUP AUDIT] ===");
