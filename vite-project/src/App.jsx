@@ -1931,7 +1931,14 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/categories") {
-    return wrapCustomerLayout(<CategoriesPage />);
+    return wrapCustomerLayout(
+      <CategoriesPage
+        products={products}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />,
+      false
+    );
   }
 
   if (location.pathname === "/help") {

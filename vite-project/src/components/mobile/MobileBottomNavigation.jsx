@@ -67,11 +67,7 @@ const MobileBottomNavigation = React.memo(() => {
     if (tab === "home") {
       navigate("/");
     } else if (tab === "categories") {
-      navigate("/?scroll=categories");
-      setTimeout(() => {
-        const el = document.getElementById("mobile-categories-anchor") || document.getElementById("product-listings-anchor");
-        if (el) el.scrollIntoView({ behavior: "smooth" });
-      }, 50);
+      navigate("/categories");
     } else if (tab === "top-picks") {
       navigate("/section/trending");
     }
