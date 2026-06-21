@@ -194,22 +194,38 @@ const Header = React.memo(({
 
   // Lazy load speech recognition helper when voice search is clicked
   const handleVoiceSearch = async () => {
+    console.log("Mic clicked");
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Voice Search is not supported in this browser.");
+      alert("Voice search is not supported on this device.");
+      console.log("Speech error: SpeechRecognition not supported");
       return;
     }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("Permission granted");
+      stream.getTracks().forEach(track => track.stop());
+    } catch (err) {
+      console.error("Microphone permission error:", err);
+      console.log("Speech error: Permission denied");
+      alert("Microphone access is required for voice search.");
+      return;
+    }
+
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.lang = "en-US";
     recognition.interimResults = false;
 
     recognition.onstart = () => {
+      console.log("Listening started");
       setIsListening(true);
     };
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
+      console.log("Speech result:", transcript);
       setSearchQuery(transcript);
       if (location.pathname !== "/") {
         navigate("/");
@@ -217,15 +233,21 @@ const Header = React.memo(({
     };
 
     recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
+      console.log("Speech error:", event.error);
       setIsListening(false);
     };
 
     recognition.onend = () => {
+      console.log("Listening ended");
       setIsListening(false);
     };
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (err) {
+      console.log("Speech error on start:", err);
+      setIsListening(false);
+    }
   };
 
   const isDown = isCollapsed;
