@@ -394,6 +394,14 @@ router.put("/shopping-lists/:listId", authMiddleware, async (req, res) => {
 router.delete("/shopping-lists/:listId", authMiddleware, async (req, res) => {
   try {
     const { listId } = req.params;
+    req.user.savedLists = req.user.savedLists.filter(l => String(l._id) !== String(listId));
+    await req.user.save();
+    return res.status(200).json({ success: true, savedLists: req.user.savedLists });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to delete shopping list", error: error.message });
+  }
+});
+
 // POST /api/auth/firebase-login
 router.post("/firebase-login", async (req, res) => {
   console.log("=== [FIREBASE LOGIN] ===");
