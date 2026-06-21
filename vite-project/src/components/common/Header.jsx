@@ -6,12 +6,12 @@ import { logoPath } from "../../config/branding";
 
 const searchSuggestions = [
   "Fresh Fruits",
-  "Organic Veggies",
-  "Fresh Milk",
-  "Bread & Eggs",
-  "Ice Cream",
-  "Potato Chips",
-  "Cold Drinks"
+  "Vegetables",
+  "Snacks",
+  "Cold Drinks",
+  "Dairy Products",
+  "Ice Creams",
+  "Bakery Items"
 ];
 
 export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, onCategoryClick }) => {
@@ -147,6 +147,7 @@ const Header = React.memo(({
   const { saveForLaterIds } = useContext(AuthContext) || { saveForLaterIds: [] };
   const savedCount = saveForLaterIds ? saveForLaterIds.length : 0;
   const [searchIndex, setSearchIndex] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -178,11 +179,10 @@ const Header = React.memo(({
     return () => window.removeEventListener("scroll", onScroll, true);
   }, []);
 
-  // Rotating search suggestion placeholders
   useEffect(() => {
     const interval = setInterval(() => {
       setSearchIndex((prev) => (prev + 1) % searchSuggestions.length);
-    }, 2500);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -397,7 +397,7 @@ const Header = React.memo(({
         <div style={{ position: "relative", flexGrow: 1 }}>
           <input
             type="text"
-            placeholder={`Search for '${searchSuggestions[searchIndex]}'`}
+            placeholder=""
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -405,6 +405,8 @@ const Header = React.memo(({
                 navigate("/");
               }
             }}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             style={{
               background: "white",
               borderRadius: "24px",
@@ -419,6 +421,50 @@ const Header = React.memo(({
               boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
             }}
           />
+          {(!searchQuery && !isFocused) && (
+            <div
+              style={{
+                position: "absolute",
+                left: "40px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                pointerEvents: "none",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#9ca3af",
+                fontFamily: "inherit",
+                height: "24px",
+                overflow: "hidden"
+              }}
+            >
+              <span>Search for&nbsp;</span>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                  transform: `translateY(-${searchIndex * 24}px)`,
+                  height: "24px"
+                }}
+              >
+                {searchSuggestions.map((sug, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      height: "24px",
+                      lineHeight: "24px",
+                      display: "flex",
+                      alignItems: "center"
+                    }}
+                  >
+                    '{sug}'
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Left search icon */}
           <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", display: "flex", alignItems: "center" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

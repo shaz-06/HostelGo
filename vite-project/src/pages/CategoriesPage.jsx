@@ -93,23 +93,24 @@ const generateSlug = (name) => {
 
 const searchSuggestions = [
   "Fresh Fruits",
-  "Organic Veggies",
-  "Fresh Milk",
-  "Bread & Eggs",
-  "Ice Cream",
-  "Potato Chips",
-  "Cold Drinks"
+  "Vegetables",
+  "Snacks",
+  "Cold Drinks",
+  "Dairy Products",
+  "Ice Creams",
+  "Bakery Items"
 ];
 
 export default function CategoriesPage({ products = [], searchQuery = "", setSearchQuery = () => {} }) {
   const navigate = useNavigate();
   const [searchIndex, setSearchIndex] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
 
   // Staggered placeholder rotation
   useEffect(() => {
     const interval = setInterval(() => {
       setSearchIndex((prev) => (prev + 1) % searchSuggestions.length);
-    }, 2500);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -206,12 +207,14 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
         <div style={{ position: "relative", width: "100%" }}>
           <input
             type="text"
-            placeholder={`Search for '${searchSuggestions[searchIndex]}'`}
+            placeholder=""
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               navigate("/?tab=search");
             }}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             style={{
               background: "#F3F4F6",
               borderRadius: "24px",
@@ -225,6 +228,50 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
               boxSizing: "border-box"
             }}
           />
+          {(!searchQuery && !isFocused) && (
+            <div
+              style={{
+                position: "absolute",
+                left: "40px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                pointerEvents: "none",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#9ca3af",
+                fontFamily: "inherit",
+                height: "24px",
+                overflow: "hidden"
+              }}
+            >
+              <span>Search for&nbsp;</span>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                  transform: `translateY(-${searchIndex * 24}px)`,
+                  height: "24px"
+                }}
+              >
+                {searchSuggestions.map((sug, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      height: "24px",
+                      lineHeight: "24px",
+                      display: "flex",
+                      alignItems: "center"
+                    }}
+                  >
+                    '{sug}'
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", display: "flex", alignItems: "center" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <circle cx="11" cy="11" r="8"></circle>
