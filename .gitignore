@@ -20,3 +20,8 @@ logs
 
 # OS files
 .DS_Store
+
+# Firebase credentials
+serviceAccountKey.json
+backend/serviceAccountKey.json
+vite-project/backend/serviceAccountKey.json

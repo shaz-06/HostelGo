@@ -3,10 +3,19 @@ import { initializePushNotifications } from "../services/pushNotifications";
 
 export const AuthContext = createContext();
 
+const guestUser = {
+  _id: "guest-user",
+  name: "",
+  email: "",
+  phoneNumber: "",
+  role: "guest",
+  isGuest: true
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem("buyto_user") || localStorage.getItem("hostelgoUser");
-    return saved ? JSON.parse(saved) : null;
+    return saved ? JSON.parse(saved) : guestUser;
   });
 
   const [token, setToken] = useState(() => {
@@ -73,6 +82,9 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
           console.error("Session verification failed:", err);
         }
+      } else {
+        // When no authenticated session exists, setUser(guestUser) and skip /api/auth/me & token validation
+        setUser(guestUser);
       }
       setLoading(false);
     };
@@ -222,6 +234,20 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const [loginBottomSheetOpen, setLoginBottomSheetOpen] = useState(false);
+  const [onLoginSuccessCallback, setOnLoginSuccessCallback] = useState(null);
+
+  const openLogin = (onSuccess) => {
+    console.log("Opening OTP bottom sheet");
+    setOnLoginSuccessCallback(() => typeof onSuccess === "function" ? onSuccess : null);
+    setLoginBottomSheetOpen(true);
+  };
+
+  const closeLogin = () => {
+    setLoginBottomSheetOpen(false);
+    setOnLoginSuccessCallback(null);
+  };
+
   const setAuthSession = async (authToken, authUser) => {
     await syncGuestSavedProducts(authToken);
     setToken(authToken);
@@ -230,6 +256,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("buyto_user", JSON.stringify(authUser));
     localStorage.setItem("hostelgoUser", JSON.stringify(authUser));
     syncFCMToken(authToken);
+    if (onLoginSuccessCallback) {
+      try {
+        onLoginSuccessCallback();
+      } catch (e) {
+        console.error("Error executing login success callback:", e);
+      }
+    }
+    setLoginBottomSheetOpen(false);
+    setOnLoginSuccessCallback(null);
   };
 
   const signup = async (name, email, phone, password) => {
@@ -262,6 +297,14 @@ export const AuthProvider = ({ children }) => {
     //Sync token to backend
     syncFCMToken(data.token);
 
+    if (onLoginSuccessCallback) {
+      try {
+        onLoginSuccessCallback();
+      } catch (e) {}
+    }
+    setLoginBottomSheetOpen(false);
+    setOnLoginSuccessCallback(null);
+
     return data;
   };
 
@@ -281,7 +324,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     setToken(null);
-    setUser(null);
+    setUser(guestUser);
     setSaveForLaterIds([]);
     localStorage.removeItem("buyto_token");
     localStorage.removeItem("buyto_user");
@@ -290,8 +333,26 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("cart");
   };
 
+  const isLoggedIn = !!user && !user.isGuest;
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, setAuthSession, saveForLaterIds, toggleSaveForLater, syncFCMToken }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isLoggedIn, 
+      token, 
+      loading, 
+      login, 
+      signup, 
+      logout, 
+      setAuthSession, 
+      saveForLaterIds, 
+      toggleSaveForLater, 
+      syncFCMToken,
+      loginBottomSheetOpen,
+      isLoginOpen: loginBottomSheetOpen,
+      openLogin,
+      closeLogin
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -11,9 +11,9 @@ const { recalculateWallet } = require("../utils/rewards");
 router.get("/wallet", authMiddleware, async (req, res) => {
   try {
     const userId = req.user._id;
-    const email = req.user.email.toLowerCase();
+    const email = req.user.email ? req.user.email.toLowerCase() : "";
 
-    // Recalculate wallet balance on query to reflect any expired coins
+    // Recalculate wallet balance on query
     const wallet = await recalculateWallet(userId, email);
 
     // Get transactions list, sorted newest first
@@ -33,62 +33,35 @@ router.get("/wallet", authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/buycoins/admin/analytics - Admin dashboard analytics for BuyCoins
-router.get("/admin/analytics", authMiddleware, adminMiddleware, async (req, res) => {
+// GET /api/buycoins/admin-analytics - Admin dashboard analytics for BuyCoins
+router.get("/admin-analytics", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    // 1. Total Coins Issued
+    // 1. Total Coins Issued: sum of amount (or coins) for types earned, earn, bonus, admin, refund
     const issuedResult = await BuyCoinTransaction.aggregate([
-      { $match: { type: { $in: ["earn", "bonus"] } } },
-      { $group: { _id: null, total: { $sum: "$coins" } } }
+      { $match: { type: { $in: ["earned", "earn", "bonus", "admin", "refund"] } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$amount", "$coins"] } } } }
     ]);
     const totalIssued = issuedResult[0]?.total || 0;
 
-    // 2. Total Coins Redeemed
+    // 2. Total Coins Redeemed: sum of amount (or coins) for types spent, redeem, reversal
     const redeemedResult = await BuyCoinTransaction.aggregate([
-      { $match: { type: "redeem" } },
-      { $group: { _id: null, total: { $sum: "$coins" } } }
+      { $match: { type: { $in: ["spent", "redeem", "reversal"] } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$amount", "$coins"] } } } }
     ]);
     const totalRedeemed = redeemedResult[0]?.total || 0;
 
-    // 3. Active Wallets Count
-    const activeWallets = await BuyCoinWallet.countDocuments({ availableCoins: { $gt: 0 } });
+    // 3. Total Outstanding Coins (Sum of available coins across all wallets)
+    const outstandingResult = await BuyCoinWallet.aggregate([
+      { $group: { _id: null, total: { $sum: "$availableCoins" } } }
+    ]);
+    const totalOutstanding = outstandingResult[0]?.total || 0;
 
-    // 4. Coins Expiring Soon (Next 30 Days)
-    const now = new Date();
-    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    
-    // Find unexpired earn/bonus transactions that will expire within the next 30 days
-    const expiringSoonTxs = await BuyCoinTransaction.find({
-      type: { $in: ["earn", "bonus"] },
-      expiresAt: { $gt: now, $lte: thirtyDaysFromNow }
-    }).lean();
-
-    // Sum of remaining unredeemed coins for those expiring transactions
-    let coinsExpiringSoon = 0;
-    for (const tx of expiringSoonTxs) {
-      // Find total redeemed coins before this transaction's expiry to determine if consumed
-      const userRedeems = await BuyCoinTransaction.aggregate([
-        { $match: { userId: tx.userId, type: "redeem" } },
-        { $group: { _id: null, total: { $sum: "$coins" } } }
-      ]);
-      const totalUserRedeemed = userRedeems[0]?.total || 0;
-
-      // Find sum of all earn/bonus transactions before this one (FIFO order)
-      const priorEarns = await BuyCoinTransaction.aggregate([
-        { $match: { userId: tx.userId, type: { $in: ["earn", "bonus"] }, issuedAt: { $lt: tx.issuedAt } } },
-        { $group: { _id: null, total: { $sum: "$coins" } } }
-      ]);
-      const totalPriorEarned = priorEarns[0]?.total || 0;
-
-      // Calculate how many of tx.coins are already covered by the user's total redemptions
-      const consumedByRedeems = Math.max(0, totalUserRedeemed - totalPriorEarned);
-      const remainingUnredeemed = Math.max(0, tx.coins - consumedByRedeems);
-
-      coinsExpiringSoon += remainingUnredeemed;
-    }
+    // 4. Active Wallets Count
+    const activeWalletsCount = await BuyCoinWallet.countDocuments({ availableCoins: { $gt: 0 } });
 
     // 5. Top Customers by Coins Earned
     const topWallets = await BuyCoinWallet.find()
+      .populate("userId", "name email phone")
       .sort({ lifetimeEarned: -1 })
       .limit(10)
       .lean();
@@ -97,8 +70,8 @@ router.get("/admin/analytics", authMiddleware, adminMiddleware, async (req, res)
       success: true,
       totalIssued,
       totalRedeemed,
-      activeWallets,
-      coinsExpiringSoon,
+      totalOutstanding,
+      activeWallets: activeWalletsCount,
       topWallets
     });
   } catch (error) {
@@ -107,54 +80,64 @@ router.get("/admin/analytics", authMiddleware, adminMiddleware, async (req, res)
   }
 });
 
-// POST /api/buycoins/admin/adjust - Adjust a user's coins manually (Admin Action)
-router.post("/admin/adjust", authMiddleware, adminMiddleware, async (req, res) => {
+// POST /api/buycoins/admin-grant - Grant/Deduct coins to/from a user manually (Admin Action)
+router.post("/admin-grant", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { email, coins, type, reason } = req.body;
+    const { phone, email, amount, description } = req.body;
 
-    if (!email || !coins || !type || !reason) {
-      return res.status(400).json({ success: false, message: "All fields (email, coins, type, reason) are required" });
+    if ((!phone && !email) || amount === undefined || !description) {
+      return res.status(400).json({ success: false, message: "Identifier (phone or email), amount, and description are required" });
     }
 
-    if (!["earn", "redeem", "bonus"].includes(type)) {
-      return res.status(400).json({ success: false, message: "Invalid transaction type" });
+    const query = {};
+    if (phone) {
+      // Find user by phone number
+      const cleanPhone = phone.replace(/\D/g, "");
+      const searchPhone = cleanPhone.length > 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
+      query.phone = { $regex: new RegExp(searchPhone + "$") };
+    } else if (email) {
+      query.email = email.toLowerCase();
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne(query);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const numCoins = Number(coins);
-    if (isNaN(numCoins) || numCoins <= 0) {
-      return res.status(400).json({ success: false, message: "Coins must be a positive number" });
+    const numCoins = Number(amount);
+    if (isNaN(numCoins)) {
+      return res.status(400).json({ success: false, message: "Amount must be a valid number" });
     }
 
-    // For manual redemption (deduct), verify available balance first
-    if (type === "redeem") {
-      // Recalculate to ensure balance is accurate
-      const wallet = await recalculateWallet(user._id, user.email);
-      if (wallet.availableCoins < numCoins) {
+    // Determine type (positive amount is admin grant, negative amount is administrative deduction)
+    const type = numCoins >= 0 ? "admin" : "spent";
+    const absoluteCoins = Math.abs(numCoins);
+
+    // If deduction, verify available balance first
+    if (type === "spent") {
+      const wallet = await recalculateWallet(user._id, user.email || "");
+      if (wallet.availableCoins < absoluteCoins) {
         return res.status(400).json({ success: false, message: `Insufficient coins. User only has ${wallet.availableCoins} available.` });
       }
     }
 
-    // Create adjustment transaction
-    const adjustTx = new BuyCoinTransaction({
+    // Create grant/deduction transaction
+    const grantTx = new BuyCoinTransaction({
       userId: user._id,
-      email: user.email.toLowerCase(),
+      email: user.email || "",
       type,
-      coins: numCoins,
-      source: `manual_adjustment: ${reason}`
+      amount: absoluteCoins,
+      coins: absoluteCoins,
+      description: description
     });
-    await adjustTx.save();
+    await grantTx.save();
 
     // Recalculate wallet
-    const updatedWallet = await recalculateWallet(user._id, user.email);
+    const updatedWallet = await recalculateWallet(user._id, user.email || "");
 
     return res.json({
       success: true,
-      message: `Successfully adjusted coins for ${user.email}`,
+      message: `Successfully adjusted ${numCoins} coins for user ${user.phone || user.email}`,
       wallet: updatedWallet
     });
   } catch (error) {
@@ -163,7 +146,7 @@ router.post("/admin/adjust", authMiddleware, adminMiddleware, async (req, res) =
   }
 });
 
-// GET /api/buycoins/admin/transactions - Get all transactions log
+// GET /api/buycoins/admin/transactions - Get all transactions log (Admin Action)
 router.get("/admin/transactions", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const transactions = await BuyCoinTransaction.find()

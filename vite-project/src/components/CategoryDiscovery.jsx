@@ -91,8 +91,59 @@ const discoverySections = [
   }
 ];
 
+const leftBanners = [
+  {
+    image: "/images/fathers_day_banner.png",
+    alt: "Father's Day Special",
+    link: "/category/grooming"
+  },
+  {
+    image: "/images/tea_time_bakes_banner.png",
+    alt: "Tea Time Bakes",
+    link: "/category/bakery"
+  },
+  {
+    image: "/images/protein_powerup_banner.png",
+    alt: "Protein Powerup",
+    link: "/category/protein-and-supplements"
+  }
+];
+
+const rightBanners = [
+  {
+    image: "/images/monsoon_deals_banner.png",
+    alt: "Monsoon Deals",
+    link: "/category/electronics-appliances"
+  },
+  {
+    image: "/images/furbaby_feasts_banner.png",
+    alt: "Fur-baby Feasts",
+    link: "/category/pet-supplies"
+  },
+  {
+    image: "/images/gentle_baby_must_haves_banner.png",
+    alt: "Gentle Baby Must-Haves",
+    link: "/category/baby-care"
+  }
+];
+
 export default function CategoryDiscovery({ products = [] }) {
   const navigate = useNavigate();
+  const [leftIndex, setLeftIndex] = React.useState(0);
+  const [rightIndex, setRightIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    let toggle = true;
+    const timer = setInterval(() => {
+      if (toggle) {
+        setLeftIndex((prev) => (prev + 1) % leftBanners.length);
+      } else {
+        setRightIndex((prev) => (prev + 1) % rightBanners.length);
+      }
+      toggle = !toggle;
+    }, 3000); // changes one slot every 3 seconds, resulting in a beautiful staggered sliding pattern
+    return () => clearInterval(timer);
+  }, []);
 
   const handleCardClick = (name) => {
     const slug = generateSlug(name);
@@ -104,7 +155,7 @@ export default function CategoryDiscovery({ products = [] }) {
     return discoverySections.map(section => {
       const updatedItems = section.items.map(item => {
         const itemCanonical = canonicalCategory(item.name);
-        
+
         // Find all products matching this item
         const matchingProducts = (products || []).filter(p => {
           const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
@@ -112,8 +163,8 @@ export default function CategoryDiscovery({ products = [] }) {
         });
 
         // First available product image OR fallback to cover image
-        const dynamicImage = (matchingProducts.length > 0 && matchingProducts[0].image) 
-          ? matchingProducts[0].image 
+        const dynamicImage = (matchingProducts.length > 0 && matchingProducts[0].image)
+          ? matchingProducts[0].image
           : item.image;
 
         return {
@@ -166,8 +217,8 @@ export default function CategoryDiscovery({ products = [] }) {
                 <div
                   className="category-discovery-image-wrapper"
                   style={{
-                    background: section.isStore 
-                      ? "linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)" 
+                    background: section.isStore
+                      ? "linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)"
                       : "#f3f4f6"
                   }}
                 >
@@ -187,6 +238,181 @@ export default function CategoryDiscovery({ products = [] }) {
           </div>
         </div>
       ))}
+
+      {/* Dynamic sliding promotion banners: two images in a single row side-by-side */}
+      <div
+        style={{
+          padding: "0 4px",
+          marginTop: "16px",
+          width: "100%",
+          boxSizing: "border-box"
+        }}
+      >
+        <div style={{ display: "flex", gap: "12px", width: "100%" }}>
+          {/* Left Banner Column */}
+          <div
+            style={{
+              flex: 1,
+              position: "relative",
+              borderRadius: "20px",
+              overflow: "hidden",
+              boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
+              aspectRatio: "1.65/1",
+              background: "#f3f4f6",
+              display: "flex",
+              alignItems: "center"
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                width: `${leftBanners.length * 100}%`,
+                height: "100%",
+                transform: `translateX(-${(leftIndex * 100) / leftBanners.length}%)`,
+                transition: "transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
+              }}
+            >
+              {leftBanners.map((slide, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => navigate(slide.link)}
+                  style={{
+                    width: `${100 / leftBanners.length}%`,
+                    height: "100%",
+                    position: "relative",
+                    cursor: "pointer"
+                  }}
+                >
+                  <img
+                    src={slide.image}
+                    alt={slide.alt}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      objectPosition: "center"
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Subtle Dots for Left */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "8px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                gap: "5px",
+                zIndex: 10
+              }}
+            >
+              {leftBanners.map((_, idx) => (
+                <div
+                  key={idx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLeftIndex(idx);
+                  }}
+                  style={{
+                    width: idx === leftIndex ? "12px" : "5px",
+                    height: "5px",
+                    borderRadius: "999px",
+                    background: idx === leftIndex ? "#318616" : "rgba(255, 255, 255, 0.6)",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Right Banner Column */}
+          <div
+            style={{
+              flex: 1,
+              position: "relative",
+              borderRadius: "20px",
+              overflow: "hidden",
+              boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
+              aspectRatio: "1.65/1",
+              background: "#f3f4f6",
+              display: "flex",
+              alignItems: "center"
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                width: `${rightBanners.length * 100}%`,
+                height: "100%",
+                transform: `translateX(-${(rightIndex * 100) / rightBanners.length}%)`,
+                transition: "transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
+              }}
+            >
+              {rightBanners.map((slide, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => navigate(slide.link)}
+                  style={{
+                    width: `${100 / rightBanners.length}%`,
+                    height: "100%",
+                    position: "relative",
+                    cursor: "pointer"
+                  }}
+                >
+                  <img
+                    src={slide.image}
+                    alt={slide.alt}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      objectPosition: "center"
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Subtle Dots for Right */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "8px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                gap: "5px",
+                zIndex: 10
+              }}
+            >
+              {rightBanners.map((_, idx) => (
+                <div
+                  key={idx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRightIndex(idx);
+                  }}
+                  style={{
+                    width: idx === rightIndex ? "12px" : "5px",
+                    height: "5px",
+                    borderRadius: "999px",
+                    background: idx === rightIndex ? "#318616" : "rgba(255, 255, 255, 0.6)",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <style>{`
         .category-discovery-grid {
           display: grid;

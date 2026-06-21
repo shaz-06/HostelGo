@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useContext } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import BuytoLogo from "./BuytoLogo";
 import { AuthContext } from "../../context/AuthContext";
+import { logoPath } from "../../config/branding";
 
 const searchSuggestions = [
   "Fresh Fruits",
@@ -15,7 +16,7 @@ const searchSuggestions = [
 
 export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, onCategoryClick }) => {
   const scrollerRef = React.useRef(null);
-  
+
   if (!displayCats || displayCats.length === 0) return null;
   return (
     <div
@@ -121,40 +122,60 @@ const Header = React.memo(({
   eta = 7,
   displayCats = [],
   selectedCategory = "All",
-  onCategoryClick = () => {}
+  onCategoryClick = () => { }
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const headerGradients = [
+    "linear-gradient(135deg, #edf7e5 0%, #e6f2db 60%, #dceccf 100%)",
+    "linear-gradient(135deg, #fff4e5 0%, #ffe7c7 50%, #ffd08a 100%)",
+  ];
+
+  const [headerGradient] = React.useState(() => {
+    try {
+      const saved = sessionStorage.getItem("buyto-header-gradient");
+      if (saved) return saved;
+      const random = headerGradients[Math.floor(Math.random() * headerGradients.length)];
+      sessionStorage.setItem("buyto-header-gradient", random);
+      return random;
+    } catch (e) {
+      return "linear-gradient(135deg, #edf7e5 0%, #e6f2db 60%, #dceccf 100%)";
+    }
+  });
+
   const { saveForLaterIds } = useContext(AuthContext) || { saveForLaterIds: [] };
   const savedCount = saveForLaterIds ? saveForLaterIds.length : 0;
   const [searchIndex, setSearchIndex] = useState(0);
   const [isListening, setIsListening] = useState(false);
-  const [scrollDirection, setScrollDirection] = useState("up");
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    let lastScrollY = window.scrollY;
     let ticking = false;
+    const handleScroll = (e) => {
+      const target = e.target;
+      const scrollY = target === document || target === window
+        ? (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop)
+        : (target.scrollTop || 0);
 
-    const updateScrollDirection = () => {
-      const scrollY = window.scrollY;
-      if (scrollY <= 10) {
-        setScrollDirection("up");
-      } else if (scrollY > lastScrollY) {
-        setScrollDirection("down");
+      if (scrollY > 50) {
+        setIsCollapsed(true);
+      } else if (scrollY <= 10) {
+        setIsCollapsed(false);
       }
-      lastScrollY = scrollY > 0 ? scrollY : 0;
       ticking = false;
     };
 
-    const onScroll = () => {
+    const onScroll = (e) => {
       if (!ticking) {
-        window.requestAnimationFrame(updateScrollDirection);
+        window.requestAnimationFrame(() => handleScroll(e));
         ticking = true;
       }
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    // Use capture phase (third argument = true) to catch scroll events on scrollable children like #root
+    window.addEventListener("scroll", onScroll, true);
+    return () => window.removeEventListener("scroll", onScroll, true);
   }, []);
 
   // Rotating search suggestion placeholders
@@ -166,8 +187,8 @@ const Header = React.memo(({
   }, []);
 
   const addressText = useMemo(() => {
-    return userLocation 
-      ? `${userLocation}${roomNumber ? `, Room ${roomNumber}` : ""}` 
+    return userLocation
+      ? `${userLocation}${roomNumber ? `, Room ${roomNumber}` : ""}`
       : "Select Delivery Address";
   }, [userLocation, roomNumber]);
 
@@ -207,14 +228,15 @@ const Header = React.memo(({
     recognition.start();
   };
 
-  const isDown = scrollDirection === "down";
+  const isDown = isCollapsed;
   return (
     <div
       style={{
         position: "sticky",
         top: 0,
         zIndex: 1000,
-        background: "#c2e19c", // Light Buyto green background
+        background: headerGradient || "linear-gradient(135deg, #edf7e5 0%, #e6f2db 60%, #dceccf 100%)",
+        boxShadow: "0 2px 12px rgba(49, 134, 22, 0.08)",
         boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
         transform: "translate3d(0, 0, 0)",
         willChange: "transform",
@@ -223,7 +245,7 @@ const Header = React.memo(({
         display: "flex",
         flexDirection: "column",
         gap: isDown ? "0px" : "10px",
-        transition: "padding 0.25s ease, gap 0.25s ease",
+        transition: "padding 300ms cubic-bezier(0.4, 0, 0.2, 1), gap 300ms cubic-bezier(0.4, 0, 0.2, 1)",
         width: "100%",
         maxWidth: "100%",
         overflowX: "hidden",
@@ -236,7 +258,7 @@ const Header = React.memo(({
           display: "flex",
           flexDirection: "column",
           gap: "10px",
-          transition: "max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease, margin-bottom 0.25s ease",
+          transition: "max-height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease, transform 300ms cubic-bezier(0.4, 0, 0.2, 1), margin-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
           maxHeight: isDown ? "0px" : "100px",
           opacity: isDown ? 0 : 1,
           transform: isDown ? "translateY(-30px)" : "translateY(0)",
@@ -258,10 +280,40 @@ const Header = React.memo(({
                   navigate("/");
                 }
               }}
-              style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
             >
-              <span style={{ fontSize: "clamp(15px, 4.8vw, 19px)", fontWeight: "900", letterSpacing: "-0.5px" }}>
-                <span style={{ color: "#f59e0b" }}>Buyto Minutes</span>
+              {/* Desktop/Tablet Logo Image (width >= 768px) */}
+              <img
+                src={logoPath}
+                alt="Buyto Minutes"
+                className="brand-logo-desktop"
+                style={{
+                  height: "36px",
+                  width: "auto",
+                  objectFit: "contain",
+                }}
+              />
+              {/* Mobile Text Branding (width < 768px) */}
+              <span
+                className="brand-text-mobile"
+                style={{
+                  fontWeight: "900",
+                  letterSpacing: "-0.5px",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: "clamp(15px, 4.8vw, 19px)",
+                }}
+              >
+                <span style={{ color: "#f59e0b" }}>Buyto</span>
+                <span
+                  style={{
+                    color: "#318616",
+                    marginLeft: "2px",
+                    fontSize: "0.9em"
+                  }}
+                >
+                  Minutes
+                </span>
               </span>
             </div>
 
@@ -287,7 +339,7 @@ const Header = React.memo(({
 
           {/* Profile/Avatar Circle */}
           <div
-            onClick={() => navigate(isLoggedIn ? "/profile" : "/login")}
+            onClick={() => navigate("/profile")}
             style={{
               width: "36px",
               height: "36px",

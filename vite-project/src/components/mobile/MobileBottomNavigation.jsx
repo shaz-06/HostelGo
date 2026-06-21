@@ -23,7 +23,7 @@ const MobileBottomNavigation = React.memo(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
       const diff = scrollY - lastScrollY;
-      
+
       if (scrollY <= 10) {
         setIsVisible(true);
         lastScrollY = scrollY;
@@ -114,18 +114,19 @@ const MobileBottomNavigation = React.memo(() => {
     }
   ];
 
+
+
   return (
     <div
       style={{
         position: "fixed",
         bottom: "16px",
-        left: "16px",
-        right: "16px",
-        maxWidth: "calc(100vw - 32px)",
-        transform: isVisible ? "translate3d(0, 0, 0)" : "translate3d(0, 150px, 0)",
+        left: "50%",
+        transform: isVisible ? "translate3d(-50%, 0, 0)" : "translate3d(-50%, 150px, 0)",
         opacity: isVisible ? 1 : 0,
         pointerEvents: isVisible ? "auto" : "none",
-        width: "auto",
+        width: "calc(100% - 32px)",
+        maxWidth: "480px",
         height: `${MOBILE_NAV_HEIGHT}px`,
         background: supportsBlur ? "rgba(49, 134, 22, 0.15)" : "rgba(255, 255, 255, 0.92)",
         backdropFilter: supportsBlur ? "blur(20px)" : "none",

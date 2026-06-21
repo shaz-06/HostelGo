@@ -69,7 +69,7 @@ function ProductCard({
 
   const defaultWeight = hasVariants && product.variants[0] ? product.variants[0].weight : "";
   const cartKey = productId + (defaultWeight ? `_${defaultWeight}` : "");
-  
+
   const activeItems = Array.isArray(cartItems) ? cartItems : [];
   const cartItem = activeItems.find(
     (item) =>
@@ -224,7 +224,7 @@ function ProductCard({
             {discountPercentage}% OFF
           </div>
         )}
-        
+
         {/* Upper content section */}
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
           <div style={{ width: "100%", textAlign: "center", background: "#f9fafb", borderRadius: "12px", padding: "8px 0", display: "flex", alignItems: "center", justifyContent: "center", height: "110px" }}>
@@ -424,7 +424,7 @@ function ProductCard({
             )}
           </div>
         </div>
-        
+
         {toastMsg && (
           <>
             <style>{`

@@ -22,16 +22,16 @@ const config: CapacitorConfig = {
   appId: 'com.buyto.app',
   appName: 'Buyto',
   webDir: 'dist',
-  backgroundColor: '#f7a80a',
+  backgroundColor: '#ffffff',
   server: isLiveReload ? {
     url: `http://${getLocalIPAddress()}:5175`,
     cleartext: true
   } : undefined,
   plugins: {
     SplashScreen: {
-      launchShowDuration: 0,
+      launchShowDuration: 30000,
       launchAutoHide: false,
-      backgroundColor: '#f7a80a',
+      backgroundColor: '#ffffff',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,

@@ -245,7 +245,7 @@ export default function PaymentPage({
           },
           body: JSON.stringify({
             user: {
-              name: user.name || "Guest User",
+              name: user.name || "Customer",
               phone: user.phone || "0000000000",
               location: user.location || "Central Address",
               room: String(user.room || user.roomNumber || "")
@@ -316,7 +316,7 @@ export default function PaymentPage({
           body: JSON.stringify({
             amount: total,
             user: {
-              name: user.name || "Guest User",
+              name: user.name || "Customer",
               phone: user.phone || "0000000000",
               location: user.location || "Central Address",
               room: String(user.room || user.roomNumber || "")
@@ -469,7 +469,7 @@ export default function PaymentPage({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: user.name || "Guest User",
+          name: user.name || "Customer",
           email: waitlistEmail,
           phone: user.phone || "0000000000",
           address: user.location || "Central Address",
@@ -911,8 +911,8 @@ export default function PaymentPage({
                 </span>
                 <button
                   type="button"
-                  disabled={coinsToRedeem >= Math.min(userCoins, 20)}
-                  onClick={() => setCoinsToRedeem(prev => Math.min(Math.min(userCoins, 20), prev + 1))}
+                  disabled={coinsToRedeem >= Math.min(userCoins, Math.floor(subtotal * 0.20))}
+                  onClick={() => setCoinsToRedeem(prev => Math.min(Math.min(userCoins, Math.floor(subtotal * 0.20)), prev + 1))}
                   style={{
                     border: "1px solid #cbd5e1",
                     borderRadius: "8px",
@@ -924,7 +924,7 @@ export default function PaymentPage({
                     justifyContent: "center",
                     fontSize: "16px",
                     fontWeight: "700",
-                    cursor: coinsToRedeem >= Math.min(userCoins, 20) ? "not-allowed" : "pointer",
+                    cursor: coinsToRedeem >= Math.min(userCoins, Math.floor(subtotal * 0.20)) ? "not-allowed" : "pointer",
                     color: "#334155"
                   }}
                 >
@@ -945,7 +945,7 @@ export default function PaymentPage({
                   border: "1px solid rgba(22, 163, 74, 0.2)"
                 }}
               >
-                🎉 Redeeming ₹{billBreakdown.buyCoinsDiscount} discount! (Max 20 coins per order)
+                🎉 Redeeming ₹{billBreakdown.buyCoinsDiscount} discount! (Max 20% of subtotal: {Math.floor(subtotal * 0.20)} coins)
               </div>
             )}
           </div>

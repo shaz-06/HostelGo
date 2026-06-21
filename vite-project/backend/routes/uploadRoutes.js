@@ -53,7 +53,10 @@ router.post("/", upload.single("image"), async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Cloudinary Upload Error:", error);
+        console.log("========== ERROR START ==========");
+        console.log(error);
+        console.log(error.message);
+        console.log("========== ERROR END ==========");
 
         return res.status(500).json({
             success: false,

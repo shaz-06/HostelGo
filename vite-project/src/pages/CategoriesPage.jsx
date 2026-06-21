@@ -94,12 +94,12 @@ export default function CategoriesPage() {
 
   return (
     <div
+      className="page-with-bottom-nav"
       style={{
         minHeight: "100vh",
         background: "transparent",
         fontFamily: "'Outfit', 'Inter', sans-serif",
         boxSizing: "border-box",
-        paddingBottom: "80px",
       }}
     >
       {/* Sticky Header */}

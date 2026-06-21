@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -44,6 +45,7 @@ const ADDRESS_PRESETS = [
 ];
 
 export default function AddressSelectorModal({ onClose, onSelectAddress, isLoggedIn }) {
+  const { openLogin } = useContext(AuthContext);
   const [addresses, setAddresses] = useState([]);
   const [recentAddresses, setRecentAddresses] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -340,6 +342,10 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
   // Form submission: save address
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (!isLoggedIn) {
+      openLogin();
+      return;
+    }
     if (!addressForm.latitude || !addressForm.longitude) {
       alert("Please select and confirm a location on the map first.");
       return;

@@ -103,8 +103,8 @@ router.post("/signup", async (req, res) => {
 
   } catch (error) {
     console.error("❌ Signup Exception:", error);
-    return res.status(500).json({ 
-      message: "Signup failed", 
+    return res.status(500).json({
+      message: "Signup failed",
       error: error.message,
       stack: error.stack
     });
@@ -160,8 +160,8 @@ router.post("/login", async (req, res) => {
 
   } catch (error) {
     console.error("❌ Login Exception:", error);
-    return res.status(500).json({ 
-      message: "Login failed", 
+    return res.status(500).json({
+      message: "Login failed",
       error: error.message,
       stack: error.stack
     });
@@ -272,9 +272,9 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Earth radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -382,7 +382,7 @@ router.put("/shopping-lists/:listId", authMiddleware, async (req, res) => {
     }
     if (name !== undefined) req.user.savedLists[listIndex].name = name;
     if (items !== undefined) req.user.savedLists[listIndex].items = items;
-    
+
     await req.user.save();
     return res.status(200).json({ success: true, savedLists: req.user.savedLists, list: req.user.savedLists[listIndex] });
   } catch (error) {
@@ -394,11 +394,96 @@ router.put("/shopping-lists/:listId", authMiddleware, async (req, res) => {
 router.delete("/shopping-lists/:listId", authMiddleware, async (req, res) => {
   try {
     const { listId } = req.params;
-    req.user.savedLists = req.user.savedLists.filter(l => String(l._id) !== String(listId));
-    await req.user.save();
-    return res.status(200).json({ success: true, savedLists: req.user.savedLists });
+// POST /api/auth/firebase-login
+router.post("/firebase-login", async (req, res) => {
+  console.log("=== [FIREBASE LOGIN] ===");
+  console.log("Body:", JSON.stringify(req.body, null, 2));
+
+  try {
+    const { firebaseUid, phoneNumber, email } = req.body;
+
+    if (!phoneNumber) {
+      console.error("❌ Firebase Login Error: Missing phone number");
+      return res.status(400).json({ message: "Phone number is required" });
+    }
+
+    // Clean phone number (keep only digits)
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    // Support formats with or without country code
+    const searchPhone = cleanPhone.length > 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
+
+    // Search by matching last 10 digits to be flexible
+    let user = await User.findOne({ 
+      phone: { $regex: new RegExp(searchPhone + "$") }
+    });
+
+    if (!user) {
+      console.log(`Creating new account for phone: ${phoneNumber}`);
+      user = new User({
+        name: "Instamart User",
+        phone: phoneNumber,
+        email: email || undefined,
+        role: "customer"
+      });
+      await user.save();
+    } else {
+      console.log(`Logging in existing user: ${user._id}`);
+      // Optionally update email if provided and not set
+      if (email && !user.email) {
+        user.email = email;
+        await user.save();
+      }
+    }
+
+    // Crediting welcome bonus for newly registered users or if not already given
+    if (!user.welcomeBonusGiven) {
+      console.log(`Crediting welcome bonus for user ${user._id}`);
+      user.welcomeBonusGiven = true;
+      user.buyCoins = (user.buyCoins || 0) + 20;
+      user.totalBuyCoinsEarned = (user.totalBuyCoinsEarned || 0) + 20;
+      await user.save();
+
+      const BuyCoinTransaction = require("../models/BuyCoinTransaction");
+      const bonusTx = new BuyCoinTransaction({
+        userId: user._id,
+        email: user.email || "",
+        type: "bonus",
+        amount: 20,
+        coins: 20,
+        description: "Welcome Bonus"
+      });
+      await bonusTx.save();
+
+      const { recalculateWallet } = require("../utils/rewards");
+      await recalculateWallet(user._id, user.email || "");
+    }
+
+    // Generate JWT token
+    const token = generateToken(user._id, user.email || "", user.role);
+
+    console.log("=== [FIREBASE LOGIN SUCCESS] ===");
+    console.log("Token generated:", token);
+
+    return res.status(200).json({
+      success: true,
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email || "",
+        phone: user.phone,
+        role: user.role,
+        addresses: user.addresses
+      }
+    });
+
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Failed to delete shopping list", error: error.message });
+    console.error("❌ Firebase Login Exception:", error);
+    return res.status(500).json({
+      message: "Firebase login failed",
+      error: error.message,
+      stack: error.stack
+    });
   }
 });
 

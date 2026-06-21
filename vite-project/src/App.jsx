@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useMemo, useRef, useCallback, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 import { BRANDING } from "./config/branding";
 import BuytoLogo from "./components/common/BuytoLogo";
@@ -11,6 +11,7 @@ import AdminRoute from "./components/AdminRoute";
 import RiderProtectedRoute from "./components/RiderProtectedRoute";
 import CategoryDiscovery from "./components/CategoryDiscovery";
 import PromoBannerCarousel from "./components/PromoBannerCarousel";
+import DynamicNewBanners from "./components/DynamicNewBanners";
 import { classifyProduct, canonicalCategory } from "./utils/productClassifier";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import { io } from "socket.io-client";
@@ -29,16 +30,18 @@ import TrendingThisWeek from "./components/TrendingThisWeek";
 import MobileBannerCarousel from "./components/mobile/MobileBannerCarousel";
 import Header, { CategoryStrip } from "./components/common/Header";
 import { requestPermissions, registerDevice, registerListeners } from "./services/pushNotifications";
+import ProductCard from "./ProductCard";
+import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
 
 // Lazy-loaded components & pages
 const AddressSelectorModal = lazy(() => import("./components/common/AddressSelectorModal"));
-const SignupPage = lazy(() => import("./pages/SignupPage"));
+const OtpTestScreen = lazy(() => import("./pages/OtpTestScreen"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const UserDetails = lazy(() => import("./pages/UserDetails"));
-const LoginPage = lazy(() => import("./pages/LoginPage"));
 const PaymentPage = lazy(() => import("./pages/PaymentPage"));
 const SuccessPage = lazy(() => import("./pages/SuccessPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const WalletPage = lazy(() => import("./pages/WalletPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
 const SectionProductsPage = lazy(() => import("./pages/SectionProductsPage"));
@@ -143,6 +146,7 @@ const getSectionIdForTitle = (title) => {
 };
 import MobileHome from "./components/mobile/MobileHome";
 import MobileBottomNavigation from "./components/mobile/MobileBottomNavigation";
+import FloatingCartPopup from "./components/common/FloatingCartPopup";
 import { MOBILE_NAV_TOTAL_OFFSET } from "./constants/layoutConstants";
 
 const destinationIcon = new L.DivIcon({
@@ -439,12 +443,20 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [splashFade, setSplashFade] = useState(false);
   const [appReady, setAppReady] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
+    const img = new Image();
+    img.src = "/images/splash/new_splash.jpg";
+    img.onload = () => setImageLoaded(true);
+    img.onerror = () => setImageLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (imageLoaded && Capacitor.isNativePlatform()) {
       SplashScreen.hide().catch((err) => console.warn("Native SplashScreen.hide failed:", err));
     }
-  }, []);
+  }, [imageLoaded]);
 
   useEffect(() => {
     if (!appReady) return;
@@ -477,280 +489,101 @@ function App() {
               transition: "opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1)",
             }}
           >
-            {/* The main relative 1024x1024 canvas wrapper */}
-            <div className="splash-canvas">
-
-              {/* Slogan Main */}
-              <img src="/images/splash/slogan_main.png" className="splash-slogan-main" alt="Buy Smart Delivered Fast" />
-
-              {/* Slogan Sub */}
-              <img src="/images/splash/slogan_sub.png" className="splash-slogan-sub" alt="Your One-Stop Online Store" />
-
-              {/* Buyto Cart (B logo) */}
-              <img src="/images/splash/cart_b.png" className="splash-cart-b" alt="Buyto Cart" />
-
-              {/* Scooter Wrapper (to hold wheels relative to body) */}
-              <div className="splash-scooter-container">
-                <img src="/images/splash/scooter_no_wheels.png" className="splash-scooter-body" alt="Scooter Body" />
-                <img src="/images/splash/wheel_front.png" className="splash-wheel-front" alt="Front Wheel" />
-                <img src="/images/splash/wheel_back.png" className="splash-wheel-back" alt="Back Wheel" />
-              </div>
-
-              {/* Shopping Bag */}
-              <img src="/images/splash/shopping_bag.png" className="splash-shopping-bag" alt="Shopping Bag" />
-
-              {/* Mobile Phone */}
-              <img src="/images/splash/phone.png" className="splash-phone" alt="Mobile Phone" />
+            <div className="splash-brand">
+              <span className="buy">Buy</span>
+              <span className="to">to</span>
             </div>
 
-            {/* Bottom Trust Badges */}
-            <div className="splash-badges">
-              <img src="/images/splash/badge_secure.png" className="splash-badge badge-1" alt="100% Secure" />
-              <img src="/images/splash/badge_quality.png" className="splash-badge badge-2" alt="Best Quality" />
-              <img src="/images/splash/badge_delivery.png" className="splash-badge badge-3" alt="Fast Delivery" />
-              <img src="/images/splash/badge_support.png" className="splash-badge badge-4" alt="24/7 Support" />
-            </div>
+            <img
+              src="/images/splash/new_splash.jpg"
+              className="splash-image"
+              alt="Buyto Splash Screen"
+            />
 
             <style>{`
               .splash-bg {
                 position: fixed;
                 inset: 0;
-                background: radial-gradient(circle, #fbc607 0%, #f7a80a 100%);
+                background: linear-gradient(
+                  180deg,
+                  #ffffff 0%,
+                  #fffdf5 25%,
+                  #fff3cf 65%,
+                  #ffe59a 100%
+                );
                 display: flex;
                 flex-direction: column;
-                justify-content: center;
+                justify-content: flex-start;
                 align-items: center;
+                height: 100vh;
+                width: 100%;
+                overflow: hidden;
                 z-index: 999999;
                 user-select: none;
-                overflow: hidden;
                 will-change: opacity;
               }
 
-              .splash-canvas {
-                position: relative;
-                width: 90vw;
-                max-width: 500px;
-                aspect-ratio: 1;
+              .splash-brand {
+                text-align: center;
+                margin-top: 48px;
+                font-size: 42px;
+                font-weight: 900;
+                font-family: 'Outfit', sans-serif;
+                letter-spacing: -1px;
+                animation: fadeIn 800ms ease;
+                z-index: 1000000;
               }
 
-              .splash-slogan-main {
+              .splash-brand .buy {
+                color: #f59e0b;
+              }
+
+              .splash-brand .to {
+                color: #318616;
+              }
+
+              .splash-image {
                 position: absolute;
-                left: 17.6%;
-                top: 3.2%;
-                width: 64.5%;
-                opacity: 0;
-                transform: translate3d(0, 15px, 0) scale(0.95);
-                animation: sloganReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-                animation-delay: 1.8s;
-                will-change: transform, opacity;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100vw;
+                max-width: none;
+                height: auto;
+                object-fit: cover;
+                animation: splashZoom 1000ms ease;
+                transform-origin: bottom center;
               }
 
-              .splash-slogan-sub {
-                position: absolute;
-                left: 27.3%;
-                top: 17.1%;
-                width: 46.9%;
-                opacity: 0;
-                transform: translate3d(0, 10px, 0) scale(0.95);
-                animation: sloganReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-                animation-delay: 2.1s;
-                will-change: transform, opacity;
+              @media (min-width: 768px) {
+                .splash-image {
+                  width: 100%;
+                  max-width: 800px;
+                  margin: 0 auto;
+                  left: 0;
+                  right: 0;
+                  height: 70vh;
+                  object-fit: contain;
+                }
               }
 
-              .splash-cart-b {
-                position: absolute;
-                left: 19.5%;
-                top: 23.4%;
-                width: 60.5%;
-                transform: translate3d(-200%, 0, 0);
-                animation: cartEnter 0.8s cubic-bezier(0.25, 1.1, 0.5, 1.1) forwards, pulseCart 3s infinite ease-in-out;
-                animation-delay: 0.6s, 2.8s;
-                will-change: transform;
-              }
-
-              .splash-scooter-container {
-                position: absolute;
-                left: 5.8%;
-                top: 42%;
-                width: 38.1%;
-                aspect-ratio: 0.85; /* width 390, height 460 */
-                transform: translate3d(250%, 0, 0);
-                animation: scooterEnter 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-                animation-delay: 0.2s;
-                will-change: transform, filter;
-              }
-
-              .splash-scooter-body {
-                position: absolute;
-                inset: 0;
-                width: 100%;
-                height: 100%;
-                object-fit: contain;
-              }
-
-              .splash-wheel-front {
-                position: absolute;
-                left: 22%;
-                top: 80.4%;
-                width: 30.2%;
-                transform: translate(-50%, -50%);
-                transform-origin: center;
-                animation: wheelRotate 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-                animation-delay: 0.2s;
-                will-change: transform;
-              }
-
-              .splash-wheel-back {
-                position: absolute;
-                left: 79.5%;
-                top: 75%;
-                width: 20.5%;
-                transform: translate(-50%, -50%);
-                transform-origin: center;
-                animation: wheelRotate 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-                animation-delay: 0.2s;
-                will-change: transform;
-              }
-
-              .splash-shopping-bag {
-                position: absolute;
-                left: 56.6%;
-                top: 58.6%;
-                width: 21.5%;
-                transform: translate3d(0, -250%, 0);
-                animation: bagEnter 0.7s cubic-bezier(0.25, 1.25, 0.5, 1.25) forwards;
-                animation-delay: 1.0s;
-                will-change: transform;
-              }
-
-              .splash-phone {
-                position: absolute;
-                left: 71.8%;
-                top: 42%;
-                width: 21.5%;
-                transform: translate3d(0, 200%, 0);
-                animation: phoneEnter 0.7s cubic-bezier(0.25, 1, 0.5, 1.1) forwards;
-                animation-delay: 1.3s;
-                will-change: transform;
-              }
-
-              .splash-badges {
-                position: absolute;
-                bottom: 6%;
-                left: 5%;
-                right: 5%;
-                display: flex;
-                justify-content: space-around;
-                align-items: center;
-                gap: 12px;
-              }
-
-              .splash-badge {
-                height: 38px;
-                object-fit: contain;
-                opacity: 0;
-                transform: translate3d(0, 15px, 0);
-                animation: badgeReveal 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-                will-change: transform, opacity;
-              }
-
-              .splash-badge.badge-1 { animation-delay: 2.4s; }
-              .splash-badge.badge-2 { animation-delay: 2.5s; }
-              .splash-badge.badge-3 { animation-delay: 2.6s; }
-              .splash-badge.badge-4 { animation-delay: 2.7s; }
-
-              /* Animation Keyframes */
-              @keyframes sloganReveal {
-                0% {
+              @keyframes fadeIn {
+                from {
                   opacity: 0;
-                  transform: translate3d(0, 15px, 0) scale(0.95);
                 }
-                100% {
+                to {
                   opacity: 1;
-                  transform: translate3d(0, 0, 0) scale(1);
                 }
               }
 
-              @keyframes badgeReveal {
-                0% {
+              @keyframes splashZoom {
+                from {
+                  transform: scale(0.95);
                   opacity: 0;
-                  transform: translate3d(0, 15px, 0);
                 }
-                100% {
-                  opacity: 1;
-                  transform: translate3d(0, 0, 0);
-                }
-              }
-
-              @keyframes cartEnter {
-                0% {
-                  transform: translate3d(-200%, 0, 0) scale(0.9);
-                }
-                60% {
-                  transform: translate3d(5%, 0, 0) scale(1.02);
-                }
-                80% {
-                  transform: translate3d(-2%, 0, 0) scale(0.99);
-                }
-                100% {
-                  transform: translate3d(0, 0, 0) scale(1);
-                }
-              }
-
-              @keyframes pulseCart {
-                0%, 100% {
+                to {
                   transform: scale(1);
-                }
-                50% {
-                  transform: scale(1.02);
-                }
-              }
-
-              @keyframes scooterEnter {
-                0% {
-                  transform: translate3d(250%, 0, 0);
-                  filter: blur(8px);
-                }
-                75% {
-                  transform: translate3d(-8%, 0, 0);
-                  filter: blur(2px);
-                }
-                100% {
-                  transform: translate3d(0, 0, 0);
-                  filter: blur(0px);
-                }
-              }
-
-              @keyframes wheelRotate {
-                0% {
-                  transform: translate(-50%, -50%) rotate(0deg);
-                }
-                100% {
-                  transform: translate(-50%, -50%) rotate(-1080deg);
-                }
-              }
-
-              @keyframes bagEnter {
-                0% {
-                  transform: translate3d(0, -250%, 0) scaleY(1.2);
-                }
-                65% {
-                  transform: translate3d(0, 6%, 0) scaleY(0.85);
-                }
-                85% {
-                  transform: translate3d(0, -2%, 0) scaleY(1.02);
-                }
-                100% {
-                  transform: translate3d(0, 0, 0) scaleY(1);
-                }
-              }
-
-              @keyframes phoneEnter {
-                0% {
-                  transform: translate3d(0, 200%, 0);
-                }
-                100% {
-                  transform: translate3d(0, 0, 0);
+                  opacity: 1;
                 }
               }
             `}</style>
@@ -795,6 +628,8 @@ function AppContent({ onReady }) {
   const FREE_DELIVERY_THRESHOLD = 99;
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, token, logout, syncFCMToken } = useContext(AuthContext);
+  const isLoggedIn = !!user && !user.isGuest;
   const [products, setProducts] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -826,11 +661,32 @@ function AppContent({ onReady }) {
     return acc;
   }, {});
 
-  // Sync cartItems state with localStorage
+  const [pushToast, setPushToast] = useState({ title: "", body: "", deepLink: null, visible: false });
+
+  // Sync cartItems state with localStorage & sync with backend
   useEffect(() => {
     localStorage.setItem("buyto_cart", JSON.stringify(cartItems));
     localStorage.setItem("cart", JSON.stringify(cartItems));
-  }, [cartItems]);
+
+    if (token) {
+      const delayDebounce = setTimeout(async () => {
+        try {
+          await fetch(window.API_BASE_URL + "/api/users/cart-activity", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ hasItems: cartItems.length > 0 })
+          });
+        } catch (err) {
+          console.error("Failed to sync cart activity to backend:", err);
+        }
+      }, 2000);
+
+      return () => clearTimeout(delayDebounce);
+    }
+  }, [cartItems, token]);
 
   // Sync cartItems state from localStorage custom events (e.g. from SectionPages)
   useEffect(() => {
@@ -866,7 +722,23 @@ function AppContent({ onReady }) {
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get("q") || "";
+  const setSearchQuery = (val) => {
+    if (val) {
+      if (location.pathname !== "/search") {
+        navigate(`/search?q=${encodeURIComponent(val)}`, { replace: true });
+      } else {
+        setSearchParams({ q: val });
+      }
+    } else {
+      if (location.pathname === "/search") {
+        navigate("/");
+      } else {
+        setSearchParams({});
+      }
+    }
+  };
   const [activeMobileTab, setActiveMobileTab] = useState("home");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [categories, setCategories] = useState([
@@ -1063,41 +935,68 @@ function AppContent({ onReady }) {
     };
   }, [location.pathname, products]);
 
-  const { user, token, logout, syncFCMToken } = useContext(AuthContext);
-  const isLoggedIn = !!user;
+
 
   // Set up Firebase Push Notifications at app startup
   useEffect(() => {
+    console.log("App mounted");
+    console.log("Initializing push notifications");
     const initPushNotifications = async () => {
-      // 1. Register event listeners for notifications & clicks
-      registerListeners(
-        (fcmTokenValue) => {
-          console.log("[App Push] FCM Token received:", fcmTokenValue);
-          // Sync with backend immediately if the user is already logged in
-          if (token) {
-            syncFCMToken(token);
-          }
-        },
-        (notification) => {
-          console.log("[App Push] Received push notification in foreground:", notification);
-        },
-        (notification) => {
-          console.log("[App Push] Action performed (notification clicked):", notification);
-          // Navigate to Notifications page
-          navigate("/notifications");
+      try {
+        if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable("PushNotifications")) {
+          console.warn("[App Push] PushNotifications plugin unavailable");
+          return;
         }
-      );
 
-      // 2. Request permissions
-      const granted = await requestPermissions();
-      if (granted) {
-        // 3. Register device if permission granted
-        await registerDevice();
+        // 1. Register event listeners for notifications & clicks
+        registerListeners(
+          (fcmTokenValue) => {
+            console.log("[App Push] FCM Token received:", fcmTokenValue);
+            if (token) {
+              syncFCMToken(token);
+            }
+          },
+          (notification) => {
+            console.log("[App Push] Received push notification in foreground:", notification);
+            setPushToast({
+              title: notification.title || "New Notification",
+              body: notification.body || "",
+              deepLink: notification.data?.deepLink || (notification.data?.type === "ORDER" ? `/orders/${notification.data.orderId}` : null),
+              visible: true
+            });
+            setTimeout(() => {
+              setPushToast(prev => ({ ...prev, visible: false }));
+            }, 6000);
+          },
+          (notification) => {
+            try {
+              console.log("[App Push] Action performed (notification clicked):", notification);
+              const data = notification.data || {};
+              const deepLink = data.deepLink || (data.type === "ORDER" && data.orderId ? `/orders/${data.orderId}` : null);
+              if (navigate && deepLink) {
+                navigate(deepLink);
+              } else if (navigate) {
+                navigate("/notifications");
+              }
+            } catch (err) {
+              console.error("[App Push] Error handling notification action click:", err);
+            }
+          }
+        );
+
+        // 2. Request permissions
+        const granted = await requestPermissions();
+        if (granted) {
+          // 3. Register device if permission granted
+          await registerDevice();
+        }
+      } catch (err) {
+        console.error("Startup crash in push notification setup:", err);
       }
     };
 
     initPushNotifications();
-  }, [token]);
+  }, [token, navigate]);
 
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
@@ -1707,7 +1606,190 @@ function AppContent({ onReady }) {
     ) {
       return "#ffffff";
     }
-    return "linear-gradient(180deg, rgba(46, 125, 50, 0.08) 0%, rgba(76, 175, 80, 0.04) 15%, rgba(245, 255, 245, 0.55) 50%, #ffffff 100%)";
+    return "#f7f8fa";
+  };
+
+  const wrapCustomerLayout = (element, showHeader = true) => {
+    return (
+      <div style={{
+        background: getAppBackground(),
+        minHeight: "100vh",
+        fontFamily: windowWidth < 768 ? "'Outfit', 'Inter', sans-serif" : "Inter, system-ui, sans-serif",
+        width: "100%",
+        maxWidth: "100%",
+        overflowX: "hidden",
+        position: "relative",
+        boxSizing: "border-box"
+      }}>
+        {showHeader && (
+          <Header
+            userLocation={userLocation}
+            roomNumber={roomNumber}
+            totalItems={totalItems}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            isLoggedIn={isLoggedIn}
+            onOpenAddressModal={() => setShowAddressModal(true)}
+            eta={7}
+            displayCats={memoizedDisplayCats}
+            selectedCategory={selectedCategory}
+            onCategoryClick={handleCategoryClick}
+          />
+        )}
+        <div style={{
+          paddingBottom: "140px",
+          boxSizing: "border-box",
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "hidden"
+        }}>
+          {element}
+        </div>
+        <FloatingCartPopup totalItems={totalItems} totalPrice={totalPrice} />
+        <MobileBottomNavigation />
+
+        {/* STEP 4 — POPUP SELECTOR FOR MULTI-VARIANT PRODUCTS */}
+        {selectedProduct && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 999,
+            }}
+            onClick={() => setSelectedProduct(null)}
+          >
+            <div
+              style={{
+                width: "500px",
+                background: "white",
+                borderRadius: "20px",
+                padding: "20px",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-xl font-extrabold text-gray-800 mb-2">
+                {selectedProduct.name}
+              </h2>
+              <p className="text-gray-400 text-sm mb-4">
+                Select a weight variant to add to your cart:
+              </p>
+
+              <div style={{ marginTop: "20px" }}>
+                {selectedProduct.variants.map((variant, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "15px 0",
+                      borderBottom: "1px solid #eee",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "15px",
+                        alignItems: "center",
+                      }}
+                    >
+                      <img
+                        src={selectedProduct.image}
+                        alt=""
+                        style={{
+                          width: "70px",
+                          height: "70px",
+                          objectFit: "cover",
+                          borderRadius: "10px",
+                        }}
+                      />
+
+                      <div>
+                        <h3 className="font-extrabold text-gray-800 text-base">
+                          {variant.weight}
+                        </h3>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            alignItems: "center",
+                          }}
+                        >
+                          <s style={{ color: "gray", fontSize: "14px" }}>
+                            ₹{variant.originalPrice}
+                          </s>
+                          <b className="text-gray-900 text-base">
+                            ₹{variant.price}
+                          </b>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        addToCart({
+                          ...selectedProduct,
+                          selectedWeight: variant.weight,
+                          price: variant.price,
+                        });
+                        setSelectedProduct(null);
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
+                      style={{
+                        background: "#318616",
+                        color: "white",
+                        border: "none",
+                        padding: "10px 20px",
+                        borderRadius: "10px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      ADD
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* GLOBAL COUPON CELEBRATION MODAL */}
+        {appliedCouponCelebration && (
+          <CouponCelebrationModal
+            coupon={appliedCouponCelebration}
+            onClose={() => setAppliedCouponCelebration(null)}
+          />
+        )}
+
+        {/* LAZY LOADED ADDRESS SELECTOR MODAL */}
+        {showAddressModal && (
+          <Suspense fallback={null}>
+            <AddressSelectorModal
+              isLoggedIn={isLoggedIn}
+              onClose={() => setShowAddressModal(false)}
+              onSelectAddress={(addr) => {
+                const addressLineText = addr.addressLine + (addr.landmark ? `, ${addr.landmark}` : "");
+                localStorage.setItem("userLocation", addressLineText);
+                localStorage.setItem("roomNumber", addr.roomNumber || "");
+                localStorage.setItem("buyto_selected_address_id", addr._id);
+                setUserLocation(addressLineText);
+                setRoomNumber(addr.roomNumber || "");
+                setShowAddressModal(false);
+              }}
+            />
+          </Suspense>
+        )}
+        <OtpLoginBottomSheet />
+      </div>
+    );
   };
 
   if (location.pathname === "/admin") {
@@ -1766,12 +1848,10 @@ function AppContent({ onReady }) {
     );
   }
 
-  if (location.pathname === "/login") {
-    return <LoginPage />;
-  }
 
-  if (location.pathname === "/signup") {
-    return <SignupPage />;
+
+  if (location.pathname === "/otp-test") {
+    return <OtpTestScreen />;
   }
 
   if (location.pathname === "/details") {
@@ -1827,101 +1907,57 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/profile" || location.pathname === "/my-orders") {
-    const el = (
+    return wrapCustomerLayout(
       <ProtectedRoute>
         <ProfilePage />
       </ProtectedRoute>
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
+  }
+
+  if (location.pathname === "/wallet") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <WalletPage />
+      </ProtectedRoute>
+    );
   }
 
   if (location.pathname === "/notifications") {
-    const el = (
+    return wrapCustomerLayout(
       <ProtectedRoute>
         <NotificationsPage />
       </ProtectedRoute>
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (location.pathname === "/categories") {
-    const el = <CategoriesPage />;
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
+    return wrapCustomerLayout(<CategoriesPage />);
   }
 
   if (location.pathname === "/help") {
-    const el = <HelpPage />;
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
+    return wrapCustomerLayout(<HelpPage />);
   }
 
   if (location.pathname === "/about") {
-    const el = (
+    return wrapCustomerLayout(
       <>
         <AboutPage />
         <Footer />
       </>
     );
-
-    if (windowWidth < 768) {
-      return (
-        <div
-          style={{
-            minHeight: "100vh",
-            paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px`
-          }}
-        >
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-
-    return el;
   }
 
   if (location.pathname === "/contact") {
-    return (
+    return wrapCustomerLayout(
       <>
         <ContactPage />
         <Footer />
       </>
-    )
-  };
+    );
+  }
 
   if (location.pathname === "/privacy-policy") {
-    return (
+    return wrapCustomerLayout(
       <>
         <PrivacyPolicyPage />
         <Footer />
@@ -1930,7 +1966,7 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/terms") {
-    return (
+    return wrapCustomerLayout(
       <>
         <TermsPage />
         <Footer />
@@ -1939,7 +1975,7 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/refund-policy") {
-    return (
+    return wrapCustomerLayout(
       <>
         <RefundPolicyPage />
         <Footer />
@@ -1948,7 +1984,7 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/shipping-policy") {
-    return (
+    return wrapCustomerLayout(
       <>
         <ShippingPolicyPage />
         <Footer />
@@ -1957,7 +1993,7 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/faq") {
-    return (
+    return wrapCustomerLayout(
       <>
         <FAQPage />
         <Footer />
@@ -1966,24 +2002,15 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/support/chat") {
-    const el = (
+    return wrapCustomerLayout(
       <ProtectedRoute>
         <SupportChatPage />
       </ProtectedRoute>
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (location.pathname.startsWith("/section/")) {
-    const el = (
+    return wrapCustomerLayout(
       <SectionProductsPage
         cart={cart}
         setCart={setCart}
@@ -1993,19 +2020,10 @@ function AppContent({ onReady }) {
         removeFromCart={removeFromCart}
       />
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (location.pathname === "/shopping-list") {
-    const el = (
+    return wrapCustomerLayout(
       <ShoppingListPage
         products={products}
         token={token}
@@ -2016,19 +2034,10 @@ function AppContent({ onReady }) {
         setCartItems={setCartItems}
       />
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (location.pathname === "/shopping-list/results") {
-    const el = (
+    return wrapCustomerLayout(
       <ShoppingListResultsPage
         products={products}
         addToCart={addToCart}
@@ -2039,19 +2048,10 @@ function AppContent({ onReady }) {
         setCart={setCart}
       />
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (location.pathname === "/shopping-list/smart-matching") {
-    const el = (
+    return wrapCustomerLayout(
       <SmartMatchingPage
         addToCart={addToCart}
         removeFromCart={removeFromCart}
@@ -2059,19 +2059,10 @@ function AppContent({ onReady }) {
         setCartItems={setCartItems}
       />
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (location.pathname === "/save-for-later") {
-    const el = (
+    return wrapCustomerLayout(
       <SaveForLaterPage
         products={products}
         addToCart={addToCart}
@@ -2083,36 +2074,18 @@ function AppContent({ onReady }) {
         setSelectedProduct={setSelectedProduct}
       />
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (location.pathname === "/saved-lists") {
-    const el = (
+    return wrapCustomerLayout(
       <ProtectedRoute>
         <SavedListsPage />
       </ProtectedRoute>
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (location.pathname === "/cart") {
-    const el = (
+    return wrapCustomerLayout(
       <CartPage
         cartItems={computedCartItems}
         increaseQty={increaseQty}
@@ -2128,25 +2101,16 @@ function AppContent({ onReady }) {
         addToCart={addToCart}
       />
     );
-    if (windowWidth < 768) {
-      return (
-        <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-          {el}
-          <MobileBottomNavigation />
-        </div>
-      );
-    }
-    return el;
   }
 
   if (windowWidth < 768) {
-    return (
-      <div style={{ background: getAppBackground(), minHeight: "100vh", fontFamily: "'Outfit', 'Inter', sans-serif", width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+    return wrapCustomerLayout(
+      <div style={{ background: getAppBackground(), width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
         <Routes>
           <Route
             path="/category/:slug"
             element={
-              <div style={{ paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
+              <div>
                 <div style={{ position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
                   <CategoryStrip
                     displayCats={memoizedDisplayCats}
@@ -2168,133 +2132,78 @@ function AppContent({ onReady }) {
                     loading={loading}
                   />
                 </div>
-                <MobileBottomNavigation />
               </div>
             }
           />
           <Route
             path="/product/:id"
             element={
-              <div style={{ paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
-                <ProductDetailsPage
-                  products={products}
-                  addToCart={addToCart}
-                  removeFromCart={removeFromCart}
-                  cart={cart}
-                  cartItems={cartItems}
-                  windowWidth={windowWidth}
-                  getCartKey={getCartKey}
-                  setSelectedProduct={setSelectedProduct}
-                />
-                <MobileBottomNavigation />
-              </div>
+              <ProductDetailsPage
+                products={products}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                cartItems={cartItems}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                setSelectedProduct={setSelectedProduct}
+              />
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              <MobileHome
+                products={products}
+                filteredProducts={filteredProducts}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cartItems={cartItems}
+                setSelectedProduct={setSelectedProduct}
+                userLocation={userLocation}
+                roomNumber={roomNumber}
+                totalItems={totalItems}
+                isLoggedIn={isLoggedIn}
+                onOpenAddressModal={() => setShowAddressModal(true)}
+                displayCats={memoizedDisplayCats}
+                selectedCategory={selectedCategory}
+                onCategoryClick={handleCategoryClick}
+                forceSearchTab={true}
+              />
             }
           />
           <Route
             path="*"
             element={
-              <>
-                <MobileHome
-                  products={products}
-                  filteredProducts={filteredProducts}
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  addToCart={addToCart}
-                  removeFromCart={removeFromCart}
-                  cartItems={cartItems}
-                  setSelectedProduct={setSelectedProduct}
-                  userLocation={userLocation}
-                  roomNumber={roomNumber}
-                  totalItems={totalItems}
-                  isLoggedIn={isLoggedIn}
-                  onOpenAddressModal={() => setShowAddressModal(true)}
-                  displayCats={memoizedDisplayCats}
-                  selectedCategory={selectedCategory}
-                  onCategoryClick={handleCategoryClick}
-                />
-                <MobileBottomNavigation />
-              </>
+              <MobileHome
+                products={products}
+                filteredProducts={filteredProducts}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cartItems={cartItems}
+                setSelectedProduct={setSelectedProduct}
+                userLocation={userLocation}
+                roomNumber={roomNumber}
+                totalItems={totalItems}
+                isLoggedIn={isLoggedIn}
+                onOpenAddressModal={() => setShowAddressModal(true)}
+                displayCats={memoizedDisplayCats}
+                selectedCategory={selectedCategory}
+                onCategoryClick={handleCategoryClick}
+              />
             }
           />
-
-          <Route path="/" element={<HomePage />} />
         </Routes>
-
-        {/* Floating premium cart banner (visible on mobile home/product pages when cart has items) */}
-        {totalItems > 0 && location.pathname !== "/cart" && (
-          <div
-            onClick={() => navigate("/cart")}
-            style={{
-              background: totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#318616",
-              color: "white",
-              padding: "12px 16px",
-              position: "fixed",
-              bottom: `${MOBILE_NAV_TOTAL_OFFSET}px`, // Sits right above bottom navigation
-              left: "0",
-              right: "0",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              boxShadow: "0 -4px 12px rgba(0,0,0,0.1)",
-              zIndex: 999,
-              boxSizing: "border-box",
-            }}
-          >
-            <div>
-              {totalPrice < FREE_DELIVERY_THRESHOLD ? (
-                <p style={{ fontWeight: "600", margin: 0, fontSize: "12px" }}>
-                  Add ₹{FREE_DELIVERY_THRESHOLD - totalPrice} more for FREE delivery 🚚
-                </p>
-              ) : (
-                <p style={{ color: "#bbf7d0", fontWeight: "700", margin: 0, fontSize: "12px" }}>
-                  FREE Delivery Unlocked 🎉
-                </p>
-              )}
-              <p style={{ opacity: 0.9, margin: "2px 0 0 0", fontSize: "11px" }}>
-                Buyto Instant Delivery
-              </p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: "800" }}>₹{totalPrice}</h2>
-              <span style={{ fontWeight: "700", fontSize: "12px", background: "white", color: "#318616", padding: "6px 12px", borderRadius: "8px" }}>
-                View Cart
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* GLOBAL COUPON CELEBRATION MODAL */}
-        {appliedCouponCelebration && (
-          <CouponCelebrationModal
-            coupon={appliedCouponCelebration}
-            onClose={() => setAppliedCouponCelebration(null)}
-          />
-        )}
-
-        {/* LAZY LOADED ADDRESS SELECTOR MODAL */}
-        {showAddressModal && (
-          <Suspense fallback={null}>
-            <AddressSelectorModal
-              isLoggedIn={isLoggedIn}
-              onClose={() => setShowAddressModal(false)}
-              onSelectAddress={(addr) => {
-                const addressLineText = addr.addressLine + (addr.landmark ? `, ${addr.landmark}` : "");
-                localStorage.setItem("userLocation", addressLineText);
-                localStorage.setItem("roomNumber", addr.roomNumber || "");
-                localStorage.setItem("buyto_selected_address_id", addr._id);
-                setUserLocation(addressLineText);
-                setRoomNumber(addr.roomNumber || "");
-                setShowAddressModal(false);
-              }}
-            />
-          </Suspense>
-        )}
-      </div>
+      </div>,
+      true
     );
   }
 
-  return (
-
+  const desktopEl = (
     <div style={{ background: getAppBackground(), minHeight: "100vh", fontFamily: "Inter, system-ui, sans-serif" }}>
       {/* Hide Scrollbars Global CSS injection */}
       <style>{`
@@ -2332,24 +2241,40 @@ function AppContent({ onReady }) {
         }
       `}</style>
 
-      <Header
-        userLocation={userLocation}
-        roomNumber={roomNumber}
-        totalItems={totalItems}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        isLoggedIn={isLoggedIn}
-        onOpenAddressModal={() => setShowAddressModal(true)}
-        eta={7}
-        displayCats={memoizedDisplayCats}
-        selectedCategory={selectedCategory}
-        onCategoryClick={handleCategoryClick}
-      />
-
       {/* MAIN CONTAINER */}
       <main style={{ maxWidth: "1280px", margin: "0 auto", padding: windowWidth < 768 ? "12px" : "24px", paddingBottom: "100px" }}>
 
         <Routes>
+          <Route
+            path="/search"
+            element={
+              <div>
+                <h2 style={{ fontSize: "22px", fontWeight: "700", marginBottom: "16px", color: "#1f2937" }}>
+                  Search Results for "{searchQuery}"
+                </h2>
+                {filteredProducts.length === 0 ? (
+                  <p style={{ color: "#6b7280", fontSize: "16px", marginTop: "20px" }}>
+                    No products found.
+                  </p>
+                ) : (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        windowWidth < 768
+                          ? "repeat(2, 1fr)"
+                          : windowWidth < 1024
+                            ? "repeat(4, 1fr)"
+                            : "repeat(6, 1fr)",
+                      gap: windowWidth < 768 ? "12px" : "20px",
+                    }}
+                  >
+                    {filteredProducts.map(renderProductCard)}
+                  </div>
+                )}
+              </div>
+            }
+          />
           <Route
             path="/category/:slug"
             element={
@@ -2422,6 +2347,7 @@ function AppContent({ onReady }) {
                         </div>
                         <CategoryDiscovery products={products} />
                         <PromoBannerCarousel />
+                        <DynamicNewBanners />
                         <div id="product-listings-anchor" style={{ height: "1px", margin: "16px 0" }} />
 
                         {trendingProducts.length > 0 && (
@@ -2706,88 +2632,6 @@ function AppContent({ onReady }) {
                         )}
                       </div>
                     )}
-                    {/* Floating Premium Cart Summary Banner */}
-                    {totalItems > 0 && (
-                      <div
-                        style={{
-                          background: totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#318616",
-                          color: "white",
-                          padding: windowWidth < 768 ? "12px 16px" : "16px 24px",
-                          borderRadius: windowWidth < 768 ? "0" : "18px",
-                          position: "fixed",
-                          bottom: windowWidth < 768 ? "64px" : "20px",
-                          left: windowWidth < 768 ? "0" : "50%",
-                          right: windowWidth < 768 ? "0" : "auto",
-                          transform: windowWidth < 768 ? "none" : "translateX(-50%)",
-                          width: windowWidth < 768 ? "100%" : "640px",
-                          maxWidth: windowWidth < 768 ? "100%" : "calc(100% - 40px)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          boxShadow: windowWidth < 768 ? "0 -4px 12px rgba(0,0,0,0.1)" : "0 10px 30px rgba(0,0,0,0.2)",
-                          zIndex: 999,
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <div>
-                          {
-                            totalPrice < FREE_DELIVERY_THRESHOLD ? (
-                              <p style={{ fontWeight: "600", margin: 0 }}>
-                                Add ₹{FREE_DELIVERY_THRESHOLD - totalPrice} more to unlock FREE delivery 🚚
-                              </p>
-                            ) : (
-                              <p
-                                style={{
-                                  color: "#bbf7d0",
-                                  fontWeight: "700",
-                                  margin: 0
-                                }}
-                              >
-                                FREE Delivery Unlocked 🎉
-                              </p>
-                            )
-                          }
-
-                          <p style={{ opacity: 0.9, margin: "4px 0 0 0", fontSize: "13px" }}>
-                            Buyto Instant Delivery
-                          </p>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "18px",
-                          }}
-                        >
-                          <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "800" }}>₹{totalPrice}</h2>
-
-                          <button
-                            onClick={() => navigate("/cart")}
-                            onMouseOver={(e) => {
-                              e.currentTarget.style.color = totalPrice >= FREE_DELIVERY_THRESHOLD ? "#15803d" : "#286f12";
-                              e.currentTarget.style.transform = "scale(1.03)";
-                            }}
-                            onMouseOut={(e) => {
-                              e.currentTarget.style.color = totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#318616";
-                              e.currentTarget.style.transform = "none";
-                            }}
-                            style={{
-                              background: "white",
-                              color: totalPrice >= FREE_DELIVERY_THRESHOLD ? "#16a34a" : "#318616",
-                              border: "none",
-                              padding: "12px 22px",
-                              borderRadius: "12px",
-                              fontWeight: "700",
-                              cursor: "pointer",
-                              transition: "all 0.2s",
-                            }}
-                          >
-                            View Cart →
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -2910,98 +2754,67 @@ function AppContent({ onReady }) {
         </div>
       )}
 
-      {/* MOBILE BOTTOM NAVIGATION BAR */}
-      {windowWidth < 768 && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "64px",
-            background: "white",
-            borderTop: "1px solid #e5e7eb",
-            display: "flex",
-            justifyContent: "space-around",
-            alignItems: "center",
-            zIndex: 999,
-            boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
-            paddingBottom: "env(safe-area-inset-bottom)"
-          }}
-        >
-          <div
-            onClick={() => { setSelectedCategory("All"); setSelectedProductId(null); navigate("/"); }}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px" }}
-          >
-            <span style={{ fontSize: "20px" }}>🏠</span>
-            <span style={{ fontSize: "10px", fontWeight: "700", color: selectedCategory === "All" && location.pathname === "/" ? "#318616" : "#6b7280" }}>Shop</span>
-          </div>
-
-          <div
-            onClick={() => {
-              setSelectedCategory("All"); setSelectedProductId(null); navigate("/");
-              setTimeout(() => {
-                const el = document.getElementById("product-listings-anchor");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }, 100);
-            }}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px" }}
-          >
-            <span style={{ fontSize: "20px" }}>🗂️</span>
-            <span style={{ fontSize: "10px", fontWeight: "700", color: "#6b7280" }}>Categories</span>
-          </div>
-
-          <div
-            onClick={() => navigate("/cart")}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px", position: "relative" }}
-          >
-            <span style={{ fontSize: "20px" }}>🧺</span>
-            {totalItems > 0 && (
-              <span style={{
-                position: "absolute",
-                top: "-4px",
-                right: "-6px",
-                background: "#ef4444",
-                color: "white",
-                fontSize: "9px",
-                fontWeight: "800",
-                borderRadius: "50%",
-                width: "16px",
-                height: "16px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}>
-                {totalItems}
-              </span>
-            )}
-            <span style={{ fontSize: "10px", fontWeight: "700", color: location.pathname === "/cart" ? "#318616" : "#6b7280" }}>Cart</span>
-          </div>
-
-          <div
-            onClick={() => navigate(isLoggedIn ? "/profile" : "/login")}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px" }}
-          >
-            <span style={{ fontSize: "20px" }}>👤</span>
-            <span style={{ fontSize: "10px", fontWeight: "700", color: location.pathname === "/profile" ? "#318616" : "#6b7280" }}>Profile</span>
-          </div>
-
-          <div
-            onClick={() => navigate(isLoggedIn ? "/support/chat" : "/login")}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "4px" }}
-          >
-            <span style={{ fontSize: "20px" }}>🎧</span>
-            <span style={{ fontSize: "10px", fontWeight: "700", color: location.pathname === "/support/chat" ? "#318616" : "#6b7280" }}>Support</span>
-          </div>
-        </div>
-      )}
-
       {/* GLOBAL COUPON CELEBRATION MODAL */}
       {appliedCouponCelebration && (
         <CouponCelebrationModal
           coupon={appliedCouponCelebration}
           onClose={() => setAppliedCouponCelebration(null)}
         />
+      )}
+
+      {/* GLOBAL FOREGROUND PUSH NOTIFICATION TOAST */}
+      {pushToast.visible && (
+        <div
+          onClick={() => {
+            if (pushToast.deepLink) navigate(pushToast.deepLink);
+            setPushToast(prev => ({ ...prev, visible: false }));
+          }}
+          style={{
+            position: "fixed",
+            top: "24px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "calc(100% - 32px)",
+            maxWidth: "420px",
+            backgroundColor: "white",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            borderRadius: "16px",
+            borderLeft: "6px solid #318616",
+            padding: "16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+            zIndex: 999999,
+            cursor: "pointer",
+            animation: "toastEnter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+            fontFamily: "'Outfit', 'Inter', sans-serif"
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <span style={{ fontWeight: "800", color: "#111827", fontSize: "15px" }}>{pushToast.title}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setPushToast(prev => ({ ...prev, visible: false }));
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#9CA3AF",
+                fontSize: "16px",
+                cursor: "pointer",
+                padding: "4px",
+                lineHeight: 1
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          <p style={{ margin: 0, fontSize: "13px", color: "#4B5563", fontWeight: "600", lineHeight: "1.4" }}>
+            {pushToast.body}
+          </p>
+          <style dangerouslySetInnerHTML={{ __html: '@keyframes toastEnter { 0% { transform: translate(-50%, -50px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }' }} />
+        </div>
       )}
 
       {/* LAZY LOADED ADDRESS SELECTOR MODAL */}
@@ -3024,6 +2837,8 @@ function AppContent({ onReady }) {
       )}
     </div>
   );
+
+  return wrapCustomerLayout(desktopEl, true);
 }
 
 function CouponCelebrationModal({ coupon, onClose }) {

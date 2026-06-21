@@ -482,7 +482,18 @@ export default function CategoryProductsPage({
   const isMobile = windowWidth < 768;
 
   return (
-    <div style={{ fontFamily: "'Outfit', 'Inter', sans-serif", background: "#f9fafb", minHeight: "80vh", padding: isMobile ? "10px" : "20px 0" }}>
+    <div
+      style={{
+        fontFamily: "'Outfit', 'Inter', sans-serif",
+        background: "#f7f8fa",
+        minHeight: "80vh",
+        padding: isMobile ? "12px" : "20px 0",
+        width: "100%",
+        maxWidth: "100%",
+        overflowX: "hidden",
+        boxSizing: "border-box"
+      }}
+    >
       {/* Category header block */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
@@ -495,38 +506,19 @@ export default function CategoryProductsPage({
           </span>
         </div>
 
-        {/* Category Local Search input */}
-        <div style={{ position: "relative", width: isMobile ? "100%" : "260px" }}>
-          <input
-            type="text"
-            placeholder={`Search in ${matchedCategory.name}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 14px 10px 36px",
-              borderRadius: "12px",
-              border: "1px solid #e5e7eb",
-              fontSize: "13px",
-              fontWeight: "600",
-              outline: "none",
-              background: "white",
-              boxSizing: "border-box"
-            }}
-          />
-          <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "14px" }}>🔍</span>
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", color: "#9ca3af", cursor: "pointer", fontWeight: "bold" }}
-            >
-              ✕
-            </button>
-          )}
-        </div>
       </div>
 
-      <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: isMobile ? "12px" : "24px",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: "stretch",
+          width: "100%",
+          maxWidth: "100%",
+          boxSizing: "border-box"
+        }}
+      >
         {/* Left Sidebar Subcategories - Sticky */}
         {!isMobile && (
           <aside
@@ -567,7 +559,7 @@ export default function CategoryProductsPage({
                       justifyContent: "space-between"
                     }}
                     onMouseOver={(e) => {
-                      if (!isActive) e.currentTarget.style.background = "#f9fafb";
+                      if (!isActive) e.currentTarget.style.background = "#f7f8fa";
                     }}
                     onMouseOut={(e) => {
                       if (!isActive) e.currentTarget.style.background = "transparent";
@@ -623,7 +615,17 @@ export default function CategoryProductsPage({
         )}
 
         {/* Main Product Grid */}
-        <div style={{ flex: 1 }}>
+        <div
+          style={{
+            flex: 1,
+            width: "100%",
+            maxWidth: "100%",
+            overflowX: "hidden",
+            boxSizing: "border-box",
+            paddingLeft: isMobile ? "12px" : "0",
+            paddingRight: isMobile ? "12px" : "0"
+          }}
+        >
           {filteredCategoryProducts.length === 0 ? (
             <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "16px", border: "1px solid #f3f4f6" }}>
               <div style={{ fontSize: "40px", marginBottom: "12px" }}>📦</div>
@@ -636,9 +638,12 @@ export default function CategoryProductsPage({
               style={{
                 display: "grid",
                 gridTemplateColumns: isMobile 
-                  ? "repeat(2, 1fr)" 
+                  ? "repeat(2, minmax(0, 1fr))" 
                   : "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: isMobile ? "10px" : "20px",
+                gap: isMobile ? "12px" : "20px",
+                width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box"
               }}
             >
               {filteredCategoryProducts.map(p => (

@@ -49,7 +49,8 @@ export default function BuytoLogo({
       {...props}
     >
       {responsive && (
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           .buyto-logo-${size} {
             height: ${h.mobile};
             width: auto;

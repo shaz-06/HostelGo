@@ -5,7 +5,7 @@
   --primary: #318616;
   --secondary: #111827;
   --accent: #22C55E;
-  --background: #F9FAFB;
+  --background: #f7f8fa;
   --card-bg: #FFFFFF;
   --text-primary: #111827;
   --text-secondary: #6B7280;
@@ -41,12 +41,12 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: #f7a80a; /* Fallback */
+  background-color: #f7f8fa; /* Fallback */
   overflow-x: hidden;
 }
 
 body {
-  background: radial-gradient(circle, #fbc607 0%, #f7a80a 100%);
+  background: #f7f8fa;
   color: var(--text-primary);
   transition: background-color 0.5s ease-out;
 }
@@ -79,4 +79,28 @@ body.app-ready {
 .hide-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* Responsive branding styles */
+@media (min-width: 768px) {
+  .brand-logo-desktop {
+    display: block !important;
+  }
+  .brand-text-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .brand-logo-desktop {
+    display: none !important;
+  }
+  .brand-text-mobile {
+    display: flex !important;
+  }
+}
+
+/* Page safe bottom spacing when floating navigation is visible */
+.page-with-bottom-nav {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom)) !important;
 }

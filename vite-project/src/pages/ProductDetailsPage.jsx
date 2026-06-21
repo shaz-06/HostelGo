@@ -1,9 +1,84 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ProductCard from "../ProductCard";
+import MobileProductCard from "../components/mobile/MobileProductCard";
 import { cachedFetch } from "../utils/apiCache";
 import { usePerfLogger } from "../utils/perfLogger";
 import { AuthContext } from "../context/AuthContext";
+import { getOptimizedImageUrl } from "../utils/imageOptimizer";
+import {
+  ShoppingBag,
+  Heart,
+  ChevronDown,
+  ChevronUp,
+  Truck,
+  ShieldCheck,
+  Clock,
+  RotateCcw,
+  Sparkles,
+  ThumbsUp,
+  Plus,
+  Check
+} from "lucide-react";
+
+// --- Skeleton Loader Component ---
+function PDPSkeleton() {
+  return (
+    <div style={{ background: "white", borderRadius: "24px", padding: "24px", marginTop: "24px", fontFamily: "Inter, sans-serif" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px" }}>
+        <div style={{ display: "flex", gap: "16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="animate-pulse" style={{ width: "64px", height: "64px", background: "#f3f4f6", borderRadius: "8px" }} />
+            ))}
+          </div>
+          <div className="animate-pulse" style={{ flexGrow: 1, height: "360px", background: "#f3f4f6", borderRadius: "16px" }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div className="animate-pulse" style={{ width: "120px", height: "24px", background: "#f3f4f6", borderRadius: "4px" }} />
+          <div className="animate-pulse" style={{ width: "80%", height: "36px", background: "#f3f4f6", borderRadius: "4px" }} />
+          <div className="animate-pulse" style={{ width: "140px", height: "28px", background: "#f3f4f6", borderRadius: "4px" }} />
+          <div className="animate-pulse" style={{ width: "200px", height: "48px", background: "#f3f4f6", borderRadius: "4px" }} />
+          <div className="animate-pulse" style={{ height: "100px", background: "#f3f4f6", borderRadius: "8px" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Accordion Section Component ---
+function AccordionSection({ title, children }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div style={{ borderBottom: "1px solid #f3f4f6", padding: "16px 0" }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          background: "none",
+          border: "none",
+          textAlign: "left",
+          fontSize: "16px",
+          fontWeight: "700",
+          color: "#1f2937",
+          cursor: "pointer",
+          padding: 0
+        }}
+      >
+        <span>{title}</span>
+        {isOpen ? <ChevronUp size={20} color="#4b5563" /> : <ChevronDown size={20} color="#4b5563" />}
+      </button>
+      {isOpen && (
+        <div style={{ marginTop: "12px", fontSize: "14px", color: "#4b5563", lineHeight: "1.6" }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProductDetailsPage({
   products = [],
@@ -25,6 +100,10 @@ export default function ProductDetailsPage({
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
+  const [selectedImage, setSelectedImage] = useState("");
+  const [activeTab, setActiveTab] = useState(0); // For alternate gallery views
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
+  const [isZooming, setIsZooming] = useState(false);
 
   const [wishlistIds, setWishlistIds] = useState(() => {
     try {
@@ -36,24 +115,107 @@ export default function ProductDetailsPage({
   });
 
   const [toastMsg, setToastMsg] = useState("");
-  const [showActions, setShowActions] = useState(false);
   const [isSavedIconAnimating, setIsSavedIconAnimating] = useState(false);
   const toastTimeoutRef = useRef(null);
 
-  const isSaved = Array.isArray(saveForLaterIds) && activeProduct && saveForLaterIds.includes(String(activeProduct._id || activeProduct.id));
+  const isMobile = windowWidth < 768;
+
+  // Strikethrough pricing logic helper
+  const hasVariants = activeProduct && Array.isArray(activeProduct.variants) && activeProduct.variants.length > 0;
+  const currentVariant = hasVariants ? activeProduct.variants[selectedVariantIndex] : null;
+
+  const currentPrice = currentVariant ? currentVariant.price : (activeProduct ? activeProduct.price : 0);
+  const currentOriginalPrice = currentVariant && currentVariant.originalPrice !== undefined
+    ? currentVariant.originalPrice
+    : (activeProduct ? activeProduct.originalPrice || activeProduct.price : 0);
+  const currentWeight = currentVariant ? currentVariant.weight : (activeProduct ? activeProduct.weight : "");
+
+  const hasDiscount = currentOriginalPrice > currentPrice;
+  const discountPercentage = hasDiscount
+    ? Math.round(((currentOriginalPrice - currentPrice) / currentOriginalPrice) * 100)
+    : 0;
+
   const isWishlisted = wishlistIds.includes(id);
 
+  // Dynamic enrichment for product details page
+  const enrichProduct = (product) => {
+    if (!product) return null;
+    const defaults = {
+      brand: "Buyto Fresh",
+      description: "Fresh and premium quality, sourced directly from trusted local farms. Rich in essential vitamins and nutrients for a healthy lifestyle.",
+      highlights: ["Sourced Locally", "Premium Grade", "Freshly Packed", "100% Organic"],
+      nutrition: {
+        "Energy": "45 kcal",
+        "Carbs": "10g",
+        "Proteins": "1g",
+        "Fats": "0.2g"
+      },
+      storage: "Store in a cool, dry place away from direct sunlight. Refrigerate leafy vegetables and dairy items to maintain crispness and freshness.",
+      disclaimer: "Every effort is made to maintain accuracy of all information. However, actual product packaging and materials may contain more and/or different information. It is recommended not to solely rely on the information presented."
+    };
+
+    if (product.category === "The Fruit Store" || product.category === "Fresh Fruits") {
+      return {
+        ...defaults,
+        ...product,
+        brand: "Buyto Organic",
+        description: "Juicy and delicious, packed at source for optimum shelf life. Harvested at the perfect stage of ripening to deliver natural sweetness.",
+        highlights: ["Farm Fresh", "Organic Sourced", "Naturally Ripened", "High in Vitamin C"],
+        nutrition: {
+          "Energy": "89 kcal",
+          "Carbs": "22.8g",
+          "Proteins": "1.1g",
+          "Fiber": "2.6g"
+        }
+      };
+    } else if (product.category === "The Veggie Store" || product.category === "Fresh Vegetables") {
+      return {
+        ...defaults,
+        ...product,
+        brand: "Buyto Fresh",
+        description: "Farm-fresh vegetables handpicked daily. Cleaned, graded, and carefully packed under high hygienic standards to keep nutritive value intact.",
+        highlights: ["100% Organic", "Directly from Farms", "Pesticide-Free", "Rich in Fiber"],
+        nutrition: {
+          "Energy": "22 kcal",
+          "Carbs": "4.5g",
+          "Proteins": "2g",
+          "Vitamin A": "18%"
+        }
+      };
+    } else if (product.category === "Dairy, Bread & Eggs") {
+      return {
+        ...defaults,
+        ...product,
+        brand: "Buyto Dairy",
+        highlights: ["Pasteurized", "High Calcium", "Freshly Processed", "No Preservatives"],
+        nutrition: {
+          "Energy": "140 kcal",
+          "Proteins": "6.2g",
+          "Calcium": "24%",
+          "Fats": "7.5g"
+        }
+      };
+    }
+
+    return { ...defaults, ...product };
+  };
+
+  // Wishlist handler
   const handleToggleWishlist = () => {
     let updated;
     if (isWishlisted) {
       updated = wishlistIds.filter((item) => item !== id);
+      setToastMsg("Removed from Wishlist");
     } else {
       updated = [...wishlistIds, id];
+      setToastMsg("✓ Added to Wishlist");
     }
     setWishlistIds(updated);
     localStorage.setItem("buyto_wishlist", JSON.stringify(updated));
+    setTimeout(() => setToastMsg(""), 1500);
   };
 
+  // Save for Later handler
   const handleToggleSaveForLater = async () => {
     if (toggleSaveForLater && activeProduct) {
       const result = await toggleSaveForLater(activeProduct);
@@ -75,738 +237,766 @@ export default function ProductDetailsPage({
     }
   };
 
-  const handleAddToList = () => {
-    try {
-      const active = localStorage.getItem("shoppingListItems");
-      const list = active ? JSON.parse(active) : [];
-      list.push({ name: activeProduct.name, completed: false });
-      localStorage.setItem("shoppingListItems", JSON.stringify(list));
-      setToastMsg("✓ Added to Shopping List!");
-      setShowActions(false);
-      setTimeout(() => setToastMsg(""), 2000);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Dynamic enrichment for product details page
-  const enrichProduct = (product) => {
-    if (!product) return null;
-    const defaults = {
-      description: "Fresh and premium quality, sourced directly from trusted local farms. Rich in essential vitamins and nutrients for a healthy lifestyle.",
-      nutrition: {
-        "Energy": "45 kcal",
-        "Carbs": "10g",
-        "Proteins": "1g",
-        "Fats": "0.2g"
-      },
-      highlights: ["Sourced Locally", "Premium Grade", "Freshly Packed", "100% Organic"]
-    };
-
-    if (product.category === "The Fruit Store") {
-      return {
-        ...product,
-        description: "Sweet, juicy, and packed with essential vitamins. Perfect for fresh fruit bowls, smoothies, salads, or a healthy natural snack anytime of the day.",
-        nutrition: {
-          "Energy": "60 kcal",
-          "Vitamin C": "45%",
-          "Carbs": "14g",
-          "Fiber": "2.4g"
-        },
-        highlights: ["Naturally Sweet", "High in Fiber", "Rich in Vitamin C", "No Additives"]
-      };
-    } else if (product.category === "The Veggie Store") {
-      return {
-        ...product,
-        description: "Crisp, premium, and nutrient-dense farm veggies. Harvested at the peak of freshness, clean-washed, and graded for optimal culinary experience.",
-        nutrition: {
-          "Energy": "25 kcal",
-          "Iron": "12%",
-          "Carbs": "5g",
-          "Vitamin A": "15%"
-        },
-        highlights: ["Farm Fresh", "Pesticide-Free", "Rich in Antioxidants", "Triple Washed"]
-      };
-    } else if (product.category === "Dairy, Bread & Eggs") {
-      return {
-        ...product,
-        description: "Freshly sourced, rich in proteins and calcium. Handled with extreme hygiene standards and delivered using strict cold-chain refrigeration.",
-        nutrition: {
-          "Energy": "120 kcal",
-          "Protein": "6g",
-          "Calcium": "20%",
-          "Healthy Fats": "5g"
-        },
-        highlights: ["Freshly Sourced", "High Protein", "Cold Chain Standard", "Quality Audited"]
-      };
-    }
-
-    return { ...defaults, ...product };
-  };
-
-  useEffect(() => {
-    if (products && products.length > 0) {
-      setAllProducts(products);
-    }
-  }, [products]);
-
+  // Fetch Product Data
   useEffect(() => {
     let found = null;
     if (products && products.length > 0) {
-      found = products.find((p) => p._id === id || p.id === id);
+      found = products.find((p) => String(p._id || p.id) === String(id));
     }
     if (found) {
-      setActiveProduct(enrichProduct(found));
+      const enriched = enrichProduct(found);
+      setActiveProduct(enriched);
+      setSelectedImage(enriched.image);
       setLoading(false);
+      
+      // PERSIST RECENTLY VIEWED (Keep last 10)
+      try {
+        const viewedStr = localStorage.getItem("buyto_recently_viewed");
+        let viewed = viewedStr ? JSON.parse(viewedStr) : [];
+        // Remove duplicate if exists
+        viewed = viewed.filter((item) => String(item._id || item.id) !== String(found._id || found.id));
+        viewed.unshift(found);
+        if (viewed.length > 10) {
+          viewed = viewed.slice(0, 10);
+        }
+        localStorage.setItem("buyto_recently_viewed", JSON.stringify(viewed));
+      } catch (err) {
+        console.error("Error saving recently viewed", err);
+      }
     } else {
       setLoading(true);
-      console.log("=== DETAILS API FETCH INITIATED ===", window.API_BASE_URL + "/api/products");
       cachedFetch(window.API_BASE_URL + "/api/products")
         .then((data) => {
-          console.log("=== DETAILS API FETCH SUCCESS ===", data.length, "products loaded");
           setAllProducts(data);
-          const item = data.find((p) => p._id === id || p.id === id);
+          const item = data.find((p) => String(p._id || p.id) === String(id));
           if (item) {
-            setActiveProduct(enrichProduct(item));
+            const enriched = enrichProduct(item);
+            setActiveProduct(enriched);
+            setSelectedImage(enriched.image);
           }
           setApiError(null);
           setLoading(false);
         })
         .catch((err) => {
-          console.error("=== DETAILS API FETCH FAILED ===", err);
           setApiError(`Failed to load product details: ${err.message}`);
           setLoading(false);
         });
     }
   }, [id, products]);
 
-  // Similar Products Filter (same category, excluding current product)
-  const similarProducts = activeProduct
-    ? allProducts.filter(p => p.category === activeProduct.category && (p._id !== activeProduct._id && p.id !== activeProduct.id)).slice(0, 4)
-    : [];
+  // SEO Update
+  useEffect(() => {
+    if (activeProduct) {
+      document.title = `${activeProduct.name} - Buyto`;
+      let metaDesc = document.querySelector('meta[name="description"]');
+      if (!metaDesc) {
+        metaDesc = document.createElement('meta');
+        metaDesc.name = 'description';
+        document.head.appendChild(metaDesc);
+      }
+      metaDesc.setAttribute('content', `Buy fresh ${activeProduct.name} online from Buyto with fast delivery.`);
+    }
+  }, [activeProduct]);
 
-  const renderProductCard = (prod) => (
-    <ProductCard
-      key={prod._id || prod.id}
-      product={prod}
-      addToCart={addToCart}
-      removeFromCart={removeFromCart}
-      cart={cart}
-      cartItems={cartItems}
-      windowWidth={windowWidth}
-      getCartKey={getCartKey}
-      setSelectedProduct={setSelectedProduct}
-    />
-  );
+  // Image Hover Zoom
+  const handleMouseMove = (e) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.pageX - left - window.scrollX) / width) * 100;
+    const y = ((e.pageY - top - window.scrollY) / height) * 100;
+    setZoomPos({ x, y });
+  };
 
-  if (apiError) {
-    return (
-      <div style={{ background: "white", borderRadius: "24px", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.03)", marginTop: "24px" }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            marginBottom: "20px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            color: "#318616",
-            fontWeight: "700",
-            fontSize: "15px",
-            cursor: "pointer",
-            border: "none",
-            background: "none",
-            padding: 0,
-          }}
-        >
-          ← Back
-        </button>
-        <div
-          style={{
-            background: "#fef2f2",
-            border: "1px solid #fee2e2",
-            borderRadius: "16px",
-            padding: "16px",
-            color: "#991b1b",
-            textAlign: "left",
-            fontFamily: "'Outfit', 'Inter', sans-serif"
-          }}
-        >
-          <h3 style={{ margin: "0 0 8px 0", fontSize: "16px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>⚠️</span> Connection Error
-          </h3>
-          <p style={{ margin: 0, fontSize: "14px", fontWeight: "500", opacity: 0.9 }}>
-            {apiError}. Resolved URL: {window.API_BASE_URL}/api/products
-          </p>
-        </div>
-      </div>
+  // --- RELATED PRODUCTS ALGORITHM ---
+  // Same category first, then same subcategory (or random), then remaining random products.
+  const relatedProducts = useMemo(() => {
+    if (!activeProduct || allProducts.length === 0) return [];
+    
+    // Filter out current product
+    const otherProducts = allProducts.filter(
+      (p) => String(p._id || p.id) !== String(activeProduct._id || activeProduct.id)
     );
-  }
 
-  if (loading) {
-    return (
-      <div style={{ padding: "40px 0", textAlign: "center" }}>
-        <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#4b5563" }}>
-          Loading Product Details...
-        </h2>
-      </div>
+    const sameCategory = otherProducts.filter((p) => p.category === activeProduct.category);
+    const diffCategory = otherProducts.filter((p) => p.category !== activeProduct.category);
+
+    // Shuffle helper
+    const shuffle = (arr) => [...arr].sort(() => 0.5 - Math.random());
+
+    const result = [...shuffle(sameCategory), ...shuffle(diffCategory)].slice(0, 8);
+    return result;
+  }, [activeProduct, allProducts]);
+
+  // Frequently Bought Together Products (Select 2 from same category)
+  const frequentlyBoughtTogether = useMemo(() => {
+    if (!activeProduct || allProducts.length === 0) return [];
+    const candidates = allProducts.filter(
+      (p) =>
+        p.category === activeProduct.category &&
+        String(p._id || p.id) !== String(activeProduct._id || activeProduct.id)
     );
-  }
+    return candidates.slice(0, 2);
+  }, [activeProduct, allProducts]);
 
-  if (!activeProduct) {
+  const fbtTotalPrice = useMemo(() => {
+    if (!activeProduct) return 0;
+    let sum = currentPrice;
+    frequentlyBoughtTogether.forEach((p) => {
+      sum += p.price || 0;
+    });
+    return sum;
+  }, [activeProduct, currentPrice, frequentlyBoughtTogether]);
+
+  const handleAddAllFbt = () => {
+    if (!activeProduct) return;
+    
+    // Add active product variant
+    const currentVariantWeight = currentVariant ? currentVariant.weight : activeProduct.weight;
+    addToCart({
+      ...activeProduct,
+      selectedWeight: currentVariantWeight,
+      price: currentPrice
+    });
+
+    // Add others
+    frequentlyBoughtTogether.forEach((p) => {
+      const defaultWeight = p.variants && p.variants[0] ? p.variants[0].weight : p.weight || "";
+      addToCart({
+        ...p,
+        selectedWeight: defaultWeight,
+        price: p.variants && p.variants[0] ? p.variants[0].price : p.price
+      });
+    });
+
+    setToastMsg("✓ Added all bundle products!");
+    setTimeout(() => setToastMsg(""), 2000);
+  };
+
+  // Recently Viewed Products from localStorage
+  const recentlyViewed = useMemo(() => {
+    try {
+      const items = localStorage.getItem("buyto_recently_viewed");
+      if (!items) return [];
+      const parsed = JSON.parse(items);
+      // Filter out current active product
+      return parsed.filter((p) => String(p._id || p.id) !== String(id)).slice(0, 6);
+    } catch (e) {
+      return [];
+    }
+  }, [id, activeProduct]);
+
+  // Alternate Image Thumbnails Generator
+  const thumbnails = useMemo(() => {
+    if (!activeProduct) return [];
+    return [
+      activeProduct.image,
+      // Generic alternate placeholders representing fresh assurance & packing
+      "/dist/assets/buyto-logo-BSf2RyPW.png",
+      activeProduct.image,
+    ].filter(Boolean);
+  }, [activeProduct]);
+
+  if (loading) return <PDPSkeleton />;
+
+  if (apiError || !activeProduct) {
     return (
-      <div style={{ padding: "40px 0", textAlign: "center" }}>
-        <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#ef4444" }}>
-          Product Not Found
-        </h2>
-        <button
-          onClick={() => navigate("/")}
-          onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
-          onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
-          style={{
-            marginTop: "16px",
-            background: "#318616",
-            color: "white",
-            border: "none",
-            padding: "10px 20px",
-            borderRadius: "12px",
-            fontWeight: "700",
-            cursor: "pointer",
-            transition: "background 0.2s",
-          }}
-        >
+      <div style={{ textAlign: "center", padding: "40px" }}>
+        <h3 style={{ color: "#ef4444", fontWeight: "700" }}>{apiError || "Product Not Found"}</h3>
+        <button onClick={() => navigate("/")} style={{ marginTop: "16px", background: "#318616", color: "white", border: "none", padding: "10px 20px", borderRadius: "12px", cursor: "pointer" }}>
           Go Back Home
         </button>
       </div>
     );
   }
 
+  // Cart Qty Calculation
+  const activeItems = Array.isArray(cartItems) ? cartItems : [];
+  const currentCartKey = activeProduct._id + (currentWeight ? `_${currentWeight}` : "");
+  const cartItem = activeItems.find(
+    (item) =>
+      String(item._id || item.id) === String(activeProduct._id || activeProduct.id) &&
+      (item.selectedWeight === currentWeight || !item.selectedWeight)
+  );
+  const cartQty = cartItem ? cartItem.quantity : 0;
+
   return (
-    <div style={{ background: "white", borderRadius: "24px", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.03)", marginTop: "24px" }}>
-      {/* Back button */}
-      <button
-        onClick={() => navigate(-1)}
-        onMouseOver={(e) => (e.currentTarget.style.color = "#286f12")}
-        onMouseOut={(e) => (e.currentTarget.style.color = "#318616")}
-        style={{
-          marginBottom: "20px",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          color: "#318616",
-          fontWeight: "700",
-          fontSize: "15px",
-          cursor: "pointer",
-          border: "none",
-          background: "none",
-          padding: 0,
-          transition: "color 0.2s",
-        }}
-      >
-        ← Back
-      </button>
+    <div className="page-with-bottom-nav" style={{ background: "#f7f8fa", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
+      {/* Top Breadcrumb */}
+      <div style={{ padding: "12px 0", fontSize: "14px", color: "#6b7280", fontWeight: "500", display: "flex", gap: "6px" }}>
+        <span style={{ cursor: "pointer" }} onClick={() => navigate("/")}>Home</span>
+        <span>/</span>
+        <span>{activeProduct.category}</span>
+        <span>/</span>
+        <span style={{ color: "#1f2937", fontWeight: "600" }}>{activeProduct.name}</span>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: windowWidth < 768 ? "1fr" : "1fr 1fr", gap: "32px" }}>
-        {/* Left Column: Big Image & Top-Right Button */}
-        <div style={{ position: "relative", height: "fit-content" }}>
-          <img
-            src={getOptimizedImageUrl(activeProduct.image, "full", activeProduct)}
-            fetchpriority="high"
-            loading="eager"
-            alt={activeProduct.name}
-            style={{
-              width: "100%",
-              height: windowWidth < 768 ? "280px" : "360px",
-              objectFit: "contain",
-              borderRadius: "16px",
-              border: "1px solid #f3f4f6",
-              background: "#f9fafb",
-            }}
-          />
-
-          {/* Floating Overlay Button */}
-          {(() => {
-            const currentWeight = activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-              ? activeProduct.variants[selectedVariantIndex].weight
-              : activeProduct.weight;
-
-            const productToCart = {
-              ...activeProduct,
-              selectedWeight: currentWeight,
-              price: activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-                ? activeProduct.variants[selectedVariantIndex].price
-                : activeProduct.price
-            };
-
-            const cartItem = cartItems.find(
-              (item) =>
-                String(item._id || item.id) ===
-                String(productToCart._id || productToCart.id)
-            );
-            const quantity = cartItem ? cartItem.quantity : 0;
-
-            return quantity === 0 ? (
-              <button
-                onClick={() => {
-                  if (quantity >= activeProduct.stock) {
-                    alert(`Only ${activeProduct.stock} items available`);
-                    return;
-                  }
-                  addToCart(productToCart);
-                }}
-                style={{
-                  position: "absolute",
-                  top: "16px",
-                  right: "16px",
-                  background: "white",
-                  border: "2px solid #318616",
-                  color: "#318616",
-                  width: "48px",
-                  height: "48px",
-                  borderRadius: "12px",
-                  fontSize: "24px",
-                  fontWeight: "bold",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                +
-              </button>
-            ) : (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "16px",
-                  right: "16px",
-                  display: "flex",
-                  alignItems: "center",
-                  background: "white",
-                  border: "1px solid #318616",
-                  borderRadius: "12px",
-                  height: "48px",
-                  overflow: "hidden",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                }}
-              >
-                <button
-                  onClick={() => removeFromCart(productToCart)}
-                  style={{
-                    width: "40px",
-                    height: "100%",
-                    background: "white",
-                    border: "none",
-                    color: "#318616",
-                    fontSize: "20px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  -
-                </button>
-                <span style={{ color: "#318616", fontWeight: "800", fontSize: "16px", padding: "0 8px", minWidth: "20px", textAlign: "center" }}>
-                  {quantity}
-                </span>
-                <button
+      <div style={{ background: "white", borderRadius: "24px", padding: isMobile ? "16px" : "32px", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+        {/* Main Product Layout */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 0.9fr", gap: isMobile ? "24px" : "48px" }}>
+          
+          {/* LEFT COLUMN: Gallery & Zoom */}
+          <div style={{ display: "flex", gap: "16px", flexDirection: isMobile ? "column-reverse" : "row" }}>
+            {/* Gallery Thumbnails */}
+            <div style={{ display: "flex", flexDirection: isMobile ? "row" : "column", gap: "10px", justifyContent: "center" }}>
+              {thumbnails.map((thumb, idx) => (
+                <div
+                  key={idx}
                   onClick={() => {
-                    if (quantity >= activeProduct.stock) {
-                      alert(`Only ${activeProduct.stock} items available`);
-                      return;
-                    }
-                    addToCart(productToCart);
+                    setSelectedImage(thumb);
+                    setActiveTab(idx);
                   }}
                   style={{
-                    width: "40px",
-                    height: "100%",
-                    background: "white",
-                    border: "none",
-                    color: "#318616",
-                    fontSize: "20px",
-                    fontWeight: "bold",
+                    width: "64px",
+                    height: "64px",
+                    border: activeTab === idx ? "2px solid #318616" : "1px solid #e5e7eb",
+                    borderRadius: "12px",
+                    padding: "4px",
                     cursor: "pointer",
+                    background: "white",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    transition: "all 0.2s"
                   }}
                 >
-                  +
-                </button>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Right Column: Details Info */}
-        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-          <div>
-            <span style={{ background: "#EBF5EA", color: "#318616", fontSize: "12px", fontWeight: "700", padding: "6px 12px", borderRadius: "9999px", textTransform: "uppercase", tracking: "wider" }}>
-              {activeProduct.category}
-            </span>
-
-            <h2 style={{ fontSize: "28px", fontWeight: "800", color: "#1f2937", marginTop: "12px", marginBottom: "8px", lineHeight: "1.2" }}>
-              {activeProduct.name}
-            </h2>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "8px", background: "#f3f4f6", padding: "6px 12px", borderRadius: "12px", width: "fit-content" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#318616" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              <p style={{ fontSize: "11px", color: "#6b7280", fontWeight: "700", margin: 0 }}>
-                30 MINS DELIVERY
-              </p>
+                  <img src={thumb} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                </div>
+              ))}
             </div>
 
-            {/* Variant Selector */}
-            {activeProduct.variants && activeProduct.variants.length > 0 && (
-              <div style={{ marginTop: "16px" }}>
-                <h3 style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", uppercase: "true", letterSpacing: "1px", marginBottom: "8px" }}>SELECT VARIANT</h3>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                  {activeProduct.variants.map((variant, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedVariantIndex(idx)}
-                      style={{
-                        padding: "10px 16px",
-                        borderRadius: "12px",
-                        border: selectedVariantIndex === idx ? "1.5px solid #318616" : "1px solid #e5e7eb",
-                        background: selectedVariantIndex === idx ? "#EBF5EA" : "white",
-                        color: selectedVariantIndex === idx ? "#318616" : "#4b5563",
-                        fontSize: "13px",
-                        fontWeight: "700",
-                        cursor: "pointer",
-                        transition: "0.2s",
-                      }}
-                    >
-                      {variant.weight} — ₹{variant.price}
-                    </button>
-                  ))}
+            {/* Main Product Image Container */}
+            <div
+              onMouseMove={!isMobile ? handleMouseMove : undefined}
+              onMouseEnter={!isMobile ? () => setIsZooming(true) : undefined}
+              onMouseLeave={!isMobile ? () => setIsZooming(false) : undefined}
+              style={{
+                flexGrow: 1,
+                height: isMobile ? "280px" : "420px",
+                borderRadius: "16px",
+                border: "1px solid #f3f4f6",
+                background: "#f9fafb",
+                position: "relative",
+                cursor: !isMobile ? "zoom-in" : "default",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              {isZooming ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: `url(${selectedImage})`,
+                    backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
+                    backgroundSize: "220%",
+                    backgroundRepeat: "no-repeat"
+                  }}
+                />
+              ) : (
+                <img
+                  src={selectedImage}
+                  alt={activeProduct.name}
+                  style={{
+                    maxWidth: "90%",
+                    maxHeight: "90%",
+                    objectFit: "contain",
+                    transition: "transform 0.2s"
+                  }}
+                  loading="eager"
+                />
+              )}
+
+              {/* Discount Tag on Image */}
+              {hasDiscount && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "16px",
+                    left: "16px",
+                    background: "#F59E0B",
+                    color: "white",
+                    padding: "4px 10px",
+                    borderRadius: "20px",
+                    fontSize: "12px",
+                    fontWeight: "900"
+                  }}
+                >
+                  {discountPercentage}% OFF
                 </div>
-              </div>
-            )}
-
-            {/* Price and Discount Info */}
-            {(() => {
-              const currentPrice = activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-                ? activeProduct.variants[selectedVariantIndex].price
-                : activeProduct.price;
-              const currentOriginalPrice = activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-                ? activeProduct.variants[selectedVariantIndex].originalPrice
-                : activeProduct.originalPrice;
-              const currentWeight = activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-                ? activeProduct.variants[selectedVariantIndex].weight
-                : activeProduct.weight;
-
-              const hasDiscount = currentOriginalPrice > currentPrice;
-              const discountPercent = hasDiscount
-                ? Math.round(((currentOriginalPrice - currentPrice) / currentOriginalPrice) * 100)
-                : 0;
-
-              return (
-                <>
-                  <div style={{ marginTop: "16px" }}>
-                    {hasDiscount && (
-                      <p style={{ color: "#00a05a", fontWeight: "700", fontSize: "14px", margin: "0 0 4px 0" }}>
-                        {discountPercent}% OFF
-                      </p>
-                    )}
-
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                      <span style={{ fontWeight: "800", fontSize: "28px", color: "#1f2937" }}>
-                        ₹{currentPrice}
-                      </span>
-                      {hasDiscount && (
-                        <span style={{ textDecoration: "line-through", color: "#9ca3af", fontSize: "18px" }}>
-                          ₹{currentOriginalPrice}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Weight & Stock info */}
-                  <div style={{ marginTop: "12px", fontSize: "13px", color: "#6b7280" }}>
-                    <p style={{ margin: 0, fontWeight: "500" }}>
-                      Weight: <span style={{ color: "#1f2937", fontWeight: "700" }}>{currentWeight}</span> | Stock: <span style={{ color: "#1f2937", fontWeight: "700" }}>{activeProduct.stock} left</span>
-                    </p>
-                  </div>
-                </>
-              );
-            })()}
-
-            {/* Description */}
-            <div style={{ marginTop: "16px", borderTop: "1px solid #f3f4f6", paddingTop: "16px" }}>
-              <h3 style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", letterSpacing: "1px", margin: 0 }}>DESCRIPTION</h3>
-              <p style={{ color: "#4b5563", fontSize: "14px", marginTop: "6px", lineHeight: "1.6" }}>
-                {activeProduct.description}
-              </p>
+              )}
             </div>
-
-            {/* Highlights */}
-            {activeProduct.highlights && Array.isArray(activeProduct.highlights) && activeProduct.highlights.length > 0 && (
-              <div style={{ marginTop: "16px" }}>
-                <h3 style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", letterSpacing: "1px", marginBottom: "8px" }}>HIGHLIGHTS</h3>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                  {activeProduct.highlights.map((h, i) => (
-                    <span key={i} style={{ background: "#f0fdf4", color: "#15803d", fontSize: "12px", fontWeight: "700", padding: "6px 12px", borderRadius: "8px" }}>
-                      ✓ {h}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Nutrition */}
-            {activeProduct.nutrition && typeof activeProduct.nutrition === "object" && Object.keys(activeProduct.nutrition).length > 0 && (
-              <div style={{ marginTop: "16px" }}>
-                <h3 style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", letterSpacing: "1px", marginBottom: "8px" }}>NUTRITION INFO (approx.)</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
-                  {Object.entries(activeProduct.nutrition).map(([key, val]) => (
-                    <div key={key} style={{ background: "#f9fafb", borderRadius: "12px", padding: "10px", textAlign: "center", border: "1px solid #f3f4f6" }}>
-                      <p style={{ fontSize: "10px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase", margin: 0 }}>{key}</p>
-                      <p style={{ fontSize: "13px", color: "#1f2937", fontWeight: "800", marginTop: "4px", margin: 0 }}>{val}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Bottom Action Button */}
-          <div style={{ marginTop: "24px", borderTop: "1px solid #f3f4f6", paddingTop: "16px" }}>
-            <div style={{ display: "flex", gap: "12px", alignItems: "center", width: "100%" }}>
-              {/* Wishlist Button */}
+          {/* RIGHT COLUMN: Brand & Details Info */}
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <span style={{ color: "#318616", fontSize: "14px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                {activeProduct.brand}
+              </span>
+
+              <h1 style={{ fontSize: isMobile ? "22px" : "28px", fontWeight: "900", color: "#111827", marginTop: "6px", marginBottom: "8px", lineHeight: "1.2" }}>
+                {activeProduct.name}
+              </h1>
+
+              {/* ETA & Delivery badge */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "#fef3c7", padding: "4px 10px", borderRadius: "20px", width: "fit-content", marginBottom: "16px" }}>
+                <Clock size={14} color="#d97706" strokeWidth={2.5} />
+                <span style={{ fontSize: "11px", color: "#d97706", fontWeight: "800" }}>
+                  ⚡ 10 MINS DELIVERY
+                </span>
+              </div>
+
+              {/* Strikethrough Price block */}
+              <div style={{ borderTop: "1px solid #f3f4f6", borderBottom: "1px solid #f3f4f6", padding: "16px 0", marginBottom: "16px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                  <span style={{ fontSize: "28px", fontWeight: "900", color: "#111827" }}>₹{currentPrice}</span>
+                  {hasDiscount && (
+                    <span style={{ fontSize: "18px", textDecoration: "line-through", color: "#9ca3af", fontWeight: "600" }}>
+                      MRP: ₹{currentOriginalPrice}
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: "12px", color: "#6b7280", margin: "4px 0 0 0" }}>(inclusive of all taxes)</p>
+              </div>
+
+              {/* Pack Sizes Selector */}
+              {activeProduct.variants && activeProduct.variants.length > 0 && (
+                <div style={{ marginBottom: "20px" }}>
+                  <h3 style={{ fontSize: "13px", fontWeight: "800", color: "#6b7280", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Pack Sizes
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {activeProduct.variants.map((v, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedVariantIndex(idx)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "12px 16px",
+                          borderRadius: "14px",
+                          border: selectedVariantIndex === idx ? "2px solid #318616" : "1px solid #e5e7eb",
+                          background: selectedVariantIndex === idx ? "#f0fdf4" : "white",
+                          cursor: "pointer",
+                          transition: "all 0.2s"
+                        }}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          <span style={{ fontSize: "14px", fontWeight: "800", color: "#1f2937" }}>{v.weight}</span>
+                          {v.originalPrice > v.price && (
+                            <span style={{ fontSize: "11px", color: "#9ca3af", textDecoration: "line-through" }}>MRP: ₹{v.originalPrice}</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "16px", fontWeight: "900", color: "#111827" }}>₹{v.price}</span>
+                          {selectedVariantIndex === idx && (
+                            <div style={{ width: "20px", height: "20px", background: "#318616", borderRadius: "50%", display: "flex", alignItems: "center", justifyCenter: "center" }}>
+                              <Check size={12} color="white" style={{ margin: "auto" }} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CTA action buttons */}
+            <div style={{ display: "flex", gap: "12px", alignItems: "center", marginTop: "16px" }}>
+              {/* Wishlist Icon Button */}
               <button
                 onClick={handleToggleWishlist}
                 style={{
-                  flex: "0 0 52px",
+                  width: "52px",
                   height: "52px",
                   borderRadius: "16px",
-                  border: "1.5px solid #f3f4f6",
+                  border: "1.5px solid #e5e7eb",
                   background: isWishlisted ? "#fee2e2" : "white",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "22px",
-                  transition: "all 0.2s ease",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+                  transition: "all 0.2s"
                 }}
-                title="Wishlist"
               >
-                {isWishlisted ? "❤️" : "♡"}
+                <Heart size={20} fill={isWishlisted ? "#ef4444" : "none"} color={isWishlisted ? "#ef4444" : "#4b5563"} />
               </button>
 
-              {/* Save For Later Button */}
-              <button
-                onClick={handleToggleSaveForLater}
-                style={{
-                  flex: "0 0 52px",
-                  height: "52px",
-                  borderRadius: "16px",
-                  border: "1.5px solid #f3f4f6",
-                  background: isSaved ? "#ebf5ea" : "white",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "transform 150ms ease, background 0.2s ease, border 0.2s ease",
-                  transform: isSavedIconAnimating ? "scale(1.15)" : "scale(1)",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
-                }}
-                title="Save for Later"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill={isSaved ? "#10b981" : "none"}
-                  stroke={isSaved ? "#10b981" : "#94a3b8"}
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                </svg>
-              </button>
-
-              {/* Cart Button wrapper */}
+              {/* Add to Cart button */}
               <div style={{ flexGrow: 1 }}>
-                {(() => {
-                  const currentWeight = activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-                    ? activeProduct.variants[selectedVariantIndex].weight
-                    : activeProduct.weight;
-
-                  const productToCart = {
-                    ...activeProduct,
-                    selectedWeight: currentWeight,
-                    price: activeProduct.variants && activeProduct.variants[selectedVariantIndex]
-                      ? activeProduct.variants[selectedVariantIndex].price
-                      : activeProduct.price
-                  };
-
-                  const cartItem = cartItems.find(
-                    (item) =>
-                      String(item._id || item.id) ===
-                      String(productToCart._id || productToCart.id)
-                  );
-                  const quantity = cartItem ? cartItem.quantity : 0;
-
-                  return quantity === 0 ? (
+                {cartQty === 0 ? (
+                  <button
+                    onClick={() => {
+                      if (cartQty >= (activeProduct.stock || 30)) {
+                        alert(`Only ${activeProduct.stock || 30} items available`);
+                        return;
+                      }
+                      addToCart({
+                        ...activeProduct,
+                        selectedWeight: currentWeight,
+                        price: currentPrice
+                      });
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "52px",
+                      background: "#318616",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "16px",
+                      fontSize: "15px",
+                      fontWeight: "800",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)"
+                    }}
+                  >
+                    <ShoppingBag size={18} />
+                    ADD TO CART
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "52px",
+                      background: "#318616",
+                      borderRadius: "16px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "0 16px",
+                      boxSizing: "border-box"
+                    }}
+                  >
+                    <button
+                      onClick={() =>
+                        removeFromCart({
+                          ...activeProduct,
+                          selectedWeight: currentWeight,
+                          price: currentPrice
+                        })
+                      }
+                      style={{ background: "none", border: "none", color: "white", fontSize: "24px", fontWeight: "800", cursor: "pointer", padding: "0 12px" }}
+                    >
+                      -
+                    </button>
+                    <span style={{ color: "white", fontWeight: "800", fontSize: "15px" }}>{cartQty} Items in Cart</span>
                     <button
                       onClick={() => {
-                        if (quantity >= activeProduct.stock) {
-                          alert(`Only ${activeProduct.stock} items available`);
+                        if (cartQty >= (activeProduct.stock || 30)) {
+                          alert(`Only ${activeProduct.stock || 30} items available`);
                           return;
                         }
-                        addToCart(productToCart);
+                        addToCart({
+                          ...activeProduct,
+                          selectedWeight: currentWeight,
+                          price: currentPrice
+                        });
                       }}
-                      onMouseOver={(e) => (e.currentTarget.style.background = "#286f12")}
-                      onMouseOut={(e) => (e.currentTarget.style.background = "#318616")}
-                      style={{
-                        background: "#318616",
-                        color: "white",
-                        width: "100%",
-                        padding: "16px",
-                        borderRadius: "16px",
-                        border: "none",
-                        fontWeight: "bold",
-                        fontSize: "15px",
-                        cursor: "pointer",
-                        boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
-                        transition: "all 0.2s",
-                        height: "52px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                      }}
+                      style={{ background: "none", border: "none", color: "white", fontSize: "24px", fontWeight: "800", cursor: "pointer", padding: "0 12px" }}
                     >
-                      ADD TO CART
+                      +
                     </button>
-                  ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        background: "#318616",
-                        borderRadius: "16px",
-                        width: "100%",
-                        overflow: "hidden",
-                        boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
-                        height: "52px"
-                      }}
-                    >
-                      <button
-                        onClick={() => removeFromCart(productToCart)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "white",
-                          fontSize: "24px",
-                          fontWeight: "bold",
-                          cursor: "pointer",
-                          padding: "0 24px",
-                          height: "100%"
-                        }}
-                      >
-                        -
-                      </button>
-                      <span style={{ color: "white", fontWeight: "800", fontSize: "15px" }}>
-                        {quantity} Items In Cart
-                      </span>
-                      <button
-                        onClick={() => {
-                          if (quantity >= activeProduct.stock) {
-                            alert(`Only ${activeProduct.stock} items available`);
-                            return;
-                          }
-                          addToCart(productToCart);
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "white",
-                          fontSize: "24px",
-                          fontWeight: "bold",
-                          cursor: "pointer",
-                          padding: "0 24px",
-                          height: "100%"
-                        }}
-                      >
-                        +
-                      </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Delivery Info */}
+            <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px", background: "#f9fafb", borderRadius: "16px", padding: "16px", border: "1px solid #f3f4f6" }}>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <Truck size={18} color="#4b5563" />
+                <span style={{ fontSize: "13px", color: "#4b5563", fontWeight: "600" }}>Superfast delivery in 10 minutes</span>
+              </div>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <ShieldCheck size={18} color="#4b5563" />
+                <span style={{ fontSize: "13px", color: "#4b5563", fontWeight: "600" }}>100% Quality Assurance & Safe Packing</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Highlights Chips */}
+        <div style={{ marginTop: "32px", borderTop: "1px solid #f3f4f6", paddingTop: "24px" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#1f2937", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Highlights
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+            {activeProduct.highlights.map((h, i) => (
+              <span
+                key={i}
+                style={{
+                  background: "#f0fdf4",
+                  color: "#166534",
+                  border: "1px solid #dcfce7",
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontSize: "13px",
+                  fontWeight: "700"
+                }}
+              >
+                ★ {h}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Why choose Buyto? Cards */}
+        <div style={{ marginTop: "32px", borderTop: "1px solid #f3f4f6", paddingTop: "24px" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#1f2937", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Why choose Buyto?
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: "16px" }}>
+            {[
+              { title: "Quality products", desc: "You can trust", icon: <ShieldCheck size={24} color="#16a34a" /> },
+              { title: "10 min delivery*", desc: "On selected locations", icon: <Clock size={24} color="#16a34a" /> },
+              { title: "On time", desc: "Guarantee", icon: <ThumbsUp size={24} color="#16a34a" /> },
+              { title: "Free delivery*", desc: "No extra cost", icon: <Truck size={24} color="#16a34a" /> },
+              { title: "Return Policy", desc: "No Question asked", icon: <RotateCcw size={24} color="#16a34a" /> }
+            ].map((card, i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#f9fafb",
+                  border: "1px solid #f3f4f6",
+                  borderRadius: "16px",
+                  padding: "16px",
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px"
+                }}
+              >
+                <div style={{ width: "48px", height: "48px", background: "white", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.03)" }}>
+                  {card.icon}
+                </div>
+                <h4 style={{ fontSize: "13px", fontWeight: "800", color: "#1f2937", margin: 0 }}>{card.title}</h4>
+                <p style={{ fontSize: "11px", color: "#6b7280", margin: 0 }}>{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Expandable Accordions */}
+        <div style={{ marginTop: "32px", borderTop: "1px solid #f3f4f6", paddingTop: "16px" }}>
+          <AccordionSection title="About the Product">
+            <p>{activeProduct.description}</p>
+          </AccordionSection>
+          <AccordionSection title="Nutritional Information">
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: "12px", marginTop: "8px" }}>
+              {Object.entries(activeProduct.nutrition).map(([key, val]) => (
+                <div key={key} style={{ background: "#f9fafb", padding: "12px", borderRadius: "10px", border: "1px solid #f3f4f6" }}>
+                  <span style={{ fontSize: "11px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase" }}>{key}</span>
+                  <p style={{ fontSize: "15px", color: "#1f2937", fontWeight: "800", margin: "4px 0 0 0" }}>{val}</p>
+                </div>
+              ))}
+            </div>
+          </AccordionSection>
+          <AccordionSection title="Storage Information">
+            <p>{activeProduct.storage}</p>
+          </AccordionSection>
+          <AccordionSection title="Product Details">
+            <p style={{ margin: 0 }}><strong>Category:</strong> {activeProduct.category}</p>
+            <p style={{ marginTop: "8px", margin: 0 }}><strong>Seller:</strong> Buyto Retail Logistics</p>
+          </AccordionSection>
+          <AccordionSection title="Disclaimer">
+            <p style={{ fontStyle: "italic" }}>{activeProduct.disclaimer}</p>
+          </AccordionSection>
+        </div>
+
+        {/* Frequently Bought Together Bundle */}
+        {frequentlyBoughtTogether.length > 0 && (
+          <div style={{ marginTop: "40px", background: "#f0fdf4", border: "1px solid #dcfce7", borderRadius: "20px", padding: "24px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#166534", marginBottom: "16px" }}>
+              Frequently Bought Together
+            </h3>
+            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center" }}>
+              {/* Active Product */}
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "white", padding: "10px 16px", borderRadius: "14px", border: "1px solid #e5e7eb" }}>
+                <img src={activeProduct.image} alt="" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
+                <div>
+                  <h4 style={{ fontSize: "13px", fontWeight: "800", margin: 0 }}>{activeProduct.name}</h4>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>₹{currentPrice}</span>
+                </div>
+              </div>
+
+              {frequentlyBoughtTogether.map((p, i) => (
+                <React.Fragment key={p._id || p.id}>
+                  <Plus size={20} color="#166534" strokeWidth={3} />
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "white", padding: "10px 16px", borderRadius: "14px", border: "1px solid #e5e7eb" }}>
+                    <img src={p.image} alt="" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
+                    <div>
+                      <h4 style={{ fontSize: "13px", fontWeight: "800", margin: 0 }}>{p.name}</h4>
+                      <span style={{ fontSize: "12px", color: "#6b7280" }}>₹{p.price}</span>
                     </div>
-                  );
-                })()}
+                  </div>
+                </React.Fragment>
+              ))}
+
+              {/* Total & Action */}
+              <div style={{ marginLeft: isMobile ? "0" : "auto", display: "flex", alignItems: "center", gap: "16px", marginTop: isMobile ? "12px" : "0" }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: "11px", color: "#6b7280" }}>Bundle Price</p>
+                  <p style={{ margin: 0, fontSize: "20px", fontWeight: "900", color: "#166534" }}>₹{fbtTotalPrice}</p>
+                </div>
+                <button
+                  onClick={handleAddAllFbt}
+                  style={{
+                    background: "#16a34a",
+                    color: "white",
+                    border: "none",
+                    padding: "12px 24px",
+                    borderRadius: "14px",
+                    fontWeight: "800",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)"
+                  }}
+                >
+                  Add Bundle to Cart
+                </button>
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* RELATED PRODUCTS ("You may also like") */}
+        {relatedProducts.length > 0 && (
+          <div style={{ marginTop: "40px", borderTop: "1px solid #f3f4f6", paddingTop: "24px" }}>
+            <h3 style={{ fontSize: "20px", fontWeight: "800", color: "#1f2937", marginBottom: "16px" }}>
+              You may also like
+            </h3>
+            {isMobile ? (
+              // Horizontally scrollable list on mobile
+              <div className="hide-scrollbar" style={{ display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "10px" }}>
+                {relatedProducts.map((prod) => (
+                  <MobileProductCard
+                    key={prod._id || prod.id}
+                    product={prod}
+                    addToCart={addToCart}
+                    removeFromCart={removeFromCart}
+                    cartItems={cartItems}
+                    setSelectedProduct={setSelectedProduct}
+                  />
+                ))}
+              </div>
+            ) : (
+              // Grid on desktop
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
+                {relatedProducts.map((prod) => (
+                  <ProductCard
+                    key={prod._id || prod.id}
+                    product={prod}
+                    addToCart={addToCart}
+                    removeFromCart={removeFromCart}
+                    cart={cart}
+                    cartItems={cartItems}
+                    windowWidth={windowWidth}
+                    getCartKey={getCartKey}
+                    setSelectedProduct={setSelectedProduct}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Recently Viewed Products */}
+        {recentlyViewed.length > 0 && (
+          <div style={{ marginTop: "40px", borderTop: "1px solid #f3f4f6", paddingTop: "24px" }}>
+            <h3 style={{ fontSize: "20px", fontWeight: "800", color: "#1f2937", marginBottom: "16px" }}>
+              Recently Viewed
+            </h3>
+            <div className="hide-scrollbar" style={{ display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "10px" }}>
+              {recentlyViewed.map((prod) => (
+                <MobileProductCard
+                  key={prod._id || prod.id}
+                  product={prod}
+                  addToCart={addToCart}
+                  removeFromCart={removeFromCart}
+                  cartItems={cartItems}
+                  setSelectedProduct={setSelectedProduct}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
 
-      {toastMsg && (
-        <>
-          <style>{`
-            @keyframes toastSlideUp {
-              0% { transform: translate(-50%, 10px); opacity: 0; }
-              15% { transform: translate(-50%, 0); opacity: 1; }
-              85% { transform: translate(-50%, 0); opacity: 1; }
-              100% { transform: translate(-50%, -10px); opacity: 0; }
+      {/* Sticky Bottom CTA for Mobile */}
+      {isMobile && cartQty === 0 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "0",
+            left: "0",
+            right: "0",
+            background: "white",
+            padding: "12px 16px",
+            boxShadow: "0 -4px 15px rgba(0,0,0,0.08)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            zIndex: 9999
+          }}
+        >
+          <div>
+            <span style={{ fontSize: "18px", fontWeight: "900", color: "#1f2937" }}>₹{currentPrice}</span>
+            <span style={{ fontSize: "11px", color: "#6b7280", display: "block" }}>{currentWeight}</span>
+          </div>
+          <button
+            onClick={() =>
+              addToCart({
+                ...activeProduct,
+                selectedWeight: currentWeight,
+                price: currentPrice
+              })
             }
-          `}</style>
-          <div
             style={{
-              position: "fixed",
-              bottom: (cartItems && cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0) ? "130px" : "90px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "rgba(30, 41, 59, 0.95)",
+              background: "#318616",
               color: "white",
-              padding: "10px 20px",
-              borderRadius: "999px",
-              boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
-              zIndex: 99999,
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: "13px",
-              fontWeight: "600",
-              pointerEvents: "none",
-              animation: "toastSlideUp 1500ms ease-in-out forwards",
-              textAlign: "center",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              whiteSpace: "nowrap"
+              border: "none",
+              padding: "10px 24px",
+              borderRadius: "12px",
+              fontWeight: "800",
+              fontSize: "14px",
+              boxShadow: "0 4px 10px rgba(49, 134, 22, 0.15)"
             }}
           >
-            {toastMsg}
-          </div>
-        </>
+            Add to Cart
+          </button>
+        </div>
       )}
 
-      {/* Similar Products */}
-      {similarProducts.length > 0 && (
-        <div style={{ marginTop: "32px", borderTop: "1px solid #f3f4f6", paddingTop: "24px" }}>
-          <h3 style={{ fontSize: "20px", fontWeight: "800", color: "#1f2937", marginBottom: "16px" }}>
-            Similar Products
-          </h3>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                windowWidth < 768
-                  ? "repeat(2, 1fr)"
-                  : windowWidth < 1024
-                    ? "repeat(4, 1fr)"
-                    : "repeat(4, 1fr)",
-              gap: windowWidth < 768 ? "12px" : "20px",
-            }}
-          >
-            {similarProducts.map(renderProductCard)}
-          </div>
+      {toastMsg && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "100px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(30, 41, 59, 0.95)",
+            color: "white",
+            padding: "10px 20px",
+            borderRadius: "999px",
+            boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+            zIndex: 99999,
+            fontSize: "13px",
+            fontWeight: "600",
+            pointerEvents: "none",
+            textAlign: "center"
+          }}
+        >
+          {toastMsg}
         </div>
       )}
     </div>

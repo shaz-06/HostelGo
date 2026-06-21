@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 import { io } from "socket.io-client";
 import { calculateBill } from "../utils/billCalculator";
 import CartBillDetails from "../components/CartBillDetails";
@@ -50,9 +51,30 @@ export default function CartPage({
     selectedCoupon = null,
     setSelectedCoupon = () => { },
     products = [],
-    cart = {},
     addToCart = () => { },
 }) {
+    const { user, setUser, openLogin } = useContext(AuthContext);
+    const [showPhoneModal, setShowPhoneModal] = useState(false);
+    const [phoneInput, setPhoneInput] = useState("");
+    const [phoneError, setPhoneError] = useState("");
+
+    const handlePhoneSubmit = (e) => {
+        if (e) e.preventDefault();
+        const cleanPhone = phoneInput.trim().replace(/\D/g, "");
+        if (cleanPhone.length !== 10) {
+            setPhoneError("Please enter a valid 10-digit phone number.");
+            return;
+        }
+        setPhoneError("");
+        // Update user state with phone number
+        const updatedUser = { ...user, phoneNumber: cleanPhone };
+        setUser(updatedUser);
+        localStorage.setItem("buyto_user", JSON.stringify(updatedUser));
+        localStorage.setItem("hostelgoUser", JSON.stringify(updatedUser));
+        setShowPhoneModal(false);
+        navigate("/payment");
+    };
+
     const navigate = useNavigate();
     const [noBagPledge, setNoBagPledge] = useState(() => {
         return localStorage.getItem("buyto_no_bag_pledge") === "true";
@@ -115,7 +137,7 @@ export default function CartPage({
     const [detectedAddressText, setDetectedAddressText] = useState("");
     const debounceGeocodeTimeout = useRef(null);
 
-    const user = localStorage.getItem("buyto_user") ? JSON.parse(localStorage.getItem("buyto_user")) : null;
+
     const originalUser = localStorage.getItem("hostelgoUser") ? JSON.parse(localStorage.getItem("hostelgoUser")) : null;
 
     // Check serviceability inside modal
@@ -299,7 +321,8 @@ export default function CartPage({
 
     // Save coins to redeem
     const handleCoinsChange = (newCoins) => {
-        const val = Math.max(0, Math.min(newCoins, availableCoins, 20));
+        const maxCoinsAllowed = Math.floor(subtotal * 0.20);
+        const val = Math.max(0, Math.min(newCoins, availableCoins, maxCoinsAllowed));
         setCoinsToRedeem(val);
         localStorage.setItem("buyto_coins_redeem", String(val));
         console.log("Analytics Event: buycoins_used", { coinsUsed: val });
@@ -1228,7 +1251,7 @@ export default function CartPage({
                         Balance: {availableCoins} Coins
                     </span>
                 </div>
-                <p style={{ margin: "0 0 12px 0", fontSize: "11px", color: "#6b7280" }}>Redeem coins for instant discount (Max 20 per order)</p>
+                <p style={{ margin: "0 0 12px 0", fontSize: "11px", color: "#6b7280" }}>Redeem coins for instant discount (Max 20% of subtotal: {Math.floor(subtotal * 0.20)} coins)</p>
 
                 <div style={{ display: "flex", alignItems: "center", justifyBox: "space-between", background: "#f9fafb", padding: "10px 16px", borderRadius: "14px", border: "1px solid #e5e7eb", justifyContent: "space-between" }}>
                     <span style={{ fontSize: "13px", fontWeight: "700", color: "#374151" }}>Use Coins:</span>
@@ -1303,7 +1326,7 @@ export default function CartPage({
                     disabled={!selectedAddressId || !isAddressServiceable}
                     onClick={() => {
                         if (!isLoggedIn) {
-                            navigate("/login", { state: { from: { pathname: "/payment" } } });
+                            openLogin(() => navigate("/payment"));
                         } else {
                             navigate("/payment");
                         }
@@ -1323,7 +1346,7 @@ export default function CartPage({
                         transition: "all 0.2s"
                     }}
                 >
-                    {!isLoggedIn ? "Login to Place Order" : !selectedAddressId ? "Select Delivery Address to Continue" : !isAddressServiceable ? "Location Unserviceable" : "Proceed to Pay"}
+                    {!isLoggedIn ? "Continue with Phone Number →" : !selectedAddressId ? "Select Delivery Address to Continue" : !isAddressServiceable ? "Location Unserviceable" : "Proceed to Pay"}
                 </button>
             )}
         </div>
@@ -1386,7 +1409,7 @@ export default function CartPage({
     );
 
     return (
-        <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+        <div className="page-with-bottom-nav" style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
             <div style={{ maxWidth: "1600px", margin: "0 auto", padding: windowWidth < 768 ? "12px" : "24px", paddingBottom: "140px" }}>
 
                 {/* HEADER */}
@@ -1467,7 +1490,7 @@ export default function CartPage({
                         disabled={!selectedAddressId || !isAddressServiceable}
                         onClick={() => {
                             if (!isLoggedIn) {
-                                navigate("/login", { state: { from: { pathname: "/payment" } } });
+                                openLogin(() => navigate("/payment"));
                             } else {
                                 navigate("/payment");
                             }
@@ -1484,7 +1507,7 @@ export default function CartPage({
                             boxShadow: (selectedAddressId && isAddressServiceable) ? "0 4px 12px rgba(49,134,22,0.2)" : "none"
                         }}
                     >
-                        {!isLoggedIn ? "Login" : !selectedAddressId ? "Select Address" : !isAddressServiceable ? "Unserviceable" : "Proceed to Pay"}
+                        {!isLoggedIn ? "Continue with Phone Number →" : !selectedAddressId ? "Select Address" : !isAddressServiceable ? "Unserviceable" : "Proceed to Pay"}
                     </button>
                 </div>
             )}
@@ -1794,6 +1817,86 @@ export default function CartPage({
                     {toast.couponCode === "Address Selected" ? "📍 Saved Address Selected!" :
                         toast.couponCode.includes("success") ? `✅ ${toast.couponCode}` :
                             `✅ ${toast.couponCode} Applied! Saving ₹${toast.discountAmount}`}
+                </div>
+            )}
+
+            {/* PHONE MODAL FOR GUEST CHECKOUT */}
+            {showPhoneModal && (
+                <div style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.5)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 99999,
+                    padding: "20px",
+                    backdropFilter: "blur(4px)"
+                }}>
+                    <form onSubmit={handlePhoneSubmit} style={{
+                        background: "white",
+                        borderRadius: "24px",
+                        padding: "24px",
+                        width: "100%",
+                        maxWidth: "400px",
+                        boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "16px",
+                        fontFamily: "'Outfit', 'Inter', sans-serif"
+                    }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#1f2937" }}>
+                                Continue with Phone Number
+                            </h3>
+                            <button type="button" onClick={() => setShowPhoneModal(false)} style={{ border: "none", background: "transparent", fontSize: "18px", cursor: "pointer", fontWeight: "800" }}>✕</button>
+                        </div>
+                        <p style={{ margin: 0, fontSize: "13px", color: "#6b7280", fontWeight: "600", lineHeight: "1.4" }}>
+                            Please enter your phone number to place your order.
+                        </p>
+
+                        <div>
+                            <input
+                                type="tel"
+                                placeholder="Enter 10-digit Phone Number"
+                                value={phoneInput}
+                                onChange={(e) => setPhoneInput(e.target.value)}
+                                style={{
+                                    width: "100%",
+                                    padding: "14px",
+                                    borderRadius: "12px",
+                                    border: "1.5px solid #e5e7eb",
+                                    fontSize: "14px",
+                                    fontWeight: "600",
+                                    outline: "none",
+                                    boxSizing: "border-box"
+                                }}
+                            />
+                            {phoneError && (
+                                <p style={{ color: "#ef4444", fontSize: "12px", margin: "6px 0 0 0", fontWeight: "700" }}>
+                                    {phoneError}
+                                </p>
+                            )}
+                        </div>
+
+                        <button
+                            type="submit"
+                            style={{
+                                background: "#318616",
+                                color: "white",
+                                border: "none",
+                                padding: "14px",
+                                borderRadius: "12px",
+                                fontSize: "14px",
+                                fontWeight: "800",
+                                cursor: "pointer",
+                                transition: "all 0.2s",
+                                boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)"
+                            }}
+                        >
+                            Continue with Phone Number
+                        </button>
+                    </form>
                 </div>
             )}
 

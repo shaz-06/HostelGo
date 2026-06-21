@@ -8,50 +8,45 @@ const BuyCoinTransactionSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
+    required: false,
     index: true,
     lowercase: true
   },
   type: {
     type: String,
-    enum: ["earn", "redeem", "expire", "bonus"],
+    enum: ["earned", "spent", "bonus", "refund", "reversal", "admin"],
+    required: true
+  },
+  amount: {
+    type: Number,
     required: true
   },
   coins: {
     type: Number,
-    required: true
+    required: false
   },
   orderId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Order"
+    ref: "Order",
+    required: false
+  },
+  description: {
+    type: String,
+    default: ""
   },
   source: {
     type: String,
-    required: true
+    required: false
   },
-  issuedAt: {
+  buyCoinExpiryDate: {
     type: Date,
-    default: Date.now,
-    required: true
-  },
-  expiresAt: {
-    type: Date
+    required: false
   },
   createdAt: {
     type: Date,
     default: Date.now,
     required: true
   }
-});
-
-// Calculate expiresAt for earn and bonus types automatically
-BuyCoinTransactionSchema.pre("save", function(next) {
-  if ((this.type === "earn" || this.type === "bonus") && !this.expiresAt) {
-    // 90 days from issuedAt
-    const issued = this.issuedAt || new Date();
-    this.expiresAt = new Date(issued.getTime() + 90 * 24 * 60 * 60 * 1000);
-  }
-  next();
 });
 
 module.exports = mongoose.model("BuyCoinTransaction", BuyCoinTransactionSchema);

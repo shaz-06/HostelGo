@@ -3,13 +3,22 @@ import { Capacitor } from '@capacitor/core';
 
 let fcmToken = localStorage.getItem('fcm_token') || null;
 
+const isPushAvailable = () => {
+  try {
+    return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("PushNotifications");
+  } catch (err) {
+    console.error("[Push Service] Error checking plugin availability:", err);
+    return false;
+  }
+};
+
 /**
  * Request permission for push notifications.
  * @returns {Promise<boolean>} True if permission is granted, false otherwise.
  */
 export const requestPermissions = async () => {
-  if (!Capacitor.isNativePlatform()) {
-    console.log('[Push Service] Permissions requested, but not on a native platform.');
+  if (!isPushAvailable()) {
+    console.log('[Push Service] Permissions requested, but plugin is unavailable or not on native platform.');
     return false;
   }
   try {
@@ -26,8 +35,8 @@ export const requestPermissions = async () => {
  * Register the device for push notifications.
  */
 export const registerDevice = async () => {
-  if (!Capacitor.isNativePlatform()) {
-    console.log('[Push Service] Registration requested, but not on a native platform.');
+  if (!isPushAvailable()) {
+    console.log('[Push Service] Registration requested, but plugin is unavailable or not on native platform.');
     return;
   }
   try {
@@ -53,53 +62,78 @@ export const getFCMToken = () => {
  * @param {Function} onNotificationClick - Callback with action.notification payload.
  */
 export const registerListeners = (onTokenReceived, onNotificationReceived, onNotificationClick) => {
-  if (!Capacitor.isNativePlatform()) {
-    console.log('[Push Service] Listeners registered, but not on a native platform.');
+  if (!isPushAvailable()) {
+    console.log('[Push Service] Listeners registration skipped: plugin is unavailable.');
     return;
   }
 
-  // Handle successful registration and token retrieval
-  PushNotifications.addListener('registration', (token) => {
-    console.log('[Push Service] Registration successful. Token:', token.value);
-    fcmToken = token.value;
-    localStorage.setItem('fcm_token', token.value);
-    if (onTokenReceived) {
-      onTokenReceived(token.value);
-    }
-  });
+  try {
+    // Handle successful registration and token retrieval
+    PushNotifications.addListener('registration', (token) => {
+      try {
+        console.log('[Push Service] Registration successful. Token:', token.value);
+        fcmToken = token.value;
+        localStorage.setItem('fcm_token', token.value);
+        if (onTokenReceived) {
+          onTokenReceived(token.value);
+        }
+      } catch (err) {
+        console.error('[Push Service] Error in registration callback:', err);
+      }
+    });
 
-  // Handle registration errors
-  PushNotifications.addListener('registrationError', (err) => {
-    console.error('[Push Service] Registration error:', err.error);
-  });
+    // Handle registration errors
+    PushNotifications.addListener('registrationError', (err) => {
+      console.error('[Push Service] Registration error:', err.error);
+    });
 
-  // Handle notification received in foreground
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('[Push Service] Notification received in foreground:', notification);
-    if (onNotificationReceived) {
-      onNotificationReceived(notification);
-    }
-  });
+    // Handle notification received in foreground
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      try {
+        console.log('[Push Service] Notification received in foreground:', notification);
+        if (onNotificationReceived) {
+          onNotificationReceived(notification);
+        }
+      } catch (err) {
+        console.error('[Push Service] Error in pushNotificationReceived callback:', err);
+      }
+    });
 
-  // Handle notification click action (background/foreground)
-  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    console.log('[Push Service] Action performed on notification:', action);
-    if (onNotificationClick) {
-      onNotificationClick(action.notification);
-    }
-  });
+    // Handle notification click action (background/foreground)
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      try {
+        console.log('[Push Service] Action performed on notification:', action);
+        if (onNotificationClick) {
+          onNotificationClick(action.notification);
+        }
+      } catch (err) {
+        console.error('[Push Service] Error in pushNotificationActionPerformed callback:', err);
+      }
+    });
+  } catch (error) {
+    console.error('[Push Service] Error setting up Push Notification listeners:', error);
+  }
 };
 
 export const initializePushNotifications = async () => {
-  const granted = await requestPermissions();
+  try {
+    if (!isPushAvailable()) {
+      console.warn("PushNotifications plugin unavailable");
+      return;
+    }
 
-  if (!granted) {
-    console.log("Push Permission Denied");
-    return;
+    const granted = await requestPermissions();
+
+    if (!granted) {
+      console.log("Push Permission Denied");
+      return;
+    }
+
+    registerListeners();
+    await registerDevice();
+
+    console.log("Push notifications initialized");
+  } catch (err) {
+    console.error("Failed to initialize push notifications safely:", err);
   }
-
-  registerListeners();
-  await registerDevice();
-
-  console.log("Push notifications initialized");
 };

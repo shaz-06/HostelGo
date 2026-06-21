@@ -2963,7 +2963,7 @@ const matchesType = (product, currentType) => {
   return false;
 };
 
-  const fruitsSidebar = [
+const fruitsSidebar = [
   { id: "All", name: "Show All", emoji: "🛍️" },
   { id: "Mango", name: "Mango", emoji: "🥭" },
   { id: "Fresh Fruits", name: "Fresh Fruits", emoji: "🍎" },
@@ -3060,7 +3060,7 @@ const getSidebarItems = (type) => {
   if (type === "masalas") return masalasSidebar;
   if (type === "grocery") return grocerySidebar;
   if (type === "meat") return meatSidebar;
-  
+
   if (type === "snacks") return [{ id: "All", name: "Show All", emoji: "🍿" }];
   if (type === "beverages") return [{ id: "All", name: "Show All", emoji: "🥤" }];
   if (type === "exclusive-deals") return [{ id: "All", name: "Show All", emoji: "🏷️" }];
@@ -3878,6 +3878,8 @@ export default function SectionProductsPage({
           fontFamily: "'Outfit', 'Inter', sans-serif",
           paddingBottom: totalItems > 0 ? "148px" : "84px",
           width: "100%",
+          maxWidth: "100%",
+          overflowX: "hidden",
           boxSizing: "border-box",
         }}
       >
@@ -4110,14 +4112,26 @@ export default function SectionProductsPage({
         </div>
 
         {/* Product Grid Area */}
-        <div style={{ padding: "12px", width: "100%", boxSizing: "border-box" }}>
+        <div
+          style={{
+            paddingLeft: "12px",
+            paddingRight: "12px",
+            paddingTop: "12px",
+            paddingBottom: "12px",
+            width: "100%",
+            maxWidth: "100%",
+            overflowX: "hidden",
+            boxSizing: "border-box"
+          }}
+        >
           {loading ? (
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: "10px",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: "12px",
                 width: "100%",
+                boxSizing: "border-box"
               }}
             >
               {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -4201,9 +4215,10 @@ export default function SectionProductsPage({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: "10px",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: "12px",
                 width: "100%",
+                boxSizing: "border-box"
               }}
             >
               {searchedProducts.map((product) => (
@@ -4439,25 +4454,7 @@ export default function SectionProductsPage({
             </h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <input
-              type="text"
-              placeholder="Search in Fresh Fruits..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: "#f3f4f6",
-                border: "none",
-                borderRadius: "12px",
-                padding: "10px 16px",
-                fontSize: "14px",
-                outline: "none",
-                width: "240px",
-                fontWeight: "600",
-              }}
-            />
-            <span style={{ fontSize: "20px", color: "#6b7280", cursor: "pointer" }}>🔍</span>
-          </div>
+
         </header>
 
         {/* Main Split Layout */}
@@ -4844,25 +4841,7 @@ export default function SectionProductsPage({
             </h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <input
-              type="text"
-              placeholder="Search in Dairy, Bread & Eggs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: "#f3f4f6",
-                border: "none",
-                borderRadius: "12px",
-                padding: "10px 16px",
-                fontSize: "14px",
-                outline: "none",
-                width: "240px",
-                fontWeight: "600",
-              }}
-            />
-            <span style={{ fontSize: "20px", color: "#6b7280", cursor: "pointer" }}>🔍</span>
-          </div>
+
         </header>
 
         {/* Main Split Layout */}
@@ -5626,25 +5605,7 @@ export default function SectionProductsPage({
             </h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <input
-              type="text"
-              placeholder="Search in Masalas..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: "#f3f4f6",
-                border: "none",
-                borderRadius: "12px",
-                padding: "10px 16px",
-                fontSize: "14px",
-                outline: "none",
-                width: "240px",
-                fontWeight: "600",
-              }}
-            />
-            <span style={{ fontSize: "20px", color: "#6b7280", cursor: "pointer" }}>🔍</span>
-          </div>
+
         </header>
 
         {/* Main Split Layout */}
@@ -5992,25 +5953,7 @@ export default function SectionProductsPage({
             </h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <input
-              type="text"
-              placeholder="Search in Atta, Rice and Dal..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: "#f3f4f6",
-                border: "none",
-                borderRadius: "12px",
-                padding: "10px 16px",
-                fontSize: "14px",
-                outline: "none",
-                width: "240px",
-                fontWeight: "600",
-              }}
-            />
-            <span style={{ fontSize: "20px", color: "#6b7280", cursor: "pointer" }}>🔍</span>
-          </div>
+
         </header>
 
         {/* Main Split Layout */}
@@ -6417,25 +6360,7 @@ export default function SectionProductsPage({
             </h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <input
-              type="text"
-              placeholder="Search in Meat and Seafood..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: "#f3f4f6",
-                border: "none",
-                borderRadius: "12px",
-                padding: "10px 16px",
-                fontSize: "14px",
-                outline: "none",
-                width: "240px",
-                fontWeight: "600",
-              }}
-            />
-            <span style={{ fontSize: "20px", color: "#6b7280", cursor: "pointer" }}>🔍</span>
-          </div>
+
         </header>
 
         {/* Main Split Layout */}
@@ -6782,25 +6707,7 @@ export default function SectionProductsPage({
             </h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <input
-              type="text"
-              placeholder="Search in Fresh Vegetables..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: "#f3f4f6",
-                border: "none",
-                borderRadius: "12px",
-                padding: "10px 16px",
-                fontSize: "14px",
-                outline: "none",
-                width: "240px",
-                fontWeight: "600",
-              }}
-            />
-            <span style={{ fontSize: "20px", color: "#6b7280", cursor: "pointer" }}>🔍</span>
-          </div>
+
         </header>
 
         {/* Main Split Layout */}
@@ -7134,23 +7041,6 @@ export default function SectionProductsPage({
 
           {/* Filtering and Search Controls */}
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-            <input
-              type="text"
-              placeholder="Search in this section..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: "white",
-                border: "1px solid #e5e7eb",
-                borderRadius: "12px",
-                padding: "10px 16px",
-                fontSize: "14px",
-                outline: "none",
-                width: "220px",
-                fontWeight: "500",
-              }}
-            />
-
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}

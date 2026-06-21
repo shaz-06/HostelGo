@@ -241,9 +241,9 @@ router.put("/orders/:id/status", async (req, res) => {
       console.error("Failed to send order status notification:", notifErr.message);
     }
 
-    if (orderStatus === "Delivered") {
-      const { handleOrderDeliveredRewards } = require("../utils/rewards");
-      await handleOrderDeliveredRewards(updatedOrder);
+    if (["Cancelled", "Delivery Failed"].includes(orderStatus)) {
+      const { handleOrderCancellationReversal } = require("../utils/rewards");
+      await handleOrderCancellationReversal(updatedOrder);
     }
 
     return res.json(updatedOrder);
@@ -680,6 +680,75 @@ router.delete("/categories/:id", async (req, res) => {
   }
 });
 
+// GET /api/admin/notifications/stats
+router.get("/notifications/stats", async (req, res) => {
+  try {
+    const totalDevicesResult = await User.aggregate([
+      { $project: { tokensCount: { $size: { $ifNull: ["$fcmTokens", []] } } } },
+      { $group: { _id: null, total: { $sum: "$tokensCount" } } }
+    ]);
+    const totalDevices = totalDevicesResult[0]?.total || 0;
+
+    const totalCampaigns = await Notification.countDocuments({ type: "PROMO" });
+    const successResult = await User.countDocuments(); // Fallback/general metrics
+
+    // Let's count total historical pushes sent (order + cart + promo)
+    const totalSent = await NotificationHistory.countDocuments();
+    const lastCampaign = await Notification.findOne({ type: "PROMO" }).sort({ sentAt: -1 });
+
+    return res.json({
+      success: true,
+      totalDevices,
+      totalCampaigns,
+      totalSent,
+      successCount: totalSent, // approximate delivery count
+      failureCount: 0,
+      lastSentTime: lastCampaign ? lastCampaign.sentAt : null
+    });
+  } catch (error) {
+    console.error("Error fetching notification stats:", error);
+    return res.status(500).json({ message: "Failed to fetch stats", error: error.message });
+  }
+});
+
+// GET /api/admin/notifications/history
+router.get("/notifications/history", async (req, res) => {
+  try {
+    const campaigns = await Notification.find({ type: "PROMO" })
+      .populate("createdBy", "name email")
+      .sort({ sentAt: -1 })
+      .limit(50);
+    return res.json(campaigns);
+  } catch (error) {
+    console.error("Error fetching notification history:", error);
+    return res.status(500).json({ message: "Failed to fetch history", error: error.message });
+  }
+});
+
+// POST /api/admin/notifications/send
+router.post("/notifications/send", async (req, res) => {
+  const { title, body, image, target, selectedEmails } = req.body;
+  if (!title || !body) {
+    return res.status(400).json({ message: "Title and body are required" });
+  }
+
+  try {
+    const { sendPromotionalNotification } = require("../services/notificationService");
+    const result = await sendPromotionalNotification({
+      title,
+      body,
+      image,
+      target,
+      selectedEmails,
+      createdBy: req.user?._id
+    });
+    return res.json(result);
+  } catch (error) {
+    console.error("Send campaign notification error:", error);
+    return res.status(500).json({ message: "Failed to dispatch notifications", error: error.message });
+  }
+});
+
 // POST /api/admin/send-broadcast
 // Sends promotional broadcast push notifications
 router.post("/send-broadcast", async (req, res) => {
@@ -689,8 +758,13 @@ router.post("/send-broadcast", async (req, res) => {
   }
 
   try {
-    const { sendBroadcastNotification } = require("../services/notificationService");
-    const result = await sendBroadcastNotification({ target, title, body, data });
+    const { sendPromotionalNotification } = require("../services/notificationService");
+    const result = await sendPromotionalNotification({
+      target: target === "all" ? "all" : "selected",
+      title,
+      body,
+      createdBy: req.user?._id
+    });
     return res.status(200).json(result);
   } catch (error) {
     console.error("Broadcast endpoint error:", error);

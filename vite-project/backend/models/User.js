@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin", "rider"],
+      enum: ["user", "admin", "rider", "customer"],
       default: "user"
     },
     addresses: [
@@ -101,6 +101,24 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    totalBuyCoinsEarned: {
+      type: Number,
+      default: 0
+    },
+    totalBuyCoinsSpent: {
+      type: Number,
+      default: 0
+    },
+    welcomeBonusGiven: {
+      type: Boolean,
+      default: false
+    },
+    referralCode: {
+      type: String
+    },
+    referredBy: {
+      type: String
+    },
     savedLists: [
       {
         name: { type: String, required: true },
@@ -127,6 +145,27 @@ const userSchema = new mongoose.Schema(
     fcmToken: {
       type: String,
       default: null
+    },
+    fcmTokens: {
+      type: [String],
+      default: []
+    },
+    notificationPreferences: {
+      orderUpdates: { type: Boolean, default: true },
+      promotions: { type: Boolean, default: true },
+      cartReminders: { type: Boolean, default: true }
+    },
+    cartHasItems: {
+      type: Boolean,
+      default: false
+    },
+    cartActivityAt: {
+      type: Date,
+      default: Date.now
+    },
+    cartReminderSent: {
+      type: Boolean,
+      default: false
     }
   },
   {

@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /login
+Disallow: /cart
+Disallow: /checkout
+Disallow: /admin
+Disallow: /seller-dashboard
+Disallow: /account
 
 Sitemap: https://buyto.co.in/sitemap.xml

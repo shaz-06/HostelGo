@@ -6,6 +6,7 @@ import MobileBannerCarousel from "./MobileBannerCarousel";
 import MobileProductCard from "./MobileProductCard";
 import CategoryDiscovery from "../CategoryDiscovery";
 import TrendingThisWeek from "../TrendingThisWeek";
+import DynamicNewBanners from "../DynamicNewBanners";
 
 function MobileHome({
   products,
@@ -23,7 +24,8 @@ function MobileHome({
   onOpenAddressModal,
   displayCats = [],
   selectedCategory = "All",
-  onCategoryClick = () => {}
+  onCategoryClick = () => {},
+  forceSearchTab = false
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -169,81 +171,14 @@ function MobileHome({
     );
   };
 
-  const isSearchTab = location.search.includes("tab=search") || searchQuery.trim() !== "";
+  const isSearchTab = forceSearchTab || location.search.includes("tab=search") || searchQuery.trim() !== "";
 
   return (
-    <div style={{ background: "#f9fafb", minHeight: "calc(100vh - 64px)", paddingBottom: "80px", boxSizing: "border-box" }}>
-      <Header
-        userLocation={userLocation}
-        roomNumber={roomNumber}
-        totalItems={totalItems}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        isLoggedIn={isLoggedIn}
-        onOpenAddressModal={onOpenAddressModal}
-        eta={7}
-        displayCats={displayCats}
-        selectedCategory={selectedCategory}
-        onCategoryClick={onCategoryClick}
-      />
+    <div style={{ background: "#f7f8fa", minHeight: "calc(100vh - 64px)", paddingBottom: "80px", boxSizing: "border-box" }}>
 
       {isSearchTab ? (
         /* SEARCH LAYOUT VIEW */
         <div style={{ padding: "12px 16px", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-          {/* Search bar below header */}
-          <div style={{ position: "relative", marginBottom: "16px" }}>
-            <input
-              type="text"
-              autoFocus
-              placeholder="Search for grocery, fresh fruits..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: "#f3f4f6",
-                borderRadius: "14px",
-                padding: "10px 14px",
-                paddingLeft: "44px",
-                width: "100%",
-                border: "none",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#1f2937",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-            <svg
-              style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)" }}
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#9ca3af"
-              strokeWidth="2.5"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                style={{
-                  position: "absolute",
-                  right: "16px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  border: "none",
-                  background: "transparent",
-                  color: "#9ca3af",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                  fontWeight: "800",
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
 
           {searchQuery.trim() === "" ? (
             /* Popular search suggestions list */
@@ -319,6 +254,9 @@ function MobileHome({
           <div style={{ padding: "0 16px", background: "white", borderRadius: "24px", margin: "12px 16px", border: "1px solid #f3f4f6" }}>
             <CategoryDiscovery />
           </div>
+
+          {/* Dynamic Staggered Row Banners */}
+          <DynamicNewBanners />
 
           {/* Product Scrolling Sections (compact gaps) */}
           {renderProductSection("Top Picks For You", trendingProducts, "/section/trending")}

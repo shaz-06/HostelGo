@@ -32,6 +32,92 @@ export default function AdminDashboard() {
   const [adjustReason, setAdjustReason] = useState("");
   const [isAdjusting, setIsAdjusting] = useState(false);
 
+  // Notification Center states
+  const [notifStats, setNotifStats] = useState(null);
+  const [notifHistory, setNotifHistory] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifTitle, setNotifTitle] = useState("");
+  const [notifBody, setNotifBody] = useState("");
+  const [notifImage, setNotifImage] = useState("");
+  const [notifTarget, setNotifTarget] = useState("all"); // "all" or "selected"
+  const [notifEmails, setNotifEmails] = useState("");
+  const [notifSending, setNotifSending] = useState(false);
+
+  const fetchNotificationsData = async () => {
+    try {
+      setNotifLoading(true);
+      const token = localStorage.getItem("buyto_token");
+      const [statsRes, historyRes] = await Promise.all([
+        fetch(window.API_BASE_URL + "/api/admin/notifications/stats", {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(window.API_BASE_URL + "/api/admin/notifications/history", {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+
+      if (statsRes.ok && historyRes.ok) {
+        const statsData = await statsRes.json();
+        const historyData = await historyRes.json();
+        setNotifStats(statsData);
+        setNotifHistory(historyData);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notification stats/history:", err);
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === "notifications") {
+      fetchNotificationsData();
+    }
+  }, [activeView]);
+
+  const handleSendNotification = async (e) => {
+    e.preventDefault();
+    if (!notifTitle || !notifBody) {
+      alert("Title and body are required");
+      return;
+    }
+    try {
+      setNotifSending(true);
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(window.API_BASE_URL + "/api/admin/notifications/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: notifTitle,
+          body: notifBody,
+          image: notifImage || null,
+          target: notifTarget,
+          selectedEmails: notifTarget === "selected" ? notifEmails : null
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Notification campaign dispatched successfully to ${data.recipientsCount} customers!`);
+        setNotifTitle("");
+        setNotifBody("");
+        setNotifImage("");
+        setNotifEmails("");
+        fetchNotificationsData();
+      } else {
+        alert(data.message || "Failed to dispatch notifications");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to send notification campaign");
+    } finally {
+      setNotifSending(false);
+    }
+  };
+
   const toggleLateNight = async () => {
     try {
       const token = localStorage.getItem("buyto_token");
@@ -282,6 +368,9 @@ export default function AdminDashboard() {
             </button>
             <button onClick={() => setActiveView("buycoins")} style={activeView === "buycoins" ? activeNavLinkStyle : navLinkStyle}>
               💰 BuyCoins Management
+            </button>
+            <button onClick={() => setActiveView("notifications")} style={activeView === "notifications" ? activeNavLinkStyle : navLinkStyle}>
+              🔔 Notification Center
             </button>
             <button onClick={() => navigate("/admin/orders")} style={navLinkStyle}>
               📦 Orders Lifecycle
@@ -973,9 +1062,263 @@ export default function AdminDashboard() {
 
         {activeView === "delivery" && <DeliveryServicesPanel />}
         {activeView === "categories" && <CategoriesPanel />}
+        {activeView === "notifications" && renderNotificationsView()}
       </main>
     </div>
   </div>
+  );
+}
+
+const renderNotificationsView = () => {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+      <h2 style={{ fontSize: "22px", fontWeight: "850", color: "#0f172a", margin: 0 }}>🔔 Push Notification Center</h2>
+
+      {/* Analytics Cards */}
+      <div style={statsGridStyle}>
+        <div style={statCardStyle("#3b82f6")}>
+          <div style={statIconStyle("📱", "#eff6ff", "#3b82f6")} />
+          <div style={statContentStyle}>
+            <span style={statLabelStyle}>Devices Registered</span>
+            <span style={statValStyle}>{notifStats?.totalDevices || 0}</span>
+          </div>
+        </div>
+        <div style={statCardStyle("#22c55e")}>
+          <div style={statIconStyle("🚀", "#f0fdf4", "#22c55e")} />
+          <div style={statContentStyle}>
+            <span style={statLabelStyle}>Campaigns Sent</span>
+            <span style={statValStyle}>{notifStats?.totalCampaigns || 0}</span>
+          </div>
+        </div>
+        <div style={statCardStyle("#eab308")}>
+          <div style={statIconStyle("📨", "#fefbeb", "#eab308")} />
+          <div style={statContentStyle}>
+            <span style={statLabelStyle}>Total Pushes Sent</span>
+            <span style={statValStyle}>{notifStats?.totalSent || 0}</span>
+          </div>
+        </div>
+        <div style={statCardStyle("#a855f7")}>
+          <div style={statIconStyle("⏳", "#faf5ff", "#a855f7")} />
+          <div style={statContentStyle}>
+            <span style={statLabelStyle}>Last Sent Time</span>
+            <span style={{ ...statValStyle, fontSize: "12px", marginTop: "4px" }}>
+              {notifStats?.lastSentTime ? new Date(notifStats.lastSentTime).toLocaleString() : "Never"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Form and History */}
+      <div style={dashboardDetailsGridStyle}>
+        {/* Create Campaign */}
+        <div style={cardLayoutStyle}>
+          <h3 style={cardTitleStyle}>Create New Campaign</h3>
+          <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
+            Send real-time alerts or promotions directly to your customers' mobile screens.
+          </p>
+          <form onSubmit={handleSendNotification} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Campaign Title</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 🎁 Get ₹100 OFF on your next order!"
+                value={notifTitle}
+                onChange={(e) => setNotifTitle(e.target.value)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #cbd5e1",
+                  fontSize: "14px",
+                  fontWeight: "600"
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Campaign Message Body</label>
+              <textarea
+                required
+                rows="3"
+                placeholder="e.g. Complete your order now and grab flat ₹100 cashback. Valid for today only!"
+                value={notifBody}
+                onChange={(e) => setNotifBody(e.target.value)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #cbd5e1",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  resize: "vertical"
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Image URL (Optional)</label>
+              <input
+                type="url"
+                placeholder="e.g. https://images.unsplash.com/photo-..."
+                value={notifImage}
+                onChange={(e) => setNotifImage(e.target.value)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #cbd5e1",
+                  fontSize: "14px",
+                  fontWeight: "600"
+                }}
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Target Audience</label>
+                <select
+                  value={notifTarget}
+                  onChange={(e) => setNotifTarget(e.target.value)}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: "1.5px solid #cbd5e1",
+                    fontSize: "14px",
+                    fontWeight: "600"
+                  }}
+                >
+                  <option value="all">Send to All Customers</option>
+                  <option value="selected">Send to Selected Emails</option>
+                </select>
+              </div>
+            </div>
+
+            {notifTarget === "selected" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Selected Customer Emails</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. user1@gmail.com, user2@gmail.com"
+                  value={notifEmails}
+                  onChange={(e) => setNotifEmails(e.target.value)}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: "1.5px solid #cbd5e1",
+                    fontSize: "14px",
+                    fontWeight: "600"
+                  }}
+                />
+                <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "500" }}>Separate multiple emails with commas.</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={notifSending}
+              style={{
+                padding: "12px 18px",
+                borderRadius: "12px",
+                background: notifSending ? "#9CA3AF" : "#318616",
+                color: "white",
+                border: "none",
+                fontWeight: "800",
+                cursor: notifSending ? "not-allowed" : "pointer",
+                boxShadow: "0 4px 6px -1px rgba(49, 134, 22, 0.2)",
+                transition: "all 0.15s ease"
+              }}
+            >
+              {notifSending ? "Sending Broadcast..." : "🚀 Send Push Campaign"}
+            </button>
+          </form>
+        </div>
+
+        {/* Campaign History */}
+        <div style={cardLayoutStyle}>
+          <div style={cardHeaderStyle}>
+            <h3 style={cardTitleStyle}>Campaign Logs</h3>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Date & Time</th>
+                  <th style={thStyle}>Details</th>
+                  <th style={thStyle}>Target</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notifHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={emptyTdStyle}>No campaign records found.</td>
+                  </tr>
+                ) : (
+                  notifHistory.map((camp) => (
+                    <tr key={camp._id} style={trStyle}>
+                      <td style={tdDateStyle}>
+                        {new Date(camp.sentAt || camp.createdAt).toLocaleString()}
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          <span style={{ fontWeight: "800", color: "#111827" }}>{camp.title}</span>
+                          <span style={{ fontSize: "11px", color: "#4B5563", marginTop: "2px" }}>{camp.body}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{
+                          fontSize: "10px",
+                          fontWeight: "800",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: camp.recipients === "all" ? "#eff6ff" : "#f1f5f9",
+                          color: camp.recipients === "all" ? "#3b82f6" : "#475569"
+                        }}>
+                          {camp.recipients === "all" ? "All Customers" : `${Array.isArray(camp.recipients) ? camp.recipients.length : 1} Selected`}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{
+                          fontSize: "10px",
+                          fontWeight: "800",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: camp.status === "sent" ? "#ecfdf5" : "#fef2f2",
+                          color: camp.status === "sent" ? "#10b981" : "#ef4444"
+                        }}>
+                          {camp.status || "sent"}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => {
+                            setNotifTitle(camp.title);
+                            setNotifBody(camp.body);
+                            setNotifImage(camp.image || "");
+                            setNotifTarget(camp.recipients === "all" ? "all" : "selected");
+                            setNotifEmails("");
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#318616",
+                            fontWeight: "800",
+                            cursor: "pointer",
+                            fontSize: "12px"
+                          }}
+                        >
+                          Resend
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

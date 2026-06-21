@@ -267,8 +267,9 @@ router.post("/payment/verify", async (req, res) => {
       console.log("=== [BACKEND DB UPDATE SUCCESS] Paid Order Saved to MongoDB Successfully ===");
       console.log("Saved Document ID:", savedOrder._id);
 
-      const { consumeOrderDiscounts } = require("../utils/rewards");
+      const { consumeOrderDiscounts, handleOrderCheckoutRewards } = require("../utils/rewards");
       await consumeOrderDiscounts(savedOrder);
+      await handleOrderCheckoutRewards(savedOrder);
 
       // Auto-remove purchased products from Save For Later if configured
       try {
@@ -422,8 +423,9 @@ router.post("/orders", authMiddleware, async (req, res) => {
       console.log("=== [BACKEND DB SAVE SUCCESS] COD Order Saved Successfully ===");
       console.log("Saved Document ID:", savedOrder._id);
 
-      const { consumeOrderDiscounts } = require("../utils/rewards");
+      const { consumeOrderDiscounts, handleOrderCheckoutRewards } = require("../utils/rewards");
       await consumeOrderDiscounts(savedOrder);
+      await handleOrderCheckoutRewards(savedOrder);
 
       // Auto-remove purchased products from Save For Later if configured
       try {
@@ -719,9 +721,18 @@ router.post("/borzo/webhook", async (req, res) => {
 
     await order.save();
 
-    if (order.orderStatus === "Delivered") {
-      const { handleOrderDeliveredRewards } = require("../utils/rewards");
-      await handleOrderDeliveredRewards(order);
+    if (nextStatus) {
+      try {
+        const { sendOrderStatusNotification } = require("../services/notificationService");
+        await sendOrderStatusNotification(order, nextStatus);
+      } catch (notifErr) {
+        console.error("Failed to send order status notification on webhook transition:", notifErr);
+      }
+    }
+
+    if (["Cancelled", "Delivery Failed"].includes(order.orderStatus)) {
+      const { handleOrderCancellationReversal } = require("../utils/rewards");
+      await handleOrderCancellationReversal(order);
     }
 
     console.log(`Successfully updated Order ${order._id} status to: ${order.orderStatus}`);

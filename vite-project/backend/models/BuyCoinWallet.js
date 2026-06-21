@@ -9,7 +9,7 @@ const BuyCoinWalletSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
+    required: false,
     index: true,
     lowercase: true
   },
@@ -35,7 +35,7 @@ const BuyCoinWalletSchema = new mongoose.Schema({
   }
 });
 
-BuyCoinWalletSchema.pre("save", function(next) {
+BuyCoinWalletSchema.pre("save", function (next) {
   this.updatedAt = new Date();
   next();
 });

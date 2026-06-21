@@ -30,7 +30,7 @@ const products = [
     "originalPrice": 36,
     "weight": "4 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=500"
+    "image": "https://drive.google.com/uc?export=view&id=1ripXxMuW8WJibXXA8Atxr65ol7W9_1DL"
   },
   {
     "id": "DBE1",

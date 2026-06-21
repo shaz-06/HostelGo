@@ -320,9 +320,6 @@ router.put("/orders/:id/delivered", async (req, res) => {
       console.error(err);
     }
 
-    // Award customer rewards (BuyCoins and AGAIN15 Coupon) on order delivery
-    const { handleOrderDeliveredRewards } = require("../utils/rewards");
-    await handleOrderDeliveredRewards(order);
 
     const rider = await User.findByIdAndUpdate(
       req.user._id,

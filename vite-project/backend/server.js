@@ -22,6 +22,8 @@ const buyCoinRoutes = require("./routes/buyCoinRoutes");
 const addressRoutes = require("./routes/addressRoutes");
 const saveForLaterRoutes = require("./routes/saveForLaterRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
+const cron = require("node-cron");
+const { sendCartReminder } = require("./services/notificationService");
 const userRoutes = require("./routes/userRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 const adminMiddleware = require("./middleware/adminMiddleware");
@@ -389,9 +391,33 @@ app.use("/api/buycoins", buyCoinRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/save-for-later", saveForLaterRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/notifications", userRoutes);
 
 server.listen(PORT, () => {
   console.log(`Server Started on port ${PORT}`);
+
+  // Schedule cart reminder check every 5 minutes
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      console.log("[Cron] Running 1-hour cart inactivity checker...");
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const inactiveUsers = await User.find({
+        cartHasItems: true,
+        cartReminderSent: false,
+        cartActivityAt: { $lte: oneHourAgo }
+      });
+
+      console.log(`[Cron] Found ${inactiveUsers.length} inactive carts to remind.`);
+      for (const user of inactiveUsers) {
+        await sendCartReminder(user);
+        user.cartReminderSent = true;
+        await user.save();
+        console.log(`[Cron] Sent cart reminder and marked sent for user: ${user.email}`);
+      }
+    } catch (err) {
+      console.error("[Cron Error] Cart reminder scheduler failed:", err.message);
+    }
+  });
 
   // Borzo integration startup check
   const clientId = process.env.BORZO_CLIENT_ID;

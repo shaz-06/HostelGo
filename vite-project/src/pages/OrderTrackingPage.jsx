@@ -277,7 +277,7 @@ export default function OrderTrackingPage({ orderId }) {
   }
 
   return (
-    <div style={pageStyle}>
+    <div className="page-with-bottom-nav" style={pageStyle}>
       <style>{`
         @media (max-width: 820px) {
           .tracking-grid { grid-template-columns: 1fr !important; }

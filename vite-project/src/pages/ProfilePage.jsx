@@ -1,41 +1,27 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import AddressSelectorModal from "../components/common/AddressSelectorModal";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, token, logout } = useContext(AuthContext);
+  const { user, isLoggedIn, token, logout, openLogin } = useContext(AuthContext);
 
+  // States for API data
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [liveUser, setLiveUser] = useState(user);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [coupons, setCoupons] = useState([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
-    return (tab && ["orders", "coupons", "wallet"].includes(tab)) ? tab : "orders";
-  });
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [wallet, setWallet] = useState(null);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [liveUser, setLiveUser] = useState(user);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
-    if (tab && ["orders", "coupons", "wallet"].includes(tab)) {
-      setActiveTab(tab);
-    }
-  }, [window.location.search]);
+  // UI state triggers
+  const [activeSection, setActiveSection] = useState(""); // "orders" | "addresses" | "wallet" | "coupons" | ""
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
+  // Sync session & live profile details
   useEffect(() => {
     if (!token) return;
     const fetchLiveUser = async () => {
@@ -53,32 +39,34 @@ export default function ProfilePage() {
         console.error("Failed to fetch live profile:", err);
       }
     };
+    fetchLiveUser();
+  }, [token]);
 
-    const fetchCoupons = async () => {
+  // Load orders when active section is orders
+  useEffect(() => {
+    if (!token || activeSection !== "orders") return;
+    const fetchMyOrders = async () => {
       try {
-        setCouponsLoading(true);
-        const res = await fetch(window.API_BASE_URL + "/api/auth/coupons", {
+        setOrdersLoading(true);
+        const res = await fetch(window.API_BASE_URL + "/api/orders/my-orders", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.success && data.coupons) {
-            setCoupons(data.coupons);
-          }
+          setOrders(data);
         }
       } catch (err) {
-        console.error("Failed to fetch user coupons:", err);
+        console.error("Failed to fetch orders:", err);
       } finally {
-        setCouponsLoading(false);
+        setOrdersLoading(false);
       }
     };
+    fetchMyOrders();
+  }, [token, activeSection]);
 
-    fetchLiveUser();
-    fetchCoupons();
-  }, [token]);
-
+  // Load wallet when active section is wallet
   useEffect(() => {
-    if (!token) return;
+    if (!token || activeSection !== "wallet") return;
     const fetchWallet = async () => {
       try {
         setWalletLoading(true);
@@ -98,33 +86,32 @@ export default function ProfilePage() {
         setWalletLoading(false);
       }
     };
-
     fetchWallet();
-  }, [token, activeTab]);
+  }, [token, activeSection]);
 
+  // Load coupons when active section is coupons
   useEffect(() => {
-    const fetchMyOrders = async () => {
-      if (!token) return;
+    if (!token || activeSection !== "coupons") return;
+    const fetchCoupons = async () => {
       try {
-        setLoading(true);
-        const res = await fetch(window.API_BASE_URL + "/api/orders/my-orders", {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+        setCouponsLoading(true);
+        const res = await fetch(window.API_BASE_URL + "/api/auth/coupons", {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        if (!res.ok) throw new Error("Failed to fetch order history");
-        const data = await res.json();
-        setOrders(data);
-        setLoading(false);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.coupons) {
+            setCoupons(data.coupons);
+          }
+        }
       } catch (err) {
-        console.error(err);
-        setError("Unable to load order history.");
-        setLoading(false);
+        console.error("Failed to fetch coupons:", err);
+      } finally {
+        setCouponsLoading(false);
       }
     };
-
-    fetchMyOrders();
-  }, [token]);
+    fetchCoupons();
+  }, [token, activeSection]);
 
   const handleLogoutClick = () => {
     logout();
@@ -143,898 +130,775 @@ export default function ProfilePage() {
     }
   };
 
-  const getProgressColor = (status) => {
-    if (status === "Cancelled") return "#ef4444";
-    return "#FF4D4F";
-  };
+  // 1. UNAUTHENTICATED ONBOARDING VIEW
+  if (!isLoggedIn) {
+    return (
+      <div className="page-with-bottom-nav" style={containerStyle}>
+        <div style={cardWrapperStyle}>
+          {/* Header */}
+          <div style={headerStyle}>
+            <button onClick={() => navigate(-1)} style={backBtnStyle}>←</button>
+            <h1 style={titleStyle}>My Account</h1>
+          </div>
 
+          {/* Welcome Card */}
+          <div style={welcomeCardStyle}>
+            {/* Pattern Background overlay */}
+            <div style={patternOverlayStyle}></div>
+            <h2 style={welcomeTitleStyle}>Hello 👋</h2>
+            <p style={welcomeSubtitleStyle}>
+              Get exclusive offers, BuyCoins rewards, faster checkout and order tracking.
+            </p>
+            <div style={highlightBadgeStyle}>
+              🎁 Login now and get 20 BuyCoins Welcome Reward
+            </div>
+          </div>
+
+          <button 
+            onClick={() => {
+              console.log("Login button clicked");
+              openLogin();
+            }}
+            style={primaryBtnStyle}
+          >
+            <span style={{ fontSize: "16px", fontWeight: "900" }}>Login / Sign Up</span>
+            <span style={{ display: "block", fontSize: "11px", fontWeight: "600", opacity: 0.9, marginTop: "2px" }}>
+              Continue with Phone Number →
+            </span>
+          </button>
+
+          {/* Explore Buyto */}
+          <h3 style={sectionTitleStyle}>Explore Buyto</h3>
+          <div style={exploreGridStyle}>
+            <div style={exploreCardStyle}>
+              <span style={{ fontSize: "28px" }}>🎁</span>
+              <span style={exploreCardTextStyle}>Exclusive Offers</span>
+            </div>
+            <div style={exploreCardStyle}>
+              <span style={{ fontSize: "28px" }}>🪙</span>
+              <span style={exploreCardTextStyle}>BuyCoins Rewards</span>
+            </div>
+            <div style={exploreCardStyle}>
+              <span style={{ fontSize: "28px" }}>📦</span>
+              <span style={exploreCardTextStyle}>Order Tracking</span>
+            </div>
+            <div style={exploreCardStyle}>
+              <span style={{ fontSize: "28px" }}>⚡</span>
+              <span style={exploreCardTextStyle}>Faster Checkout</span>
+            </div>
+          </div>
+
+          {/* Legal Section */}
+          <div style={legalGroupStyle}>
+            {[
+              { label: "FAQs", path: "/faq" },
+              { label: "Terms & Conditions", path: "/terms" },
+              { label: "Privacy Policy", path: "/privacy-policy" },
+              { label: "Refund Policy", path: "/refund-policy" },
+              { label: "Shipping Policy", path: "/shipping-policy" },
+              { label: "Contact Us", path: "/contact" }
+            ].map((item, idx, arr) => (
+              <div 
+                key={item.label}
+                onClick={() => navigate(item.path)}
+                style={{
+                  ...legalRowStyle,
+                  borderBottom: idx === arr.length - 1 ? "none" : "1px solid #f3f4f6"
+                }}
+              >
+                <span>{item.label}</span>
+                <span style={{ color: "#9ca3af" }}>→</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Follow Buyto */}
+          <div style={followContainerStyle}>
+            <p style={followTitleStyle}>Follow Buyto</p>
+            <div style={socialGridStyle}>
+              <a href="https://instagram.com" target="_blank" rel="noreferrer" style={socialIconStyle}>📸</a>
+              <a href="https://facebook.com" target="_blank" rel="noreferrer" style={socialIconStyle}>📘</a>
+              <a href="https://youtube.com" target="_blank" rel="noreferrer" style={socialIconStyle}>📺</a>
+              <a href="https://twitter.com" target="_blank" rel="noreferrer" style={socialIconStyle}>🐦</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. AUTHENTICATED USER PROFILE VIEW
   return (
-    <div style={pageContainerStyle}>
-      <div style={layoutGridStyle(windowWidth < 768)}>
+    <div className="page-with-bottom-nav" style={containerStyle}>
+      <div style={cardWrapperStyle}>
+        {/* Header */}
+        <div style={headerStyle}>
+          <button onClick={() => navigate(-1)} style={backBtnStyle}>←</button>
+          <h1 style={titleStyle}>My Account</h1>
+        </div>
 
-        {/* User Card */}
-        <aside style={userCardStyle(windowWidth < 768)}>
-          <div style={avatarStyle}>
-            {liveUser?.name?.substring(0, 2).toUpperCase() || "US"}
-          </div>
-          <h2 style={userNameStyle}>{liveUser?.name}</h2>
-          <span style={roleBadgeStyle}>{liveUser?.role?.toUpperCase()}</span>
-
-          <div style={infoGroupStyle}>
-            <div style={infoRowStyle}>
-              <span style={infoLabelStyle}>Email</span>
-              <span style={infoValStyle}>{liveUser?.email}</span>
+        {/* User Card Summary */}
+        <div style={userCardStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={avatarStyle}>
+              {(liveUser?.name || "US").substring(0, 2).toUpperCase()}
             </div>
-            <div style={infoRowStyle}>
-              <span style={infoLabelStyle}>Phone</span>
-              <span style={infoValStyle}>{liveUser?.phone}</span>
+            <div>
+              <h2 style={userNameStyle}>{liveUser?.name || "Customer"}</h2>
+              <p style={userPhoneStyle}>{liveUser?.phone || "N/A"}</p>
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "24px" }}>
-            {liveUser?.role === "admin" && (
-              <button onClick={() => navigate("/admin")} style={adminPanelBtnStyle}>
-                🛡️ Admin Dashboard
-              </button>
-            )}
-            <button onClick={() => navigate("/")} style={homeBtnStyle}>
-              🏪 Back to Store
-            </button>
-            <button
-              onClick={() => navigate("/about")}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                background: "#fff",
-                cursor: "pointer",
-                marginBottom: "12px"
-              }}
-            >
-              ℹ️ About Buyto
-            </button>
-
-            <button
-              onClick={() => navigate("/contact")}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                background: "#fff",
-                cursor: "pointer",
-                marginBottom: "12px"
-              }}
-            >
-              📞 Contact Us
-            </button>
-
-            <button
-              onClick={() => navigate("/privacy-policy")}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                background: "#fff",
-                cursor: "pointer",
-                marginBottom: "12px"
-              }}
-            >
-              🔒 Privacy Policy
-            </button>
-
-            <button
-              onClick={() => navigate("/terms")}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                background: "#fff",
-                cursor: "pointer",
-                marginBottom: "12px"
-              }}
-            >
-              📜 Terms & Conditions
-            </button>
-
-            <button
-              onClick={() => navigate("/refund-policy")}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                background: "#fff",
-                cursor: "pointer",
-                marginBottom: "12px"
-              }}
-            >
-              💸 Refund Policy
-            </button>
-
-            <button
-              onClick={() => navigate("/shipping-policy")}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                background: "#fff",
-                cursor: "pointer",
-                marginBottom: "12px"
-              }}
-            >
-              🚚 Shipping Policy
-            </button>
-
-            <button
-              onClick={() => navigate("/faq")}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                background: "#fff",
-                cursor: "pointer",
-                marginBottom: "12px"
-              }}
-            >
-              ❓ FAQ
-            </button>
-
-            <button onClick={handleLogoutClick} style={logoutBtnStyle}>
-              🚪 Log Out
-            </button>
+          {/* BuyCoins Balance Card */}
+          <div 
+            onClick={() => setActiveSection(activeSection === "wallet" ? "" : "wallet")}
+            style={buyCoinsCardStyle}
+          >
+            <div>
+              <div style={buyCoinsCardLabelStyle}>BuyCoins Balance</div>
+              <div style={buyCoinsCardValueStyle}>
+                {liveUser?.buyCoins !== undefined ? liveUser.buyCoins : 0} Coins
+              </div>
+            </div>
+            <span style={{ fontSize: "28px" }}>🪙</span>
           </div>
-        </aside>
+        </div>
 
-        {/* Order History */}
-        <main style={ordersPanelStyle}>
-          {/* Tabs Navigation */}
-          <div style={{ display: "flex", gap: "12px", marginBottom: "24px", borderBottom: "2px solid #e2e8f0", paddingBottom: "12px" }}>
-            <button
-              onClick={() => setActiveTab("orders")}
-              style={{
-                background: activeTab === "orders" ? "linear-gradient(135deg, #FF4D4F, #E03E40)" : "transparent",
-                color: activeTab === "orders" ? "white" : "#64748b",
-                border: "none",
-                borderRadius: "10px",
-                padding: "8px 16px",
-                fontWeight: "755",
-                fontSize: "14px",
-                cursor: "pointer",
-                boxShadow: activeTab === "orders" ? "0 4px 12px rgba(255, 77, 79, 0.15)" : "none",
-                transition: "all 0.15s ease"
-              }}
-            >
-              📦 My Orders
-            </button>
-            <button
-              onClick={() => setActiveTab("coupons")}
-              style={{
-                background: activeTab === "coupons" ? "linear-gradient(135deg, #FF4D4F, #E03E40)" : "transparent",
-                color: activeTab === "coupons" ? "white" : "#64748b",
-                border: "none",
-                borderRadius: "10px",
-                padding: "8px 16px",
-                fontWeight: "755",
-                fontSize: "14px",
-                cursor: "pointer",
-                boxShadow: activeTab === "coupons" ? "0 4px 12px rgba(255, 77, 79, 0.15)" : "none",
-                transition: "all 0.15s ease"
-              }}
-            >
-              🎁 My Coupons
-            </button>
-            <button
-              onClick={() => setActiveTab("wallet")}
-              style={{
-                background: activeTab === "wallet" ? "linear-gradient(135deg, #FF4D4F, #E03E40)" : "transparent",
-                color: activeTab === "wallet" ? "white" : "#64748b",
-                border: "none",
-                borderRadius: "10px",
-                padding: "8px 16px",
-                fontWeight: "755",
-                fontSize: "14px",
-                cursor: "pointer",
-                boxShadow: activeTab === "wallet" ? "0 4px 12px rgba(255, 77, 79, 0.15)" : "none",
-                transition: "all 0.15s ease"
-              }}
-            >
-              🪙 BuyCoins Wallet
-            </button>
+        {/* Display Items List */}
+        <div style={menuContainerStyle}>
+          {/* My Orders */}
+          <div 
+            onClick={() => setActiveSection(activeSection === "orders" ? "" : "orders")}
+            style={menuItemStyle(activeSection === "orders")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px" }}>📦</span>
+              <span>My Orders</span>
+            </div>
+            <span style={menuItemArrowStyle(activeSection === "orders")}>▶</span>
           </div>
 
-          {activeTab === "orders" && (
-            <>
-              <h2 style={panelTitleStyle}>My Order History ⚡</h2>
-
-              {loading ? (
-                <div style={loadingStyle}>Loading order logs...</div>
-              ) : error ? (
-                <div style={errorStyle}>⚠️ {error}</div>
+          {/* My Orders Expanded Content */}
+          {activeSection === "orders" && (
+            <div style={expandedSectionStyle}>
+              {ordersLoading ? (
+                <div style={loadingTextStyle}>Loading orders...</div>
               ) : orders.length === 0 ? (
-                <div style={emptyOrdersStyle}>
-                  <span style={{ fontSize: "36px" }}>🛒</span>
-                  <h3 style={{ margin: "12px 0 6px 0", color: "#0f172a" }}>No Orders Placed Yet</h3>
-                  <p style={{ color: "#64748b", fontSize: "13px" }}>Your online and COD orders will appear here after purchase.</p>
-                  <button onClick={() => navigate("/")} style={shopBtnStyle}>
-                    Start Shopping
-                  </button>
-                </div>
+                <div style={emptyTextStyle}>No orders placed yet.</div>
               ) : (
-                <div style={ordersListStyle}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {orders.map((order) => (
-                    <div
-                      key={order._id}
-                      style={orderCardStyle}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.transform = "translateY(-4px)";
-                        e.currentTarget.style.boxShadow = "0 12px 30px rgba(0,0,0,0.06)";
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.transform = "none";
-                        e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.03)";
-                      }}
-                    >
+                    <div key={order._id} style={orderItemCardStyle}>
                       <div style={orderHeaderStyle}>
                         <div>
-                          <span style={{ color: "#64748b", fontSize: "11px", fontWeight: "800" }}>ORDER ID: </span>
-                          <span style={orderIdStyle}>{order._id.substring(order._id.length - 8)}</span>
-                          <span style={orderDateStyle}>
-                            • {new Date(order.createdAt).toLocaleDateString()}
-                          </span>
+                          <span style={orderIdStyle}>#{order._id.substring(order._id.length - 8)}</span>
+                          <span style={orderDateStyle}> • {new Date(order.createdAt).toLocaleDateString()}</span>
                         </div>
-
-                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                          <span style={payBadgeStyle(order.paymentStatus)}>
-                            {order.paymentStatus}
-                          </span>
-                          <span style={statusBadgeStyle(order.orderStatus)}>
-                            {order.orderStatus}
-                          </span>
-                        </div>
+                        <span style={orderStatusStyle(order.orderStatus)}>{order.orderStatus}</span>
                       </div>
-
-                      {/* Products ordered list */}
-                      <div style={itemsListStyle}>
-                        {order.products?.map((item, idx) => (
-                          <div key={idx} style={itemRowStyle}>
-                            <span style={{ color: "#0f172a", fontWeight: "700" }}>{item.name}</span>
-                            <span style={{ color: "#64748b" }}>{item.weight}</span>
-                            <span style={{ color: "#FF4D4F", fontWeight: "800" }}>x{item.quantity}</span>
-                            <span style={{ color: "#0f172a", fontWeight: "750" }}>₹{item.price * item.quantity}</span>
+                      <div style={{ marginTop: "10px", borderBottom: "1px dashed #f1f5f9", paddingBottom: "10px" }}>
+                        {order.products?.map((prod, idx) => (
+                          <div key={idx} style={orderProductRowStyle}>
+                            <span style={{ fontWeight: "700" }}>{prod.name} x{prod.quantity}</span>
+                            <span>₹{prod.price * prod.quantity}</span>
                           </div>
                         ))}
                       </div>
-
-                      {/* Summary amount */}
-                      <div style={summaryRowStyle}>
-                        <span style={{ color: "#64748b", fontSize: "12px", fontWeight: "600" }}>
-                          Method: {order.paymentMethod?.toUpperCase()}
-                        </span>
-                        <span style={{ color: "#0f172a", fontSize: "16px", fontWeight: "855" }}>
-                          Paid Total: ₹{order.totalAmount}
-                        </span>
+                      <div style={orderFooterStyle}>
+                        <span>Total Paid: ₹{order.totalAmount}</span>
+                        {order.orderStatus !== "Cancelled" && (
+                          <button 
+                            onClick={() => navigate(`/track-order/${order._id}`)} 
+                            style={trackBtnStyle}
+                          >
+                            Track Live Order
+                          </button>
+                        )}
                       </div>
-
-                      {/* Visual tracker progress bar */}
-                      {order.orderStatus !== "Cancelled" && (
-                        <div style={trackerContainerStyle}>
-                          <div style={trackerLabelsStyle}>
-                            <span style={trackerLabelStyle("Order Placed", order.orderStatus)}>Placed</span>
-                            <span style={trackerLabelStyle("Preparing", order.orderStatus)}>Preparing</span>
-                            <span style={trackerLabelStyle("Packed", order.orderStatus)}>Packed</span>
-                            <span style={trackerLabelStyle("Rider Assigned", order.orderStatus)}>Rider</span>
-                            <span style={trackerLabelStyle("Out for Delivery", order.orderStatus)}>Dispatched</span>
-                            <span style={trackerLabelStyle("Delivered", order.orderStatus)}>Delivered</span>
-                          </div>
-                          <div style={progressBarBgStyle}>
-                            <div style={progressBarFillStyle(getProgressWidth(order.orderStatus), getProgressColor(order.orderStatus))} />
-                          </div>
-                        </div>
-                      )}
-
-                      {order.orderStatus === "Cancelled" && (
-                        <div style={cancelledBannerStyle}>
-                          ❌ This order was cancelled.
-                        </div>
-                      )}
-                      {order.orderStatus !== "Cancelled" && (
-                        <button onClick={() => navigate(`/track-order/${order._id}`)} style={trackBtnStyle}>
-                          Track Live Order
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
-            </>
+            </div>
           )}
 
-          {activeTab === "coupons" && (
-            <>
-              <h2 style={panelTitleStyle}>My Coupons 🎁</h2>
-              {couponsLoading ? (
-                <div style={loadingStyle}>Loading coupons...</div>
-              ) : coupons.length === 0 ? (
-                <div style={emptyOrdersStyle}>
-                  <span style={{ fontSize: "36px" }}>🎟️</span>
-                  <h3 style={{ margin: "12px 0 6px 0", color: "#0f172a" }}>No Coupons Available</h3>
-                  <p style={{ color: "#64748b", fontSize: "13px" }}>You will unlock an AGAIN15 coupon after your first order is delivered!</p>
-                </div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "16px", marginTop: "16px" }}>
-                  {coupons.map((coupon) => {
-                    const now = new Date();
-                    const isExpired = new Date(coupon.expiryDate) < now;
-                    let statusLabel = "Available";
-                    let statusColor = "#10b981";
-                    let statusBg = "rgba(16, 185, 129, 0.1)";
+          {/* Saved Addresses */}
+          <div 
+            onClick={() => setShowAddressModal(true)}
+            style={menuItemStyle(false)}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px" }}>📍</span>
+              <span>Saved Addresses</span>
+            </div>
+            <span style={{ color: "#9ca3af" }}>→</span>
+          </div>
 
-                    if (coupon.isUsed) {
-                      statusLabel = "Used";
-                      statusColor = "#64748b";
-                      statusBg = "#e2e8f0";
-                    } else if (isExpired) {
-                      statusLabel = "Expired";
-                      statusColor = "#ef4444";
-                      statusBg = "rgba(239, 68, 68, 0.1)";
-                    }
+          {/* BuyCoins Wallet */}
+          <div 
+            onClick={() => setActiveSection(activeSection === "wallet" ? "" : "wallet")}
+            style={menuItemStyle(activeSection === "wallet")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px" }}>🪙</span>
+              <span>BuyCoins Wallet</span>
+            </div>
+            <span style={menuItemArrowStyle(activeSection === "wallet")}>▶</span>
+          </div>
 
-                    const expiryHoursLeft = Math.max(0, Math.round((new Date(coupon.expiryDate) - now) / (1000 * 60 * 60)));
-
-                    return (
-                      <div
-                        key={coupon._id}
-                        style={{
-                          background: "white",
-                          border: "1.5px solid #e2e8f0",
-                          borderRadius: "20px",
-                          padding: "20px",
-                          boxShadow: "0 4px 15px rgba(0,0,0,0.02)",
-                          position: "relative",
-                          overflow: "hidden"
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                          <span style={{
-                            fontFamily: "monospace",
-                            fontWeight: "800",
-                            fontSize: "14px",
-                            color: "#FF4D4F",
-                            background: "rgba(255, 77, 79, 0.08)",
-                            padding: "3px 8px",
-                            borderRadius: "6px"
-                          }}>
-                            {coupon.couponCode}
-                          </span>
-                          <span style={{
-                            fontSize: "11px",
-                            fontWeight: "850",
-                            padding: "2px 8px",
-                            borderRadius: "6px",
-                            color: statusColor,
-                            background: statusBg,
-                            textTransform: "uppercase"
-                          }}>
-                            {statusLabel}
-                          </span>
-                        </div>
-
-                        <h3 style={{ margin: "0 0 4px 0", fontSize: "20px", fontWeight: "850", color: "#0f172a" }}>
-                          ₹{coupon.discountAmount} OFF
-                        </h3>
-                        <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: "#64748b", fontWeight: "600" }}>
-                          Minimum Order: ₹{coupon.minimumOrderValue || coupon.minOrderValue || 149}
-                        </p>
-
-                        <div style={{
-                          borderTop: "1px dashed #e2e8f0",
-                          paddingTop: "12px",
-                          fontSize: "12px",
-                          color: "#64748b",
-                          fontWeight: "500",
-                          display: "flex",
-                          justifyContent: "space-between"
-                        }}>
-                          <span>Status:</span>
-                          <span style={{ fontWeight: "700", color: isExpired || coupon.isUsed ? "#64748b" : "#e03e40" }}>
-                            {coupon.isUsed ? "Redeemed" : isExpired ? "Expired" : `Expires in ${expiryHoursLeft} Hours`}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === "wallet" && (
-            <>
-              <h2 style={panelTitleStyle}>BuyCoins Wallet 🪙</h2>
-              <div style={{
-                background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-                borderRadius: "24px",
-                padding: "28px",
-                boxShadow: "0 10px 25px rgba(245, 158, 11, 0.1)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: "24px",
-                marginTop: "16px",
-                border: "1.5px solid #fbbf24"
-              }}>
-                <div>
-                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#b45309", textTransform: "uppercase", letterSpacing: "1px" }}>
-                    Current Balance
-                  </span>
-                  <h1 style={{ fontSize: "36px", fontWeight: "900", color: "#78350f", margin: "4px 0 0 0" }}>
-                    {wallet ? wallet.availableCoins : (liveUser?.buyCoins || 0)} Coins
-                  </h1>
-                  <span style={{ fontSize: "14px", fontWeight: "700", color: "#b45309", marginTop: "2px", display: "inline-block" }}>
-                    Current Value: ₹{wallet ? wallet.availableCoins : (liveUser?.buyCoins || 0)}
-                  </span>
-                </div>
-                <span style={{ fontSize: "56px" }}>🪙</span>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div style={{
-                  background: "white",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: "20px",
-                  padding: "20px",
-                  boxShadow: "0 4px 15px rgba(0,0,0,0.02)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px"
-                }}>
-                  <span style={{ fontSize: "12px", color: "#64748b", fontWeight: "700" }}>Lifetime Earned</span>
-                  <span style={{ fontSize: "24px", fontWeight: "900", color: "#10b981" }}>
-                    {wallet ? wallet.lifetimeEarned : (liveUser?.buyCoinsLifetimeEarned || 0)} Coins
-                  </span>
-                </div>
-
-                <div style={{
-                  background: "white",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: "20px",
-                  padding: "20px",
-                  boxShadow: "0 4px 15px rgba(0,0,0,0.02)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px"
-                }}>
-                  <span style={{ fontSize: "12px", color: "#64748b", fontWeight: "700" }}>Redeemed Coins</span>
-                  <span style={{ fontSize: "24px", fontWeight: "900", color: "#FF4D4F" }}>
-                    {wallet ? wallet.lifetimeRedeemed : (liveUser?.buyCoinsRedeemed || 0)} Coins
-                  </span>
-                </div>
-              </div>
-
-              <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", marginTop: "32px", marginBottom: "16px" }}>
-                Recent Activity ⚡
-              </h3>
-
+          {/* Wallet Expanded Content */}
+          {activeSection === "wallet" && (
+            <div style={expandedSectionStyle}>
               {walletLoading ? (
-                <div style={{ color: "#64748b", fontSize: "13px", padding: "12px 0" }}>Loading activity...</div>
-              ) : walletTransactions.length === 0 ? (
-                <div style={{ color: "#64748b", fontSize: "13px", padding: "12px 0", fontStyle: "italic" }}>
-                  No recent BuyCoins activity.
-                </div>
+                <div style={loadingTextStyle}>Loading transactions...</div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  {walletTransactions.map((tx) => {
-                    const isPositive = ["earn", "bonus"].includes(tx.type);
-                    let displayDesc = "";
-                    if (tx.type === "earn") {
-                      displayDesc = `Order #${tx.orderId ? tx.orderId.substring(tx.orderId.length - 6).toUpperCase() : "N/A"}`;
-                    } else if (tx.type === "bonus") {
-                      displayDesc = tx.source === "first_order_bonus" ? "First Order Bonus" : "Manual Adjustment Bonus";
-                    } else if (tx.type === "redeem") {
-                      displayDesc = `Redeemed on Order #${tx.orderId ? tx.orderId.substring(tx.orderId.length - 6).toUpperCase() : "N/A"}`;
-                    } else if (tx.type === "expire") {
-                      displayDesc = "Expired";
-                    }
-
-                    return (
-                      <div
-                        key={tx._id}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "14px 18px",
-                          borderRadius: "16px",
-                          background: "#f8fafc",
-                          border: "1px solid #f1f5f9"
-                        }}
-                      >
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ fontSize: "14px", fontWeight: "750", color: "#1f2937" }}>
-                            {displayDesc}
-                          </span>
-                          <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "600" }}>
-                            {new Date(tx.createdAt).toLocaleDateString()} at {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <span
-                          style={{
-                            fontSize: "15px",
-                            fontWeight: "900",
-                            color: isPositive ? "#10b981" : "#ef4444"
-                          }}
-                        >
-                          {isPositive ? "+" : "-"}{tx.coins}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div>
+                  <div style={walletStatsRowStyle}>
+                    <div style={walletStatsCardStyle}>
+                      <span style={{ fontSize: "11px", color: "#6b7280" }}>Lifetime Earned</span>
+                      <span style={{ fontSize: "18px", fontWeight: "900", color: "#10b981" }}>
+                        {wallet ? wallet.lifetimeEarned : 0} Coins
+                      </span>
+                    </div>
+                    <div style={walletStatsCardStyle}>
+                      <span style={{ fontSize: "11px", color: "#6b7280" }}>Coins Spent</span>
+                      <span style={{ fontSize: "18px", fontWeight: "900", color: "#ef4444" }}>
+                        {wallet ? wallet.lifetimeRedeemed : 0} Coins
+                      </span>
+                    </div>
+                  </div>
+                  <h4 style={{ fontSize: "13px", fontWeight: "800", color: "#1f2937", marginBottom: "12px" }}>Recent Activity</h4>
+                  {walletTransactions.length === 0 ? (
+                    <div style={emptyTextStyle}>No transaction logs found.</div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {walletTransactions.map((tx) => {
+                        const isPositive = ["earn", "earned", "bonus", "admin", "refund"].includes(tx.type);
+                        return (
+                          <div key={tx._id} style={txRowStyle}>
+                            <div>
+                              <div style={{ fontSize: "13px", fontWeight: "750" }}>{tx.description || tx.type.toUpperCase()}</div>
+                              <div style={{ fontSize: "10px", color: "#9ca3af" }}>{new Date(tx.createdAt).toLocaleDateString()}</div>
+                            </div>
+                            <span style={{ fontWeight: "900", color: isPositive ? "#10b981" : "#ef4444" }}>
+                              {isPositive ? "+" : "-"}{tx.amount}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
-            </>
+            </div>
           )}
-        </main>
+
+          {/* Offers & Rewards */}
+          <div 
+            onClick={() => setActiveSection(activeSection === "coupons" ? "" : "coupons")}
+            style={menuItemStyle(activeSection === "coupons")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px" }}>🎁</span>
+              <span>Offers & Rewards</span>
+            </div>
+            <span style={menuItemArrowStyle(activeSection === "coupons")}>▶</span>
+          </div>
+
+          {/* Coupons Expanded Content */}
+          {activeSection === "coupons" && (
+            <div style={expandedSectionStyle}>
+              {couponsLoading ? (
+                <div style={loadingTextStyle}>Loading coupons...</div>
+              ) : coupons.length === 0 ? (
+                <div style={emptyTextStyle}>No active coupons currently.</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  {coupons.map((coupon) => (
+                    <div key={coupon._id} style={couponCardStyle}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={couponCodeStyle}>{coupon.couponCode}</span>
+                        <span style={couponStatusStyle(coupon.isUsed)}>{coupon.isUsed ? "USED" : "ACTIVE"}</span>
+                      </div>
+                      <div style={{ fontSize: "16px", fontWeight: "900", marginTop: "8px" }}>₹{coupon.discountAmount} OFF</div>
+                      <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>Min order: ₹{coupon.minimumOrderValue || 149}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Help & Support */}
+          <div 
+            onClick={() => navigate("/help")}
+            style={menuItemStyle(false)}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px" }}>☎</span>
+              <span>Help & Support</span>
+            </div>
+            <span style={{ color: "#9ca3af" }}>→</span>
+          </div>
+
+          {/* Logout */}
+          <div 
+            onClick={handleLogoutClick}
+            style={{ ...menuItemStyle(false), borderBottom: "none", color: "#ef4444" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px" }}>🚪</span>
+              <span>Logout</span>
+            </div>
+            <span style={{ color: "#ef4444" }}>→</span>
+          </div>
+        </div>
+
+        {/* Temporary/Dev OTP Test Screen route link */}
+        <button
+          onClick={() => navigate("/otp-test")}
+          style={otpTestBtnStyle}
+        >
+          🧪 Run OTP Test Screen
+        </button>
 
       </div>
+
+      {/* Render Address modal dynamically if click trigger is active */}
+      {showAddressModal && (
+        <AddressSelectorModal 
+          onClose={() => setShowAddressModal(false)}
+          onSelectAddress={() => {}}
+          isLoggedIn={isLoggedIn}
+        />
+      )}
     </div>
   );
 }
 
-// STYLES
-const pageContainerStyle = {
+// STYLE OBJECTS
+const containerStyle = {
   minHeight: "100vh",
-  background: "transparent",
-  color: "#0f172a",
+  background: "#f7f8fa",
+  padding: "24px 16px 40px 16px",
   fontFamily: "'Outfit', 'Inter', sans-serif",
-  padding: "40px 24px",
-  boxSizing: "border-box",
+  display: "flex",
+  justifyContent: "center",
+  boxSizing: "border-box"
 };
 
-const layoutGridStyle = (isMobile) => ({
-  maxWidth: "960px",
-  margin: "0 auto",
-  display: isMobile ? "flex" : "grid",
-  flexDirection: isMobile ? "column" : "row",
-  gridTemplateColumns: isMobile ? "none" : "300px 1fr",
-  gap: "32px",
-  alignItems: "start",
+const cardWrapperStyle = {
   width: "100%",
-});
+  maxWidth: "500px"
+};
 
-const userCardStyle = (isMobile) => ({
-  background: "white",
-  border: "1px solid #e2e8f0",
-  borderRadius: "28px",
-  padding: "32px",
-  boxShadow: "0 8px 30px rgba(0,0,0,0.03)",
+const headerStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "16px",
+  marginBottom: "20px"
+};
+
+const backBtnStyle = {
+  background: "none",
+  border: "none",
+  fontSize: "24px",
+  cursor: "pointer",
+  color: "#1f2937",
+  padding: "4px 0",
+  fontWeight: "800"
+};
+
+const titleStyle = {
+  fontSize: "22px",
+  fontWeight: "900",
+  color: "#1f2937",
+  margin: 0,
+  letterSpacing: "-0.5px"
+};
+
+const welcomeCardStyle = {
+  background: "#ffffff",
+  borderRadius: "24px",
+  padding: "28px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
+  marginBottom: "20px",
+  border: "1px solid #e5e7eb",
+  position: "relative",
+  overflow: "hidden"
+};
+
+const patternOverlayStyle = {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  width: "140px",
+  height: "100%",
+  opacity: 0.08,
+  backgroundImage: "radial-gradient(#318616 1.5px, transparent 1.5px)",
+  backgroundSize: "12px 12px",
+  pointerEvents: "none"
+};
+
+const welcomeTitleStyle = {
+  fontSize: "26px",
+  fontWeight: "900",
+  color: "#111827",
+  margin: "0 0 8px 0",
+  letterSpacing: "-0.5px"
+};
+
+const welcomeSubtitleStyle = {
+  fontSize: "14px",
+  color: "#4b5563",
+  margin: "0 0 20px 0",
+  lineHeight: "1.6",
+  fontWeight: "600"
+};
+
+const highlightBadgeStyle = {
+  background: "#f0fdf4",
+  border: "1px solid #bbf7d0",
+  borderRadius: "14px",
+  padding: "12px 16px",
+  fontSize: "12.5px",
+  color: "#166534",
+  fontWeight: "800",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px"
+};
+
+const primaryBtnStyle = {
+  width: "100%",
+  background: "#318616",
+  color: "white",
+  border: "none",
+  borderRadius: "18px",
+  padding: "16px",
+  cursor: "pointer",
+  boxShadow: "0 8px 20px rgba(49, 134, 22, 0.18)",
+  marginBottom: "28px",
+  textAlign: "center",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  width: isMobile ? "100%" : "300px",
-});
+  justifyContent: "center",
+  transition: "transform 0.1s ease"
+};
+
+const sectionTitleStyle = {
+  fontSize: "15px",
+  fontWeight: "850",
+  color: "#1f2937",
+  marginBottom: "14px",
+  paddingLeft: "4px"
+};
+
+const exploreGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "12px",
+  marginBottom: "28px"
+};
+
+const exploreCardStyle = {
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "18px",
+  padding: "18px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+  boxShadow: "0 4px 10px rgba(0,0,0,0.01)"
+};
+
+const exploreCardTextStyle = {
+  fontSize: "13px",
+  fontWeight: "800",
+  color: "#374151"
+};
+
+const legalGroupStyle = {
+  background: "#ffffff",
+  borderRadius: "20px",
+  border: "1px solid #e5e7eb",
+  overflow: "hidden",
+  marginBottom: "28px"
+};
+
+const legalRowStyle = {
+  padding: "18px 20px",
+  fontSize: "14px",
+  fontWeight: "750",
+  color: "#4b5563",
+  cursor: "pointer",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center"
+};
+
+const followContainerStyle = {
+  textAlign: "center",
+  marginBottom: "32px"
+};
+
+const followTitleStyle = {
+  fontSize: "12px",
+  color: "#6b7280",
+  fontWeight: "750",
+  marginBottom: "14px"
+};
+
+const socialGridStyle = {
+  display: "flex",
+  justifyContent: "center",
+  gap: "20px"
+};
+
+const socialIconStyle = {
+  fontSize: "26px",
+  textDecoration: "none"
+};
+
+// Authenticated Styles
+const userCardStyle = {
+  background: "white",
+  borderRadius: "24px",
+  padding: "24px",
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.02)",
+  marginBottom: "20px"
+};
 
 const avatarStyle = {
-  width: "72px",
-  height: "72px",
+  width: "56px",
+  height: "56px",
   borderRadius: "50%",
-  background: "linear-gradient(135deg, #FF4D4F 0%, #E03E40 100%)",
+  background: "linear-gradient(135deg, #318616 0%, #286f12 100%)",
   color: "white",
-  fontWeight: "800",
-  fontSize: "24px",
+  fontWeight: "850",
+  fontSize: "20px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  marginBottom: "16px",
-  boxShadow: "0 8px 24px rgba(255, 77, 79, 0.15)",
+  boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)"
 };
 
 const userNameStyle = {
-  fontSize: "20px",
-  fontWeight: "850",
-  margin: "0 0 6px 0",
-  color: "#0f172a",
-  textAlign: "center",
-};
-
-const roleBadgeStyle = {
-  fontSize: "10px",
-  fontWeight: "750",
-  padding: "3px 8px",
-  borderRadius: "6px",
-  background: "rgba(255, 77, 79, 0.1)",
-  color: "#FF4D4F",
-  marginBottom: "24px",
-  letterSpacing: "0.5px",
-};
-
-const infoGroupStyle = {
-  width: "100%",
-  display: "flex",
-  flexDirection: "column",
-  gap: "14px",
-  borderTop: "1px solid #f1f5f9",
-  paddingTop: "20px",
-};
-
-const infoRowStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "2px",
-};
-
-const infoLabelStyle = {
-  fontSize: "11px",
-  fontWeight: "800",
-  color: "#94a3b8",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-};
-
-const infoValStyle = {
-  fontSize: "13px",
-  fontWeight: "600",
-  color: "#334155",
-};
-
-const adminPanelBtnStyle = {
-  background: "linear-gradient(135deg, #ef4444, #dc2626)",
-  color: "white",
-  border: "none",
-  borderRadius: "12px",
-  height: "44px",
-  fontSize: "13px",
-  fontWeight: "750",
-  cursor: "pointer",
-  boxShadow: "0 4px 12px rgba(239, 68, 68, 0.2)",
-};
-
-const homeBtnStyle = {
-  background: "#f1f5f9",
-  border: "1px solid #e2e8f0",
-  color: "#0f172a",
-  borderRadius: "12px",
-  height: "44px",
-  fontSize: "13px",
-  fontWeight: "700",
-  cursor: "pointer",
-  transition: "all 0.15s ease",
-};
-
-const logoutBtnStyle = {
-  background: "transparent",
-  border: "1.5px solid rgba(239, 68, 68, 0.5)",
-  color: "#ef4444",
-  borderRadius: "12px",
-  height: "44px",
-  fontSize: "13px",
-  fontWeight: "750",
-  cursor: "pointer",
-  transition: "all 0.15s ease",
-};
-
-const ordersPanelStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "20px",
-};
-
-const panelTitleStyle = {
-  fontSize: "22px",
-  fontWeight: "850",
-  color: "#0f172a",
+  fontSize: "18px",
+  fontWeight: "900",
   margin: 0,
-  letterSpacing: "-0.5px",
+  color: "#111827"
 };
 
-const loadingStyle = {
-  color: "#64748b",
-  fontSize: "14px",
-  textAlign: "center",
-  padding: "40px",
-};
-
-const errorStyle = {
-  background: "#fef2f2",
-  border: "1px solid #fca5a5",
-  color: "#ef4444",
-  borderRadius: "12px",
-  padding: "12px",
-  fontSize: "14px",
-  fontWeight: "600",
-};
-
-const emptyOrdersStyle = {
-  background: "white",
-  border: "1px solid #e2e8f0",
-  borderRadius: "24px",
-  padding: "40px",
-  textAlign: "center",
-  boxShadow: "0 8px 30px rgba(0,0,0,0.03)",
-};
-
-const shopBtnStyle = {
-  marginTop: "16px",
-  background: "linear-gradient(135deg, #10b981, #059669)",
-  color: "white",
-  border: "none",
-  borderRadius: "10px",
-  height: "38px",
-  padding: "0 20px",
-  fontWeight: "750",
+const userPhoneStyle = {
   fontSize: "13px",
-  cursor: "pointer",
-  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+  color: "#6b7280",
+  margin: "2px 0 0 0",
+  fontWeight: "600"
 };
 
-const ordersListStyle = {
+const buyCoinsCardStyle = {
+  background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+  border: "1.5px solid #fde68a",
+  borderRadius: "18px",
+  padding: "14px 18px",
+  marginTop: "20px",
   display: "flex",
-  flexDirection: "column",
-  gap: "24px",
+  alignItems: "center",
+  justifyContent: "space-between",
+  cursor: "pointer",
+  boxShadow: "0 4px 12px rgba(251, 191, 36, 0.05)"
 };
 
-const orderCardStyle = {
-  background: "white",
-  border: "1px solid #e2e8f0",
+const buyCoinsCardLabelStyle = {
+  fontSize: "10px",
+  fontWeight: "800",
+  color: "#b45309",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px"
+};
+
+const buyCoinsCardValueStyle = {
+  fontSize: "18px",
+  fontWeight: "900",
+  color: "#78350f",
+  marginTop: "2px"
+};
+
+const menuContainerStyle = {
+  background: "#ffffff",
   borderRadius: "24px",
-  padding: "24px",
-  boxShadow: "0 8px 24px rgba(0,0,0,0.03)",
-  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  border: "1px solid #e5e7eb",
+  overflow: "hidden",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.02)",
+  marginBottom: "20px"
+};
+
+const menuItemStyle = (isOpen) => ({
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "20px 24px",
+  fontSize: "14px",
+  fontWeight: "800",
+  color: "#1f2937",
+  cursor: "pointer",
+  borderBottom: "1px solid #f3f4f6",
+  background: isOpen ? "#f9fafb" : "transparent"
+});
+
+const menuItemArrowStyle = (isOpen) => ({
+  fontSize: "10px",
+  color: "#9ca3af",
+  transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+  transition: "transform 0.15s ease"
+});
+
+const expandedSectionStyle = {
+  background: "#f9fafb",
+  padding: "16px 24px",
+  borderBottom: "1px solid #f3f4f6"
+};
+
+const loadingTextStyle = {
+  fontSize: "13px",
+  color: "#6b7280",
+  textAlign: "center",
+  padding: "12px 0"
+};
+
+const emptyTextStyle = {
+  fontSize: "13px",
+  color: "#9ca3af",
+  textAlign: "center",
+  padding: "12px 0",
+  fontStyle: "italic"
+};
+
+const orderItemCardStyle = {
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "16px",
+  padding: "16px",
+  boxShadow: "0 4px 10px rgba(0,0,0,0.01)"
 };
 
 const orderHeaderStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  paddingBottom: "12px",
-  borderBottom: "1px solid #f1f5f9",
-  marginBottom: "12px",
+  fontSize: "12px"
 };
 
 const orderIdStyle = {
-  fontFamily: "monospace",
   fontWeight: "800",
-  color: "#FF4D4F",
-  fontSize: "13px",
+  color: "#318616",
+  fontFamily: "monospace"
 };
 
 const orderDateStyle = {
-  color: "#64748b",
-  fontSize: "12px",
-  fontWeight: "600",
+  color: "#6b7280"
 };
 
-const payBadgeStyle = (status) => ({
-  fontSize: "10px",
+const orderStatusStyle = (status) => ({
   fontWeight: "800",
-  padding: "4px 8px",
-  borderRadius: "6px",
   textTransform: "uppercase",
-  background:
-    status === "Paid"
-      ? "#e6fffa"
-      : status === "Pending"
-        ? "#fffbeb"
-        : "#fef2f2",
-  color:
-    status === "Paid"
-      ? "#0d9488"
-      : status === "Pending"
-        ? "#d97706"
-        : "#dc2626",
-});
-
-const statusBadgeStyle = (status) => ({
   fontSize: "10px",
-  fontWeight: "800",
-  padding: "4px 8px",
+  padding: "2px 8px",
   borderRadius: "6px",
-  background:
-    status === "Delivered"
-      ? "#ecfdf5"
-      : status === "Cancelled"
-        ? "#fef2f2"
-        : "rgba(255, 77, 79, 0.1)",
-  color:
-    status === "Delivered"
-      ? "#10b981"
-      : status === "Cancelled"
-        ? "#dc2626"
-        : "#FF4D4F",
+  background: status === "Delivered" ? "#d1fae5" : status === "Cancelled" ? "#fee2e2" : "#fef3c7",
+  color: status === "Delivered" ? "#065f46" : status === "Cancelled" ? "#991b1b" : "#92400e"
 });
 
-const itemsListStyle = {
+const orderProductRowStyle = {
   display: "flex",
-  flexDirection: "column",
-  gap: "8px",
-  marginBottom: "12px",
+  justifyContent: "space-between",
+  fontSize: "13px",
+  marginTop: "6px"
 };
 
-const itemRowStyle = {
+const orderFooterStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   fontSize: "13px",
-  borderBottom: "1px solid #f8fafc",
-  paddingBottom: "6px",
-};
-
-const summaryRowStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  paddingTop: "8px",
-  borderTop: "1px solid #f1f5f9",
-  marginBottom: "16px",
-};
-
-const trackerContainerStyle = {
-  padding: "4px 8px",
-};
-
-const trackerLabelsStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  fontSize: "10px",
-  fontWeight: "700",
-  color: "#94a3b8",
-  marginBottom: "6px",
-};
-
-const trackerLabelStyle = (label, currentStatus) => {
-  const statuses = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Out for Delivery", "Delivered"];
-  const currentIdx = statuses.indexOf(currentStatus);
-  const labelIdx = statuses.indexOf(label);
-
-  const isCompleted = labelIdx <= currentIdx;
-  return {
-    color: isCompleted ? "#3b82f6" : "#cbd5e1",
-    fontWeight: isCompleted ? "800" : "600",
-  };
-};
-
-const progressBarBgStyle = {
-  width: "100%",
-  height: "5px",
-  background: "#f1f5f9",
-  borderRadius: "3px",
-  overflow: "hidden",
-};
-
-const progressBarFillStyle = (width, color) => ({
-  width: width,
-  height: "100%",
-  background: "linear-gradient(90deg, #3b82f6, #10b981)",
-  borderRadius: "3px",
-  transition: "width 0.4s ease",
-});
-
-const cancelledBannerStyle = {
-  background: "#fef2f2",
-  border: "1px solid #fca5a5",
-  borderRadius: "10px",
-  color: "#dc2626",
-  padding: "8px 12px",
-  fontSize: "12px",
-  fontWeight: "700",
-  textAlign: "center",
+  fontWeight: "800",
+  marginTop: "10px"
 };
 
 const trackBtnStyle = {
-  width: "100%",
-  marginTop: "14px",
-  height: "42px",
-  border: "none",
-  borderRadius: "12px",
-  background: "linear-gradient(135deg, #10b981, #059669)",
+  background: "#318616",
   color: "white",
+  border: "none",
+  borderRadius: "8px",
+  padding: "6px 12px",
+  fontSize: "11px",
+  fontWeight: "850",
+  cursor: "pointer"
+};
+
+const walletStatsRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "12px",
+  marginBottom: "16px"
+};
+
+const walletStatsCardStyle = {
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "14px",
+  padding: "12px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "2px"
+};
+
+const txRowStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "10px 14px",
+  borderRadius: "12px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb"
+};
+
+const couponCardStyle = {
+  background: "#ffffff",
+  border: "1.5px dashed #318616",
+  borderRadius: "16px",
+  padding: "14px"
+};
+
+const couponCodeStyle = {
+  fontFamily: "monospace",
+  fontSize: "12px",
+  fontWeight: "850",
+  color: "#318616",
+  background: "rgba(49, 134, 22, 0.08)",
+  padding: "2px 6px",
+  borderRadius: "4px"
+};
+
+const couponStatusStyle = (isUsed) => ({
+  fontSize: "9px",
+  fontWeight: "800",
+  color: isUsed ? "#9ca3af" : "#10b981"
+});
+
+const otpTestBtnStyle = {
+  width: "100%",
+  padding: "14px",
+  borderRadius: "16px",
+  border: "1.5px solid #fbbf24",
+  background: "#fffbeb",
+  color: "#d97706",
+  fontWeight: "850",
   fontSize: "13px",
-  fontWeight: "900",
   cursor: "pointer",
-  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+  boxShadow: "0 4px 12px rgba(245, 158, 11, 0.03)",
+  marginTop: "12px"
 };
