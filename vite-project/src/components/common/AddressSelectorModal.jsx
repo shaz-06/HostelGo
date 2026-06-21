@@ -923,41 +923,6 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
                 </button>
               </div>
 
-              {/* Recent Addresses */}
-              {recentAddresses.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", fontWeight: "800", letterSpacing: "0.5px" }}>RECENT ADDRESSES</span>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {recentAddresses.map((addr) => (
-                      <div
-                        key={"recent_" + addr._id}
-                        onClick={() => selectAddress(addr)}
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: "14px",
-                          background: "rgba(255,255,255,0.08)",
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px"
-                        }}
-                      >
-                        <span style={{ fontSize: "16px" }}>📍</span>
-                        <div style={{ flex: 1, overflow: "hidden" }}>
-                          <div style={{ fontSize: "12px", fontWeight: "750", color: "#ffffff" }}>
-                            {addr.label || "Recent Location"}
-                          </div>
-                          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {addr.addressLine}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Saved Addresses list */}
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", fontWeight: "800", letterSpacing: "0.5px" }}>SAVED ADDRESSES</span>
@@ -984,33 +949,19 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
                             cursor: "pointer",
                             display: "flex",
                             flexDirection: "column",
-                            gap: "6px",
+                            gap: "8px",
                             transition: "all 0.2s ease"
                           }}
                         >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                              <span style={{ fontSize: "13px", fontWeight: "900", color: "#ffffff" }}>
-                                {addr.label === "Hostel" ? "🏠 Hostel" :
-                                  addr.label === "PG" ? "🏢 PG" :
-                                    addr.label === "College" ? "🎓 College" :
-                                      addr.label === "Home" ? "🏡 Home" :
-                                        addr.label === "Office" ? "💼 Office" : `📍 ${addr.label}`}
-                              </span>
-                              {isSelected && (
-                                <span style={{
-                                  background: "#22c55e",
-                                  color: "white",
-                                  fontSize: "9px",
-                                  fontWeight: "900",
-                                  padding: "2px 6px",
-                                  borderRadius: "8px",
-                                  marginLeft: "6px"
-                                }}>
-                                  ✓ Delivering Here
-                                </span>
-                              )}
-                            </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "14px", fontWeight: "950", color: "#ffffff", display: "flex", alignItems: "center", gap: "6px" }}>
+                              {addr.label === "Hostel" ? "🏢 Hostel" :
+                                addr.label === "Home" ? "🏠 Home" :
+                                addr.label === "Work" ? "🏢 Work" :
+                                addr.label === "Office" ? "💼 Office" :
+                                addr.label === "PG" ? "🏢 PG" :
+                                addr.label === "College" ? "🎓 College" : `📍 ${addr.label}`}
+                            </span>
 
                             {/* Actions Menu */}
                             <div style={{ display: "flex", gap: "8px" }}>
@@ -1047,7 +998,54 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
                               >
                                 🗑️
                               </button>
-                              {!addr.isDefault && (
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: "750", color: "#ffffff" }}>
+                              {addr.fullName}
+                            </span>
+                            <span style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.9)", lineHeight: "1.4" }}>
+                              {[
+                                addr.roomNumber ? `Room ${addr.roomNumber}` : "",
+                                addr.landmark ? addr.landmark : "",
+                                addr.addressLine,
+                                addr.city,
+                                addr.pincode ? String(addr.pincode) : ""
+                              ].filter(Boolean).join(", ")}
+                            </span>
+                            <span style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.9)", marginTop: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span>☎</span> {addr.phone}
+                            </span>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
+                            {/* Delivery availability badge */}
+                            <span style={{
+                              background: addr.serviceable ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.2)",
+                              border: addr.serviceable ? "1px solid rgba(34, 197, 94, 0.4)" : "1px solid rgba(239, 68, 68, 0.4)",
+                              color: "white",
+                              fontSize: "10px",
+                              fontWeight: "800",
+                              padding: "2px 8px",
+                              borderRadius: "12px"
+                            }}>
+                              {addr.serviceable ? "✓ Delivery Available" : "⚠ Service Not Available"}
+                            </span>
+
+                            {isSelected ? (
+                              <span style={{
+                                background: "#22c55e",
+                                color: "white",
+                                fontSize: "10px",
+                                fontWeight: "900",
+                                padding: "2px 8px",
+                                borderRadius: "12px"
+                              }}>
+                                Selected ✓
+                              </span>
+                            ) : (
+                              !addr.isDefault && (
                                 <button
                                   onClick={(e) => handleSetDefault(addr, e)}
                                   style={{
@@ -1063,45 +1061,7 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
                                 >
                                   Make Default
                                 </button>
-                              )}
-                            </div>
-                          </div>
-
-                          <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}>
-                            {addr.fullName} • {addr.phone}
-                          </span>
-
-                          <span style={{ fontSize: "12px", color: "#ffffff", fontWeight: "500" }}>
-                            {addr.addressLine}{addr.roomNumber && `, Room ${addr.roomNumber}`}
-                          </span>
-
-                          {/* Delivery availability badge */}
-                          <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-                            <span style={{
-                              background: addr.serviceable ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.2)",
-                              border: addr.serviceable ? "1px solid rgba(34, 197, 94, 0.4)" : "1px solid rgba(239, 68, 68, 0.4)",
-                              color: "white",
-                              fontSize: "10px",
-                              fontWeight: "800",
-                              padding: "2px 8px",
-                              borderRadius: "12px",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px"
-                            }}>
-                              {addr.serviceable ? "✓ Delivery Available" : "⚠ Service Not Available Yet"}
-                            </span>
-                            {addr.serviceable && (
-                              <span style={{
-                                background: "rgba(255, 255, 255, 0.15)",
-                                color: "white",
-                                fontSize: "10px",
-                                fontWeight: "800",
-                                padding: "2px 8px",
-                                borderRadius: "12px"
-                              }}>
-                                ⚡ 7 mins
-                              </span>
+                              )
                             )}
                           </div>
                         </div>
