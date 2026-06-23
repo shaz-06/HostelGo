@@ -92,13 +92,18 @@ const generateSlug = (name) => {
 };
 
 const searchSuggestions = [
-  "Fresh Fruits",
-  "Vegetables",
-  "Snacks",
+  "Milk",
+  "Curd",
+  "Rice",
+  "Atta",
+  "Chocolates",
+  "Ice Cream",
+  "Shampoo",
+  "Face Wash",
   "Cold Drinks",
-  "Dairy Products",
-  "Ice Creams",
-  "Bakery Items"
+  "Bread",
+  "Eggs",
+  "Snacks"
 ];
 
 export default function CategoriesPage({ products = [], searchQuery = "", setSearchQuery = () => {} }) {
@@ -122,11 +127,12 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
 
   // Staggered placeholder rotation
   useEffect(() => {
+    if (isFocused) return;
     const interval = setInterval(() => {
       setSearchIndex((prev) => (prev + 1) % searchSuggestions.length);
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isFocused]);
 
   const handleCardClick = (name) => {
     const slug = generateSlug(name);

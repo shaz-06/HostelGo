@@ -5,13 +5,18 @@ import { AuthContext } from "../../context/AuthContext";
 import { logoPath } from "../../config/branding";
 
 const searchSuggestions = [
-  "Fresh Fruits",
-  "Vegetables",
-  "Snacks",
+  "Milk",
+  "Curd",
+  "Rice",
+  "Atta",
+  "Chocolates",
+  "Ice Cream",
+  "Shampoo",
+  "Face Wash",
   "Cold Drinks",
-  "Dairy Products",
-  "Ice Creams",
-  "Bakery Items"
+  "Bread",
+  "Eggs",
+  "Snacks"
 ];
 
 export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, onCategoryClick }) => {
@@ -194,11 +199,12 @@ const Header = React.memo(({
   }, []);
 
   useEffect(() => {
+    if (isFocused) return;
     const interval = setInterval(() => {
       setSearchIndex((prev) => (prev + 1) % searchSuggestions.length);
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isFocused]);
 
   const addressText = useMemo(() => {
     return userLocation
