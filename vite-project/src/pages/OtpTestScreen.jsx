@@ -1,174 +1,110 @@
 import React, { useState, useEffect, useContext } from "react";
-import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
-import { auth } from "../config/firebase";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { msg91Login } from "../services/otpService";
 
 export default function OtpTestScreen() {
   const { setAuthSession, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [firebaseDetails, setFirebaseDetails] = useState(null);
   const [backendDetails, setBackendDetails] = useState(null);
   const [sessionRestored, setSessionRestored] = useState("Checking...");
 
   useEffect(() => {
     const hasToken = localStorage.getItem("buyto_token");
-    if (hasToken) {
-      setSessionRestored("Restored");
-    } else {
-      setSessionRestored("Not Restored");
-    }
-  }, []);
+    setSessionRestored(hasToken ? "Restored" : "Not Restored");
 
-  useEffect(() => {
-    // Setup invisible recaptcha verifier
-    try {
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-          size: "invisible",
-          callback: () => {
-            console.log("reCAPTCHA solved");
-          }
-        });
-      }
-    } catch (err) {
-      console.error("Recaptcha Init Error:", err);
-      setError("Failed to initialize recaptcha: " + err.message);
-    }
-  }, []);
-
-  const handleSendOtp = async (e) => {
-    if (e) e.preventDefault();
-    setError("");
-    setSuccessMsg("");
-    if (!phone || phone.length < 10) {
-      setError("Please enter a valid phone number.");
-      return;
-    }
-
-    setLoading(true);
-    // Prefix with +91 if not present
-    let formattedPhone = phone.trim();
-    if (!formattedPhone.startsWith("+")) {
-      if (formattedPhone.startsWith("91") && formattedPhone.length > 10) {
-        formattedPhone = "+" + formattedPhone;
-      } else {
-        formattedPhone = "+91" + formattedPhone;
-      }
-    }
-
-    try {
-      const appVerifier = window.recaptchaVerifier;
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-      setConfirmationResult(confirmation);
-      setSuccessMsg("SMS OTP sent successfully!");
-    } catch (err) {
-      console.error("Send OTP Error:", err);
-      setError("Error sending OTP: " + err.message);
-      // Reset recaptcha verifier if error
-      if (window.recaptchaVerifier) {
+    // Initialize MSG91 Widget configuration dynamically
+    window.configuration = {
+      widgetId: "366676677233393137373632",
+      tokenAuth: "543604TezJRg0EB6a38de05P1",
+      success: async (data) => {
+        console.log("=== MSG91 SUCCESS CALLBACK TRIGGERED (TEST) ===");
+        console.log("MSG91 SUCCESS PAYLOAD:", JSON.stringify(data, null, 2));
+        
+        const token = data?.accessToken || data?.access_token || data?.token || data?.message || (data?.data && (data.data.accessToken || data.data.access_token || data.data.token));
+        console.log("MSG91 SUCCESS PAYLOAD:", data);
+        console.log("EXTRACTED ACCESS TOKEN:", token);
+        
+        if (!token) {
+          setError("No access token returned from MSG91 widget. Payload: " + JSON.stringify(data));
+          return;
+        }
+        setLoading(true);
+        setError("");
+        setSuccessMsg("Widget verification succeeded! Sending to backend...");
         try {
-          window.recaptchaVerifier.clear();
-          window.recaptchaVerifier = null;
-        } catch (e) {}
+          const res = await msg91Login(token);
+          setSuccessMsg("Authenticated successfully with backend JWT!");
+          setBackendDetails({
+            token: res.token,
+            user: res.user
+          });
+          await setAuthSession(res.token, res.user);
+        } catch (err) {
+          console.error("Backend login error:", err);
+          setError("Backend Authentication Error: " + err.message);
+        } finally {
+          setLoading(false);
+        }
+      },
+      failure: (err) => {
+        console.error("OTP Failure inside Test Screen:", err);
+        setError("Widget error: " + JSON.stringify(err));
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const handleVerifyOtp = async (e) => {
-    if (e) e.preventDefault();
-    setError("");
-    setSuccessMsg("");
-    if (!otp || otp.length !== 6) {
-      setError("Please enter a 6-digit OTP code.");
-      return;
-    }
+    // 1. Inject intl-tel-input CSS
+    const linkEl = document.createElement("link");
+    linkEl.id = "intl-tel-css-test";
+    linkEl.rel = "stylesheet";
+    linkEl.href = "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.min.css";
+    document.head.appendChild(linkEl);
 
-    setLoading(true);
-    try {
-      const result = await confirmationResult.confirm(otp);
-      const fbUser = result.user;
-      setSuccessMsg("OTP Verification Successful");
-      
-      console.log("Firebase Phone Auth Verification Successful!");
-      console.log("Firebase UID:", fbUser.uid);
-      console.log("Phone Number:", fbUser.phoneNumber);
+    // 2. Load intl-tel-input JS
+    const intlScript = document.createElement("script");
+    intlScript.id = "intl-tel-js-test";
+    intlScript.src = "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js";
+    intlScript.async = true;
 
-      setFirebaseDetails({
-        uid: fbUser.uid,
-        phoneNumber: fbUser.phoneNumber
-      });
+    intlScript.onload = () => {
+      console.log("[DEBUG-TEST] intlTelInput successfully loaded. Type =", typeof window.intlTelInput);
 
-      // Call Backend to generate JWT token
-      const res = await fetch(window.API_BASE_URL + "/api/auth/firebase-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firebaseUid: fbUser.uid,
-          phoneNumber: fbUser.phoneNumber,
-          email: ""
-        })
-      });
+      // 3. Load MSG91 loader script
+      const loaderScript = document.createElement("script");
+      loaderScript.id = "msg91-widget-loader-test";
+      loaderScript.src = "https://control.msg91.com/app/assets/otp-provider/otp-provider.js";
+      loaderScript.async = true;
+      loaderScript.onload = () => {
+        console.log("[DEBUG-TEST] MSG91 otp-provider loaded. initSendOTP type =", typeof window.initSendOTP);
+        if (typeof window.initSendOTP === "function") {
+          window.initSendOTP(window.configuration);
+        }
+      };
+      document.body.appendChild(loaderScript);
+    };
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Backend login failed");
-      }
+    document.body.appendChild(intlScript);
 
-      const data = await res.json();
-      setBackendDetails({
-        token: data.token,
-        user: data.user
-      });
-
-      // Save JWT and user session
-      await setAuthSession(data.token, data.user);
-      setSuccessMsg("Session created and stored successfully! JWT Received.");
-
-    } catch (err) {
-      console.error("Verification Error:", err);
-      setError("Verification failed: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      document.getElementById("intl-tel-css-test")?.remove();
+      document.getElementById("intl-tel-js-test")?.remove();
+      document.getElementById("msg91-widget-loader-test")?.remove();
+      delete window.configuration;
+    };
+  }, []);
 
   return (
     <div style={{ maxWidth: "450px", margin: "40px auto", padding: "24px", background: "white", borderRadius: "24px", boxShadow: "0 8px 30px rgba(0,0,0,0.06)", fontFamily: "'Outfit', sans-serif" }}>
       <h2 style={{ fontSize: "22px", fontWeight: "900", color: "#1f2937", marginBottom: "8px", textAlign: "center" }}>
-        Firebase OTP Test Screen ⚡
+        MSG91 OTP Test Screen ⚡
       </h2>
       <p style={{ fontSize: "13px", color: "#6b7280", textAlign: "center", marginBottom: "24px", fontWeight: "600" }}>
-        Verify Firebase Phone Auth on Web & Android APK
+        Verify MSG91 Phone Auth Widget integration
       </p>
-
-      {/* Firebase configuration parameters info banner */}
-      <div style={{ padding: "10px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", marginBottom: "16px", fontSize: "11.5px", color: "#475569", lineHeight: "1.4" }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <b>Firebase Project:</b>
-          <span style={{ fontFamily: "monospace", fontWeight: "700", color: "#0f172a" }}>{auth?.app?.options?.projectId}</span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
-          <b>API Key:</b>
-          <span style={{ fontFamily: "monospace" }}>{auth?.app?.options?.apiKey?.substring(0, 12)}...</span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
-          <b>App ID:</b>
-          <span style={{ fontFamily: "monospace" }}>{auth?.app?.options?.appId?.substring(0, 22)}...</span>
-        </div>
-      </div>
-
-      {/* reCAPTCHA target element */}
-      <div id="recaptcha-container"></div>
 
       {error && (
         <div style={{ padding: "12px", background: "#fef2f2", color: "#b91c1c", borderRadius: "12px", fontSize: "13px", fontWeight: "700", marginBottom: "16px" }}>
@@ -182,70 +118,13 @@ export default function OtpTestScreen() {
         </div>
       )}
 
-      {!confirmationResult ? (
-        <form onSubmit={handleSendOtp} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#4b5563", marginBottom: "6px" }}>
-              Phone Number
-            </label>
-            <div style={{ display: "flex", border: "1.5px solid #e5e7eb", borderRadius: "12px", overflow: "hidden", background: "white" }}>
-              <span style={{ padding: "14px", background: "#f3f4f6", fontSize: "14px", fontWeight: "700", color: "#374151" }}>
-                +91
-              </span>
-              <input
-                type="tel"
-                placeholder="Enter 10-digit number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                style={{ width: "100%", padding: "14px", border: "none", fontSize: "14px", fontWeight: "600", outline: "none" }}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ width: "100%", padding: "14px", background: "#318616", color: "white", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "800", cursor: "pointer", boxShadow: "0 4px 12px rgba(49,134,22,0.2)" }}
-          >
-            {loading ? "Sending SMS..." : "Send OTP"}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#4b5563", marginBottom: "6px" }}>
-              Enter 6-Digit OTP Code
-            </label>
-            <input
-              type="text"
-              maxLength="6"
-              placeholder="e.g. 123456"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              style={{ width: "100%", padding: "14px", border: "1.5px solid #e5e7eb", borderRadius: "12px", fontSize: "16px", fontWeight: "800", letterSpacing: "8px", textAlign: "center", outline: "none" }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ width: "100%", padding: "14px", background: "#318616", color: "white", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "800", cursor: "pointer", boxShadow: "0 4px 12px rgba(49,134,22,0.2)" }}
-          >
-            {loading ? "Verifying..." : "Verify OTP"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setConfirmationResult(null)}
-            style={{ background: "transparent", border: "none", color: "#4b5563", fontSize: "13px", fontWeight: "700", cursor: "pointer", marginTop: "8px" }}
-          >
-            ← Back to Phone Input
-          </button>
-        </form>
-      )}
+      {/* Widget Target Container */}
+      <div id="msg91-otp-widget-container" style={{ minHeight: "220px", marginBottom: "20px" }}>
+        {loading && <div style={{ fontSize: "13px", color: "#6b7280", textAlign: "center" }}>Verifying credentials with backend...</div>}
+      </div>
 
       <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1.5px solid #cbd5e1", marginBottom: "16px" }}>
-        <b style={{ fontSize: "14px", color: "#1f2937" }}>Session:</b>
+        <b style={{ fontSize: "14px", color: "#1f2937" }}>Session Status:</b>
         <span style={{
           marginLeft: "8px",
           padding: "4px 8px",
@@ -258,22 +137,6 @@ export default function OtpTestScreen() {
           {sessionRestored}
         </span>
       </div>
-
-      {firebaseDetails && (
-        <div style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1.5px dashed #cbd5e1" }}>
-          <h4 style={{ fontSize: "14px", fontWeight: "800", color: "#1f2937", margin: "0 0 10px 0" }}>
-            Firebase Credentials
-          </h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12.5px" }}>
-            <div>
-              <b style={{ color: "#4b5563" }}>UID:</b> <span style={{ fontFamily: "monospace", wordBreak: "break-all" }}>{firebaseDetails.uid}</span>
-            </div>
-            <div>
-              <b style={{ color: "#4b5563" }}>Phone:</b> <span>{firebaseDetails.phoneNumber}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {backendDetails && (
         <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1.5px dashed #cbd5e1" }}>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOptimizedImageUrl } from "../../utils/imageOptimizer";
 
@@ -58,6 +58,49 @@ function MobileProductCard({
     navigate(`/product/${productId}`);
   };
 
+  const [prevQty, setPrevQty] = useState(quantity);
+  const [isAnimatingQty, setIsAnimatingQty] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    if (quantity !== prevQty) {
+      setIsAnimatingQty(true);
+      const timer = setTimeout(() => setIsAnimatingQty(false), 200);
+      setPrevQty(quantity);
+      return () => clearTimeout(timer);
+    }
+  }, [quantity, prevQty]);
+
+  const handleButtonClick = (e) => {
+    e.stopPropagation();
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(15);
+    }
+    if (quantity === 0) {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setIsAnimating(false);
+      }, 500);
+    }
+    handleAdd(e);
+  };
+
+  const handleDecreaseClick = (e) => {
+    e.stopPropagation();
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(10);
+    }
+    handleDecrease(e);
+  };
+
+  const handleIncreaseClick = (e) => {
+    e.stopPropagation();
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(10);
+    }
+    handleAdd(e); // Mobile uses handleAdd for increase
+  };
+
   const handleAdd = (e) => {
     e.stopPropagation();
     const productToCart = {
@@ -95,211 +138,313 @@ function MobileProductCard({
     <div
       onClick={handleCardClick}
       style={{
-        background: cardBg,
-        borderRadius: "16px",
-        padding: "10px",
+        background: "white",
+        borderRadius: "12px",
+        padding: "8px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         cursor: "pointer",
         position: "relative",
-        width: "115px",
-        height: "170px",
+        width: "120px",
+        height: "210px",
         boxSizing: "border-box",
         fontFamily: "'Outfit', 'Inter', sans-serif",
         flexShrink: 0,
-        boxShadow: "0 2px 6px rgba(0,0,0,0.015)",
-        border: "1px solid rgba(0,0,0,0.02)",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
+        border: "1px solid #f0f0f0",
       }}
     >
-      {/* Green Discount Badge (top right) */}
-      {hasDiscount && (
+      <div>
+        {/* Product Image Area */}
         <div
           style={{
-            position: "absolute",
-            top: "6px",
-            right: "6px",
-            background: "#84cc16", // Lime green
-            color: "white",
-            padding: "2px 5px",
-            borderRadius: "4px",
-            fontSize: "8px",
-            fontWeight: "800",
-            zIndex: 10,
+            width: "100%",
+            height: "75px",
+            background: "#f9fafb",
+            borderRadius: "8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+            padding: "4px",
+            boxSizing: "border-box",
           }}
         >
-          {discountPercentage}% OFF
+          <img
+            src={getOptimizedImageUrl(product.image, "thumbnail", product)}
+            alt={product.name}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+              borderRadius: "6px",
+            }}
+            loading="lazy"
+          />
         </div>
-      )}
 
-      {/* Product Image Area */}
-      <div
-        style={{
-          width: "100%",
-          height: "85px",
-          background: "white",
-          borderRadius: "12px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          padding: "4px",
-          boxSizing: "border-box",
-        }}
-      >
-        <img
-          src={getOptimizedImageUrl(product.image, "thumbnail", product)}
-          alt={product.name}
-          style={{
-            maxWidth: "100%",
-            maxHeight: "100%",
-            objectFit: "contain",
-            borderRadius: "6px",
-          }}
-          loading="lazy"
-        />
+        {/* Discount Badge & Price */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginTop: "6px" }}>
+          {hasDiscount && (
+            <span style={{ color: "#318616", fontWeight: "800", fontSize: "8px", textTransform: "uppercase" }}>
+              {discountPercentage}% OFF
+            </span>
+          )}
+          <div style={{ display: "flex", alignItems: "baseline", gap: "3px" }}>
+            <span style={{ fontWeight: "900", fontSize: "12px", color: "#1f2937" }}>
+              ₹{price}
+            </span>
+            {originalPrice > price && (
+              <span style={{ textDecoration: "line-through", color: "#9ca3af", fontSize: "10px", fontWeight: "500" }}>
+                ₹{originalPrice}
+              </span>
+            )}
+          </div>
+        </div>
 
-        {/* Add/Quantity Capsule Button (overlapping bottom of image) */}
-        <div
+        {/* Brand name (subtle grey text) */}
+        <div style={{ fontSize: "8px", color: "#9ca3af", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.2px", marginTop: "4px" }}>
+          {product.brand || "Buyto Fresh"}
+        </div>
+
+        {/* Product Name */}
+        <span
           style={{
-            position: "absolute",
-            bottom: "-10px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 15,
+            fontSize: "11px",
+            fontWeight: "700",
+            color: "#1f2937",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            height: "28px",
+            margin: "2px 0",
+            lineHeight: "14px",
           }}
         >
-          {quantity === 0 ? (
+          {product.name}
+        </span>
+
+        {/* Weight selector */}
+        <span
+          style={{
+            fontSize: "9px",
+            color: "#6b7280",
+            fontWeight: "700",
+            display: "block",
+            marginTop: "2px",
+          }}
+        >
+          {weight}
+        </span>
+      </div>
+
+      {/* Add / Qty button at the bottom */}
+      <div style={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "26px",
+        position: "relative",
+        marginTop: "4px"
+      }}>
+        <style>{`
+          @keyframes buytoLineGrow {
+            0% {
+              transform: scaleX(0.015) scaleY(0);
+              opacity: 1;
+            }
+            33% {
+              transform: scaleX(0.015) scaleY(1);
+              opacity: 1;
+            }
+            77% {
+              transform: scaleX(1) scaleY(1);
+              opacity: 1;
+            }
+            100% {
+              transform: scaleX(1) scaleY(1);
+              opacity: 0;
+            }
+          }
+          @keyframes buytoContainerBg {
+            0% {
+              background-color: white;
+              border-color: #318616;
+            }
+            77% {
+              background-color: white;
+              border-color: #318616;
+            }
+            100% {
+              background-color: #318616;
+              border-color: #318616;
+            }
+          }
+          @keyframes buytoTextFade {
+            0% {
+              opacity: 1;
+            }
+            33% {
+              opacity: 1;
+            }
+            77% {
+              opacity: 0;
+              transform: scale(0.9);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(0.9);
+            }
+          }
+          @keyframes buytoQtySelectorFade {
+            0% {
+              opacity: 0;
+              transform: translateY(5px);
+            }
+            77% {
+              opacity: 0;
+              transform: translateY(5px);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
+        <div
+          style={{
+            width: (quantity === 0 && !isAnimating) ? "64px" : "100%",
+            height: "26px",
+            position: "relative",
+            transition: "all 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+            borderRadius: "6px",
+            overflow: "hidden",
+            border: "1px solid #318616",
+            backgroundColor: (quantity > 0 && !isAnimating) ? "#318616" : "white",
+            animation: isAnimating ? "buytoContainerBg 450ms forwards ease-out" : "none",
+            boxSizing: "border-box",
+            willChange: "width, background-color, border-color",
+          }}
+        >
+          {/* Custom rising line element */}
+          {isAnimating && (
+            <div style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: "100%",
+              height: "100%",
+              background: "#318616",
+              transformOrigin: "bottom center",
+              animation: "buytoLineGrow 450ms forwards cubic-bezier(0.25, 1, 0.5, 1)",
+              zIndex: 2,
+              willChange: "transform, opacity",
+            }} />
+          )}
+
+          {/* ADD Button */}
+          {(quantity === 0 || isAnimating) && (
             <button
-              onClick={handleAdd}
+              onClick={handleButtonClick}
               style={{
-                background: "white",
-                border: "1.5px solid #ef4444", // Red outline like reference
-                color: "#ef4444",
-                borderRadius: "20px",
+                position: "absolute",
+                inset: 0,
+                background: "transparent",
+                border: "none",
+                color: "#318616",
+                borderRadius: "6px",
                 fontSize: "10px",
                 fontWeight: "900",
-                height: "22px",
-                padding: "0 14px",
                 cursor: "pointer",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                whiteSpace: "nowrap",
+                zIndex: 3,
+                pointerEvents: quantity === 0 ? "auto" : "none",
+                animation: isAnimating ? "buytoTextFade 450ms forwards ease-in-out" : "none",
                 boxSizing: "border-box",
               }}
+              className="active:scale-95"
             >
-              Buy
+              ADD
             </button>
-          ) : (
+          )}
+
+          {/* Qty Selector */}
+          {(quantity > 0 || isAnimating) && (
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                background: "white",
-                border: "1.5px solid #ef4444",
-                borderRadius: "20px",
+                position: "absolute",
+                inset: 0,
                 display: "flex",
                 alignItems: "center",
-                height: "22px",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
+                justifyContent: "space-between",
+                padding: "0 6px",
                 boxSizing: "border-box",
-                padding: "0 4px",
+                zIndex: 4,
+                animation: isAnimating ? "buytoQtySelectorFade 450ms forwards cubic-bezier(0.34, 1.56, 0.64, 1)" : "none",
+                opacity: isAnimating ? 0 : 1,
               }}
             >
               <button
-                onClick={handleDecrease}
+                onClick={handleDecreaseClick}
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "#ef4444",
-                  fontSize: "12px",
+                  color: "white",
+                  fontSize: "14px",
                   fontWeight: "900",
+                  cursor: "pointer",
                   width: "16px",
                   height: "100%",
-                  cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  transition: "transform 100ms ease",
                 }}
+                className="active:scale-75"
               >
                 -
               </button>
               <span
                 style={{
-                  color: "#ef4444",
+                  color: "white",
                   fontWeight: "900",
                   fontSize: "10px",
-                  minWidth: "10px",
-                  textAlign: "center",
-                  padding: "0 2px",
+                  display: "inline-block",
+                  transform: isAnimatingQty ? "scale(1.2)" : "scale(1)",
+                  transition: "transform 150ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
                 }}
               >
                 {quantity}
               </span>
               <button
-                onClick={handleAdd}
+                onClick={handleIncreaseClick}
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "#ef4444",
-                  fontSize: "12px",
+                  color: "white",
+                  fontSize: "14px",
                   fontWeight: "900",
+                  cursor: "pointer",
                   width: "16px",
                   height: "100%",
-                  cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  transition: "transform 100ms ease",
                 }}
+                className="active:scale-75"
               >
                 +
               </button>
             </div>
           )}
         </div>
-      </div>
-
-      {/* Product Text Details */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          marginTop: "12px",
-          overflow: "hidden",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "11px",
-            fontWeight: "700",
-            color: "#374151",
-            textAlign: "center",
-            width: "100%",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            lineHeight: "1.2",
-          }}
-        >
-          {product.name}
-        </span>
-        <span
-          style={{
-            fontSize: "9px",
-            color: "#6b7280",
-            fontWeight: "600",
-            textAlign: "center",
-            marginTop: "2px",
-            width: "100%",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {weight ? `${weight} • ` : ""}₹{price}
-        </span>
       </div>
     </div>
   );

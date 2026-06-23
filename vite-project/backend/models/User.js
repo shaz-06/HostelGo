@@ -32,9 +32,21 @@ const userSchema = new mongoose.Schema(
     },
     addresses: [
       {
-        type: String
+        label: { type: String },
+        apartment: { type: String },
+        room: { type: String },
+        floor: { type: String },
+        landmark: { type: String }
       }
     ],
+    gender: {
+      type: String,
+      default: ""
+    },
+    profileCompleted: {
+      type: Boolean,
+      default: false
+    },
     latitude: {
       type: Number,
       default: null

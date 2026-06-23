@@ -199,6 +199,22 @@ app.get("/", (req, res) => {
   res.send("API Running");
 });
 
+app.get("/health", (req, res) => {
+  res.json({
+    success: true,
+    message: "Backend reachable",
+    time: new Date()
+  });
+});
+
+app.get("/debug-ping", (req, res) => {
+  res.json({
+    success: true,
+    message: "ping ok",
+    time: new Date()
+  });
+});
+
 app.get("/api/products", async (req, res) => {
   try {
     if (isConnected) {
@@ -393,8 +409,8 @@ app.use("/api/save-for-later", saveForLaterRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", userRoutes);
 
-server.listen(PORT, () => {
-  console.log(`Server Started on port ${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server Started and running on port ${PORT} bound to all interfaces`);
 
   // Schedule cart reminder check every 5 minutes
   cron.schedule("*/5 * * * *", async () => {

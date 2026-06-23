@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef } from "react";
+import React, { useState, useContext, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOptimizedImageUrl } from "./utils/imageOptimizer";
 import { AuthContext } from "./context/AuthContext";
@@ -85,6 +85,49 @@ function ProductCard({
     : 0;
 
   const isSaved = Array.isArray(saveForLaterIds) && saveForLaterIds.includes(String(product._id || product.id));
+
+  const [prevQty, setPrevQty] = useState(quantity);
+  const [isAnimatingQty, setIsAnimatingQty] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    if (quantity !== prevQty) {
+      setIsAnimatingQty(true);
+      const timer = setTimeout(() => setIsAnimatingQty(false), 200);
+      setPrevQty(quantity);
+      return () => clearTimeout(timer);
+    }
+  }, [quantity, prevQty]);
+
+  const handleButtonClick = (e) => {
+    e.stopPropagation();
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(15);
+    }
+    if (quantity === 0) {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setIsAnimating(false);
+      }, 500);
+    }
+    handleAdd(e);
+  };
+
+  const handleDecreaseClick = (e) => {
+    e.stopPropagation();
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(10);
+    }
+    handleDecrease(e);
+  };
+
+  const handleIncreaseClick = (e) => {
+    e.stopPropagation();
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(10);
+    }
+    handleIncrease(e);
+  };
 
   const handleSaveClick = async (e) => {
     e.stopPropagation();
@@ -178,99 +221,111 @@ function ProductCard({
     handleRemove(e);
   };
 
-  if (windowWidth < 768) {
-    return (
-      <div
-        onClick={handleCardClick}
-        style={{
-          background: "white",
-          borderRadius: "16px",
-          padding: "12px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-          border: "1px solid #f0f0f0",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          cursor: "pointer",
-          transition: "transform 0.2s ease",
-          position: "relative",
-          width: "100%",
-          height: "100%",
-          boxSizing: "border-box",
-        }}
+  return (
+    <div
+      onClick={handleCardClick}
+      style={{
+        background: "white",
+        borderRadius: "16px",
+        padding: "12px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+        border: "1px solid #f0f0f0",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        boxSizing: "border-box",
+        fontFamily: "'Outfit', 'Inter', sans-serif",
+      }}
+      className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+    >
+      <button
+        onClick={handleSaveClick}
+        style={bookmarkBtnStyle(isSaved, isSavedIconAnimating)}
+        title="Save for Later"
       >
-        <button
-          onClick={handleSaveClick}
-          style={bookmarkBtnStyle(isSaved, isSavedIconAnimating)}
-          title="Save for Later"
-        >
-          <BookmarkIcon filled={isSaved} color={isSaved ? "#10b981" : "#94a3b8"} />
-        </button>
-        {hasDiscount && (
-          <div
-            style={{
-              position: "absolute",
-              top: "8px",
-              left: "8px",
-              background: "#2563eb",
-              color: "white",
-              padding: "2px 6px",
-              borderRadius: "6px",
-              fontSize: "10px",
-              fontWeight: "800",
-              zIndex: 10,
-            }}
-          >
-            {discountPercentage}% OFF
-          </div>
-        )}
+        <BookmarkIcon filled={isSaved} color={isSaved ? "#318616" : "#94a3b8"} />
+      </button>
 
-        {/* Upper content section */}
-        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
-          <div style={{ width: "100%", textAlign: "center", background: "#f9fafb", borderRadius: "12px", padding: "8px 0", display: "flex", alignItems: "center", justifyContent: "center", height: "110px" }}>
-            <img
-              src={getOptimizedImageUrl(product.image, "thumbnail", product)}
-              alt={product.name || "Product"}
-              style={{
-                maxWidth: "100%",
-                maxHeight: "100%",
-                height: "auto",
-                width: "auto",
-                objectFit: "contain",
-                borderRadius: "8px",
-              }}
-              loading="lazy"
-            />
+      {/* Image container: occupies around 58-60% height visually */}
+      <div style={{
+        width: "100%",
+        height: windowWidth < 768 ? "110px" : "150px",
+        textAlign: "center",
+        background: "#f9fafb",
+        borderRadius: "12px",
+        padding: "8px 0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+        boxSizing: "border-box",
+      }}>
+        <img
+          src={getOptimizedImageUrl(product.image, windowWidth < 768 ? "thumbnail" : "medium", product)}
+          alt={product.name || "Product"}
+          style={{
+            maxWidth: "100%",
+            maxHeight: "100%",
+            height: "auto",
+            width: "auto",
+            objectFit: "contain",
+            borderRadius: "8px",
+          }}
+          loading="lazy"
+        />
+      </div>
+
+      {/* Card Details Body */}
+      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, marginTop: "8px", justifyContent: "space-between" }}>
+        <div>
+          {/* Discount Badge & Price */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {hasDiscount && (
+              <span style={{ color: "#318616", fontWeight: "800", fontSize: "10px", textTransform: "uppercase" }}>
+                {discountPercentage}% OFF
+              </span>
+            )}
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+              <span style={{ fontWeight: "900", fontSize: "16px", color: "#1f2937" }}>
+                ₹{price}
+              </span>
+              {originalPrice > price && (
+                <span style={{ textDecoration: "line-through", color: "#9ca3af", fontSize: "12px", fontWeight: "500" }}>
+                  ₹{originalPrice}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", width: "fit-content", marginTop: "8px" }}>
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="3">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span style={{ fontSize: "9px", color: "#6b7280", fontWeight: "700" }}>
-              {product.eta || "30 MINS"}
-            </span>
+          {/* Brand name (subtle grey text) */}
+          <div style={{ fontSize: "10px", color: "#9ca3af", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.3px", marginTop: "8px" }}>
+            {product.brand || "Buyto Fresh"}
           </div>
 
+          {/* Product Name */}
           <h2
             style={{
               fontSize: "13px",
-              fontWeight: "600",
-              lineHeight: "16px",
+              fontWeight: "700",
+              lineHeight: "17px",
               color: "#1f2937",
               display: "-webkit-box",
               WebkitLineClamp: 2,
               WebkitBoxOrient: "vertical",
               overflow: "hidden",
-              marginTop: "8px",
-              height: "32px",
-              margin: "8px 0 2px 0",
+              height: "34px",
+              margin: "2px 0 6px 0",
             }}
           >
             {product.name}
           </h2>
 
+          {/* Weight Display */}
           <div
             onClick={(e) => {
               if (product.variants && product.variants.length > 1) {
@@ -287,414 +342,229 @@ function ProductCard({
               cursor: product.variants?.length > 1 ? "pointer" : "default",
               color: "#6b7280",
               fontSize: "12px",
-              fontWeight: "500",
+              fontWeight: "700",
               marginBottom: "8px",
+              width: "fit-content",
             }}
           >
             <span>{weight}</span>
             {product.variants?.length > 1 && (
-              <span style={{ color: "#2563eb", fontSize: "9px" }}>
+              <span style={{ color: "#318616", fontSize: "8px" }}>
                 ▼
               </span>
             )}
           </div>
+
+          {/* ETA Section */}
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", width: "fit-content", marginBottom: "12px" }}>
+            <span style={{ fontSize: "9px", color: "#4b5563", fontWeight: "800" }}>
+              ⚡ {product.eta || "7 mins"}
+            </span>
+          </div>
         </div>
 
-        {/* Separator line */}
-        <div
-          style={{
-            borderTop: "1px dashed #e5e7eb",
-            margin: "8px 0",
-          }}
-        />
-
-        {/* Price and ADD button section */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            minHeight: "44px",
-          }}
-        >
-          <div>
-            {hasDiscount && (
-              <p style={{ color: "#00a05a", fontWeight: "700", fontSize: "10px", margin: 0 }}>
-                {discountPercentage}% OFF
-              </p>
+        {/* Add/Quantity Button Container */}
+        <div style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "36px",
+          position: "relative",
+          marginTop: "4px"
+        }}>
+          <style>{`
+            @keyframes buytoLineGrow {
+              0% {
+                transform: scaleX(0.015) scaleY(0);
+                opacity: 1;
+              }
+              33% {
+                transform: scaleX(0.015) scaleY(1);
+                opacity: 1;
+              }
+              77% {
+                transform: scaleX(1) scaleY(1);
+                opacity: 1;
+              }
+              100% {
+                transform: scaleX(1) scaleY(1);
+                opacity: 0;
+              }
+            }
+            @keyframes buytoContainerBg {
+              0% {
+                background-color: white;
+                border-color: #318616;
+              }
+              77% {
+                background-color: white;
+                border-color: #318616;
+              }
+              100% {
+                background-color: #318616;
+                border-color: #318616;
+              }
+            }
+            @keyframes buytoTextFade {
+              0% {
+                opacity: 1;
+              }
+              33% {
+                opacity: 1;
+              }
+              77% {
+                opacity: 0;
+                transform: scale(0.9);
+              }
+              100% {
+                opacity: 0;
+                transform: scale(0.9);
+              }
+            }
+            @keyframes buytoQtySelectorFade {
+              0% {
+                opacity: 0;
+                transform: translateY(5px);
+              }
+              77% {
+                opacity: 0;
+                transform: translateY(5px);
+              }
+              100% {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+          `}</style>
+          <div
+            style={{
+              width: (quantity === 0 && !isAnimating) ? "80px" : "100%",
+              height: "36px",
+              position: "relative",
+              transition: "all 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+              borderRadius: "8px",
+              overflow: "hidden",
+              border: "1.5px solid #318616",
+              backgroundColor: (quantity > 0 && !isAnimating) ? "#318616" : "white",
+              animation: isAnimating ? "buytoContainerBg 450ms forwards ease-out" : "none",
+              boxSizing: "border-box",
+              willChange: "width, background-color, border-color",
+            }}
+          >
+            {/* Custom rising line element */}
+            {isAnimating && (
+              <div style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: "100%",
+                height: "100%",
+                background: "#318616",
+                transformOrigin: "bottom center",
+                animation: "buytoLineGrow 450ms forwards cubic-bezier(0.25, 1, 0.5, 1)",
+                zIndex: 2,
+                willChange: "transform, opacity",
+              }} />
             )}
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "2px" }}>
-              <span style={{ fontWeight: "800", fontSize: "15px", color: "#1f2937" }}>
-                ₹{price}
-              </span>
-              {originalPrice > price && (
-                <span
-                  style={{
-                    textDecoration: "line-through",
-                    color: "#9ca3af",
-                    fontSize: "11px",
-                  }}
-                >
-                  ₹{originalPrice}
-                </span>
-              )}
-            </div>
-          </div>
 
-          <div style={{ display: "flex", alignItems: "center" }}>
-            {quantity === 0 ? (
+            {/* ADD Text Button */}
+            {(quantity === 0 || isAnimating) && (
               <button
-                onClick={handleAdd}
-                className="active:scale-95 transition-transform"
+                onClick={handleButtonClick}
                 style={{
-                  background: "white",
-                  border: "1.5px solid #12C24B",
-                  color: "#12C24B",
-                  minHeight: "44px",
-                  minWidth: "76px",
-                  borderRadius: "8px",
+                  position: "absolute",
+                  inset: 0,
+                  background: "transparent",
+                  border: "none",
+                  color: "#318616",
                   fontSize: "12px",
-                  fontWeight: "800",
-                  boxShadow: "0 2px 4px rgba(18,194,75,0.08)",
+                  fontWeight: "900",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  zIndex: 3,
+                  pointerEvents: quantity === 0 ? "auto" : "none",
+                  animation: isAnimating ? "buytoTextFade 450ms forwards ease-in-out" : "none",
                   boxSizing: "border-box",
                 }}
+                className="active:scale-95"
               >
                 ADD
               </button>
-            ) : (
+            )}
+
+            {/* Quantity Selector */}
+            {(quantity > 0 || isAnimating) && (
               <div
                 onClick={(e) => e.stopPropagation()}
                 style={{
+                  position: "absolute",
+                  inset: 0,
                   display: "flex",
                   alignItems: "center",
-                  background: "#12C24B",
-                  borderRadius: "8px",
-                  minHeight: "44px",
-                  minWidth: "76px",
-                  boxShadow: "0 2px 4px rgba(18,194,75,0.08)",
+                  justifyContent: "space-between",
+                  padding: "0 8px",
                   boxSizing: "border-box",
+                  zIndex: 4,
+                  animation: isAnimating ? "buytoQtySelectorFade 450ms forwards cubic-bezier(0.34, 1.56, 0.64, 1)" : "none",
+                  opacity: isAnimating ? 0 : 1,
                 }}
               >
                 <button
-                  onClick={handleDecrease}
+                  onClick={handleDecreaseClick}
                   style={{
-                    flex: 1,
-                    height: "100%",
-                    minHeight: "44px",
                     background: "transparent",
                     border: "none",
                     color: "white",
                     fontSize: "18px",
-                    fontWeight: "800",
+                    fontWeight: "900",
                     cursor: "pointer",
+                    width: "24px",
+                    height: "100%",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center"
+                    justifyContent: "center",
+                    transition: "transform 100ms ease",
                   }}
+                  className="active:scale-75"
                 >
                   -
                 </button>
-                <span style={{ color: "white", fontWeight: "800", fontSize: "13px", minWidth: "16px", textAlign: "center" }}>
+                <span
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    fontSize: "13px",
+                    display: "inline-block",
+                    transform: isAnimatingQty ? "scale(1.2)" : "scale(1)",
+                    transition: "transform 150ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                  }}
+                >
                   {quantity}
                 </span>
                 <button
-                  onClick={handleIncrease}
+                  onClick={handleIncreaseClick}
                   style={{
-                    flex: 1,
-                    height: "100%",
-                    minHeight: "44px",
                     background: "transparent",
                     border: "none",
                     color: "white",
                     fontSize: "18px",
-                    fontWeight: "800",
+                    fontWeight: "900",
                     cursor: "pointer",
+                    width: "24px",
+                    height: "100%",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center"
+                    justifyContent: "center",
+                    transition: "transform 100ms ease",
                   }}
+                  className="active:scale-75"
                 >
                   +
                 </button>
               </div>
-            )}
-          </div>
-        </div>
-
-        {toastMsg && (
-          <>
-            <style>{`
-              @keyframes toastSlideUp {
-                0% { transform: translate(-50%, 10px); opacity: 0; }
-                15% { transform: translate(-50%, 0); opacity: 1; }
-                85% { transform: translate(-50%, 0); opacity: 1; }
-                100% { transform: translate(-50%, -10px); opacity: 0; }
-              }
-            `}</style>
-            <div
-              style={{
-                position: "fixed",
-                bottom: (cartItems && cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0) ? "130px" : "90px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                background: "rgba(30, 41, 59, 0.95)",
-                color: "white",
-                padding: "10px 20px",
-                borderRadius: "999px",
-                boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
-                zIndex: 99999,
-                fontFamily: "'Outfit', sans-serif",
-                fontSize: "13px",
-                fontWeight: "600",
-                pointerEvents: "none",
-                animation: "toastSlideUp 1500ms ease-in-out forwards",
-                textAlign: "center",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                whiteSpace: "nowrap"
-              }}
-            >
-              {toastMsg}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      onClick={handleCardClick}
-      style={{
-        background: "white",
-        borderRadius: windowWidth < 768 ? "16px" : "24px",
-        padding: windowWidth < 768 ? "10px" : "16px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
-        border: "1px solid #f3f4f6",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        cursor: "pointer",
-        transition: "0.2s",
-        position: "relative",
-        width: "100%",
-        boxSizing: "border-box",
-      }}
-      className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
-    >
-      <button
-        onClick={handleSaveClick}
-        style={bookmarkBtnStyle(isSaved, isSavedIconAnimating)}
-        title="Save for Later"
-      >
-        <BookmarkIcon filled={isSaved} color={isSaved ? "#10b981" : "#94a3b8"} />
-      </button>
-      {hasDiscount && (
-        <div
-          style={{
-            position: "absolute",
-            top: "10px",
-            left: "10px",
-            background: "#2563eb",
-            color: "white",
-            padding: "4px 8px",
-            borderRadius: "8px",
-            fontSize: "12px",
-            fontWeight: "700",
-            zIndex: 10,
-          }}
-        >
-          {discountPercentage}% OFF
-        </div>
-      )}
-      <div>
-        <div style={{ position: "relative" }}>
-          <img
-            src={getOptimizedImageUrl(product.image, "medium", product)}
-            alt={product.name || "Product"}
-            style={{
-              width: "100%",
-              height: windowWidth < 768 ? "90px" : "120px",
-              objectFit: "contain",
-              borderRadius: "12px",
-              background: "#f9fafb"
-            }}
-          />
-
-          {quantity === 0 ? (
-            <button
-              onClick={handleAdd}
-              className="hover:scale-105 transition-transform"
-              style={{
-                position: "absolute",
-                bottom: "-6px",
-                right: "6px",
-                background: "white",
-                border: "1px solid #e5e7eb",
-                color: "#2563eb",
-                padding: "4px 10px",
-                borderRadius: "8px",
-                fontSize: "11px",
-                fontWeight: "800",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              + ADD
-            </button>
-          ) : (
-            <div
-              className="quantity-controls"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: "absolute",
-                bottom: "-6px",
-                right: "6px",
-                display: "flex",
-                alignItems: "center",
-                background: "white",
-                border: "1px solid #2563eb",
-                borderRadius: "8px",
-                height: "22px",
-                overflow: "hidden",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-              }}
-            >
-              <button
-                onClick={handleDecrease}
-                style={{
-                  width: "20px",
-                  height: "100%",
-                  background: "white",
-                  border: "none",
-                  color: "#2563eb",
-                  fontSize: "12px",
-                  fontWeight: "800",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                -
-              </button>
-              <span style={{ color: "#2563eb", fontWeight: "800", fontSize: "11px", minWidth: "12px", textAlign: "center" }}>
-                {quantity}
-              </span>
-              <button
-                onClick={handleIncrease}
-                style={{
-                  width: "20px",
-                  height: "100%",
-                  background: "white",
-                  border: "none",
-                  color: "#2563eb",
-                  fontSize: "12px",
-                  fontWeight: "800",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                +
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", width: "fit-content", marginTop: "8px" }}>
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="3">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          <span style={{ fontSize: "8px", color: "#6b7280", fontWeight: "700" }}>
-            30 MINS
-          </span>
-        </div>
-
-        <h2
-          style={{
-            fontSize: "13px",
-            fontWeight: "600",
-            lineHeight: "16px",
-            color: "#1f2937",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            marginTop: "6px",
-            height: "32px"
-          }}
-        >
-          {product.name}
-        </h2>
-
-        <div
-          onClick={(e) => {
-            if (product.variants && product.variants.length > 1) {
-              e.stopPropagation();
-              if (setSelectedProduct) {
-                setSelectedProduct(product);
-              }
-            }
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            cursor: product.variants?.length > 1 ? "pointer" : "default",
-            color: "#6b7280",
-            fontSize: "12px",
-            fontWeight: "500",
-            marginTop: "4px",
-          }}
-        >
-          <span>{weight}</span>
-          {product.variants?.length > 1 && (
-            <span style={{ color: "#2563eb", fontSize: "9px" }}>
-              ▼
-            </span>
-          )}
-        </div>
-
-        <div
-          style={{
-            borderTop: "1px dashed #00a05a",
-            marginTop: "6px",
-            marginBottom: "6px",
-          }}
-        />
-
-        <div style={{ marginTop: "4px" }}>
-          {hasDiscount && (
-            <p style={{ color: "#00a05a", fontWeight: "700", fontSize: "11px", margin: 0 }}>
-              {discountPercentage}% OFF
-            </p>
-          )}
-
-          <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginTop: "2px" }}>
-            <span style={{ fontWeight: "800", fontSize: "15px", color: "#1f2937" }}>
-              ₹{price}
-            </span>
-            {originalPrice > price && (
-              <span
-                style={{
-                  textDecoration: "line-through",
-                  color: "#9ca3af",
-                  fontSize: "11px",
-                }}
-              >
-                ₹{originalPrice}
-              </span>
             )}
           </div>
         </div>

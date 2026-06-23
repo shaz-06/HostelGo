@@ -1,157 +1,112 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
-import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
-import { auth } from "../../config/firebase";
+import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
+import { msg91Login } from "../../services/otpService";
 
 export default function OtpLoginBottomSheet() {
-  const { isLoginOpen, closeLogin, setAuthSession } = useContext(AuthContext);
+  const { isLoginOpen, closeLogin, setAuthSession, openOnboarding } = useContext(AuthContext);
   const loginBottomSheetOpen = isLoginOpen;
 
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  
-  const recaptchaVerifierRef = useRef(null);
 
-  // Initialize invisible reCAPTCHA when the bottom sheet is opened
+  // Reset state when sheet is opened/closed
   useEffect(() => {
     if (!loginBottomSheetOpen) {
-      // Reset state when closed
-      setPhone("");
-      setOtp("");
-      setConfirmationResult(null);
       setError("");
       setSuccessMsg("");
       setLoading(false);
-      return;
     }
-
-    const initRecaptcha = async () => {
-      try {
-        // Wait a tiny bit for the DOM container to render
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const container = document.getElementById("recaptcha-container-sheet");
-        if (container && !recaptchaVerifierRef.current) {
-          recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container-sheet", {
-            size: "invisible",
-            callback: () => {
-              console.log("reCAPTCHA solved on bottom sheet");
-            }
-          });
-        }
-      } catch (err) {
-        console.error("Recaptcha Init Error in sheet:", err);
-        setError("Failed to initialize verification helper: " + err.message);
-      }
-    };
-
-    initRecaptcha();
-
-    return () => {
-      if (recaptchaVerifierRef.current) {
-        try {
-          recaptchaVerifierRef.current.clear();
-          recaptchaVerifierRef.current = null;
-        } catch (e) {}
-      }
-    };
   }, [loginBottomSheetOpen]);
 
-  const handleSendOtp = async (e) => {
-    if (e) e.preventDefault();
-    setError("");
-    setSuccessMsg("");
-    if (!phone || phone.length < 10) {
-      setError("Please enter a valid 10-digit phone number.");
-      return;
-    }
+  // Load and mount the MSG91 OTP Widget script when bottom sheet opens
+  useEffect(() => {
+    if (!loginBottomSheetOpen) return;
 
-    setLoading(true);
-    let formattedPhone = phone.trim();
-    if (!formattedPhone.startsWith("+")) {
-      if (formattedPhone.startsWith("91") && formattedPhone.length > 10) {
-        formattedPhone = "+" + formattedPhone;
-      } else {
-        formattedPhone = "+91" + formattedPhone;
-      }
-    }
-
-    try {
-      if (!recaptchaVerifierRef.current) {
-        throw new Error("Verification helper is not ready yet. Please try again.");
-      }
-      const appVerifier = recaptchaVerifierRef.current;
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-      setConfirmationResult(confirmation);
-      setSuccessMsg("OTP sent successfully to " + phone);
-    } catch (err) {
-      console.error("Send OTP Error inside sheet:", err);
-      setError(err.message || "Failed to send OTP. Please check the number and try again.");
-      // Reset recaptcha
-      if (recaptchaVerifierRef.current) {
-        try {
-          recaptchaVerifierRef.current.clear();
-          recaptchaVerifierRef.current = null;
-        } catch (e) {}
-      }
-      // Re-initialize recaptcha next tick
-      setTimeout(() => {
-        const container = document.getElementById("recaptcha-container-sheet");
-        if (container) {
-          recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container-sheet", {
-            size: "invisible"
-          });
+    // Define success verification handler
+    window.configuration = {
+      widgetId: "366676677233393137373632",
+      tokenAuth: "543604TezJRg0EB6a38de05P1",
+      success: async (data) => {
+        console.log("=== MSG91 SUCCESS CALLBACK TRIGGERED ===");
+        console.log("MSG91 SUCCESS PAYLOAD:", JSON.stringify(data, null, 2));
+        
+        // Dynamic search for token property names
+        const accessToken = data?.accessToken || data?.access_token || data?.token || data?.message || (data?.data && (data.data.accessToken || data.data.access_token || data.data.token));
+        console.log("MSG91 SUCCESS PAYLOAD:", data);
+        console.log("EXTRACTED ACCESS TOKEN:", accessToken);
+        
+        if (!accessToken) {
+          setError("Failed to fetch verified access token from widget. Payload: " + JSON.stringify(data));
+          return;
         }
-      }, 500);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleVerifyOtp = async (e) => {
-    if (e) e.preventDefault();
-    setError("");
-    setSuccessMsg("");
-    if (!otp || otp.length !== 6) {
-      setError("Please enter a 6-digit OTP code.");
-      return;
-    }
+        setLoading(true);
+        setError("");
+        setSuccessMsg("SMS verified successfully! Creating session...");
 
-    setLoading(true);
-    try {
-      const result = await confirmationResult.confirm(otp);
-      const fbUser = result.user;
-      setSuccessMsg("Verified! Logging in...");
-
-      // Login to backend
-      const res = await fetch(window.API_BASE_URL + "/api/auth/firebase-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firebaseUid: fbUser.uid,
-          phoneNumber: fbUser.phoneNumber,
-          email: ""
-        })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to log in on backend server.");
+        try {
+          // Log user in using access token validation route
+          const loginData = await msg91Login(accessToken);
+          setSuccessMsg("Logged in successfully! Redirecting...");
+          await setAuthSession(loginData.token, loginData.user);
+          if (!loginData.profileCompleted) {
+            openOnboarding();
+          }
+          closeLogin();
+        } catch (err) {
+          console.error("Backend Session Validation Error:", err);
+          setError(err.message || "Failed to log in. Please try again.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      failure: (err) => {
+        console.error("OTP Widget Failure:", err);
+        setError("Verification Error: " + (err.message || JSON.stringify(err)));
       }
+    };
 
-      const data = await res.json();
-      await setAuthSession(data.token, data.user);
-    } catch (err) {
-      console.error("Verification Error in sheet:", err);
-      setError(err.message || "Incorrect OTP. Please enter it again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    // 1. Inject intl-tel-input CSS
+    const linkEl = document.createElement("link");
+    linkEl.id = "intl-tel-css";
+    linkEl.rel = "stylesheet";
+    linkEl.href = "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.min.css";
+    document.head.appendChild(linkEl);
+
+    // 2. Load intl-tel-input JS
+    const intlScript = document.createElement("script");
+    intlScript.id = "intl-tel-js";
+    intlScript.src = "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js";
+    intlScript.async = true;
+
+    intlScript.onload = () => {
+      console.log("[DEBUG-SHEET] intlTelInput successfully loaded. Type =", typeof window.intlTelInput);
+      
+      // 3. Load MSG91 loader script only after dependencies are verified
+      const loaderScript = document.createElement("script");
+      loaderScript.id = "msg91-widget-loader-sheet";
+      loaderScript.src = "https://control.msg91.com/app/assets/otp-provider/otp-provider.js";
+      loaderScript.async = true;
+      loaderScript.onload = () => {
+        console.log("[DEBUG-SHEET] MSG91 otp-provider loaded. initSendOTP type =", typeof window.initSendOTP);
+        if (typeof window.initSendOTP === "function") {
+          window.initSendOTP(window.configuration);
+        }
+      };
+      document.body.appendChild(loaderScript);
+    };
+
+    document.body.appendChild(intlScript);
+
+    // Cleanup scripts on component unmount
+    return () => {
+      document.getElementById("intl-tel-css")?.remove();
+      document.getElementById("intl-tel-js")?.remove();
+      document.getElementById("msg91-widget-loader-sheet")?.remove();
+      delete window.configuration;
+    };
+  }, [loginBottomSheetOpen]);
 
   if (!loginBottomSheetOpen) return null;
 
@@ -167,61 +122,19 @@ export default function OtpLoginBottomSheet() {
             <button onClick={closeLogin} style={closeButtonStyle}>×</button>
           </div>
 
-          <p style={subtitleStyle}>Enter phone number to receive a one-time verification code</p>
-
-          <div id="recaptcha-container-sheet"></div>
+          <p style={subtitleStyle}>Verify your mobile number to sign up or log in</p>
 
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
           {successMsg && <div style={successBannerStyle}>✨ {successMsg}</div>}
 
-          {!confirmationResult ? (
-            <form onSubmit={handleSendOtp} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
-              <div style={inputContainerStyle}>
-                <span style={phonePrefixStyle}>+91</span>
-                <input
-                  type="tel"
-                  placeholder="Enter 10-digit mobile number"
-                  maxLength={10}
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                  disabled={loading}
-                  style={inputStyle}
-                  autoFocus
-                />
+          {/* MSG91 Widget Mount Target */}
+          <div id="msg91-otp-widget-container" style={{ minHeight: "220px", marginTop: "16px" }}>
+            {loading && (
+              <div style={{ display: "flex", justifyContent: "center", padding: "20px", fontSize: "14px", fontWeight: "600", color: "#6b7280" }}>
+                Verifying session with backend server...
               </div>
-
-              <button type="submit" disabled={loading} style={primaryButtonStyle}>
-                {loading ? "Sending OTP..." : "Continue with Phone Number →"}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
-              <div>
-                <label style={labelStyle}>Enter 6-Digit OTP</label>
-                <input
-                  type="text"
-                  placeholder="Enter code"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                  disabled={loading}
-                  style={{ ...inputStyle, textAlign: "center", letterSpacing: "8px", fontSize: "20px", marginTop: "6px" }}
-                  autoFocus
-                />
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                <span style={{ color: "#6b7280" }}>OTP sent to {phone}</span>
-                <button type="button" onClick={() => setConfirmationResult(null)} style={changeNumButtonStyle}>
-                  Change Number
-                </button>
-              </div>
-
-              <button type="submit" disabled={loading} style={primaryButtonStyle}>
-                {loading ? "Verifying..." : "Verify OTP & Login"}
-              </button>
-            </form>
-          )}
+            )}
+          </div>
 
           <p style={footerDisclaimerStyle}>
             By continuing, you agree to our Terms & Conditions and Privacy Policy.
@@ -239,159 +152,93 @@ const backdropStyle = {
   left: 0,
   right: 0,
   bottom: 0,
-  background: "rgba(0, 0, 0, 0.45)",
+  backgroundColor: "rgba(0, 0, 0, 0.45)",
   backdropFilter: "blur(4px)",
-  zIndex: 100000,
+  zIndex: 1000,
   display: "flex",
   alignItems: "flex-end",
-  justifyContent: "center",
-  animation: "fadeIn 0.25s ease-out"
+  justifyContent: "center"
 };
 
 const sheetStyle = {
-  width: "100%",
-  maxWidth: "480px",
-  background: "#ffffff",
+  backgroundColor: "#ffffff",
   borderTopLeftRadius: "28px",
   borderTopRightRadius: "28px",
+  width: "100%",
+  maxWidth: "480px",
+  padding: "24px 24px 34px 24px",
   boxShadow: "0 -8px 30px rgba(0, 0, 0, 0.08)",
-  boxSizing: "border-box",
-  animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-  paddingBottom: "safe-area-inset-bottom"
+  animation: "slideUp 0.3s ease-out-back",
+  fontFamily: "'Outfit', 'Inter', sans-serif"
 };
 
 const dragIndicatorStyle = {
-  width: "36px",
+  width: "48px",
   height: "5px",
-  background: "#cbd5e1",
+  backgroundColor: "#e5e7eb",
   borderRadius: "3px",
-  margin: "12px auto 8px auto",
+  margin: "0 auto 20px auto",
   cursor: "pointer"
 };
 
 const contentWrapperStyle = {
-  padding: "24px 28px 36px 28px",
-  fontFamily: "'Outfit', 'Inter', sans-serif"
+  display: "flex",
+  flexDirection: "column"
 };
 
 const titleStyle = {
-  margin: 0,
-  fontSize: "20px",
+  fontSize: "22px",
   fontWeight: "850",
-  color: "#111827"
+  color: "#1f2937",
+  margin: 0,
+  letterSpacing: "-0.5px"
+};
+
+const subtitleStyle = {
+  fontSize: "13.5px",
+  color: "#6b7280",
+  margin: "4px 0 0 0",
+  lineHeight: "1.5",
+  fontWeight: "550"
 };
 
 const closeButtonStyle = {
   background: "none",
   border: "none",
-  fontSize: "28px",
+  fontSize: "26px",
   color: "#9ca3af",
   cursor: "pointer",
-  lineHeight: "1",
-  padding: 0
-};
-
-const subtitleStyle = {
-  margin: "4px 0 16px 0",
-  fontSize: "13px",
-  color: "#6b7280",
-  lineHeight: "1.4",
-  fontWeight: "550"
-};
-
-const inputContainerStyle = {
-  display: "flex",
-  alignItems: "center",
-  border: "1.5px solid #e5e7eb",
-  borderRadius: "16px",
-  padding: "4px 16px",
-  background: "#f9fafb",
-  boxSizing: "border-box"
-};
-
-const phonePrefixStyle = {
-  fontSize: "16px",
-  fontWeight: "750",
-  color: "#374151",
-  marginRight: "10px",
-  userSelect: "none"
-};
-
-const inputStyle = {
-  width: "100%",
-  border: "none",
-  background: "transparent",
-  padding: "12px 0",
-  fontSize: "16px",
-  fontWeight: "600",
-  color: "#111827",
-  outline: "none",
-  boxSizing: "border-box"
-};
-
-const primaryButtonStyle = {
-  width: "100%",
-  background: "linear-gradient(135deg, #318616 0%, #286f12 100%)",
-  color: "white",
-  border: "none",
-  borderRadius: "16px",
-  padding: "16px",
-  fontSize: "16px",
-  fontWeight: "755",
-  cursor: "pointer",
-  boxShadow: "0 8px 16px rgba(49, 134, 22, 0.15)",
-  transition: "all 0.15s ease",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center"
-};
-
-const changeNumButtonStyle = {
-  background: "none",
-  border: "none",
-  color: "#318616",
-  fontWeight: "750",
-  cursor: "pointer",
-  padding: 0,
-  fontSize: "12px"
-};
-
-const labelStyle = {
-  fontSize: "12px",
-  fontWeight: "750",
-  color: "#4b5563",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px"
+  lineHeight: 1,
+  padding: "4px"
 };
 
 const errorBannerStyle = {
-  background: "#fef2f2",
-  color: "#ef4444",
-  border: "1.5px solid #fecaca",
-  borderRadius: "12px",
-  padding: "12px",
-  fontSize: "12px",
-  fontWeight: "650",
-  marginBottom: "12px"
+  backgroundColor: "#fef2f2",
+  color: "#b91c1c",
+  padding: "12px 16px",
+  borderRadius: "14px",
+  fontSize: "13px",
+  fontWeight: "750",
+  marginTop: "16px",
+  border: "1px solid #fee2e2"
 };
 
 const successBannerStyle = {
-  background: "#f0fdf4",
-  color: "#16a34a",
-  border: "1.5px solid #bbf7d0",
-  borderRadius: "12px",
-  padding: "12px",
-  fontSize: "12px",
-  fontWeight: "650",
-  marginBottom: "12px"
+  backgroundColor: "#f0fdf4",
+  color: "#166534",
+  padding: "12px 16px",
+  borderRadius: "14px",
+  fontSize: "13px",
+  fontWeight: "750",
+  marginTop: "16px",
+  border: "1px solid #dcfce7"
 };
 
 const footerDisclaimerStyle = {
   fontSize: "11px",
   color: "#9ca3af",
   textAlign: "center",
-  marginTop: "20px",
-  lineHeight: "1.4",
-  margin: "20px 0 0 0",
+  margin: "24px 0 0 0",
+  lineHeight: "1.6",
   fontWeight: "500"
 };

@@ -105,6 +105,20 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
   const navigate = useNavigate();
   const [searchIndex, setSearchIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (localQuery === searchQuery) return;
+    const handler = setTimeout(() => {
+      setSearchQuery(localQuery);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [localQuery, searchQuery, setSearchQuery]);
+
 
   // Staggered placeholder rotation
   useEffect(() => {
@@ -208,10 +222,10 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
           <input
             type="text"
             placeholder=""
-            value={searchQuery}
+            value={localQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value);
-              navigate("/?tab=search");
+              const val = e.target.value;
+              setLocalQuery(val);
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
@@ -228,7 +242,7 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
               boxSizing: "border-box"
             }}
           />
-          {(!searchQuery && !isFocused) && (
+          {(!localQuery && !isFocused) && (
             <div
               style={{
                 position: "absolute",

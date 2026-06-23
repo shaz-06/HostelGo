@@ -32,6 +32,7 @@ import Header, { CategoryStrip } from "./components/common/Header";
 import { requestPermissions, registerDevice, registerListeners } from "./services/pushNotifications";
 import ProductCard from "./ProductCard";
 import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
+import OnboardingBottomSheet from "./components/common/OnboardingBottomSheet";
 
 // Lazy-loaded components & pages
 const AddressSelectorModal = lazy(() => import("./components/common/AddressSelectorModal"));
@@ -725,6 +726,7 @@ function AppContent({ onReady }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get("q") || "";
   const setSearchQuery = (val) => {
+    console.log("setSearchQuery called with value:", val);
     if (val) {
       if (location.pathname !== "/search") {
         navigate(`/search?q=${encodeURIComponent(val)}`, { replace: true });
@@ -1103,7 +1105,8 @@ function AppContent({ onReady }) {
   }, [isLoggedIn, token]);
 
   useEffect(() => {
-    if (windowWidth < 768 && !location.search.includes("tab=search") && searchQuery !== "") {
+    if (windowWidth < 768 && location.pathname !== "/search" && !location.search.includes("tab=search") && searchQuery !== "") {
+      console.log("Clearing search query on mobile because path is not /search and does not contain tab=search. Path:", location.pathname, "Search:", location.search);
       setSearchQuery("");
     }
   }, [location.pathname, location.search, windowWidth]);
@@ -1788,6 +1791,7 @@ function AppContent({ onReady }) {
           </Suspense>
         )}
         <OtpLoginBottomSheet />
+        <OnboardingBottomSheet />
       </div>
     );
   };

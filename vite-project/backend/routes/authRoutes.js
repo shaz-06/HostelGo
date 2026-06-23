@@ -402,48 +402,54 @@ router.delete("/shopping-lists/:listId", authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/auth/firebase-login
-router.post("/firebase-login", async (req, res) => {
-  console.log("=== [FIREBASE LOGIN] ===");
-  console.log("Body:", JSON.stringify(req.body, null, 2));
+const normalizePhone = (phone) => {
+  if (!phone) return "";
+  const clean = phone.toString().replace(/\D/g, "");
+  return clean.length > 10 ? clean.substring(clean.length - 10) : clean;
+};
 
+// POST /api/auth/msg91-login
+router.post("/msg91-login", async (req, res) => {
+  console.log("=== [AUTH MSG91 LOGIN] ===");
   try {
-    const { firebaseUid, phoneNumber, email } = req.body;
-
-    if (!phoneNumber) {
-      console.error("❌ Firebase Login Error: Missing phone number");
-      return res.status(400).json({ message: "Phone number is required" });
+    const { accessToken } = req.body;
+    console.log("ACCESS TOKEN RECEIVED:", accessToken);
+    if (!accessToken) {
+      return res.status(400).json({ success: false, message: "Access token is required" });
     }
 
-    // Clean phone number (keep only digits)
-    const cleanPhone = phoneNumber.replace(/\D/g, "");
-    // Support formats with or without country code
-    const searchPhone = cleanPhone.length > 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
+    const msg91Service = require("../services/msg91Service");
+    const verifiedData = await msg91Service.verifyAccessToken(accessToken);
+    console.log("FULL VERIFIED DATA:", verifiedData);
 
-    // Search by matching last 10 digits to be flexible
-    let user = await User.findOne({ 
-      phone: { $regex: new RegExp(searchPhone + "$") }
+    const rawPhone = verifiedData.message || (verifiedData.data && verifiedData.data.mobile);
+    if (!rawPhone) {
+      return res.status(400).json({ success: false, message: "Invalid verification token or missing phone number." });
+    }
+
+    const normalizedPhone = normalizePhone(rawPhone);
+    const phone = normalizedPhone;
+    console.log("PHONE EXTRACTION RESULT:", phone);
+    if (normalizedPhone.length !== 10) {
+      return res.status(400).json({ success: false, message: "Verified phone number format is invalid" });
+    }
+
+    // Find user by normalized phone
+    let user = await User.findOne({
+      phone: { $regex: new RegExp(normalizedPhone + "$") }
     });
 
     if (!user) {
-      console.log(`Creating new account for phone: ${phoneNumber}`);
+      console.log(`Creating new account for verified phone: ${normalizedPhone}`);
       user = new User({
-        name: "Instamart User",
-        phone: phoneNumber,
-        email: email || undefined,
+        name: "Buyto User",
+        phone: normalizedPhone,
         role: "customer"
       });
       await user.save();
-    } else {
-      console.log(`Logging in existing user: ${user._id}`);
-      // Optionally update email if provided and not set
-      if (email && !user.email) {
-        user.email = email;
-        await user.save();
-      }
     }
 
-    // Crediting welcome bonus for newly registered users or if not already given
+    // Welcome bonus crediting if not already given
     if (!user.welcomeBonusGiven) {
       console.log(`Crediting welcome bonus for user ${user._id}`);
       user.welcomeBonusGiven = true;
@@ -462,36 +468,159 @@ router.post("/firebase-login", async (req, res) => {
       });
       await bonusTx.save();
 
-      const { recalculateWallet } = require("../utils/rewards");
-      await recalculateWallet(user._id, user.email || "");
+      try {
+        const { recalculateWallet } = require("../utils/rewards");
+        await recalculateWallet(user._id, user.email || "");
+      } catch (err) {
+        console.error("❌ Error recalculating wallet for welcome bonus:", err.message);
+      }
     }
 
     // Generate JWT token
     const token = generateToken(user._id, user.email || "", user.role);
 
-    console.log("=== [FIREBASE LOGIN SUCCESS] ===");
+    console.log("=== [MSG91 LOGIN SUCCESS] ===");
     console.log("Token generated:", token);
 
     return res.status(200).json({
       success: true,
       token,
+      profileCompleted: !!user.profileCompleted,
       user: {
         _id: user._id,
         name: user.name,
         email: user.email || "",
         phone: user.phone,
         role: user.role,
+        gender: user.gender || "",
+        profileCompleted: !!user.profileCompleted,
         addresses: user.addresses
       }
     });
 
   } catch (error) {
-    console.error("❌ Firebase Login Exception:", error);
+    console.error("❌ MSG91 Login Exception:", error);
     return res.status(500).json({
-      message: "Firebase login failed",
-      error: error.message,
-      stack: error.stack
+      success: false,
+      message: error.message || "Authentication failed"
     });
+  }
+});
+
+// PUT /api/auth/update-profile
+router.put("/update-profile", authMiddleware, async (req, res) => {
+  try {
+    const { name, gender } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, message: "Full Name is required" });
+    }
+
+    const user = req.user;
+    user.name = name;
+    if (gender) {
+      user.gender = gender;
+    }
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email || "",
+        phone: user.phone,
+        role: user.role,
+        gender: user.gender || "",
+        profileCompleted: !!user.profileCompleted,
+        addresses: user.addresses
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error updating onboarding profile:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to update profile" });
+  }
+});
+
+// POST /api/auth/save-onboarding-address
+router.post("/save-onboarding-address", authMiddleware, async (req, res) => {
+  try {
+    const { apartment, room, floor, landmark } = req.body;
+    if (!apartment || !room) {
+      return res.status(400).json({ success: false, message: "Apartment/Hostel and Room Number are required" });
+    }
+
+    const user = req.user;
+
+    // Generate address label automatically
+    const label = `${apartment} - Room ${room}`;
+
+    // Get a default zone coordinates if available, or fallback
+    let latitude = 13.1007;
+    let longitude = 74.6877;
+    try {
+      const DeliveryServiceZone = require("../models/DeliveryServiceZone");
+      const zone = await DeliveryServiceZone.findOne({ active: true });
+      if (zone) {
+        latitude = zone.latitude;
+        longitude = zone.longitude;
+      }
+    } catch (e) {
+      console.warn("Could not retrieve DeliveryServiceZone for coordinates:", e);
+    }
+
+    // Save in standalone Address model
+    const Address = require("../models/Address");
+    // Remove other defaults
+    await Address.updateMany({ userId: user._id }, { isDefault: false });
+
+    const newAddress = new Address({
+      userId: user._id,
+      label: label,
+      fullName: user.name || "Buyto User",
+      phone: user.phone,
+      addressLine: `${apartment}, Room ${room}${floor ? `, Floor ${floor}` : ""}`,
+      landmark: landmark || "",
+      roomNumber: room || "",
+      latitude,
+      longitude,
+      isDefault: true,
+      serviceable: true
+    });
+    await newAddress.save();
+
+    // Save address in User document
+    if (!user.addresses) {
+      user.addresses = [];
+    }
+    user.addresses.push({
+      label,
+      apartment,
+      room,
+      floor: floor || "",
+      landmark: landmark || ""
+    });
+
+    user.profileCompleted = true;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Address saved and profile completed successfully",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email || "",
+        phone: user.phone,
+        role: user.role,
+        gender: user.gender || "",
+        profileCompleted: !!user.profileCompleted,
+        addresses: user.addresses
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error saving onboarding address:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to save address" });
   }
 });
 

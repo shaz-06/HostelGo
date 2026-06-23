@@ -306,6 +306,10 @@ export default function CategoryProductsPage({
   const [localCategories, setLocalCategories] = useState(categories);
   const [loading, setLoading] = useState(parentLoading);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setLoading(parentLoading);
+  }, [parentLoading]);
   
   const [activeSubcategory, setActiveSubcategory] = useState("Show All");
   const [searchQuery, setSearchQuery] = useState("");

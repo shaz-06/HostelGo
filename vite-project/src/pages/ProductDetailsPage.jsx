@@ -248,7 +248,7 @@ export default function ProductDetailsPage({
       setActiveProduct(enriched);
       setSelectedImage(enriched.image);
       setLoading(false);
-      
+
       // PERSIST RECENTLY VIEWED (Keep last 10)
       try {
         const viewedStr = localStorage.getItem("buyto_recently_viewed");
@@ -310,7 +310,7 @@ export default function ProductDetailsPage({
   // Same category first, then same subcategory (or random), then remaining random products.
   const relatedProducts = useMemo(() => {
     if (!activeProduct || allProducts.length === 0) return [];
-    
+
     // Filter out current product
     const otherProducts = allProducts.filter(
       (p) => String(p._id || p.id) !== String(activeProduct._id || activeProduct.id)
@@ -348,7 +348,7 @@ export default function ProductDetailsPage({
 
   const handleAddAllFbt = () => {
     if (!activeProduct) return;
-    
+
     // Add active product variant
     const currentVariantWeight = currentVariant ? currentVariant.weight : activeProduct.weight;
     addToCart({
@@ -432,7 +432,7 @@ export default function ProductDetailsPage({
       <div style={{ background: "white", borderRadius: "24px", padding: isMobile ? "16px" : "32px", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
         {/* Main Product Layout */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 0.9fr", gap: isMobile ? "24px" : "48px" }}>
-          
+
           {/* LEFT COLUMN: Gallery & Zoom */}
           <div style={{ display: "flex", gap: "16px", flexDirection: isMobile ? "column-reverse" : "row" }}>
             {/* Gallery Thumbnails */}
@@ -592,7 +592,7 @@ export default function ProductDetailsPage({
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <span style={{ fontSize: "16px", fontWeight: "900", color: "#111827" }}>₹{v.price}</span>
                           {selectedVariantIndex === idx && (
-                            <div style={{ width: "20px", height: "20px", background: "#318616", borderRadius: "50%", display: "flex", alignItems: "center", justifyCenter: "center" }}>
+                            <div style={{ width: "20px", height: "20px", background: "#318616", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <Check size={12} color="white" style={{ margin: "auto" }} />
                             </div>
                           )}
@@ -729,7 +729,7 @@ export default function ProductDetailsPage({
             Highlights
           </h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-            {activeProduct.highlights.map((h, i) => (
+            {(activeProduct.highlights || []).map((h, i) => (
               <span
                 key={i}
                 style={{
@@ -792,7 +792,7 @@ export default function ProductDetailsPage({
           </AccordionSection>
           <AccordionSection title="Nutritional Information">
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: "12px", marginTop: "8px" }}>
-              {Object.entries(activeProduct.nutrition).map(([key, val]) => (
+              {Object.entries(activeProduct.nutrition || {}).map(([key, val]) => (
                 <div key={key} style={{ background: "#f9fafb", padding: "12px", borderRadius: "10px", border: "1px solid #f3f4f6" }}>
                   <span style={{ fontSize: "11px", color: "#9ca3af", fontWeight: "700", textTransform: "uppercase" }}>{key}</span>
                   <p style={{ fontSize: "15px", color: "#1f2937", fontWeight: "800", margin: "4px 0 0 0" }}>{val}</p>

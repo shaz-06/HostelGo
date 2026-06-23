@@ -150,6 +150,20 @@ const Header = React.memo(({
   const [isFocused, setIsFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (localQuery === searchQuery) return;
+    const handler = setTimeout(() => {
+      setSearchQuery(localQuery);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [localQuery, searchQuery, setSearchQuery]);
+
 
   useEffect(() => {
     let ticking = false;
@@ -420,12 +434,10 @@ const Header = React.memo(({
           <input
             type="text"
             placeholder=""
-            value={searchQuery}
+            value={localQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value);
-              if (location.pathname !== "/") {
-                navigate("/");
-              }
+              const val = e.target.value;
+              setLocalQuery(val);
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
@@ -443,7 +455,7 @@ const Header = React.memo(({
               boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
             }}
           />
-          {(!searchQuery && !isFocused) && (
+           {(!localQuery && !isFocused) && (
             <div
               style={{
                 position: "absolute",

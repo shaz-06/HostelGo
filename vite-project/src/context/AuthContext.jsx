@@ -236,6 +236,21 @@ export const AuthProvider = ({ children }) => {
 
   const [loginBottomSheetOpen, setLoginBottomSheetOpen] = useState(false);
   const [onLoginSuccessCallback, setOnLoginSuccessCallback] = useState(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  const openOnboarding = () => {
+    setOnboardingOpen(true);
+  };
+
+  const closeOnboarding = () => {
+    setOnboardingOpen(false);
+  };
+
+  const updateUserInSession = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem("buyto_user", JSON.stringify(updatedUser));
+    localStorage.setItem("hostelgoUser", JSON.stringify(updatedUser));
+  };
 
   const openLogin = (onSuccess) => {
     console.log("Opening OTP bottom sheet");
@@ -351,7 +366,12 @@ export const AuthProvider = ({ children }) => {
       loginBottomSheetOpen,
       isLoginOpen: loginBottomSheetOpen,
       openLogin,
-      closeLogin
+      closeLogin,
+      onboardingOpen,
+      isOnboardingOpen: onboardingOpen,
+      openOnboarding,
+      closeOnboarding,
+      updateUserInSession
     }}>
       {children}
     </AuthContext.Provider>
