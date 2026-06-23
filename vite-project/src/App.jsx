@@ -626,6 +626,15 @@ function App() {
 function AppContent({ onReady }) {
   usePerfLogger("AppContent");
 
+  useEffect(() => {
+    console.log({
+      innerWidth: window.innerWidth,
+      screenWidth: window.screen.width,
+      documentWidth: document.documentElement.clientWidth,
+      userAgent: navigator.userAgent
+    });
+  }, []);
+
   const FREE_DELIVERY_THRESHOLD = 99;
   const navigate = useNavigate();
   const location = useLocation();
