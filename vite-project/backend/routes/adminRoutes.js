@@ -957,11 +957,12 @@ router.post("/send-broadcast", async (req, res) => {
     console.error("Broadcast endpoint error:", error);
     return res.status(500).json({ message: "Failed to broadcast notifications", error: error.message });
   }
+});
 // GET /api/admin/notifications/queue
 router.get("/notifications/queue", async (req, res) => {
   try {
     const Order = require("../models/Order");
-    
+
     // Fetch counts
     const pendingCount = await Order.countDocuments({ adminNotificationStatus: "pending" });
     const processingCount = await Order.countDocuments({ adminNotificationStatus: "processing" });
