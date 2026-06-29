@@ -123,6 +123,27 @@ const orderSchema = new mongoose.Schema({
   buyCoinsCredited: { type: Boolean, default: false },
   buyCoinsEarned: { type: Number, default: 0 },
   noBagPledge: { type: Boolean, default: false },
+  adminNotificationStatus: {
+    type: String,
+    enum: ["pending", "processing", "sent", "failed"],
+    default: "pending"
+  },
+  adminNotificationRetries: {
+    type: Number,
+    default: 0
+  },
+  adminNotificationLastAttemptAt: {
+    type: Date,
+    default: null
+  },
+  adminNotificationSentAt: {
+    type: Date,
+    default: null
+  },
+  adminNotificationMessageId: {
+    type: String,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

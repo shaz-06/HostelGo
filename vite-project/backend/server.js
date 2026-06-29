@@ -434,6 +434,14 @@ app.use("/api/notifications", userRoutes);
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server Started and running on port ${PORT} bound to all interfaces`);
 
+  // Start the background outbox reconciler for admin notifications
+  try {
+    const { startReconciler } = require("./services/notificationReconciler");
+    startReconciler();
+  } catch (err) {
+    console.error("Failed to start outbox reconciler:", err);
+  }
+
   // Schedule cart reminder check every 5 minutes
   cron.schedule("*/5 * * * *", async () => {
     try {

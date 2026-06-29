@@ -16,21 +16,24 @@ router.post("/fcm-token", authMiddleware, async (req, res) => {
     if (token) {
       if (!req.user.fcmTokens) req.user.fcmTokens = [];
       
-      // Check if token already exists in any of the elements
-      const exists = req.user.fcmTokens.some(t => {
-        if (t && typeof t === "object") return t.token === token;
-        return t === token;
+      let exists = false;
+      req.user.fcmTokens.forEach(t => {
+        if (t && typeof t === "object" && t.token === token) {
+          t.lastUsedAt = new Date();
+          if (platform) t.platform = platform;
+          exists = true;
+        }
       });
 
       if (!exists) {
         req.user.fcmTokens.push({
           token,
           platform: platform || "unknown",
-          createdAt: new Date()
+          lastUsedAt: new Date()
         });
         console.log(`Added new FCM token: ${token} [Platform: ${platform || 'unknown'}]`);
       } else {
-        console.log(`FCM token already registered for this user: ${token}`);
+        console.log(`Updated lastUsedAt for existing FCM token: ${token}`);
       }
       req.user.fcmToken = token; // backward-compatibility
     } else {

@@ -3,32 +3,19 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
-// Dynamically resolve API URL depending on client platform
-let apiBase = '';
-if (import.meta.env.MODE === 'production') {
-  // Production: Use the configured VITE_API_URL only. Do not fall back to local network IPs.
-  apiBase = import.meta.env.VITE_API_URL || 'https://buyto-api.onrender.com';
-} else {
-  // Development:
-  const isNative = window.Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:';
-  if (import.meta.env.VITE_API_URL && !(isNative && import.meta.env.VITE_API_URL.includes('localhost'))) {
-    apiBase = import.meta.env.VITE_API_URL;
-  } else if (isNative) {
-    // Under live reload, window.location.hostname is the Mac's IP (e.g. 192.168.x.x)
-    const host = window.location.hostname;
-    if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== '0.0.0.0') {
-      apiBase = `http://${host}:8000`;
-    } else {
-      apiBase = 'http://10.0.2.2:8000'; // Default Android emulator loopback
-    }
-  } else {
-    // Browser development
-    apiBase = 'http://localhost:8000';
-  }
-}
-window.API_BASE_URL = apiBase;
+import { Capacitor } from '@capacitor/core'
 
-console.log("=== API_BASE_URL INITIALIZED ===", window.API_BASE_URL);
+// Dynamically resolve API URL depending on build environment
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? "https://api.buyto.co.in"
+    : "http://localhost:8000");
+
+window.API_BASE_URL = API_BASE_URL;
+
+console.log("API_BASE_URL:", window.API_BASE_URL);
+console.log("Platform:", Capacitor.getPlatform());
 
 // Swap manifest if path starts with /admin
 const manifestLink = document.getElementById("pwa-manifest");

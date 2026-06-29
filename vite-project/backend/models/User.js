@@ -162,7 +162,7 @@ const userSchema = new mongoose.Schema(
       {
         token: { type: String, required: true },
         platform: { type: String, default: "" },
-        createdAt: { type: Date, default: Date.now }
+        lastUsedAt: { type: Date, default: Date.now }
       }
     ],
     notificationPreferences: {

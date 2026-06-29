@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
+import { syncTokenWithBackend } from "../services/pushNotifications";
 
 export const AuthContext = createContext();
 
@@ -225,6 +226,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("buyto_user", JSON.stringify(data.user));
     localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
 
+    setTimeout(() => {
+      syncTokenWithBackend(data.token);
+    }, 100);
+
     return data;
   };
 
@@ -268,6 +273,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("hostelgoUser", JSON.stringify(authUser));
     console.log("JWT SAVED");
 
+    setTimeout(() => {
+      syncTokenWithBackend(authToken);
+    }, 100);
+
     if (onLoginSuccessCallback) {
       try {
         onLoginSuccessCallback();
@@ -304,6 +313,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("buyto_user", JSON.stringify(data.user));
     localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
 
+    setTimeout(() => {
+      syncTokenWithBackend(data.token);
+    }, 100);
+
     if (onLoginSuccessCallback) {
       try {
         onLoginSuccessCallback();
@@ -328,6 +341,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("hostelgoUser");
     localStorage.removeItem("hostelgo_cart");
     localStorage.removeItem("cart");
+    localStorage.removeItem("buyto_selected_address_id");
   };
 
   const verifyAdmin = (verifiedToken) => {

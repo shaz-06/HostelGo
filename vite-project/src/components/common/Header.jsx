@@ -271,19 +271,38 @@ const Header = React.memo(({
   };
 
   const isDown = isCollapsed;
+  const headerRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!headerRef.current) return;
+    const updateHeight = () => {
+      if (headerRef.current) {
+        const rect = headerRef.current.getBoundingClientRect();
+        document.documentElement.style.setProperty("--header-height", `${rect.height}px`);
+      }
+    };
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, [isDown]);
+
   return (
     <div
+      ref={headerRef}
       style={{
         position: "sticky",
-        top: 0,
+        top: "env(safe-area-inset-top)",
         zIndex: 1000,
         background: headerGradient || "linear-gradient(135deg, #edf7e5 0%, #e6f2db 60%, #dceccf 100%)",
-        boxShadow: "0 2px 12px rgba(49, 134, 22, 0.08)",
         boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
         transform: "translate3d(0, 0, 0)",
         willChange: "transform",
         fontFamily: "'Outfit', 'Inter', sans-serif",
-        padding: isDown ? "6px 16px" : "10px 16px",
+        paddingTop: isDown ? "calc(env(safe-area-inset-top) + 12px)" : "calc(env(safe-area-inset-top) + 16px)",
+        paddingBottom: "12px",
+        paddingLeft: "16px",
+        paddingRight: "16px",
         display: "flex",
         flexDirection: "column",
         gap: isDown ? "0px" : "10px",

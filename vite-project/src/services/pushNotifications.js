@@ -119,9 +119,6 @@ export const registerListeners = (onTokenReceived, onNotificationReceived, onNot
   }
 };
 
-/**
- * Sends the registered FCM token to the backend.
- */
 export const syncTokenWithBackend = async (token = fcmToken) => {
   const activeToken = token || localStorage.getItem('fcm_token');
   const userToken = localStorage.getItem('buyto_token');
@@ -133,11 +130,12 @@ export const syncTokenWithBackend = async (token = fcmToken) => {
   
   if (!userToken) {
     console.log("[Push Service] User is not logged in. Postponing FCM token sync.");
+    localStorage.setItem('fcm_token_synced', 'false');
     return;
   }
 
   const platform = Capacitor.getPlatform() === "ios" ? "ios" : "android";
-  const requestUrl = (window.API_BASE_URL || "http://localhost:8000") + "/api/users/fcm-token";
+  const requestUrl = window.API_BASE_URL + "/api/users/fcm-token";
   
   console.log("=== FCM TOKEN SYNC INITIATED ===");
   console.log("API_BASE_URL:", window.API_BASE_URL);
@@ -161,16 +159,24 @@ export const syncTokenWithBackend = async (token = fcmToken) => {
     const text = await res.text();
     console.log("Response text:", text);
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      throw new Error(`Invalid JSON response: ${text}`);
+    if (res.status === 200) {
+      console.log("[Push Service] FCM Token synced successfully.");
+      localStorage.setItem('fcm_token_synced', 'true');
+    } else {
+      throw new Error(`Sync failed with status code ${res.status}`);
     }
   } catch (err) {
     console.error("=== FCM TOKEN SYNC FETCH ERROR ===");
     console.error("Error message:", err.message);
-    console.error("Error stack:", err.stack);
+    localStorage.setItem('fcm_token_synced', 'false');
+  }
+};
+
+export const retrySyncIfNeeded = () => {
+  const isSynced = localStorage.getItem('fcm_token_synced');
+  if (isSynced === 'false') {
+    console.log("[Push Service] Retrying pending FCM token sync...");
+    syncTokenWithBackend();
   }
 };
 

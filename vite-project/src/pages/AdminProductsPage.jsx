@@ -3,6 +3,53 @@ import { useNavigate } from "react-router-dom";
 
 export default function AdminProductsPage() {
   const navigate = useNavigate();
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 1024;
+
+  const pageContainer = {
+    minHeight: "100vh",
+    background: "#F9FAFB",
+    color: "#111827",
+    fontFamily: "'Outfit', 'Inter', sans-serif",
+    padding: isMobile ? "16px 12px" : "24px 32px",
+    boxSizing: "border-box",
+    overflowX: "hidden",
+  };
+
+  const header = {
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    justifyContent: "space-between",
+    alignItems: isMobile ? "flex-start" : "center",
+    gap: isMobile ? "12px" : "0",
+    paddingBottom: "20px",
+    borderBottom: "1.5px solid #E5E7EB",
+    marginBottom: "24px",
+  };
+
+  const contentGrid = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "250px 1fr",
+    gap: "28px",
+    alignItems: "start",
+  };
+
+  const mainPanel = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden"
+  };
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -277,7 +324,7 @@ export default function AdminProductsPage() {
   }
 
   return (
-    <div style={pageContainerStyle}>
+    <div style={pageContainer}>
       {/* Toast Notification */}
       {toastMessage && (
         <div style={toastStyle}>
@@ -286,7 +333,7 @@ export default function AdminProductsPage() {
       )}
 
       {/* Header */}
-      <header style={headerStyle}>
+      <header style={header}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <button onClick={() => navigate("/admin")} style={backBtnStyle}>
             ← Dashboard
@@ -299,7 +346,7 @@ export default function AdminProductsPage() {
         </button>
       </header>
 
-      <div style={contentGridStyle}>
+      <div style={contentGrid}>
         {/* Sidebar Navigation */}
         <nav style={sidebarStyle}>
           <div style={sidebarHeaderStyle}>
@@ -347,7 +394,7 @@ export default function AdminProductsPage() {
         </nav>
 
         {/* Products Table Panel */}
-        <main style={mainPanelStyle}>
+        <main style={mainPanel}>
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
 
           <div style={cardLayoutStyle}>

@@ -3,6 +3,59 @@ import { useNavigate } from "react-router-dom";
 
 export default function AdminNotificationsPage() {
   const navigate = useNavigate();
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 1024;
+
+  const pageContainer = {
+    minHeight: "100vh",
+    background: "#F9FAFB",
+    color: "#111827",
+    fontFamily: "'Outfit', 'Inter', sans-serif",
+    padding: isMobile ? "16px 12px" : "24px 32px",
+    boxSizing: "border-box",
+    overflowX: "hidden",
+  };
+
+  const header = {
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    justifyContent: "space-between",
+    alignItems: isMobile ? "flex-start" : "center",
+    gap: isMobile ? "12px" : "0",
+    paddingBottom: "20px",
+    borderBottom: "1.5px solid #E5E7EB",
+    marginBottom: "24px",
+  };
+
+  const contentGrid = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "250px 1fr",
+    gap: "28px",
+    alignItems: "start",
+  };
+
+  const mainPanel = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden"
+  };
+
+  const dashboardDetailsGrid = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "1.1fr 1fr",
+    gap: "24px",
+    alignItems: "start"
+  };
 
   // Composer fields
   const [title, setTitle] = useState("");
@@ -211,7 +264,7 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <div style={pageContainerStyle}>
+    <div style={pageContainer}>
       {/* Toast Notification */}
       {toastMessage && (
         <div style={toastStyle}>
@@ -242,7 +295,7 @@ export default function AdminNotificationsPage() {
       )}
 
       {/* Header */}
-      <header style={headerStyle}>
+      <header style={header}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <button onClick={() => navigate("/admin")} style={backBtnStyle}>
             ← Dashboard
@@ -252,7 +305,7 @@ export default function AdminNotificationsPage() {
         </div>
       </header>
 
-      <div style={contentGridStyle}>
+      <div style={contentGrid}>
         {/* Sidebar Navigation */}
         <nav style={sidebarStyle}>
           <div style={sidebarHeaderStyle}>
@@ -300,7 +353,7 @@ export default function AdminNotificationsPage() {
         </nav>
 
         {/* Composer Panel */}
-        <main style={mainPanelStyle}>
+        <main style={mainPanel}>
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
 
           {/* Quick Templates Strip */}
@@ -318,7 +371,7 @@ export default function AdminNotificationsPage() {
             </div>
           </div>
 
-          <div style={dashboardDetailsGridStyle}>
+          <div style={dashboardDetailsGrid}>
             {/* Form */}
             <div style={cardLayoutStyle}>
               <h3 style={cardTitleStyle}>Notification Composer</h3>

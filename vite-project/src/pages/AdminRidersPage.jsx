@@ -5,6 +5,37 @@ const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 export default function AdminRidersPage() {
   const navigate = useNavigate();
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 1024;
+
+  const page = {
+    minHeight: "100vh",
+    background: "#F9FAFB",
+    color: "#111827",
+    fontFamily: "'Outfit','Inter',sans-serif",
+    padding: isMobile ? "16px 12px" : "24px 32px",
+    boxSizing: "border-box",
+    overflowX: "hidden"
+  };
+
+  const header = {
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    justifyContent: "space-between",
+    alignItems: isMobile ? "flex-start" : "center",
+    gap: isMobile ? "12px" : "18px",
+    paddingBottom: 20,
+    borderBottom: "1.5px solid #E5E7EB",
+    marginBottom: 24 
+  };
+
   const [riders, setRiders] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -56,8 +87,8 @@ export default function AdminRidersPage() {
   }
 
   return (
-    <div style={pageStyle}>
-      <header style={headerStyle}>
+    <div style={page}>
+      <header style={header}>
         <div>
           <button onClick={() => navigate("/admin")} style={backBtnStyle}>← Dashboard</button>
           <h1 style={titleStyle}>Riders Management</h1>

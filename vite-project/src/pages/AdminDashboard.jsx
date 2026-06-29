@@ -6,6 +6,7 @@ import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import AdminNotificationQueue from "./AdminNotificationQueue";
 
 // Resolve default marker icon bug
 delete L.Icon.Default.prototype._getIconUrl;
@@ -17,6 +18,67 @@ L.Icon.Default.mergeOptions({
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 1024;
+
+  const pageContainer = {
+    minHeight: "100vh",
+    background: "#F9FAFB",
+    color: "#111827",
+    fontFamily: "'Outfit', 'Inter', sans-serif",
+    padding: isMobile ? "16px 12px" : "24px 32px",
+    boxSizing: "border-box",
+    overflowX: "hidden",
+  };
+
+  const header = {
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    justifyContent: "space-between",
+    alignItems: isMobile ? "flex-start" : "center",
+    gap: isMobile ? "12px" : "0",
+    paddingBottom: "20px",
+    borderBottom: "1.5px solid #E5E7EB",
+    marginBottom: "24px",
+  };
+
+  const contentGrid = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "250px 1fr",
+    gap: "28px",
+    alignItems: "start",
+  };
+
+  const mainPanel = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden"
+  };
+
+  const statsGrid = {
+    display: "grid",
+    gridTemplateColumns: isMobile 
+      ? (windowWidth < 640 ? "1fr" : "repeat(2, 1fr)") 
+      : "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: isMobile ? "12px" : "20px",
+  };
+
+  const dashboardDetailsGrid = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
+    gap: "24px",
+  };
+
   const [analytics, setAnalytics] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [deliverySettings, setDeliverySettings] = useState(null);
@@ -512,9 +574,9 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={pageContainerStyle}>
+    <div style={pageContainer}>
       {/* Top Navbar */}
-      <header style={headerStyle}>
+      <header style={header}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ fontSize: "24px" }}>⚡</span>
           <h1 style={titleStyle}>Buyto Admin Dashboard</h1>
@@ -528,7 +590,7 @@ export default function AdminDashboard() {
       </header>
 
       {/* Main Grid View */}
-      <div style={contentGridStyle}>
+      <div style={contentGrid}>
         {/* Navigation Sidebar */}
         <nav style={sidebarStyle}>
           <div style={sidebarHeaderStyle}>
@@ -551,6 +613,9 @@ export default function AdminDashboard() {
             </button>
             <button onClick={() => setActiveView("notifications")} style={activeView === "notifications" ? activeNavLinkStyle : navLinkStyle}>
               🔔 Notification Center
+            </button>
+            <button onClick={() => setActiveView("notificationQueue")} style={activeView === "notificationQueue" ? activeNavLinkStyle : navLinkStyle}>
+              📋 Notification Queue
             </button>
             <button onClick={() => navigate("/admin/orders")} style={navLinkStyle}>
               📦 Orders Lifecycle
@@ -591,13 +656,13 @@ export default function AdminDashboard() {
         </nav>
 
         {/* Dashboard Panels */}
-        <main style={mainPanelStyle}>
+        <main style={mainPanel}>
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
 
           {activeView === "overview" && (
             <>
               {/* Aggregated Analytics Metric Cards */}
-              <div style={statsGridStyle}>
+              <div style={statsGrid}>
                 {/* Sales Card */}
                 <div style={statCardStyle("#FF4D4F")}>
                   <div style={statIconStyle("💰", "#FFF1F0", "#FF4D4F")} />
@@ -606,7 +671,6 @@ export default function AdminDashboard() {
                     <span style={statValStyle}>₹{analytics?.totalSales || 0}</span>
                   </div>
                 </div>
-
                 {/* Today Orders */}
                 <div style={statCardStyle("#22C55E")}>
                   <div style={statIconStyle("⚡", "#F0FDF4", "#22C55E")} />
@@ -636,7 +700,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Quick Actions & Recent Activity */}
-              <div style={dashboardDetailsGridStyle}>
+              <div style={dashboardDetailsGrid}>
                 {/* Recent Orders Section */}
                 <div style={cardLayoutStyle}>
                   <div style={cardHeaderStyle}>
@@ -821,7 +885,7 @@ export default function AdminDashboard() {
           {activeView === "rewards" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
               {/* Rewards Statistics Cards */}
-              <div style={statsGridStyle}>
+              <div style={statsGrid}>
                 {/* Total Coupons Generated */}
                 <div style={statCardStyle("#3b82f6")}>
                   <div style={statIconStyle("🎟️", "#eff6ff", "#3b82f6")} />
@@ -860,7 +924,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Activity Lists Grid */}
-              <div style={dashboardDetailsGridStyle}>
+              <div style={dashboardDetailsGrid}>
                 {/* Recent Coupon Activity */}
                 <div style={cardLayoutStyle}>
                   <div style={cardHeaderStyle}>
@@ -1010,7 +1074,7 @@ export default function AdminDashboard() {
               <h2 style={{ fontSize: "22px", fontWeight: "850", color: "#0f172a", margin: 0 }}>💰 BuyCoins Loyalty Management</h2>
 
               {/* BuyCoins Analytics Metrics */}
-              <div style={statsGridStyle}>
+              <div style={statsGrid}>
                 {/* Total Coins Issued */}
                 <div style={statCardStyle("#fbbf24")}>
                   <div style={statIconStyle("🪙", "#fffbeb", "#d97706")} />
@@ -1049,7 +1113,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Grid layout for Adjust Form and Top Customers */}
-              <div style={dashboardDetailsGridStyle}>
+              <div style={dashboardDetailsGrid}>
                 {/* Adjust Coins Form */}
                 <div style={cardLayoutStyle}>
                   <h3 style={cardTitleStyle}>Adjust Customer Coins</h3>
@@ -1075,7 +1139,7 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "14px" }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                         <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Coins Amount</label>
                         <input
@@ -1257,9 +1321,10 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeView === "delivery" && <DeliveryServicesPanel />}
-          {activeView === "categories" && <CategoriesPanel />}
+          {activeView === "delivery" && <DeliveryServicesPanel isMobile={isMobile} />}
+          {activeView === "categories" && <CategoriesPanel isMobile={isMobile} />}
           {activeView === "notifications" && renderNotificationsView()}
+          {activeView === "notificationQueue" && <AdminNotificationQueue />}
           {activeView === "settings" && renderSettingsView()}
         </main>
       </div>
@@ -1288,7 +1353,82 @@ function MapViewChange({ center }) {
   return null;
 }
 
-function DeliveryServicesPanel() {
+function DeliveryServicesPanel({ isMobile }) {
+  const statsGrid = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "20px",
+  };
+
+  const cardLayoutStyle = {
+    background: "#FFFFFF",
+    border: "1.5px solid #E5E7EB",
+    borderRadius: "24px",
+    padding: "24px",
+    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.02)",
+  };
+
+  const cardTitleStyle = {
+    margin: 0,
+    fontSize: "17px",
+    fontWeight: "800",
+    color: "#111827",
+  };
+
+  const tableStyle = {
+    width: "100%",
+    borderCollapse: "collapse",
+    fontSize: "13px",
+    color: "#374151",
+  };
+
+  const thStyle = {
+    textAlign: "left",
+    padding: "12px 16px",
+    borderBottom: "1.5px solid #E5E7EB",
+    color: "#6B7280",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    fontSize: "11px",
+  };
+
+  const trStyle = {
+    borderBottom: "1px solid #F3F4F6",
+    transition: "background 0.15s ease",
+  };
+
+  const emptyTdStyle = {
+    padding: "30px",
+    textAlign: "center",
+    color: "#9CA3AF",
+    fontWeight: "700",
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "10px 14px",
+    borderRadius: "8px",
+    border: "1.5px solid #E5E7EB",
+    fontSize: "14px",
+    fontWeight: "500",
+    outline: "none",
+    boxSizing: "border-box"
+  };
+
+  const quickBtnStyle = {
+    background: "#FFFFFF",
+    border: "1.5px solid #E5E7EB",
+    borderRadius: "12px",
+    color: "#374151",
+    fontSize: "13px",
+    fontWeight: "700",
+    padding: "10px 14px",
+    cursor: "pointer",
+    transition: "all 0.15s ease",
+    textAlign: "left",
+    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.02)",
+  };
+
   const [zones, setZones] = useState([]);
   const [stats, setStats] = useState({
     activeZonesCount: 0,
@@ -1472,7 +1612,7 @@ function DeliveryServicesPanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
       {/* Delivery Summary Metrics */}
-      <div style={statsGridStyle}>
+      <div style={statsGrid}>
         <div style={statCardStyle("#3b82f6")}>
           <div style={statIconStyle("📍", "#eff6ff", "#3b82f6")} />
           <div style={statContentStyle}>
@@ -1506,7 +1646,7 @@ function DeliveryServicesPanel() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "28px", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "28px", alignItems: "start" }}>
         {/* Left Side: Map and Form */}
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {/* Map Container */}
@@ -1550,7 +1690,7 @@ function DeliveryServicesPanel() {
                 <input type="text" placeholder="Coordinates resolved address" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} style={inputStyle} required />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Latitude</label>
                   <input type="number" step="any" value={formLat} onChange={(e) => setFormLat(Number(e.target.value))} style={inputStyle} required />
@@ -1561,7 +1701,7 @@ function DeliveryServicesPanel() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Radius (KM) *</label>
                   <input type="number" step="any" min="0.1" value={formRadius} onChange={(e) => setFormRadius(Number(e.target.value))} style={inputStyle} required />
@@ -1687,7 +1827,7 @@ function DeliveryServicesPanel() {
   );
 }
 
-function CategoriesPanel() {
+function CategoriesPanel({ isMobile }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1835,7 +1975,7 @@ function CategoriesPanel() {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "28px", alignItems: "start" }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1.8fr", gap: "28px", alignItems: "start" }}>
       {/* Left side: Form */}
       <div style={cardLayoutStyle}>
         <h3 style={cardTitleStyle}>{editingCategoryId ? "✏️ Edit Navigation Category" : "➕ Add Navigation Category"}</h3>

@@ -957,6 +957,69 @@ router.post("/send-broadcast", async (req, res) => {
     console.error("Broadcast endpoint error:", error);
     return res.status(500).json({ message: "Failed to broadcast notifications", error: error.message });
   }
+// GET /api/admin/notifications/queue
+router.get("/notifications/queue", async (req, res) => {
+  try {
+    const Order = require("../models/Order");
+    
+    // Fetch counts
+    const pendingCount = await Order.countDocuments({ adminNotificationStatus: "pending" });
+    const processingCount = await Order.countDocuments({ adminNotificationStatus: "processing" });
+    const sentCount = await Order.countDocuments({ adminNotificationStatus: "sent" });
+    const failedCount = await Order.countDocuments({ adminNotificationStatus: "failed" });
+
+    // Fetch recent orders with notification status
+    const queue = await Order.find({}, {
+      _id: 1,
+      totalAmount: 1,
+      adminNotificationStatus: 1,
+      adminNotificationRetries: 1,
+      adminNotificationLastAttemptAt: 1,
+      adminNotificationSentAt: 1,
+      adminNotificationMessageId: 1,
+      createdAt: 1
+    }).sort({ createdAt: -1 }).limit(50);
+
+    return res.status(200).json({
+      success: true,
+      stats: {
+        pending: pendingCount,
+        processing: processingCount,
+        sent: sentCount,
+        failed: failedCount
+      },
+      queue
+    });
+  } catch (error) {
+    console.error("Error fetching notification queue:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch notification queue", error: error.message });
+  }
+});
+
+// POST /api/admin/notifications/queue/retry/:orderId
+router.post("/notifications/queue/retry/:orderId", async (req, res) => {
+  try {
+    const Order = require("../models/Order");
+    const { sendAdminNotification } = require("../services/fcmService");
+
+    const order = await Order.findById(req.params.orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // Reset status to pending and reset retry count
+    order.adminNotificationStatus = "pending";
+    order.adminNotificationRetries = 0;
+    await order.save();
+
+    // Trigger sending immediately in the background
+    sendAdminNotification(order).catch(console.error);
+
+    return res.status(200).json({ success: true, message: "Retry triggered successfully" });
+  } catch (error) {
+    console.error("Error retrying notification:", error);
+    return res.status(500).json({ success: false, message: "Failed to retry notification", error: error.message });
+  }
 });
 
 module.exports = router;

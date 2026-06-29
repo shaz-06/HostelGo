@@ -6,6 +6,93 @@ import { io } from "socket.io-client";
 export default function AdminSupportPage() {
   const navigate = useNavigate();
   const { user, token } = useContext(AuthContext);
+
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 1024;
+
+  const pageContainer = {
+    minHeight: "100vh",
+    background: "#F9FAFB",
+    color: "#111827",
+    fontFamily: "'Outfit', 'Inter', sans-serif",
+    padding: isMobile ? "16px 12px" : "24px 32px",
+    boxSizing: "border-box",
+    overflowX: "hidden",
+  };
+
+  const header = {
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    justifyContent: "space-between",
+    alignItems: isMobile ? "flex-start" : "center",
+    gap: isMobile ? "12px" : "0",
+    paddingBottom: "20px",
+    borderBottom: "1.5px solid #E5E7EB",
+    marginBottom: "24px",
+  };
+
+  const contentGrid = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "250px 1fr",
+    gap: "28px",
+    alignItems: "start",
+  };
+
+  const mainPanel = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden"
+  };
+
+  const statsGrid = {
+    display: "grid",
+    gridTemplateColumns: isMobile 
+      ? (windowWidth < 640 ? "1fr" : "repeat(2, 1fr)") 
+      : "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: isMobile ? "12px" : "20px",
+  };
+
+  const splitScreen = {
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    width: "100%",
+    height: isMobile ? "auto" : "calc(100vh - 280px)",
+    minHeight: "500px",
+    background: "white",
+    borderRadius: "28px",
+    border: "1px solid #e5e7eb",
+    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.02)",
+    overflow: "hidden"
+  };
+
+  const leftPanel = {
+    width: isMobile ? "100%" : "30%",
+    borderRight: isMobile ? "none" : "1px solid #e5e7eb",
+    borderBottom: isMobile ? "1px solid #e5e7eb" : "none",
+    display: "flex",
+    flexDirection: "column",
+    background: "#ffffff",
+    flexShrink: 0,
+    height: isMobile ? "280px" : "100%"
+  };
+
+  const rightPanel = {
+    width: isMobile ? "100%" : "70%",
+    display: "flex",
+    flexDirection: "column",
+    background: "#ffffff",
+    height: isMobile ? "450px" : "100%"
+  };
   
   const [incomingChats, setIncomingChats] = useState([]);
   const [waitingChats, setWaitingChats] = useState([]);
@@ -387,9 +474,9 @@ export default function AdminSupportPage() {
   };
 
   return (
-    <div style={pageContainerStyle}>
+    <div style={pageContainer}>
       {/* Top Navbar */}
-      <header style={headerStyle}>
+      <header style={header}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ fontSize: "24px" }}>⚡</span>
           <h1 style={titleStyle}>Buyto Admin Dashboard</h1>
@@ -403,7 +490,7 @@ export default function AdminSupportPage() {
       </header>
 
       {/* Main Grid View */}
-      <div style={contentGridStyle}>
+      <div style={contentGrid}>
         {/* Navigation Sidebar */}
         <nav style={sidebarStyle}>
           <div style={sidebarHeaderStyle}>
@@ -451,7 +538,7 @@ export default function AdminSupportPage() {
         </nav>
 
         {/* Support Dashboard */}
-        <main style={mainPanelStyle}>
+        <main style={mainPanel}>
           {/* Top Header Row */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h1 style={titleStyle}>Customer Support Center</h1>
@@ -461,7 +548,7 @@ export default function AdminSupportPage() {
           </div>
 
           {/* Top Stats Cards */}
-          <div style={statsGridStyle}>
+          <div style={statsGrid}>
             {/* Waiting Chats Card */}
             <div style={statCardStyle("#f59e0b")}>
               <div style={statIconStyle("⏳", "#fffbeb", "#f59e0b")} />
@@ -500,9 +587,9 @@ export default function AdminSupportPage() {
           </div>
 
           {/* Split Screen Layout (30% / 70%) */}
-          <div style={splitScreenStyle}>
+          <div style={splitScreen}>
             {/* Left 30% Panel */}
-            <div style={leftPanelStyle}>
+            <div style={leftPanel}>
               {/* Search Bar */}
               <div style={searchBarContainerStyle}>
                 <input
@@ -673,7 +760,7 @@ export default function AdminSupportPage() {
             </div>
 
             {/* Right 70% Panel (Conversation Window) */}
-            <div style={rightPanelStyle}>
+            <div style={rightPanel}>
               {selectedChat ? (
                 <div style={consoleContainerStyle}>
                   {/* Header Details */}

@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useContext, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { initializePushNotifications, retrySyncIfNeeded } from "./services/pushNotifications";
 import { BRANDING } from "./config/branding";
 import BuytoLogo from "./components/common/BuytoLogo";
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
+import { StatusBar, Style } from "@capacitor/status-bar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import RiderProtectedRoute from "./components/RiderProtectedRoute";
@@ -639,6 +641,31 @@ function AppContent({ onReady }) {
       documentWidth: document.documentElement.clientWidth,
       userAgent: navigator.userAgent
     });
+
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setOverlaysWebView({ overlay: false })
+        .then(() => {
+          return StatusBar.setBackgroundColor({ color: "#ffffff" });
+        })
+        .then(() => {
+          return StatusBar.setStyle({ style: Style.Light });
+        })
+        .catch((err) => console.error("Error setting status bar:", err));
+    }
+
+    // Initialize push notifications & check if pending tokens need syncing
+    initializePushNotifications();
+    retrySyncIfNeeded();
+
+    const handleOnlineStatus = () => {
+      console.log("[App] Network is back online. Checking token sync status...");
+      retrySyncIfNeeded();
+    };
+    window.addEventListener("online", handleOnlineStatus);
+
+    return () => {
+      window.removeEventListener("online", handleOnlineStatus);
+    };
   }, []);
 
   const FREE_DELIVERY_THRESHOLD = 99;
@@ -2009,7 +2036,8 @@ function AppContent({ onReady }) {
         setCartItems={setCartItems}
         addToCart={addToCart}
         removeFromCart={removeFromCart}
-      />
+      />,
+      false
     );
   }
 
@@ -2102,7 +2130,7 @@ function AppContent({ onReady }) {
             path="/category/:slug"
             element={
               <div>
-                <div style={{ position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+                <div style={{ position: "sticky", top: "calc(env(safe-area-inset-top) + var(--header-height, 60px))", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
                   <CategoryStrip
                     displayCats={memoizedDisplayCats}
                     selectedCategory={selectedCategory}
@@ -2829,7 +2857,29 @@ function AppContent({ onReady }) {
     </div>
   );
 
-  return wrapCustomerLayout(desktopEl, true);
+  const debugPanel = !import.meta.env.PROD && (
+    <div style={{
+      position: "fixed",
+      bottom: "10px",
+      left: "10px",
+      zIndex: 99999,
+      background: "rgba(0, 0, 0, 0.85)",
+      color: "#fff",
+      padding: "8px 12px",
+      borderRadius: "8px",
+      fontSize: "11px",
+      fontFamily: "monospace",
+      pointerEvents: "none",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+      border: "1px solid rgba(255,255,255,0.2)"
+    }}>
+      <div>Env: DEV</div>
+      <div>API: {window.API_BASE_URL}</div>
+      <div>Platform: {Capacitor.getPlatform()}</div>
+    </div>
+  );
+
+  return wrapCustomerLayout(<>{desktopEl}{debugPanel}</>, true);
 }
 
 function CouponCelebrationModal({ coupon, onClose }) {

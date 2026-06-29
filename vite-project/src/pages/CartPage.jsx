@@ -237,11 +237,16 @@ export default function CartPage({
                     setAddresses(data.addresses);
 
                     const savedId = localStorage.getItem("buyto_selected_address_id");
-                    // Auto-select first default address if none selected yet
-                    if (!savedId && data.addresses.length > 0) {
-                        const defAddr = data.addresses.find(a => a.isDefault) || data.addresses[0];
-                        handleSelectAddress(defAddr);
-                    } else if (savedId && data.addresses.length > 0) {
+                    const hasSavedAddr = savedId ? data.addresses.some(a => a._id === savedId) : false;
+
+                    if (!hasSavedAddr) {
+                        localStorage.removeItem("buyto_selected_address_id");
+                        if (data.addresses.length > 0) {
+                            const defAddr = data.addresses.find(a => a.isDefault) || data.addresses[0];
+                            handleSelectAddress(defAddr);
+                            localStorage.setItem("buyto_selected_address_id", defAddr._id);
+                        }
+                    } else if (hasSavedAddr && data.addresses.length > 0) {
                         const selAddr = data.addresses.find(a => a._id === savedId);
                         if (selAddr) {
                             checkServiceability(selAddr.latitude, selAddr.longitude);

@@ -90,7 +90,7 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
   console.log(req.body.user);
   console.log("RAZORPAY_KEY_ID in env:", process.env.RAZORPAY_KEY_ID);
   console.log("MongoDB connection state (readyState):", mongoose.connection.readyState);
-  
+
   try {
     const { amount, user, products, deliveryAddress, couponId, couponCode, couponDiscount, buyCoinsRedeemed, buyCoinsDiscount, noBagPledge } = req.body;
 
@@ -194,8 +194,8 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
     }
   } catch (error) {
     console.error("❌ Create Razorpay Order Exception Failed!", error);
-    return res.status(500).json({ 
-      message: "Razorpay order creation failed", 
+    return res.status(500).json({
+      message: "Razorpay order creation failed",
       error: error.message,
       stack: error.stack,
       keyIdConfigured: !!process.env.RAZORPAY_KEY_ID,
@@ -247,14 +247,14 @@ router.post("/payment/verify", async (req, res) => {
 
     if (!order) {
       console.error(`❌ Database Error: Pending order not found in database for razorpayOrderId: ${razorpay_order_id}`);
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: "Pending order not found in database. Persistent order required to verify payment.",
         razorpay_order_id
       });
     }
 
     console.log("Retrieved Pending Order from DB:", JSON.stringify(order, null, 2));
-    
+
     // 1. Update Payment Status to Paid
     order.paymentStatus = "Paid";
     order.razorpayPaymentId = razorpay_payment_id;
@@ -278,7 +278,7 @@ router.post("/payment/verify", async (req, res) => {
           const userObj = await User.findById(savedOrder.userId);
           if (userObj && userObj.savedProducts && userObj.savedProducts.length > 0) {
             const purchasedProductIds = savedOrder.products.map(p => p.productId ? p.productId.toString() : "");
-            userObj.savedProducts = userObj.savedProducts.filter(item => 
+            userObj.savedProducts = userObj.savedProducts.filter(item =>
               item.productId && !purchasedProductIds.includes(item.productId.toString())
             );
             await userObj.save();
@@ -367,8 +367,8 @@ router.post("/payment/verify", async (req, res) => {
     }
   } catch (error) {
     console.error("❌ Payment Signature Verification Exception:", error);
-    return res.status(500).json({ 
-      message: "Error verifying payment signature", 
+    return res.status(500).json({
+      message: "Error verifying payment signature",
       error: error.message,
       stack: error.stack
     });
@@ -450,7 +450,7 @@ router.post("/orders", authMiddleware, async (req, res) => {
           const userObj = await User.findById(savedOrder.userId);
           if (userObj && userObj.savedProducts && userObj.savedProducts.length > 0) {
             const purchasedProductIds = savedOrder.products.map(p => p.productId ? p.productId.toString() : "");
-            userObj.savedProducts = userObj.savedProducts.filter(item => 
+            userObj.savedProducts = userObj.savedProducts.filter(item =>
               item.productId && !purchasedProductIds.includes(item.productId.toString())
             );
             await userObj.save();
@@ -539,8 +539,8 @@ router.post("/orders", authMiddleware, async (req, res) => {
     }
   } catch (error) {
     console.error("❌ COD Order Placement Exception:", error);
-    return res.status(500).json({ 
-      message: "Failed to place COD order", 
+    return res.status(500).json({
+      message: "Failed to place COD order",
       error: error.message,
       stack: error.stack
     });
@@ -585,8 +585,8 @@ router.get("/orders/track/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    const isOwner = (order.userId && order.userId.toString() === req.user._id.toString()) || 
-                    (order.user?.phone === req.user.phone);
+    const isOwner = (order.userId && order.userId.toString() === req.user._id.toString()) ||
+      (order.user?.phone === req.user.phone);
     const isAssignedRider = order.riderId && order.riderId.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin";
 
@@ -793,7 +793,7 @@ router.post("/borzo/webhook", async (req, res) => {
 router.get("/borzo/test", async (req, res) => {
   console.log("=== [BACKEND] GET /api/borzo/test ===");
   const apiToken = process.env.BORZO_API_TOKEN;
-  
+
   if (!apiToken) {
     return res.status(400).json({
       success: false,
@@ -802,8 +802,8 @@ router.get("/borzo/test", async (req, res) => {
   }
 
   const url = "https://robotapitest-in.borzodelivery.com/api/business/1.6/orders";
-  const maskedToken = apiToken.length > 8 
-    ? `${apiToken.slice(0, 4)}...${apiToken.slice(-4)}` 
+  const maskedToken = apiToken.length > 8
+    ? `${apiToken.slice(0, 4)}...${apiToken.slice(-4)}`
     : "xxxx";
 
   console.log(`Testing Borzo authentication against: ${url}`);
@@ -845,7 +845,7 @@ router.get("/borzo/test", async (req, res) => {
 // POST /api/borzo/test-order
 router.post("/borzo/test-order", async (req, res) => {
   console.log("=== [BACKEND] POST /api/borzo/test-order ===");
-  
+
   // Construct a minimal temporary order object
   const mockOrder = {
     deliveryAddress: req.body.deliveryAddress || "Indiranagar Metro Station, Bengaluru, Karnataka 560038",
@@ -861,7 +861,7 @@ router.post("/borzo/test-order", async (req, res) => {
 
   try {
     const borzoResult = await createBorzoOrder(mockOrder);
-    
+
     if (!borzoResult.success) {
       return res.status(400).json({
         success: false,
