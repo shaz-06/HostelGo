@@ -437,7 +437,7 @@ module.exports = products;
 
 if (require.main === module) {
   mongoose
-    .connect(process.env.MONGO_URI)
+    .connect(process.env.MONGODB_URI)
     .then(async () => {
       console.log("MongoDB Connected");
       await Product.deleteMany();
@@ -456,8 +456,8 @@ if (require.main === module) {
 }
 
 // Now upload directly to MongoDB to ensure database is in sync!
-if (process.env.MONGO_URI) {
-  mongoose.connect(process.env.MONGO_URI)
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI)
     .then(async () => {
       console.log("Database connection successful. Seeding database...");
       
@@ -474,7 +474,7 @@ if (process.env.MONGO_URI) {
       process.exit(1);
     });
 } else {
-  console.log("MONGO_URI not found in environment variables. Database was not seeded automatically.");
+  console.log("MONGODB_URI not found in environment variables. Database was not seeded automatically.");
 }
 
 function decache(moduleName) {

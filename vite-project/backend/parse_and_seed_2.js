@@ -225,7 +225,7 @@ module.exports = products;
 
 if (require.main === module) {
   mongoose
-    .connect(process.env.MONGO_URI)
+    .connect(process.env.MONGODB_URI)
     .then(async () => {
       console.log("MongoDB Connected");
       await Product.deleteMany();
@@ -240,8 +240,8 @@ if (require.main === module) {
 fs.writeFileSync(seedFilePath, newSeedContent, "utf8");
 console.log("seed.js updated successfully!");
 
-if (process.env.MONGO_URI) {
-  mongoose.connect(process.env.MONGO_URI)
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI)
     .then(async () => {
       console.log("Database connection successful. Seeding database...");
       await Product.deleteMany();
@@ -254,5 +254,5 @@ if (process.env.MONGO_URI) {
       process.exit(1);
     });
 } else {
-  console.log("MONGO_URI not found in environment variables. Database was not seeded automatically.");
+  console.log("MONGODB_URI not found in environment variables. Database was not seeded automatically.");
 }

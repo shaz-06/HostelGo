@@ -47,153 +47,175 @@ app.use((req, res, next) => {
 // In-memory fallback data for development if MongoDB Atlas is unreachable
 const mockProducts = require("./seed");
 
+console.log("MONGODB_URI exists:", !!process.env.MONGODB_URI);
+
 let isConnected = false;
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(async () => {
-    console.log("✅ MongoDB Connected");
-    console.log("Database: buyto");
-    isConnected = true;
+if (process.env.MONGODB_URI) {
+  mongoose
+    .connect(process.env.MONGODB_URI)
+    .then(async () => {
+      console.log("✅ MongoDB Connected");
+      console.log("Database: buyto");
+      isConnected = true;
 
-    // Auto-seed default Admin account if missing or incorrect
-    try {
-      let admin = await User.findOne({ email: "admin@buyto.com" });
-      if (!admin) {
-        console.log("Creating default administrator account...");
-        admin = new User({
-          name: "Buyto Admin",
-          email: "admin@buyto.com",
-          phone: "9999999999",
-          password: "Admin123", // Hashes in pre-save hook
-          role: "admin"
-        });
-        await admin.save();
-        console.log("=== ADMIN SEED CHECK ===");
-        console.log("Admin created successfully");
-        console.log("Document:", JSON.stringify(admin, null, 2));
-      } else {
-        const isPasswordMatch = await admin.comparePassword("Admin123");
-        if (!isPasswordMatch || admin.role !== "admin" || admin.phone !== "9999999999") {
-          console.log("Admin exists but has outdated/invalid password, role, or phone. Repairing admin account...");
-          admin.password = "Admin123";
-          admin.role = "admin";
-          admin.phone = "9999999999";
+      // Auto-seed default Admin account if missing or incorrect
+      try {
+        let admin = await User.findOne({ email: "admin@buyto.com" });
+        if (!admin) {
+          console.log("Creating default administrator account...");
+          admin = new User({
+            name: "Buyto Admin",
+            email: "admin@buyto.com",
+            phone: "9999999999",
+            password: "Admin123", // Hashes in pre-save hook
+            role: "admin"
+          });
           await admin.save();
           console.log("=== ADMIN SEED CHECK ===");
           console.log("Admin created successfully");
           console.log("Document:", JSON.stringify(admin, null, 2));
         } else {
-          console.log("=== ADMIN SEED CHECK ===");
-          console.log("Admin exists");
-          console.log("Document:", JSON.stringify(admin, null, 2));
-        }
-      }
-    } catch (seedErr) {
-      console.error("❌ Mongoose: Failed to seed default admin:", seedErr.message);
-    }
-
-    // Auto-seed default dynamic fees configuration if missing
-    try {
-      let feeConfig = await Config.findOne({ key: "fees_config" });
-      if (!feeConfig) {
-        console.log("Creating default dynamic fees config...");
-        feeConfig = new Config({
-          key: "fees_config",
-          handlingFee: 4,
-          smallCartThreshold: 150,
-          smallCartFee: 15,
-          deliveryFee: 29,
-          freeDeliveryThreshold: 99,
-          rainFee: 0,
-          lateNightFee: 0,
-          gstPercentage: 5,
-          gstFixedCharges: 2
-        });
-        await feeConfig.save();
-        console.log("=== FEE CONFIG SEED SUCCESS ===");
-        console.log("Config document:", JSON.stringify(feeConfig, null, 2));
-      } else {
-        console.log("=== FEE CONFIG SEED CHECK ===");
-        console.log("Config exists");
-        console.log("Config document:", JSON.stringify(feeConfig, null, 2));
-      }
-    } catch (configSeedErr) {
-      console.error("❌ Mongoose: Failed to seed dynamic fees config:", configSeedErr.message);
-    }
-
-    // Auto-seed default delivery settings if missing
-    try {
-      let deliverySettings = await DeliverySettings.findOne({ key: "delivery_settings" });
-      if (!deliverySettings) {
-        console.log("Creating default delivery settings...");
-        deliverySettings = new DeliverySettings({
-          key: "delivery_settings",
-          lateNightDeliveryEnabled: false,
-          rainyDeliveryEnabled: false
-        });
-        await deliverySettings.save();
-        console.log("=== DELIVERY SETTINGS SEED SUCCESS ===");
-        console.log("Settings document:", JSON.stringify(deliverySettings, null, 2));
-      } else {
-        console.log("=== DELIVERY SETTINGS SEED CHECK ===");
-        console.log("Settings exists");
-        console.log("Settings document:", JSON.stringify(deliverySettings, null, 2));
-      }
-    } catch (deliverySeedErr) {
-      console.error("❌ Mongoose: Failed to seed delivery settings config:", deliverySeedErr.message);
-    }
-
-    // Auto-seed Categories if missing
-    try {
-      let categoryCount = await Category.countDocuments();
-      if (categoryCount === 0) {
-        console.log("Creating default category list...");
-        const defaultCategories = [
-          { name: "The Fruit Store", icon: "🍎", image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=200&auto=format&fit=crop&q=80", priority: 10 },
-          { name: "The Veggie Store", icon: "🥬", image: "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=200&auto=format&fit=crop&q=80", priority: 9 },
-          { name: "Dairy, Bread & Eggs", icon: "🥛", image: "https://images.unsplash.com/photo-1588710922810-ee4047b470d9?w=200&auto=format&fit=crop&q=80", priority: 8 },
-          { name: "Meat and Seafood", icon: "🥩", image: "https://images.unsplash.com/photo-1532407191490-e847be1540c6?w=200&auto=format&fit=crop&q=80", priority: 7 },
-          { name: "Snacks", icon: "🍿", image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=200&auto=format&fit=crop&q=80", priority: 6 },
-          { name: "Beverages", icon: "🥤", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=200&auto=format&fit=crop&q=80", priority: 5 },
-          { name: "Atta, Rice and Dal", icon: "🌾", image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&auto=format&fit=crop&q=80", priority: 4 },
-          { name: "Exclusive Deals", icon: "🔥", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&auto=format&fit=crop&q=80", priority: 3 },
-          { name: "Cleaners & Repellents", icon: "🧹", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200&auto=format&fit=crop&q=80", priority: 2 },
-          { name: "The Bread Store", icon: "🍞", image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&auto=format&fit=crop&q=80", priority: 1 },
-          { name: "Premium Pickles", icon: "🥒", image: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=200&auto=format&fit=crop&q=80", priority: 0 },
-          { name: "Sexual Wellness", icon: "❤️", image: "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=200&auto=format&fit=crop&q=80", priority: -1 }
-        ];
-
-        // Also check existing products for other categories not in default list
-        const products = await Product.find({}, "category").lean();
-        const existingCatNames = new Set(products.map(p => p.category).filter(Boolean));
-        const defaultCatNames = new Set(defaultCategories.map(c => c.name));
-
-        for (const catName of existingCatNames) {
-          if (!defaultCatNames.has(catName)) {
-            defaultCategories.push({
-              name: catName,
-              icon: "🛍️",
-              image: "",
-              priority: -2
-            });
+          const isPasswordMatch = await admin.comparePassword("Admin123");
+          if (!isPasswordMatch || admin.role !== "admin" || admin.phone !== "9999999999") {
+            console.log("Admin exists but has outdated/invalid password, role, or phone. Repairing admin account...");
+            admin.password = "Admin123";
+            admin.role = "admin";
+            admin.phone = "9999999999";
+            await admin.save();
+            console.log("=== ADMIN SEED CHECK ===");
+            console.log("Admin created successfully");
+            console.log("Document:", JSON.stringify(admin, null, 2));
+          } else {
+            console.log("=== ADMIN SEED CHECK ===");
+            console.log("Admin exists");
+            console.log("Document:", JSON.stringify(admin, null, 2));
           }
         }
-
-        await Category.insertMany(defaultCategories);
-        console.log("=== CATEGORY SEED SUCCESS ===");
-      } else {
-        console.log("=== CATEGORY SEED CHECK ===");
-        console.log("Categories exist count:", categoryCount);
+      } catch (seedErr) {
+        console.error("❌ Mongoose: Failed to seed default admin:", seedErr.message);
       }
-    } catch (catSeedErr) {
-      console.error("❌ Mongoose: Failed to seed categories:", catSeedErr.message);
-    }
-  })
-  .catch((err) => {
-    console.warn("⚠️ MongoDB Connection Failed! Falling back to local in-memory products list.");
-    console.error("Reason:", err.message);
-    isConnected = false;
-  });
+
+      // Auto-seed default dynamic fees configuration if missing
+      try {
+        let feeConfig = await Config.findOne({ key: "fees_config" });
+        if (!feeConfig) {
+          console.log("Creating default dynamic fees config...");
+          feeConfig = new Config({
+            key: "fees_config",
+            handlingFee: 4,
+            smallCartThreshold: 150,
+            smallCartFee: 15,
+            deliveryFee: 29,
+            freeDeliveryThreshold: 99,
+            rainFee: 0,
+            lateNightFee: 0,
+            gstPercentage: 5,
+            gstFixedCharges: 2
+          });
+          await feeConfig.save();
+          console.log("=== FEE CONFIG SEED SUCCESS ===");
+          console.log("Config document:", JSON.stringify(feeConfig, null, 2));
+        } else {
+          console.log("=== FEE CONFIG SEED CHECK ===");
+          console.log("Config exists");
+          console.log("Config document:", JSON.stringify(feeConfig, null, 2));
+        }
+      } catch (configSeedErr) {
+        console.error("❌ Mongoose: Failed to seed dynamic fees config:", configSeedErr.message);
+      }
+
+      // Auto-seed default delivery settings if missing
+      try {
+        let deliverySettings = await DeliverySettings.findOne({ key: "delivery_settings" });
+        if (!deliverySettings) {
+          console.log("Creating default delivery settings...");
+          deliverySettings = new DeliverySettings({
+            key: "delivery_settings",
+            lateNightDeliveryEnabled: false,
+            rainyDeliveryEnabled: false
+          });
+          await deliverySettings.save();
+          console.log("=== DELIVERY SETTINGS SEED SUCCESS ===");
+          console.log("Settings document:", JSON.stringify(deliverySettings, null, 2));
+        } else {
+          console.log("=== DELIVERY SETTINGS SEED CHECK ===");
+          console.log("Settings exists");
+          console.log("Settings document:", JSON.stringify(deliverySettings, null, 2));
+        }
+      } catch (deliverySeedErr) {
+        console.error("❌ Mongoose: Failed to seed delivery settings config:", deliverySeedErr.message);
+      }
+
+      // Auto-seed Categories if missing
+      try {
+        let categoryCount = await Category.countDocuments();
+        if (categoryCount === 0) {
+          console.log("Creating default category list...");
+          const defaultCategories = [
+            { name: "The Fruit Store", icon: "🍎", image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=200&auto=format&fit=crop&q=80", priority: 10 },
+            { name: "The Veggie Store", icon: "🥬", image: "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=200&auto=format&fit=crop&q=80", priority: 9 },
+            { name: "Dairy, Bread & Eggs", icon: "🥛", image: "https://images.unsplash.com/photo-1588710922810-ee4047b470d9?w=200&auto=format&fit=crop&q=80", priority: 8 },
+            { name: "Meat and Seafood", icon: "🥩", image: "https://images.unsplash.com/photo-1532407191490-e847be1540c6?w=200&auto=format&fit=crop&q=80", priority: 7 },
+            { name: "Snacks", icon: "🍿", image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=200&auto=format&fit=crop&q=80", priority: 6 },
+            { name: "Beverages", icon: "🥤", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=200&auto=format&fit=crop&q=80", priority: 5 },
+            { name: "Atta, Rice and Dal", icon: "🌾", image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&auto=format&fit=crop&q=80", priority: 4 },
+            { name: "Exclusive Deals", icon: "🔥", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&auto=format&fit=crop&q=80", priority: 3 },
+            { name: "Cleaners & Repellents", icon: "🧹", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200&auto=format&fit=crop&q=80", priority: 2 },
+            { name: "The Bread Store", icon: "🍞", image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&auto=format&fit=crop&q=80", priority: 1 },
+            { name: "Premium Pickles", icon: "🥒", image: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=200&auto=format&fit=crop&q=80", priority: 0 },
+            { name: "Sexual Wellness", icon: "❤️", image: "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=200&auto=format&fit=crop&q=80", priority: -1 }
+          ];
+
+          // Also check existing products for other categories not in default list
+          const products = await Product.find({}, "category").lean();
+          const existingCatNames = new Set(products.map(p => p.category).filter(Boolean));
+          const defaultCatNames = new Set(defaultCategories.map(c => c.name));
+
+          for (const catName of existingCatNames) {
+            if (!defaultCatNames.has(catName)) {
+              defaultCategories.push({
+                name: catName,
+                icon: "🛍️",
+                image: "",
+                priority: -2
+              });
+            }
+          }
+
+          await Category.insertMany(defaultCategories);
+          console.log("=== CATEGORY SEED SUCCESS ===");
+        } else {
+          console.log("=== CATEGORY SEED CHECK ===");
+          console.log("Categories exist count:", categoryCount);
+        }
+      } catch (catSeedErr) {
+        console.error("❌ Mongoose: Failed to seed categories:", catSeedErr.message);
+      }
+    })
+    .catch((err) => {
+      console.error("❌ MongoDB Connection Failed:", err);
+
+      if (process.env.NODE_ENV === "production") {
+        process.exit(1);
+      } else {
+        console.warn(
+          "⚠️ MongoDB unavailable. Using in-memory fallback in development."
+        );
+        isConnected = false;
+      }
+    });
+} else {
+  console.error("❌ MONGODB_URI environment variable is missing.");
+
+  if (process.env.NODE_ENV === "production") {
+    process.exit(1);
+  } else {
+    console.warn(
+      "⚠️ No MongoDB URI configured. Using in-memory fallback in development."
+    );
+  }
+}
 
 app.get("/", (req, res) => {
   res.send("API Running");

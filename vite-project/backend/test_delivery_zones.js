@@ -20,7 +20,7 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 async function runTests() {
   console.log("=== RUNNING DELIVERY ZONES INTEGRATION TESTS (CJS) ===");
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log("Connected to MongoDB.");
 
     // Clean up
