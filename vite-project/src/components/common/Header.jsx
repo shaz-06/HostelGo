@@ -379,28 +379,56 @@ const Header = React.memo(({
             </div>
           </div>
 
-          {/* Profile/Avatar Circle */}
-          <div
-            onClick={() => navigate("/profile")}
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              background: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-              cursor: "pointer",
-              transition: "transform 0.15s ease",
-            }}
-            onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-            onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
+          {/* Profile & Notifications Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* Bell Icon */}
+            <div
+              onClick={() => navigate("/notifications")}
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                background: "white",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+              title="Notifications"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </div>
+
+            {/* Profile/Avatar Circle */}
+            <div
+              onClick={() => navigate("/profile")}
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                background: "white",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
           </div>
         </div>
 

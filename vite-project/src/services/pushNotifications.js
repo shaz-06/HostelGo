@@ -71,9 +71,13 @@ export const registerListeners = (onTokenReceived, onNotificationReceived, onNot
     // Handle successful registration and token retrieval
     PushNotifications.addListener('registration', (token) => {
       try {
-        console.log('[Push Service] Registration successful. Token:', token.value);
+        console.log('[Push Service] Registration successful. Token generated:', token.value);
         fcmToken = token.value;
         localStorage.setItem('fcm_token', token.value);
+        
+        // Sync token to backend if logged in
+        syncTokenWithBackend(token.value);
+
         if (onTokenReceived) {
           onTokenReceived(token.value);
         }
@@ -115,25 +119,87 @@ export const registerListeners = (onTokenReceived, onNotificationReceived, onNot
   }
 };
 
+/**
+ * Sends the registered FCM token to the backend.
+ */
+export const syncTokenWithBackend = async (token = fcmToken) => {
+  const activeToken = token || localStorage.getItem('fcm_token');
+  const userToken = localStorage.getItem('buyto_token');
+  
+  if (!activeToken) {
+    console.log("[Push Service] No FCM token available to sync.");
+    return;
+  }
+  
+  if (!userToken) {
+    console.log("[Push Service] User is not logged in. Postponing FCM token sync.");
+    return;
+  }
+
+  const platform = Capacitor.getPlatform() === "ios" ? "ios" : "android";
+  const requestUrl = (window.API_BASE_URL || "http://localhost:8000") + "/api/users/fcm-token";
+  
+  console.log("=== FCM TOKEN SYNC INITIATED ===");
+  console.log("API_BASE_URL:", window.API_BASE_URL);
+  console.log("URL being fetched:", requestUrl);
+  console.log("Request body:", JSON.stringify({ token: activeToken, platform }));
+
+  try {
+    const res = await fetch(requestUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userToken}`
+      },
+      body: JSON.stringify({
+        token: activeToken,
+        platform
+      })
+    });
+    
+    console.log("Response status:", res.status);
+    const text = await res.text();
+    console.log("Response text:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Invalid JSON response: ${text}`);
+    }
+  } catch (err) {
+    console.error("=== FCM TOKEN SYNC FETCH ERROR ===");
+    console.error("Error message:", err.message);
+    console.error("Error stack:", err.stack);
+  }
+};
+
 export const initializePushNotifications = async () => {
   try {
     if (!isPushAvailable()) {
-      console.warn("PushNotifications plugin unavailable");
+      console.warn("PushNotifications plugin unavailable (not a native platform or plugin missing)");
       return;
     }
 
+    console.log("[Push Service] Requesting push notification permissions...");
     const granted = await requestPermissions();
 
     if (!granted) {
-      console.log("Push Permission Denied");
+      console.log("[Push Service] Push Permission Denied");
       return;
     }
 
     registerListeners();
     await registerDevice();
 
-    console.log("Push notifications initialized");
+    console.log("[Push Service] Push notifications initialized successfully");
+    
+    // Attempt syncing any cached token from local storage
+    const cachedToken = localStorage.getItem('fcm_token');
+    if (cachedToken) {
+      syncTokenWithBackend(cachedToken);
+    }
   } catch (err) {
-    console.error("Failed to initialize push notifications safely:", err);
+    console.error("[Push Service] Failed to initialize push notifications safely:", err);
   }
 };

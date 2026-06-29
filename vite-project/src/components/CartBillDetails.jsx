@@ -1,5 +1,7 @@
 import React from "react";
 
+import BuyCoin from "./common/BuyCoin";
+
 export default function CartBillDetails({ billBreakdown }) {
   if (!billBreakdown || billBreakdown.itemTotal === 0) return null;
 
@@ -167,7 +169,7 @@ export default function CartBillDetails({ billBreakdown }) {
       {/* 9. BuyCoins Discount */}
       {buyCoinsDiscount > 0 && (
         <div style={rowStyle}>
-          <span style={{ ...labelStyle, color: "#10b981", fontWeight: "600" }}>🪙 BuyCoins Redeemed</span>
+          <span style={{ ...labelStyle, color: "#10b981", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}><BuyCoin size={14} /> BuyCoins Redeemed</span>
           <span style={{ ...valueStyle, color: "#10b981" }}>-₹{buyCoinsDiscount}</span>
         </div>
       )}

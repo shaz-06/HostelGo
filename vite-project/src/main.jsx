@@ -10,9 +10,10 @@ if (import.meta.env.MODE === 'production') {
   apiBase = import.meta.env.VITE_API_URL || 'https://buyto-api.onrender.com';
 } else {
   // Development:
-  if (import.meta.env.VITE_API_URL) {
+  const isNative = window.Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:';
+  if (import.meta.env.VITE_API_URL && !(isNative && import.meta.env.VITE_API_URL.includes('localhost'))) {
     apiBase = import.meta.env.VITE_API_URL;
-  } else if (window.Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:') {
+  } else if (isNative) {
     // Under live reload, window.location.hostname is the Mac's IP (e.g. 192.168.x.x)
     const host = window.location.hostname;
     if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== '0.0.0.0') {
@@ -28,6 +29,16 @@ if (import.meta.env.MODE === 'production') {
 window.API_BASE_URL = apiBase;
 
 console.log("=== API_BASE_URL INITIALIZED ===", window.API_BASE_URL);
+
+// Swap manifest if path starts with /admin
+const manifestLink = document.getElementById("pwa-manifest");
+if (manifestLink) {
+  if (window.location.pathname.startsWith("/admin")) {
+    manifestLink.setAttribute("href", "/admin-manifest.json");
+  } else {
+    manifestLink.setAttribute("href", "/manifest.json");
+  }
+}
 
 // Register service worker for PWA support
 if ('serviceWorker' in navigator) {

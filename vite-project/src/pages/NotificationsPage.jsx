@@ -20,9 +20,18 @@ export default function NotificationsPage() {
       });
       if (!res.ok) throw new Error("Failed to load notification history");
       const data = await res.json();
-      if (data.success) {
-        setNotifications(data.notifications);
+      
+      let fetchedList = [];
+      if (data && data.success && Array.isArray(data.notifications)) {
+        fetchedList = data.notifications;
+      } else if (Array.isArray(data)) {
+        fetchedList = data;
+      } else if (data && Array.isArray(data.notifications)) {
+        fetchedList = data.notifications;
       }
+      
+      console.log("Notifications:", fetchedList);
+      setNotifications(fetchedList);
     } catch (err) {
       console.error(err);
       setError(err.message);
@@ -149,7 +158,7 @@ export default function NotificationsPage() {
           </h1>
         </div>
 
-        {notifications.some(n => !n.read) && (
+        {Array.isArray(notifications) && notifications.some(n => !n?.read) && (
           <button
             id="btn-mark-all-read"
             onClick={handleMarkAllRead}
@@ -238,7 +247,7 @@ export default function NotificationsPage() {
           <p style={{ color: "#ef4444", margin: 0, fontWeight: "600" }}>{error}</p>
           <button onClick={fetchNotifications} style={{ marginTop: "12px", background: "#ef4444", color: "white", border: "none", padding: "8px 16px", borderRadius: "8px", cursor: "pointer" }}>Retry</button>
         </div>
-      ) : notifications.length === 0 ? (
+      ) : !Array.isArray(notifications) || notifications.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 16px" }}>
           <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔔</div>
           <h3 style={{ margin: "0 0 8px 0", color: "#374151", fontSize: "18px", fontWeight: "700" }}>No Notifications Yet</h3>
@@ -249,75 +258,91 @@ export default function NotificationsPage() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <AnimatePresence>
-            {notifications.map((item, index) => (
-              <motion.div
-                key={item._id}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.2, delay: index * 0.05 }}
-                onClick={() => !item.read && handleMarkSingleRead(item._id)}
-                style={{
-                  background: item.read ? "#ffffff" : "#fffbeb",
-                  border: item.read ? "1px solid #f3f4f6" : "1px solid #fde68a",
-                  borderRadius: "18px",
-                  padding: "16px",
-                  display: "flex",
-                  gap: "16px",
-                  cursor: "pointer",
-                  position: "relative",
-                  boxShadow: item.read ? "0 2px 8px rgba(0,0,0,0.02)" : "0 4px 12px rgba(253, 230, 138, 0.15)",
-                  transition: "all 0.2s ease"
-                }}
-              >
-                {/* Visual Indicator Dot */}
-                {!item.read && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "16px",
-                      right: "16px",
-                      width: "8px",
-                      height: "8px",
-                      background: "#f59e0b",
-                      borderRadius: "50%"
-                    }}
-                  />
-                )}
+            {notifications.map((item, index) => {
+              if (!item) return null;
+              const hasRead = !!item.read;
+              const titleText = item.title || "Notification";
+              const bodyText = item.body || item.message || "";
+              let displayDate = "Just now";
+              if (item.createdAt) {
+                try {
+                  const d = new Date(item.createdAt);
+                  if (!isNaN(d.getTime())) {
+                    displayDate = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  }
+                } catch (e) {}
+              }
 
-                {/* Left Colored Icon Box */}
-                <div
+              return (
+                <motion.div
+                  key={item._id || index}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  transition={{ duration: 0.2, delay: index * 0.05 }}
+                  onClick={() => !hasRead && handleMarkSingleRead(item._id)}
                   style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "14px",
-                    background: getNotificationColor(item),
+                    background: hasRead ? "#ffffff" : "#fffbeb",
+                    border: hasRead ? "1px solid #f3f4f6" : "1px solid #fde68a",
+                    borderRadius: "18px",
+                    padding: "16px",
                     display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "22px",
-                    flexShrink: 0
+                    gap: "16px",
+                    cursor: "pointer",
+                    position: "relative",
+                    boxShadow: hasRead ? "0 2px 8px rgba(0,0,0,0.02)" : "0 4px 12px rgba(253, 230, 138, 0.15)",
+                    transition: "all 0.2s ease"
                   }}
                 >
-                  {getNotificationIcon(item)}
-                </div>
+                  {/* Visual Indicator Dot */}
+                  {!hasRead && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "16px",
+                        right: "16px",
+                        width: "8px",
+                        height: "8px",
+                        background: "#f59e0b",
+                        borderRadius: "50%"
+                      }}
+                    />
+                  )}
 
-                {/* Right Text Contents */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
-                    <h4 style={{ margin: 0, fontSize: "15px", fontWeight: item.read ? "600" : "700", color: "#111827" }}>
-                      {item.title}
-                    </h4>
-                    <span style={{ fontSize: "11px", color: "#9ca3af" }}>
-                      {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                  {/* Left Colored Icon Box */}
+                  <div
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "14px",
+                      background: getNotificationColor(item),
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "22px",
+                      flexShrink: 0
+                    }}
+                  >
+                    {getNotificationIcon(item)}
                   </div>
-                  <p style={{ margin: 0, fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
-                    {item.body}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+
+                  {/* Right Text Contents */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
+                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: hasRead ? "600" : "700", color: "#111827" }}>
+                        {titleText}
+                      </h4>
+                      <span style={{ fontSize: "11px", color: "#9ca3af" }}>
+                        {displayDate}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
+                      {bodyText}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
       )}

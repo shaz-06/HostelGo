@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect } from "react";
-import { initializePushNotifications } from "../services/pushNotifications";
 
 export const AuthContext = createContext();
 
@@ -19,6 +18,13 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [token, setToken] = useState(() => {
+    // Check if we are an admin and app was restarted
+    const hasAdminSession = sessionStorage.getItem("buyto_admin_token");
+    if (!hasAdminSession && localStorage.getItem("buyto_login_token")) {
+      // Revert active token to the standard unverified login token
+      localStorage.setItem("buyto_token", localStorage.getItem("buyto_login_token") || "");
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get("token");
     if (urlToken) {
@@ -26,6 +32,7 @@ export const AuthProvider = ({ children }) => {
       const newUrl = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, newUrl);
       localStorage.setItem("buyto_token", urlToken);
+      localStorage.setItem("buyto_login_token", urlToken);
       return urlToken;
     }
     return localStorage.getItem("buyto_token") || null;
@@ -33,54 +40,44 @@ export const AuthProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(true);
 
-  const syncFCMToken = async (authToken) => {
-    try {
-      const fcmToken = localStorage.getItem("fcm_token");
-      if (!fcmToken) {
-        console.log("[AuthContext] No FCM token available in localStorage to sync.");
-        return;
-      }
-      console.log("[AuthContext] Syncing FCM token with backend...");
-      const res = await fetch(window.API_BASE_URL + "/api/users/fcm-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ token: fcmToken })
-      });
-      if (res.ok) {
-        console.log("[AuthContext] FCM token synced successfully with backend.");
-      } else {
-        console.error("[AuthContext] Failed to sync FCM token with backend:", res.status);
-      }
-    } catch (err) {
-      console.error("[AuthContext] Error syncing FCM token:", err);
-    }
-  };
-
   useEffect(() => {
     // Keep user state validated with backend on initial load if token exists
     const checkUserSession = async () => {
       if (token) {
+        const url = window.API_BASE_URL + "/api/auth/me";
+        console.log("=== CHECK USER SESSION INITIATED ===");
+        console.log("URL:", url);
+        console.log("Authorization Header Present:", !!token);
+        
         try {
-          const res = await fetch(window.API_BASE_URL + "/api/auth/me", {
+          const res = await fetch(url, {
             headers: {
               Authorization: `Bearer ${token}`
             }
           });
+          
+          console.log("Response status:", res.status);
+          const text = await res.text();
+          console.log("Response body:", text);
+
           if (res.ok) {
-            const data = await res.json();
+            const data = JSON.parse(text);
             setUser(data.user);
             localStorage.setItem("buyto_user", JSON.stringify(data.user));
             localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
-            syncFCMToken(token);
           } else {
-            // Expired or invalid token
-            logout();
+            if (res.status === 401 || res.status === 403) {
+              console.log("AUTH FAILURE TRIGGERED: Status", res.status);
+              console.log("LOGOUT CALLED");
+              logout();
+            } else {
+              console.warn(`Session check returned non-ok status: ${res.status}. Session preserved.`);
+            }
           }
         } catch (err) {
-          console.error("Session verification failed:", err);
+          console.error("=== CHECK USER SESSION FETCH ERROR ===");
+          console.error("Error message:", err.message);
+          console.error("Error stack:", err.stack);
         }
       } else {
         // When no authenticated session exists, setUser(guestUser) and skip /api/auth/me & token validation
@@ -91,6 +88,8 @@ export const AuthProvider = ({ children }) => {
 
     checkUserSession();
   }, [token]);
+
+
 
   const [saveForLaterIds, setSaveForLaterIds] = useState([]);
 
@@ -222,14 +221,9 @@ export const AuthProvider = ({ children }) => {
 
     // Set localStorage credentials
     localStorage.setItem("buyto_token", data.token);
+    localStorage.setItem("buyto_login_token", data.token);
     localStorage.setItem("buyto_user", JSON.stringify(data.user));
     localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
-
-    //Initialize Firebase Push Notifications
-    await initializePushNotifications();
-
-    //Sync token to backend
-    syncFCMToken(data.token);
 
     return data;
   };
@@ -264,13 +258,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const setAuthSession = async (authToken, authUser) => {
+    console.log("LOGIN SUCCESS");
     await syncGuestSavedProducts(authToken);
     setToken(authToken);
     setUser(authUser);
     localStorage.setItem("buyto_token", authToken);
+    localStorage.setItem("buyto_login_token", authToken);
     localStorage.setItem("buyto_user", JSON.stringify(authUser));
     localStorage.setItem("hostelgoUser", JSON.stringify(authUser));
-    syncFCMToken(authToken);
+    console.log("JWT SAVED");
+
     if (onLoginSuccessCallback) {
       try {
         onLoginSuccessCallback();
@@ -303,14 +300,9 @@ export const AuthProvider = ({ children }) => {
 
     // Set localStorage credentials
     localStorage.setItem("buyto_token", data.token);
+    localStorage.setItem("buyto_login_token", data.token);
     localStorage.setItem("buyto_user", JSON.stringify(data.user));
     localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
-
-    //Initialize Firebase Push Notifications
-    await initializePushNotifications();
-
-    //Sync token to backend
-    syncFCMToken(data.token);
 
     if (onLoginSuccessCallback) {
       try {
@@ -326,27 +318,25 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     console.log("=== [FRONTEND AUTH LOGOUT] ===");
 
-    const activeToken = token || localStorage.getItem("buyto_token");
-    if (activeToken) {
-      fetch(window.API_BASE_URL + "/api/users/fcm-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${activeToken}`
-        },
-        body: JSON.stringify({ token: null })
-      }).catch(err => console.error("Error removing FCM token from backend on logout:", err));
-    }
-
     setToken(null);
     setUser(guestUser);
     setSaveForLaterIds([]);
     localStorage.removeItem("buyto_token");
+    localStorage.removeItem("buyto_login_token");
+    sessionStorage.removeItem("buyto_admin_token");
     localStorage.removeItem("buyto_user");
     localStorage.removeItem("hostelgoUser");
     localStorage.removeItem("hostelgo_cart");
     localStorage.removeItem("cart");
   };
+
+  const verifyAdmin = (verifiedToken) => {
+    sessionStorage.setItem("buyto_admin_token", verifiedToken);
+    localStorage.setItem("buyto_token", verifiedToken);
+    setToken(verifiedToken);
+  };
+
+  const isAdminVerified = !!token && !!sessionStorage.getItem("buyto_admin_token");
 
   const isLoggedIn = !!user && !user.isGuest;
 
@@ -360,9 +350,10 @@ export const AuthProvider = ({ children }) => {
       signup, 
       logout, 
       setAuthSession, 
+      verifyAdmin,
+      isAdminVerified,
       saveForLaterIds, 
       toggleSaveForLater, 
-      syncFCMToken,
       loginBottomSheetOpen,
       isLoginOpen: loginBottomSheetOpen,
       openLogin,

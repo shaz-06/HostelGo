@@ -158,14 +158,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null
     },
-    fcmTokens: {
-      type: [String],
-      default: []
-    },
+    fcmTokens: [
+      {
+        token: { type: String, required: true },
+        platform: { type: String, default: "" },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
     notificationPreferences: {
       orderUpdates: { type: Boolean, default: true },
       promotions: { type: Boolean, default: true },
-      cartReminders: { type: Boolean, default: true }
+      cartReminders: { type: Boolean, default: true },
+      newOrderAlerts: { type: Boolean, default: true },
+      riderAlerts: { type: Boolean, default: true },
+      lowStockAlerts: { type: Boolean, default: true },
+      newUserRegistrations: { type: Boolean, default: true }
     },
     cartHasItems: {
       type: Boolean,
@@ -178,6 +185,22 @@ const userSchema = new mongoose.Schema(
     cartReminderSent: {
       type: Boolean,
       default: false
+    },
+    isFounder: {
+      type: Boolean,
+      default: false
+    },
+    adminPin: {
+      type: String,
+      default: null
+    },
+    pinAttempts: {
+      type: Number,
+      default: 0
+    },
+    lockoutUntil: {
+      type: Date,
+      default: null
     }
   },
   {

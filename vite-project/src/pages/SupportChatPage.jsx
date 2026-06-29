@@ -587,6 +587,23 @@ export default function SupportChatPage() {
             -ms-overflow-style: none;
             scrollbar-width: none;
           }
+          .chip-button {
+            background: white;
+            border: 1px solid rgba(49, 134, 22, 0.15);
+            color: #111827;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .chip-button:hover {
+            background: linear-gradient(135deg, #318616, #4ca728);
+            color: white;
+            border-color: transparent;
+            transform: translateY(-2px);
+          }
         `}</style>
 
         {/* CHAT CONSOLE HEADER */}
@@ -594,16 +611,18 @@ export default function SupportChatPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span style={{
               ...logoBadgeStyle,
-              background: chatSession?.status === "active" 
-                ? "#dcfce7" 
-                : chatSession?.status === "waiting" || chatSession?.status === "connecting" 
-                  ? "#ffedd5" 
-                  : "#f3f4f6",
-              color: chatSession?.status === "active" 
-                ? "#318616" 
-                : chatSession?.status === "waiting" || chatSession?.status === "connecting" 
-                  ? "#f97316" 
-                  : "#6b7280"
+              background: (chatSession?.status === "active" || chatSession?.status === "waiting" || chatSession?.status === "connecting")
+                ? "#dcfce7"
+                : "rgba(255, 255, 255, 0.2)",
+              color: (chatSession?.status === "active" || chatSession?.status === "waiting" || chatSession?.status === "connecting")
+                ? "#15803d"
+                : "white",
+              backdropFilter: (chatSession?.status === "active" || chatSession?.status === "waiting" || chatSession?.status === "connecting")
+                ? "none"
+                : "blur(10px)",
+              WebkitBackdropFilter: (chatSession?.status === "active" || chatSession?.status === "waiting" || chatSession?.status === "connecting")
+                ? "none"
+                : "blur(10px)"
             }}>
               {chatSession?.status === "active" 
                 ? "🟢 Active" 
@@ -708,19 +727,30 @@ export default function SupportChatPage() {
                 <div
                   style={{
                     maxWidth: "75%",
-                    background: isSelf ? "#d9fdd3" : "#ffffff",
+                    background: isSelf
+                      ? "#d9fdd3"
+                      : isBot
+                        ? "linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(49, 134, 22, 0.08))"
+                        : "#ffffff",
                     color: "#111b21",
                     borderRadius: "16px",
                     borderTopRightRadius: isSelf ? "2px" : "16px",
                     borderTopLeftRadius: !isSelf ? "2px" : "16px",
                     padding: "10px 14px",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                    border: isSelf ? "none" : "1px solid #e5e7eb",
+                    border: isSelf ? "none" : isBot ? "none" : "1px solid #e5e7eb",
+                    borderLeft: isBot ? "4px solid #318616" : (isSelf ? "none" : "1px solid #e5e7eb"),
                     fontSize: "14px",
                     lineHeight: "1.5",
                   }}
                 >
-                  <div style={{ fontWeight: "750", fontSize: "11px", opacity: 0.8, marginBottom: "4px", color: isSelf ? "#15803d" : "#0284c7" }}>
+                  <div style={{
+                    fontWeight: isBot ? "700" : "750",
+                    fontSize: "11px",
+                    opacity: isBot ? 1 : 0.8,
+                    marginBottom: "4px",
+                    color: isSelf ? "#15803d" : (isBot ? "#318616" : "#0284c7")
+                  }}>
                     {msg.senderName}
                   </div>
                   <div>{msg.message}</div>
@@ -745,18 +775,18 @@ export default function SupportChatPage() {
               <div
                 style={{
                   maxWidth: "75%",
-                  background: "#ffffff",
+                  background: "linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(49, 134, 22, 0.08))",
                   color: "#111b21",
                   borderRadius: "16px",
                   borderTopLeftRadius: "2px",
                   padding: "10px 14px",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                  border: "1px solid #e5e7eb",
+                  borderLeft: "4px solid #318616",
                   fontSize: "14px",
                   lineHeight: "1.5",
                 }}
               >
-                <div style={{ fontWeight: "750", fontSize: "11px", opacity: 0.8, marginBottom: "6px", color: "#0284c7" }}>
+                <div style={{ fontWeight: "700", fontSize: "11px", marginBottom: "6px", color: "#318616" }}>
                   Buyto BOT
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 0" }}>
@@ -816,17 +846,7 @@ export default function SupportChatPage() {
                   <button
                     key={option}
                     onClick={() => handleBotOption(option)}
-                    style={chipButtonStyle}
-                    onMouseOver={(e) => {
-                      e.target.style.background = "#318616";
-                      e.target.style.color = "white";
-                      e.target.style.borderColor = "#318616";
-                    }}
-                    onMouseOut={(e) => {
-                      e.target.style.background = "white";
-                      e.target.style.color = "#111827";
-                      e.target.style.borderColor = "#e5e7eb";
-                    }}
+                    className="chip-button"
                   >
                     {option}
                   </button>
@@ -1004,10 +1024,12 @@ const chatConsoleStyle = {
   height: "calc(100vh - 32px)",
   minHeight: "480px",
   maxHeight: "760px",
-  background: "#ffffff",
+  background: "linear-gradient(135deg, rgba(245, 158, 11, 0.10) 0%, rgba(49, 134, 22, 0.08) 100%)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
   borderRadius: "28px",
-  boxShadow: "0 12px 40px rgba(17, 24, 39, 0.06)",
-  border: "1px solid #e5e7eb",
+  boxShadow: "0 10px 35px rgba(49, 134, 22, 0.12)",
+  border: "1px solid rgba(49, 134, 22, 0.12)",
   display: "flex",
   flexDirection: "column",
   overflow: "hidden"
@@ -1015,11 +1037,11 @@ const chatConsoleStyle = {
 
 const headerStyle = {
   padding: "16px 20px",
-  borderBottom: "1px solid #e5e7eb",
+  borderBottom: "1px solid rgba(49, 134, 22, 0.12)",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  background: "#ffffff"
+  background: "linear-gradient(90deg, #318616 0%, #6fbf3a 40%, #f59e0b 100%)"
 };
 
 const logoBadgeStyle = {
@@ -1036,13 +1058,13 @@ const logoBadgeStyle = {
 const headerTitleStyle = {
   margin: 0,
   fontSize: "15px",
-  fontWeight: "850",
-  color: "#111827"
+  fontWeight: "700",
+  color: "white"
 };
 
 const headerSubtitleStyle = {
   fontSize: "12px",
-  color: "#6b7280",
+  color: "rgba(255, 255, 255, 0.9)",
   fontWeight: "600"
 };
 
@@ -1056,47 +1078,51 @@ const greenBannerStyle = {
 };
 
 const closeConsoleBtnStyle = {
-  background: "#f3f4f6",
+  background: "linear-gradient(135deg, #f59e0b, #ffb81c)",
+  border: "none",
+  padding: "8px 14px",
+  borderRadius: "10px",
+  cursor: "pointer",
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "white"
+};
+
+const endChatBtnStyle = {
+  background: "rgba(255, 255, 255, 0.2)",
+  color: "white",
   border: "none",
   padding: "8px 14px",
   borderRadius: "10px",
   cursor: "pointer",
   fontSize: "12px",
   fontWeight: "700",
-  color: "#4b5563"
-};
-
-const endChatBtnStyle = {
-  background: "rgba(239, 68, 68, 0.08)",
-  color: "#ef4444",
-  border: "none",
-  padding: "8px 14px",
-  borderRadius: "10px",
-  cursor: "pointer",
-  fontSize: "12px",
-  fontWeight: "700"
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)"
 };
 
 const messagesWindowStyle = {
   flex: 1,
   padding: "20px",
   overflowY: "auto",
-  background: "#F9FAFB"
+  background: "transparent"
 };
 
 const inputFormStyle = {
   padding: "14px 20px",
-  borderTop: "1px solid #e5e7eb",
+  borderTop: "1px solid rgba(49, 134, 22, 0.12)",
   display: "flex",
   gap: "10px",
-  background: "#ffffff"
+  background: "rgba(255, 255, 255, 0.6)",
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)"
 };
 
 const textInputStyle = {
   flex: 1,
   height: "46px",
   borderRadius: "12px",
-  border: "1.5px solid #e5e7eb",
+  border: "1.5px solid rgba(49, 134, 22, 0.15)",
   padding: "0 16px",
   fontSize: "14px",
   fontWeight: "600",
@@ -1108,19 +1134,21 @@ const textInputStyle = {
 const sendBtnStyle = {
   height: "46px",
   padding: "0 22px",
-  background: "#FF4D4F",
+  background: "#318616",
   color: "white",
   border: "none",
   borderRadius: "12px",
   fontWeight: "750",
   fontSize: "14px",
   cursor: "pointer",
-  boxShadow: "0 4px 12px rgba(255, 77, 79, 0.2)"
+  boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)"
 };
 
 const chipsContainerStyle = {
-  background: "white",
-  border: "1px solid #e5e7eb",
+  background: "rgba(255, 255, 255, 0.75)",
+  backdropFilter: "blur(16px)",
+  WebkitBackdropFilter: "blur(16px)",
+  border: "1px solid rgba(49, 134, 22, 0.12)",
   borderRadius: "18px",
   padding: "16px",
   marginTop: "20px",
@@ -1138,7 +1166,7 @@ const chipsHeadingStyle = {
 
 const chipButtonStyle = {
   background: "white",
-  border: "1.5px solid #e5e7eb",
+  border: "1px solid rgba(49, 134, 22, 0.15)",
   color: "#111827",
   padding: "8px 14px",
   borderRadius: "12px",

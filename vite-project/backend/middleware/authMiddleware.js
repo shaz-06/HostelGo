@@ -13,6 +13,7 @@ const authMiddleware = async (req, res, next) => {
       console.log("Decoded Token Payload:", decoded);
 
       req.user = await User.findById(decoded.id).select("-password");
+      req.tokenPayload = decoded;
 
       if (!req.user) {
         console.error("❌ JWT Verify: User not found in database for ID in token");

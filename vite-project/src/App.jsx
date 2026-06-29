@@ -29,7 +29,7 @@ import HorizontalProductSection from "./HorizontalProductSection";
 import TrendingThisWeek from "./components/TrendingThisWeek";
 import MobileBannerCarousel from "./components/mobile/MobileBannerCarousel";
 import Header, { CategoryStrip } from "./components/common/Header";
-import { requestPermissions, registerDevice, registerListeners } from "./services/pushNotifications";
+
 import ProductCard from "./ProductCard";
 import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
 import OnboardingBottomSheet from "./components/common/OnboardingBottomSheet";
@@ -42,13 +42,17 @@ const UserDetails = lazy(() => import("./pages/UserDetails"));
 const PaymentPage = lazy(() => import("./pages/PaymentPage"));
 const SuccessPage = lazy(() => import("./pages/SuccessPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const WalletPage = lazy(() => import("./pages/WalletPage"));
+const BuyCoinsTransactionsPage = lazy(() => import("./pages/BuyCoinsTransactionsPage"));
+const BuyCoinsRewardsPage = lazy(() => import("./pages/BuyCoinsRewardsPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
 const SectionProductsPage = lazy(() => import("./pages/SectionProductsPage"));
 const ProductDetailsPage = lazy(() => import("./pages/ProductDetailsPage"));
 const CategoryProductsPage = lazy(() => import("./pages/CategoryProductsPage"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminVerification = lazy(() => import("./pages/AdminVerification"));
 const AdminOrdersPage = lazy(() => import("./pages/AdminOrdersPage"));
 const AdminProductsPage = lazy(() => import("./pages/AdminProductsPage"));
 const AdminRidersPage = lazy(() => import("./pages/AdminRidersPage"));
@@ -58,6 +62,8 @@ const RiderSignup = lazy(() => import("./pages/RiderSignup"));
 const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage"));
 const SupportChatPage = lazy(() => import("./pages/SupportChatPage"));
 const AdminSupportPage = lazy(() => import("./pages/AdminSupportPage"));
+const AdminNotificationsPage = lazy(() => import("./pages/AdminNotificationsPage"));
+
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const ShoppingListPage = lazy(() => import("./pages/ShoppingListPage"));
 const ShoppingListResultsPage = lazy(() => import("./pages/ShoppingListResultsPage"));
@@ -638,7 +644,7 @@ function AppContent({ onReady }) {
   const FREE_DELIVERY_THRESHOLD = 99;
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, token, logout, syncFCMToken } = useContext(AuthContext);
+  const { user, token, logout } = useContext(AuthContext);
   const isLoggedIn = !!user && !user.isGuest;
   const [products, setProducts] = useState([]);
 
@@ -948,66 +954,7 @@ function AppContent({ onReady }) {
 
 
 
-  // Set up Firebase Push Notifications at app startup
-  useEffect(() => {
-    console.log("App mounted");
-    console.log("Initializing push notifications");
-    const initPushNotifications = async () => {
-      try {
-        if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable("PushNotifications")) {
-          console.warn("[App Push] PushNotifications plugin unavailable");
-          return;
-        }
 
-        // 1. Register event listeners for notifications & clicks
-        registerListeners(
-          (fcmTokenValue) => {
-            console.log("[App Push] FCM Token received:", fcmTokenValue);
-            if (token) {
-              syncFCMToken(token);
-            }
-          },
-          (notification) => {
-            console.log("[App Push] Received push notification in foreground:", notification);
-            setPushToast({
-              title: notification.title || "New Notification",
-              body: notification.body || "",
-              deepLink: notification.data?.deepLink || (notification.data?.type === "ORDER" ? `/orders/${notification.data.orderId}` : null),
-              visible: true
-            });
-            setTimeout(() => {
-              setPushToast(prev => ({ ...prev, visible: false }));
-            }, 6000);
-          },
-          (notification) => {
-            try {
-              console.log("[App Push] Action performed (notification clicked):", notification);
-              const data = notification.data || {};
-              const deepLink = data.deepLink || (data.type === "ORDER" && data.orderId ? `/orders/${data.orderId}` : null);
-              if (navigate && deepLink) {
-                navigate(deepLink);
-              } else if (navigate) {
-                navigate("/notifications");
-              }
-            } catch (err) {
-              console.error("[App Push] Error handling notification action click:", err);
-            }
-          }
-        );
-
-        // 2. Request permissions
-        const granted = await requestPermissions();
-        if (granted) {
-          // 3. Register device if permission granted
-          await registerDevice();
-        }
-      } catch (err) {
-        console.error("Startup crash in push notification setup:", err);
-      }
-    };
-
-    initPushNotifications();
-  }, [token, navigate]);
 
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
@@ -1805,10 +1752,22 @@ function AppContent({ onReady }) {
     );
   };
 
+  if (location.pathname === "/admin-verify") {
+    return <AdminVerification />;
+  }
+
   if (location.pathname === "/admin") {
     return (
       <AdminRoute>
         <AdminDashboard />
+      </AdminRoute>
+    );
+  }
+
+  if (location.pathname === "/admin/notifications") {
+    return (
+      <AdminRoute>
+        <AdminNotificationsPage />
       </AdminRoute>
     );
   }
@@ -1974,6 +1933,18 @@ function AppContent({ onReady }) {
         <Footer />
       </>
     );
+  }
+
+  if (location.pathname === "/settings") {
+    return wrapCustomerLayout(<SettingsPage />);
+  }
+
+  if (location.pathname === "/buycoins/transactions") {
+    return wrapCustomerLayout(<BuyCoinsTransactionsPage />);
+  }
+
+  if (location.pathname === "/buycoins/rewards") {
+    return wrapCustomerLayout(<BuyCoinsRewardsPage />);
   }
 
   if (location.pathname === "/privacy-policy") {

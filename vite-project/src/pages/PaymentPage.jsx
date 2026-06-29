@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { AuthContext } from "../context/AuthContext";
+import BuyCoin from "../components/common/BuyCoin";
 import { calculateBill } from "../utils/billCalculator";
 import CartBillDetails from "../components/CartBillDetails";
 
@@ -873,7 +874,7 @@ export default function PaymentPage({
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "18px" }}>🪙</span>
+                <span style={{ display: "flex", alignItems: "center" }}><BuyCoin size={18} /></span>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "750", color: "#374151" }}>
                     Use BuyCoins

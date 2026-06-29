@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import AddressSelectorModal from "../components/common/AddressSelectorModal";
+import BuyCoin from "../components/common/BuyCoin";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -20,6 +21,9 @@ export default function ProfilePage() {
   // UI state triggers
   const [activeSection, setActiveSection] = useState(""); // "orders" | "addresses" | "wallet" | "coupons" | ""
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [activeAddress, setActiveAddress] = useState(null);
+
+  const isDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port !== "";
 
   // Sync session & live profile details
   useEffect(() => {
@@ -42,6 +46,45 @@ export default function ProfilePage() {
     fetchLiveUser();
   }, [token]);
 
+  // Load stats & core data on mount
+  useEffect(() => {
+    if (!token) return;
+    // Load orders
+    fetch(window.API_BASE_URL + "/api/orders/my-orders", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setOrders(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Error loading orders for stats:", err));
+
+    // Load wallet
+    fetch(window.API_BASE_URL + "/api/buycoins/wallet", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setWallet(data.wallet);
+          setWalletTransactions(data.transactions || []);
+        }
+      })
+      .catch(err => console.error("Error loading wallet for stats:", err));
+  }, [token]);
+
+  // Update active address preview
+  useEffect(() => {
+    const saved = localStorage.getItem("selectedAddress");
+    if (saved) {
+      try {
+        setActiveAddress(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
+    } else if (liveUser?.addresses?.length > 0) {
+      setActiveAddress(liveUser.addresses[0]);
+    }
+  }, [liveUser]);
+
   // Load orders when active section is orders
   useEffect(() => {
     if (!token || activeSection !== "orders") return;
@@ -62,31 +105,6 @@ export default function ProfilePage() {
       }
     };
     fetchMyOrders();
-  }, [token, activeSection]);
-
-  // Load wallet when active section is wallet
-  useEffect(() => {
-    if (!token || activeSection !== "wallet") return;
-    const fetchWallet = async () => {
-      try {
-        setWalletLoading(true);
-        const res = await fetch(window.API_BASE_URL + "/api/buycoins/wallet", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            setWallet(data.wallet);
-            setWalletTransactions(data.transactions);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch wallet:", err);
-      } finally {
-        setWalletLoading(false);
-      }
-    };
-    fetchWallet();
   }, [token, activeSection]);
 
   // Load coupons when active section is coupons
@@ -118,19 +136,22 @@ export default function ProfilePage() {
     navigate("/");
   };
 
-  const getProgressWidth = (status) => {
-    switch (status) {
-      case "Order Placed": return "20%";
-      case "Preparing": return "40%";
-      case "Packed": return "55%";
-      case "Rider Assigned": return "70%";
-      case "Out for Delivery": return "85%";
-      case "Delivered": return "100%";
-      default: return "0%";
-    }
-  };
+  const memberDateStr = liveUser?.createdAt 
+    ? new Date(liveUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : "June 2026";
 
-  // 1. UNAUTHENTICATED ONBOARDING VIEW
+  const earnedThisMonth = walletTransactions
+    .filter(tx => {
+      if (!tx.createdAt) return false;
+      const txDate = new Date(tx.createdAt);
+      const now = new Date();
+      return txDate.getMonth() === now.getMonth() && 
+             txDate.getFullYear() === now.getFullYear() && 
+             ["earn", "earned", "bonus", "admin", "refund"].includes(tx.type);
+    })
+    .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+
+  // UNAUTHENTICATED ONBOARDING VIEW
   if (!isLoggedIn) {
     return (
       <div className="page-with-bottom-nav" style={containerStyle}>
@@ -143,7 +164,6 @@ export default function ProfilePage() {
 
           {/* Welcome Card */}
           <div style={welcomeCardStyle}>
-            {/* Pattern Background overlay */}
             <div style={patternOverlayStyle}></div>
             <h2 style={welcomeTitleStyle}>Hello 👋</h2>
             <p style={welcomeSubtitleStyle}>
@@ -155,10 +175,7 @@ export default function ProfilePage() {
           </div>
 
           <button 
-            onClick={() => {
-              console.log("Login button clicked");
-              openLogin();
-            }}
+            onClick={openLogin}
             style={primaryBtnStyle}
           >
             <span style={{ fontSize: "16px", fontWeight: "900" }}>Login / Sign Up</span>
@@ -175,7 +192,7 @@ export default function ProfilePage() {
               <span style={exploreCardTextStyle}>Exclusive Offers</span>
             </div>
             <div style={exploreCardStyle}>
-              <span style={{ fontSize: "28px" }}>🪙</span>
+              <span style={{ height: "28px", display: "flex", alignItems: "center" }}><BuyCoin size={28} /></span>
               <span style={exploreCardTextStyle}>BuyCoins Rewards</span>
             </div>
             <div style={exploreCardStyle}>
@@ -222,63 +239,171 @@ export default function ProfilePage() {
               <a href="https://twitter.com" target="_blank" rel="noreferrer" style={socialIconStyle}>🐦</a>
             </div>
           </div>
+
+          {/* Subtle footer */}
+          <div style={footerStyle}>
+            <p style={{ margin: 0, fontSize: "11px", fontWeight: "600", color: "#9ca3af" }}>
+              Made with ❤️ by Buyto
+            </p>
+            <p style={{ margin: "2px 0 0 0", fontSize: "10px", fontWeight: "500", color: "#bdc3c7" }}>
+              Version 1.0.0
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // 2. AUTHENTICATED USER PROFILE VIEW
   return (
     <div className="page-with-bottom-nav" style={containerStyle}>
       <div style={cardWrapperStyle}>
+        
+        {/* Global style injections for premium interactions */}
+        <style>{`
+          .menu-row-hover {
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          .menu-row-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            border-color: rgba(49, 134, 22, 0.2) !important;
+          }
+          .menu-row-hover:active {
+            transform: translateY(0px);
+          }
+          @keyframes coinSpin {
+            0% { transform: rotateY(0deg); }
+            50% { transform: rotateY(180deg); }
+            100% { transform: rotateY(360deg); }
+          }
+          .coin-spin {
+            animation: coinSpin 3s infinite linear;
+            display: inline-block;
+          }
+        `}</style>
+
         {/* Header */}
         <div style={headerStyle}>
           <button onClick={() => navigate(-1)} style={backBtnStyle}>←</button>
           <h1 style={titleStyle}>My Account</h1>
         </div>
 
-        {/* User Card Summary */}
-        <div style={userCardStyle}>
+        {/* 1. BUYTO HERO CARD */}
+        <div style={heroCardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <div style={avatarStyle}>
               {(liveUser?.name || "US").substring(0, 2).toUpperCase()}
             </div>
             <div>
-              <h2 style={userNameStyle}>{liveUser?.name || "Customer"}</h2>
-              <p style={userPhoneStyle}>{liveUser?.phone || "N/A"}</p>
+              <h2 style={{ fontSize: "20px", fontWeight: "900", margin: 0, color: "white" }}>
+                👋 Hello, {liveUser?.name || "Customer"}
+              </h2>
+              <p style={{ fontSize: "12.5px", color: "rgba(255, 255, 255, 0.9)", margin: "4px 0 0 0", fontWeight: "600" }}>
+                Member Since {memberDateStr}
+              </p>
             </div>
-          </div>
-
-          {/* BuyCoins Balance Card */}
-          <div 
-            onClick={() => setActiveSection(activeSection === "wallet" ? "" : "wallet")}
-            style={buyCoinsCardStyle}
-          >
-            <div>
-              <div style={buyCoinsCardLabelStyle}>BuyCoins Balance</div>
-              <div style={buyCoinsCardValueStyle}>
-                {liveUser?.buyCoins !== undefined ? liveUser.buyCoins : 0} Coins
-              </div>
-            </div>
-            <span style={{ fontSize: "28px" }}>🪙</span>
           </div>
         </div>
 
-        {/* Display Items List */}
-        <div style={menuContainerStyle}>
-          {/* My Orders */}
+        {/* 4. BUYTO STATS ROW */}
+        <div style={statsRowStyle}>
+          <div style={statItemStyle}>
+            <span style={{ fontSize: "18px", marginBottom: "4px" }}>📦</span>
+            <span style={statValStyle}>{orders.length}</span>
+            <span style={statLabelStyle}>Orders</span>
+          </div>
+          <div style={statItemStyle}>
+            <span style={{ height: "18px", display: "flex", alignItems: "center", marginBottom: "4px" }}><BuyCoin size={18} /></span>
+            <span style={statValStyle}>{liveUser?.buyCoins !== undefined ? liveUser.buyCoins : 0}</span>
+            <span style={statLabelStyle}>Coins</span>
+          </div>
+          <div style={statItemStyle}>
+            <span style={{ fontSize: "18px", marginBottom: "4px" }}>📍</span>
+            <span style={statValStyle}>{liveUser?.addresses?.length || 0}</span>
+            <span style={statLabelStyle}>Saved</span>
+          </div>
+        </div>
+
+        {/* 6. ACTIVE ADDRESS PREVIEW */}
+        <div 
+          onClick={() => setShowAddressModal(true)}
+          style={addressPreviewCardStyle}
+          className="menu-row-hover"
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "22px" }}>📍</span>
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: "800", color: "#9ca3af", textTransform: "uppercase" }}>Delivering To</div>
+              {activeAddress ? (
+                <div style={{ marginTop: "2px" }}>
+                  <div style={{ fontSize: "14px", fontWeight: "850", color: "#1f2937" }}>
+                    {activeAddress.apartment || "Saved Apartment"}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#6b7280", fontWeight: "600", marginTop: "1px" }}>
+                    Room {activeAddress.room || "N/A"} • Floor {activeAddress.floor || "N/A"} {activeAddress.landmark ? `• ${activeAddress.landmark}` : ""}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: "13px", fontWeight: "750", color: "#4b5563", marginTop: "2px" }}>
+                  No active address selected. Set up now.
+                </div>
+              )}
+            </div>
+          </div>
+          <span style={{ color: "#318616", fontWeight: "800", fontSize: "12px" }}>Manage →</span>
+        </div>
+
+        {/* 2. UPGRADED BUYCOINS WALLET CARD */}
+        <div style={buyCoinsWalletCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <span style={walletTitleBadgeStyle}>
+                <BuyCoin size={12} style={{ marginRight: "4px" }} /> BuyCoins Wallet
+              </span>
+              <div style={{ fontSize: "24px", fontWeight: "900", color: "#78350f", marginTop: "12px" }}>
+                {liveUser?.buyCoins !== undefined ? liveUser.buyCoins : 0} Coins Available
+              </div>
+              <p style={{ fontSize: "12px", color: "#6b7280", margin: "4px 0 0 0", fontWeight: "600" }}>
+                Earn rewards on every order • Earned this month: {earnedThisMonth} Coins
+              </p>
+            </div>
+            <span className="coin-spin" style={{ fontSize: "36px" }}><BuyCoin size={36} animate={true} /></span>
+          </div>
+          
+          <div style={{ marginTop: "16px", display: "flex", gap: "10px" }}>
+            <button 
+              onClick={() => navigate("/buycoins/transactions")}
+              style={walletOutlineBtnStyle}
+            >
+              View Transactions
+            </button>
+            <button 
+              onClick={() => navigate("/buycoins/rewards")}
+              style={walletSolidBtnStyle}
+            >
+              Redeem Rewards
+            </button>
+          </div>
+        </div>
+
+        {/* 3. GROUPED SECTIONS & MENU ITEMS */}
+        
+        {/* Section: Orders */}
+        <h3 style={groupHeaderStyle}>Orders</h3>
+        <div style={groupContainerStyle}>
           <div 
             onClick={() => setActiveSection(activeSection === "orders" ? "" : "orders")}
-            style={menuItemStyle(activeSection === "orders")}
+            style={groupRowStyle}
+            className="menu-row-hover"
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "18px" }}>📦</span>
-              <span>My Orders</span>
+              <span style={{ fontSize: "18px", color: "#318616" }}>📦</span>
+              <span style={menuItemLabelStyle}>My Orders</span>
             </div>
-            <span style={menuItemArrowStyle(activeSection === "orders")}>▶</span>
+            <span style={rowArrowStyle(activeSection === "orders")}>▶</span>
           </div>
 
-          {/* My Orders Expanded Content */}
+          {/* Expanded orders */}
           {activeSection === "orders" && (
             <div style={expandedSectionStyle}>
               {ordersLoading ? (
@@ -299,7 +424,7 @@ export default function ProfilePage() {
                       <div style={{ marginTop: "10px", borderBottom: "1px dashed #f1f5f9", paddingBottom: "10px" }}>
                         {order.products?.map((prod, idx) => (
                           <div key={idx} style={orderProductRowStyle}>
-                            <span style={{ fontWeight: "700" }}>{prod.name} x{prod.quantity}</span>
+                            <span style={{ fontWeight: "750" }}>{prod.name} x{prod.quantity}</span>
                             <span>₹{prod.price * prod.quantity}</span>
                           </div>
                         ))}
@@ -322,31 +447,51 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Saved Addresses */}
+          <div 
+            onClick={() => navigate("/help")}
+            style={{ ...groupRowStyle, borderBottom: "none" }}
+            className="menu-row-hover"
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px", color: "#318616" }}>🔄</span>
+              <span style={menuItemLabelStyle}>Returns & Refunds</span>
+            </div>
+            <span style={{ color: "#9ca3af", fontWeight: "700" }}>→</span>
+          </div>
+        </div>
+
+        {/* Section: Addresses */}
+        <h3 style={groupHeaderStyle}>Addresses</h3>
+        <div style={groupContainerStyle}>
           <div 
             onClick={() => setShowAddressModal(true)}
-            style={menuItemStyle(false)}
+            style={{ ...groupRowStyle, borderBottom: "none" }}
+            className="menu-row-hover"
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "18px" }}>📍</span>
-              <span>Saved Addresses</span>
+              <span style={{ fontSize: "18px", color: "#318616" }}>📍</span>
+              <span style={menuItemLabelStyle}>Saved Addresses</span>
             </div>
-            <span style={{ color: "#9ca3af" }}>→</span>
+            <span style={{ color: "#9ca3af", fontWeight: "700" }}>→</span>
           </div>
+        </div>
 
-          {/* BuyCoins Wallet */}
+        {/* Section: Rewards */}
+        <h3 style={groupHeaderStyle}>Rewards</h3>
+        <div style={groupContainerStyle}>
           <div 
             onClick={() => setActiveSection(activeSection === "wallet" ? "" : "wallet")}
-            style={menuItemStyle(activeSection === "wallet")}
+            style={groupRowStyle}
+            className="menu-row-hover"
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "18px" }}>🪙</span>
-              <span>BuyCoins Wallet</span>
+              <span style={{ display: "flex", alignItems: "center" }}><BuyCoin size={18} /></span>
+              <span style={menuItemLabelStyle}>BuyCoins Wallet</span>
             </div>
-            <span style={menuItemArrowStyle(activeSection === "wallet")}>▶</span>
+            <span style={rowArrowStyle(activeSection === "wallet")}>▶</span>
           </div>
 
-          {/* Wallet Expanded Content */}
+          {/* Expanded Wallet */}
           {activeSection === "wallet" && (
             <div style={expandedSectionStyle}>
               {walletLoading ? (
@@ -393,19 +538,19 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Offers & Rewards */}
           <div 
             onClick={() => setActiveSection(activeSection === "coupons" ? "" : "coupons")}
-            style={menuItemStyle(activeSection === "coupons")}
+            style={{ ...groupRowStyle, borderBottom: "none" }}
+            className="menu-row-hover"
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "18px" }}>🎁</span>
-              <span>Offers & Rewards</span>
+              <span style={{ fontSize: "18px", color: "#f59e0b" }}>🎁</span>
+              <span style={menuItemLabelStyle}>Offers & Rewards</span>
             </div>
-            <span style={menuItemArrowStyle(activeSection === "coupons")}>▶</span>
+            <span style={rowArrowStyle(activeSection === "coupons")}>▶</span>
           </div>
 
-          {/* Coupons Expanded Content */}
+          {/* Expanded coupons */}
           {activeSection === "coupons" && (
             <div style={expandedSectionStyle}>
               {couponsLoading ? (
@@ -428,43 +573,85 @@ export default function ProfilePage() {
               )}
             </div>
           )}
+        </div>
 
-          {/* Help & Support */}
+        {/* Section: Support */}
+        <h3 style={groupHeaderStyle}>Support</h3>
+        <div style={groupContainerStyle}>
           <div 
             onClick={() => navigate("/help")}
-            style={menuItemStyle(false)}
+            style={groupRowStyle}
+            className="menu-row-hover"
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "18px" }}>☎</span>
-              <span>Help & Support</span>
+              <span style={{ fontSize: "18px", color: "#318616" }}>💬</span>
+              <span style={menuItemLabelStyle}>Help & Support</span>
             </div>
-            <span style={{ color: "#9ca3af" }}>→</span>
+            <span style={{ color: "#9ca3af", fontWeight: "700" }}>→</span>
           </div>
-
-          {/* Logout */}
           <div 
-            onClick={handleLogoutClick}
-            style={{ ...menuItemStyle(false), borderBottom: "none", color: "#ef4444" }}
+            onClick={() => navigate("/contact")}
+            style={{ ...groupRowStyle, borderBottom: "none" }}
+            className="menu-row-hover"
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "18px" }}>🚪</span>
-              <span>Logout</span>
+              <span style={{ fontSize: "18px", color: "#318616" }}>📞</span>
+              <span style={menuItemLabelStyle}>Contact Us</span>
             </div>
-            <span style={{ color: "#ef4444" }}>→</span>
+            <span style={{ color: "#9ca3af", fontWeight: "700" }}>→</span>
           </div>
         </div>
 
-        {/* Temporary/Dev OTP Test Screen route link */}
-        <button
-          onClick={() => navigate("/otp-test")}
-          style={otpTestBtnStyle}
-        >
-          🧪 Run OTP Test Screen
-        </button>
+        {/* Section: Account */}
+        <h3 style={groupHeaderStyle}>Account</h3>
+        <div style={groupContainerStyle}>
+          <div 
+            onClick={() => navigate("/settings")}
+            style={groupRowStyle}
+            className="menu-row-hover"
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px", color: "#318616" }}>⚙️</span>
+              <span style={menuItemLabelStyle}>Settings</span>
+            </div>
+            <span style={{ color: "#9ca3af", fontWeight: "700" }}>→</span>
+          </div>
+          <div 
+            onClick={handleLogoutClick}
+            style={{ ...groupRowStyle, borderBottom: "none" }}
+            className="menu-row-hover"
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "18px", color: "#ef4444" }}>🚪</span>
+              <span style={{ ...menuItemLabelStyle, color: "#ef4444" }}>Logout</span>
+            </div>
+            <span style={{ color: "#ef4444", fontWeight: "700" }}>→</span>
+          </div>
+        </div>
+
+        {/* 7. OTP TEST SCREEN BUTTON - CONDITIONAL */}
+        {isDev && (
+          <button
+            onClick={() => navigate("/otp-test")}
+            style={otpTestBtnStyle}
+          >
+            🧪 Run OTP Test Screen (Dev Only)
+          </button>
+        )}
+
+        {/* 8. BOTTOM BRANDING */}
+        <div style={footerStyle}>
+          <p style={{ margin: 0, fontSize: "11px", fontWeight: "600", color: "#9ca3af" }}>
+            Made with ❤️ by Buyto
+          </p>
+          <p style={{ margin: "2px 0 0 0", fontSize: "10px", fontWeight: "500", color: "#bdc3c7" }}>
+            Version 1.0.0
+          </p>
+        </div>
 
       </div>
 
-      {/* Render Address modal dynamically if click trigger is active */}
+      {/* Render Address selector modal */}
       {showAddressModal && (
         <AddressSelectorModal 
           onClose={() => setShowAddressModal(false)}
@@ -476,7 +663,7 @@ export default function ProfilePage() {
   );
 }
 
-// STYLE OBJECTS
+// PREMIUM STYLING DICTIONARY (MOBILE-FIRST)
 const containerStyle = {
   minHeight: "100vh",
   background: "#f7f8fa",
@@ -484,19 +671,21 @@ const containerStyle = {
   fontFamily: "'Outfit', 'Inter', sans-serif",
   display: "flex",
   justifyContent: "center",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
+  overflowX: "hidden"
 };
 
 const cardWrapperStyle = {
   width: "100%",
-  maxWidth: "500px"
+  maxWidth: "500px",
+  boxSizing: "border-box"
 };
 
 const headerStyle = {
   display: "flex",
   alignItems: "center",
   gap: "16px",
-  marginBottom: "20px"
+  marginBottom: "16px"
 };
 
 const backBtnStyle = {
@@ -661,104 +850,174 @@ const socialIconStyle = {
   textDecoration: "none"
 };
 
-// Authenticated Styles
-const userCardStyle = {
-  background: "white",
+// Authenticated styles
+const heroCardStyle = {
+  background: "linear-gradient(135deg, #318616 0%, #4ca728 50%, #f59e0b 100%)",
   borderRadius: "24px",
   padding: "24px",
-  border: "1px solid #e5e7eb",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.02)",
-  marginBottom: "20px"
+  boxShadow: "0 10px 30px rgba(49, 134, 22, 0.15)",
+  marginBottom: "16px",
+  color: "white",
+  position: "relative",
+  overflow: "hidden"
 };
 
 const avatarStyle = {
   width: "56px",
   height: "56px",
   borderRadius: "50%",
-  background: "linear-gradient(135deg, #318616 0%, #286f12 100%)",
-  color: "white",
-  fontWeight: "850",
+  background: "white",
+  color: "#318616",
+  fontWeight: "900",
   fontSize: "20px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)"
+  border: "3px solid white",
+  boxShadow: "0 0 15px rgba(76, 167, 40, 0.6)"
 };
 
-const userNameStyle = {
-  fontSize: "18px",
-  fontWeight: "900",
-  margin: 0,
-  color: "#111827"
+const statsRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr",
+  gap: "12px",
+  marginBottom: "16px"
 };
 
-const userPhoneStyle = {
-  fontSize: "13px",
-  color: "#6b7280",
-  margin: "2px 0 0 0",
-  fontWeight: "600"
-};
-
-const buyCoinsCardStyle = {
-  background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
-  border: "1.5px solid #fde68a",
+const statItemStyle = {
+  background: "#f0fdf4",
+  border: "1px solid #dcfce7",
   borderRadius: "18px",
-  padding: "14px 18px",
-  marginTop: "20px",
+  padding: "12px 8px",
+  textAlign: "center",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center"
+};
+
+const statValStyle = {
+  fontSize: "16px",
+  fontWeight: "900",
+  color: "#166534"
+};
+
+const statLabelStyle = {
+  fontSize: "11px",
+  fontWeight: "700",
+  color: "#318616",
+  marginTop: "2px"
+};
+
+const addressPreviewCardStyle = {
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "20px",
+  padding: "16px",
+  marginBottom: "16px",
+  cursor: "pointer",
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
-  cursor: "pointer",
-  boxShadow: "0 4px 12px rgba(251, 191, 36, 0.05)"
+  justifyContent: "space-between"
 };
 
-const buyCoinsCardLabelStyle = {
-  fontSize: "10px",
+const buyCoinsWalletCardStyle = {
+  background: "linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(49, 134, 22, 0.08) 100%)",
+  border: "1px solid rgba(245, 158, 11, 0.2)",
+  borderRadius: "24px",
+  padding: "20px",
+  marginBottom: "20px",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+  boxShadow: "0 8px 30px rgba(245, 158, 11, 0.05)",
+  position: "relative",
+  overflow: "hidden"
+};
+
+const walletTitleBadgeStyle = {
+  fontSize: "11px",
   fontWeight: "800",
   color: "#b45309",
+  background: "#fef3c7",
+  padding: "4px 10px",
+  borderRadius: "20px",
+  textTransform: "uppercase"
+};
+
+const walletOutlineBtnStyle = {
+  flex: 1,
+  background: "white",
+  color: "#78350f",
+  border: "1px solid #fde68a",
+  borderRadius: "12px",
+  padding: "10px",
+  fontSize: "12px",
+  fontWeight: "800",
+  cursor: "pointer",
+  textAlign: "center"
+};
+
+const walletSolidBtnStyle = {
+  flex: 1,
+  background: "linear-gradient(135deg, #f59e0b, #ffb81c)",
+  color: "white",
+  border: "none",
+  borderRadius: "12px",
+  padding: "10px",
+  fontSize: "12px",
+  fontWeight: "800",
+  cursor: "pointer",
+  textAlign: "center",
+  boxShadow: "0 4px 10px rgba(245, 158, 11, 0.2)"
+};
+
+const groupHeaderStyle = {
+  fontSize: "14px",
+  fontWeight: "850",
+  color: "#4b5563",
+  margin: "24px 0 8px 0",
+  paddingLeft: "4px",
   textTransform: "uppercase",
   letterSpacing: "0.5px"
 };
 
-const buyCoinsCardValueStyle = {
-  fontSize: "18px",
-  fontWeight: "900",
-  color: "#78350f",
-  marginTop: "2px"
-};
-
-const menuContainerStyle = {
+const groupContainerStyle = {
   background: "#ffffff",
-  borderRadius: "24px",
+  borderRadius: "20px",
   border: "1px solid #e5e7eb",
   overflow: "hidden",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.02)",
-  marginBottom: "20px"
+  boxShadow: "0 4px 12px rgba(0,0,0,0.01)"
 };
 
-const menuItemStyle = (isOpen) => ({
+const groupRowStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  padding: "20px 24px",
+  padding: "16px 20px",
   fontSize: "14px",
   fontWeight: "800",
   color: "#1f2937",
   cursor: "pointer",
   borderBottom: "1px solid #f3f4f6",
-  background: isOpen ? "#f9fafb" : "transparent"
-});
+  boxSizing: "border-box"
+};
 
-const menuItemArrowStyle = (isOpen) => ({
+const menuItemLabelStyle = {
+  fontSize: "14.5px",
+  fontWeight: "750",
+  color: "#1f2937"
+};
+
+const rowArrowStyle = (isOpen) => ({
   fontSize: "10px",
   color: "#9ca3af",
   transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
-  transition: "transform 0.15s ease"
+  transition: "transform 0.15s ease",
+  display: "inline-block"
 });
 
 const expandedSectionStyle = {
   background: "#f9fafb",
-  padding: "16px 24px",
+  padding: "16px 20px",
   borderBottom: "1px solid #f3f4f6"
 };
 
@@ -900,5 +1159,11 @@ const otpTestBtnStyle = {
   fontSize: "13px",
   cursor: "pointer",
   boxShadow: "0 4px 12px rgba(245, 158, 11, 0.03)",
-  marginTop: "12px"
+  marginTop: "24px"
+};
+
+const footerStyle = {
+  textAlign: "center",
+  marginTop: "32px",
+  marginBottom: "16px"
 };

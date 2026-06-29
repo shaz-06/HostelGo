@@ -59,8 +59,9 @@ export default function AdminDashboard() {
       if (statsRes.ok && historyRes.ok) {
         const statsData = await statsRes.json();
         const historyData = await historyRes.json();
+        console.log("history API response:", historyData);
         setNotifStats(statsData);
-        setNotifHistory(historyData);
+        setNotifHistory(Array.isArray(historyData) ? historyData : (historyData?.history || historyData?.campaigns || historyData?.notifications || []));
       }
     } catch (err) {
       console.error("Failed to fetch notification stats/history:", err);
@@ -92,7 +93,9 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           title: notifTitle,
+          message: notifBody,
           body: notifBody,
+          type: "Announcement",
           image: notifImage || null,
           target: notifTarget,
           selectedEmails: notifTarget === "selected" ? notifEmails : null
@@ -100,8 +103,9 @@ export default function AdminDashboard() {
       });
 
       const data = await res.json();
-      if (res.ok && data.success) {
-        alert(`Notification campaign dispatched successfully to ${data.recipientsCount} customers!`);
+      if (res.ok && (data.success || data.recipientCount !== undefined)) {
+        const recipients = data.recipientCount || data.recipientsCount || 0;
+        alert(`Notification campaign dispatched successfully to ${recipients} customers!`);
         setNotifTitle("");
         setNotifBody("");
         setNotifImage("");
@@ -175,6 +179,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    console.log("DASHBOARD OPENED");
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -193,7 +198,7 @@ export default function AdminDashboard() {
           try {
             const errData = await analyticsRes.json();
             errMsg = errData.message || errMsg;
-          } catch (e) {}
+          } catch (e) { }
           console.error("=== [FRONTEND ANALYTICS FETCH ERROR] ===");
           console.error("Status Code:", status);
           console.error("Response Message:", errMsg);
@@ -215,7 +220,7 @@ export default function AdminDashboard() {
           try {
             const errData = await ordersRes.json();
             errMsg = errData.message || errMsg;
-          } catch (e) {}
+          } catch (e) { }
           console.error("=== [FRONTEND ORDERS FETCH ERROR] ===");
           console.error("Status Code:", status);
           console.error("Response Message:", errMsg);
@@ -258,7 +263,7 @@ export default function AdminDashboard() {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
-      
+
       if (analyticsRes.ok && txRes.ok) {
         const analyticsData = await analyticsRes.json();
         const txData = await txRes.json();
@@ -286,7 +291,7 @@ export default function AdminDashboard() {
       alert("All fields are required");
       return;
     }
-    
+
     try {
       setIsAdjusting(true);
       const token = localStorage.getItem("buyto_token");
@@ -303,7 +308,7 @@ export default function AdminDashboard() {
           reason: adjustReason
         })
       });
-      
+
       const data = await res.json();
       if (res.ok && data.success) {
         alert("Coins adjusted successfully!");
@@ -320,6 +325,181 @@ export default function AdminDashboard() {
     } finally {
       setIsAdjusting(false);
     }
+  };
+
+  const renderNotificationsView = () => {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "24px", fontFamily: "'Outfit', 'Inter', sans-serif", maxWidth: "800px", margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", borderBottom: "2px solid #f1f5f9", paddingBottom: "16px" }}>
+          <span style={{ fontSize: "32px" }}>🔔</span>
+          <div>
+            <h2 style={{ fontSize: "24px", fontWeight: "900", color: "#0f172a", margin: 0 }}>Push Notification Broadcast</h2>
+            <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "14px", fontWeight: "550" }}>
+              Manually compose and send push notifications directly to all registered users' mobile devices instantly.
+            </p>
+          </div>
+        </div>
+
+        <div style={{
+          background: "#ffffff",
+          borderRadius: "24px",
+          padding: "32px",
+          border: "1.5px solid #e2e8f0",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.03)"
+        }}>
+          <form onSubmit={handleSendNotification} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label style={{ fontSize: "13px", fontWeight: "800", color: "#334155", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Notification Title
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 🎁 Special Weekend Offer: 50% OFF!"
+                value={notifTitle}
+                onChange={(e) => setNotifTitle(e.target.value)}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: "14px",
+                  border: "1.5px solid #cbd5e1",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  color: "#1e293b",
+                  outline: "none",
+                  transition: "border-color 0.2s"
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label style={{ fontSize: "13px", fontWeight: "800", color: "#334155", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Notification Message Body
+              </label>
+              <textarea
+                required
+                rows="4"
+                placeholder="e.g. Get free delivery and flat 50% discount on all orders placed today. Hurry, offer valid while stocks last!"
+                value={notifBody}
+                onChange={(e) => setNotifBody(e.target.value)}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: "14px",
+                  border: "1.5px solid #cbd5e1",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  color: "#1e293b",
+                  resize: "vertical",
+                  outline: "none",
+                  lineHeight: "1.5",
+                  transition: "border-color 0.2s"
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label style={{ fontSize: "13px", fontWeight: "800", color: "#334155", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Image URL (Optional)
+              </label>
+              <input
+                type="url"
+                placeholder="e.g. https://images.unsplash.com/photo-..."
+                value={notifImage}
+                onChange={(e) => setNotifImage(e.target.value)}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: "14px",
+                  border: "1.5px solid #cbd5e1",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  color: "#1e293b",
+                  outline: "none",
+                  transition: "border-color 0.2s"
+                }}
+              />
+            </div>
+
+            <div style={{ marginTop: "12px", borderTop: "1.5px solid #f1f5f9", paddingTop: "24px" }}>
+              <button
+                type="submit"
+                disabled={notifSending}
+                style={{
+                  width: "100%",
+                  padding: "16px 24px",
+                  borderRadius: "16px",
+                  background: notifSending ? "#94a3b8" : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  color: "white",
+                  border: "none",
+                  fontWeight: "900",
+                  fontSize: "16px",
+                  cursor: notifSending ? "not-allowed" : "pointer",
+                  boxShadow: notifSending ? "none" : "0 8px 20px rgba(16, 185, 129, 0.25)",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                {notifSending ? "Dispatching Broadcast Push..." : "🚀 Send Broadcast Notification"}
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSettingsView = () => {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "24px", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+        <h2 style={{ fontSize: "22px", fontWeight: "850", color: "#0f172a", margin: 0 }}>⚙️ Admin Settings</h2>
+
+        <div style={cardLayoutStyle}>
+          <h3 style={cardTitleStyle}>Alert Preferences</h3>
+          <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
+            Toggle preferences to receive real-time updates and push notifications.
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "24px" }}>
+            {[
+              { key: "newOrderAlerts", label: "New Order Alerts", desc: "Notify when a customer places a new order" },
+              { key: "riderAlerts", label: "Rider Alerts", desc: "Notify when a rider changes status or updates delivery" },
+              { key: "lowStockAlerts", label: "Low Stock Alerts", desc: "Notify when products fall below safe stock levels" },
+              { key: "newUserRegistrations", label: "New User Registrations", desc: "Notify when a new customer registers on Buyto" }
+            ].map((pref) => (
+              <div key={pref.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", borderRadius: "12px", border: "1.5px solid #F3F4F6", background: "#FAFBFD" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "14px", fontWeight: "800", color: "#1F2937" }}>{pref.label}</span>
+                  <span style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>{pref.desc}</span>
+                </div>
+                <div
+                  onClick={() => handleTogglePref(pref.key, !adminPreferences[pref.key])}
+                  style={{
+                    width: "50px",
+                    height: "26px",
+                    borderRadius: "13px",
+                    background: adminPreferences[pref.key] ? "#318616" : "#E5E7EB",
+                    position: "relative",
+                    cursor: "pointer",
+                    transition: "background-color 0.2s"
+                  }}
+                >
+                  <div style={{
+                    width: "20px",
+                    height: "20px",
+                    borderRadius: "50%",
+                    background: "white",
+                    position: "absolute",
+                    top: "3px",
+                    left: adminPreferences[pref.key] ? "27px" : "3px",
+                    transition: "left 0.2s",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                  }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -358,7 +538,7 @@ export default function AdminDashboard() {
               <span style={{ color: "#6B7280", fontSize: "12px", fontWeight: "600" }}>Administrator</span>
             </div>
           </div>
-          
+
           <div style={navGroupStyle}>
             <button onClick={() => setActiveView("overview")} style={activeView === "overview" ? activeNavLinkStyle : navLinkStyle}>
               📊 Dashboard Overview
@@ -390,6 +570,9 @@ export default function AdminDashboard() {
             <button onClick={() => setActiveView("categories")} style={activeView === "categories" ? activeNavLinkStyle : navLinkStyle}>
               🗂️ Navigation Categories
             </button>
+            <button onClick={() => setActiveView("settings")} style={activeView === "settings" ? activeNavLinkStyle : navLinkStyle}>
+              ⚙️ Admin Settings
+            </button>
             <button
               onClick={() => navigate("/")}
               style={{
@@ -415,486 +598,473 @@ export default function AdminDashboard() {
             <>
               {/* Aggregated Analytics Metric Cards */}
               <div style={statsGridStyle}>
-            {/* Sales Card */}
-            <div style={statCardStyle("#FF4D4F")}>
-              <div style={statIconStyle("💰", "#FFF1F0", "#FF4D4F")} />
-              <div style={statContentStyle}>
-                <span style={statLabelStyle}>Total Sales</span>
-                <span style={statValStyle}>₹{analytics?.totalSales || 0}</span>
-              </div>
-            </div>
-
-            {/* Today Orders */}
-            <div style={statCardStyle("#22C55E")}>
-              <div style={statIconStyle("⚡", "#F0FDF4", "#22C55E")} />
-              <div style={statContentStyle}>
-                <span style={statLabelStyle}>Orders Today</span>
-                <span style={statValStyle}>{analytics?.ordersToday || 0}</span>
-              </div>
-            </div>
-
-            {/* Pending Orders */}
-            <div style={statCardStyle("#F59E0B")}>
-              <div style={statIconStyle("⏳", "#FEF3C7", "#F59E0B")} />
-              <div style={statContentStyle}>
-                <span style={statLabelStyle}>Active Processing</span>
-                <span style={statValStyle}>{analytics?.pendingOrders || 0}</span>
-              </div>
-            </div>
-
-            {/* Total Products */}
-            <div style={statCardStyle("#6366F1")}>
-              <div style={statIconStyle("🛍️", "#EEF2FF", "#6366F1")} />
-              <div style={statContentStyle}>
-                <span style={statLabelStyle}>Catalog Products</span>
-                <span style={statValStyle}>{analytics?.totalProducts || 0}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Actions & Recent Activity */}
-          <div style={dashboardDetailsGridStyle}>
-            {/* Recent Orders Section */}
-            <div style={cardLayoutStyle}>
-              <div style={cardHeaderStyle}>
-                <h3 style={cardTitleStyle}>Recent Transactions</h3>
-                <button onClick={() => navigate("/admin/orders")} style={viewAllBtnStyle}>
-                  View All Orders →
-                </button>
-              </div>
-              
-              <div style={{ overflowX: "auto" }}>
-                <table style={tableStyle}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Order ID</th>
-                      <th style={thStyle}>Customer</th>
-                      <th style={thStyle}>Amount</th>
-                      <th style={thStyle}>Payment</th>
-                      <th style={thStyle}>Status</th>
-                      <th style={thStyle}>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan="6" style={emptyTdStyle}>No recent orders recorded.</td>
-                      </tr>
-                    ) : (
-                      recentOrders.map((order) => (
-                        <tr key={order._id} style={trStyle}>
-                          <td style={tdIdStyle}>{order._id.substring(order._id.length - 8)}</td>
-                          <td style={tdCustomerStyle}>
-                            <div style={{ display: "flex", flexDirection: "column" }}>
-                              <span style={{ fontWeight: "800", color: "#111827" }}>{order.user?.name}</span>
-                              <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{order.user?.phone}</span>
-                            </div>
-                          </td>
-                          <td style={tdAmountStyle}>₹{order.totalAmount}</td>
-                          <td>
-                            <span style={payBadgeStyle(order.paymentStatus)}>
-                              {order.paymentStatus}
-                            </span>
-                          </td>
-                          <td>
-                            <span style={statusBadgeStyle(order.orderStatus)}>
-                              {order.orderStatus}
-                            </span>
-                          </td>
-                          <td style={tdDateStyle}>{new Date(order.createdAt).toLocaleDateString()}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Quick Summary Cards */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div style={cardLayoutStyle}>
-                <h3 style={cardTitleStyle}>Store Operations</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
-                  <div style={storeInfoRowStyle}>
-                    <span style={{ color: "#6B7280", fontWeight: 600 }}>Delivered Orders</span>
-                    <span style={storeInfoValStyle(analytics?.deliveredOrders > 0 ? "#10B981" : "#6B7280")}>
-                      {analytics?.deliveredOrders || 0}
-                    </span>
+                {/* Sales Card */}
+                <div style={statCardStyle("#FF4D4F")}>
+                  <div style={statIconStyle("💰", "#FFF1F0", "#FF4D4F")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Total Sales</span>
+                    <span style={statValStyle}>₹{analytics?.totalSales || 0}</span>
                   </div>
-                  <div style={storeInfoRowStyle}>
-                    <span style={{ color: "#6B7280", fontWeight: 600 }}>Store Status</span>
-                    <span style={storeInfoValStyle("#10B981")}>🟢 ONLINE</span>
+                </div>
+
+                {/* Today Orders */}
+                <div style={statCardStyle("#22C55E")}>
+                  <div style={statIconStyle("⚡", "#F0FDF4", "#22C55E")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Orders Today</span>
+                    <span style={statValStyle}>{analytics?.ordersToday || 0}</span>
                   </div>
-                  <div style={storeInfoRowStyle}>
-                    <span style={{ color: "#6B7280", fontWeight: 600 }}>System Mode</span>
-                    <span style={{ color: "#FF4D4F", fontWeight: "800", fontSize: "13px" }}>Production Ready</span>
+                </div>
+
+                {/* Pending Orders */}
+                <div style={statCardStyle("#F59E0B")}>
+                  <div style={statIconStyle("⏳", "#FEF3C7", "#F59E0B")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Active Processing</span>
+                    <span style={statValStyle}>{analytics?.pendingOrders || 0}</span>
+                  </div>
+                </div>
+
+                {/* Total Products */}
+                <div style={statCardStyle("#6366F1")}>
+                  <div style={statIconStyle("🛍️", "#EEF2FF", "#6366F1")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Catalog Products</span>
+                    <span style={statValStyle}>{analytics?.totalProducts || 0}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Delivery Settings Card */}
-              <div style={cardLayoutStyle}>
-                <h3 style={cardTitleStyle}>Delivery Settings</h3>
-                <p style={{ color: "#6B7280", fontSize: "13px", marginTop: "4px", lineHeight: "1.5", fontWeight: 500 }}>
-                  Manage delivery surcharges dynamically.
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
-                  {/* Late Night Delivery Toggle */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontWeight: "700", fontSize: "14px" }}>🌙 Late Night Delivery</div>
-                      <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
-                        Apply ₹30 surcharge for orders placed after 10 PM
-                      </div>
-                    </div>
-                    <div
-                      onClick={toggleLateNight}
-                      style={{
-                        width: "50px",
-                        height: "26px",
-                        background: deliverySettings?.lateNightDeliveryEnabled ? "#318616" : "#E5E7EB",
-                        borderRadius: "999px",
-                        position: "relative",
-                        cursor: "pointer",
-                        transition: "background-color 0.2s ease"
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          background: "white",
-                          borderRadius: "50%",
-                          position: "absolute",
-                          top: "3px",
-                          left: deliverySettings?.lateNightDeliveryEnabled ? "27px" : "3px",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                          transition: "left 0.2s ease"
-                        }}
-                      />
-                    </div>
+              {/* Quick Actions & Recent Activity */}
+              <div style={dashboardDetailsGridStyle}>
+                {/* Recent Orders Section */}
+                <div style={cardLayoutStyle}>
+                  <div style={cardHeaderStyle}>
+                    <h3 style={cardTitleStyle}>Recent Transactions</h3>
+                    <button onClick={() => navigate("/admin/orders")} style={viewAllBtnStyle}>
+                      View All Orders →
+                    </button>
                   </div>
 
-                  {/* Rainy Delivery Toggle */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontWeight: "700", fontSize: "14px" }}>🌧️ Rainy Delivery</div>
-                      <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
-                        Apply ₹30 surcharge during rainy conditions
-                      </div>
-                    </div>
-                    <div
-                      onClick={toggleRainy}
-                      style={{
-                        width: "50px",
-                        height: "26px",
-                        background: deliverySettings?.rainyDeliveryEnabled ? "#318616" : "#E5E7EB",
-                        borderRadius: "999px",
-                        position: "relative",
-                        cursor: "pointer",
-                        transition: "background-color 0.2s ease"
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          background: "white",
-                          borderRadius: "50%",
-                          position: "absolute",
-                          top: "3px",
-                          left: deliverySettings?.rainyDeliveryEnabled ? "27px" : "3px",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                          transition: "left 0.2s ease"
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={cardLayoutStyle}>
-                <h3 style={cardTitleStyle}>Quick Controls</h3>
-                <p style={{ color: "#6B7280", fontSize: "13px", marginTop: "4px", lineHeight: "1.5", fontWeight: 500 }}>
-                  Directly modify products catalog stock, add variants, or update order dispatch details.
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
-                  <button onClick={() => navigate("/admin/orders")} style={quickBtnStyle}>
-                    📦 Dispatch Orders
-                  </button>
-                  <button onClick={() => navigate("/admin/products")} style={quickBtnStyle}>
-                    🍎 Restock Products
-                  </button>
-                  <button onClick={() => navigate("/admin/riders")} style={quickBtnStyle}>
-                    🛵 Manage Riders
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-        {activeView === "rewards" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            {/* Rewards Statistics Cards */}
-            <div style={statsGridStyle}>
-              {/* Total Coupons Generated */}
-              <div style={statCardStyle("#3b82f6")}>
-                <div style={statIconStyle("🎟️", "#eff6ff", "#3b82f6")} />
-                <div style={statContentStyle}>
-                  <span style={statLabelStyle}>Coupons Issued</span>
-                  <span style={statValStyle}>{analytics?.totalCouponsGenerated || 0}</span>
-                </div>
-              </div>
-
-              {/* Total Coupons Redeemed */}
-              <div style={statCardStyle("#10b981")}>
-                <div style={statIconStyle("🎁", "#ecfdf5", "#10b981")} />
-                <div style={statContentStyle}>
-                  <span style={statLabelStyle}>Coupons Redeemed</span>
-                  <span style={statValStyle}>{analytics?.totalCouponsRedeemed || 0}</span>
-                </div>
-              </div>
-
-              {/* Total BuyCoins Issued */}
-              <div style={statCardStyle("#fbbf24")}>
-                <div style={statIconStyle("🪙", "#fffbeb", "#d97706")} />
-                <div style={statContentStyle}>
-                  <span style={statLabelStyle}>BuyCoins Issued</span>
-                  <span style={statValStyle}>{analytics?.totalBuyCoinsIssued || 0}</span>
-                </div>
-              </div>
-
-              {/* Total BuyCoins Redeemed */}
-              <div style={statCardStyle("#ef4444")}>
-                <div style={statIconStyle("🪙", "#fef2f2", "#dc2626")} />
-                <div style={statContentStyle}>
-                  <span style={statLabelStyle}>BuyCoins Redeemed</span>
-                  <span style={statValStyle}>{analytics?.totalBuyCoinsRedeemed || 0}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Activity Lists Grid */}
-            <div style={dashboardDetailsGridStyle}>
-              {/* Recent Coupon Activity */}
-              <div style={cardLayoutStyle}>
-                <div style={cardHeaderStyle}>
-                  <h3 style={cardTitleStyle}>Recent Coupon Activity</h3>
-                </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={tableStyle}>
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>User</th>
-                        <th style={thStyle}>Code</th>
-                        <th style={thStyle}>Status</th>
-                        <th style={thStyle}>Generated Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {!analytics?.recentCoupons || analytics.recentCoupons.length === 0 ? (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={tableStyle}>
+                      <thead>
                         <tr>
-                          <td colSpan="4" style={emptyTdStyle}>No coupon activity recorded.</td>
+                          <th style={thStyle}>Order ID</th>
+                          <th style={thStyle}>Customer</th>
+                          <th style={thStyle}>Amount</th>
+                          <th style={thStyle}>Payment</th>
+                          <th style={thStyle}>Status</th>
+                          <th style={thStyle}>Date</th>
                         </tr>
-                      ) : (
-                        analytics.recentCoupons.map((coupon) => {
-                          const now = new Date();
-                          const isExpired = new Date(coupon.expiryDate) < now;
-                          let statusLabel = "Available";
-                          let statusColor = "#10b981";
-                          let statusBg = "rgba(16, 185, 129, 0.1)";
-
-                          if (coupon.isUsed) {
-                            statusLabel = "Used";
-                            statusColor = "#64748b";
-                            statusBg = "#e2e8f0";
-                          } else if (isExpired) {
-                            statusLabel = "Expired";
-                            statusColor = "#ef4444";
-                            statusBg = "rgba(239, 68, 68, 0.1)";
-                          }
-
-                          return (
-                            <tr key={coupon._id} style={trStyle}>
-                              <td style={tdCustomerStyle}>
-                                <div style={{ display: "flex", flexDirection: "column" }}>
-                                  <span style={{ fontWeight: "800", color: "#111827" }}>{coupon.userId?.name || "Guest"}</span>
-                                  <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{coupon.userId?.phone || ""}</span>
-                                </div>
-                              </td>
-                              <td>
-                                  <span style={{ fontFamily: "monospace", fontWeight: "800", color: "#FF4D4F" }}>{coupon.couponCode}</span>
-                              </td>
-                              <td>
-                                <span style={{
-                                  fontSize: "10px",
-                                  fontWeight: "855",
-                                  padding: "3px 8px",
-                                  borderRadius: "6px",
-                                  color: statusColor,
-                                  background: statusBg,
-                                  textTransform: "uppercase"
-                                }}>
-                                  {statusLabel}
-                                </span>
-                              </td>
-                              <td style={{ fontSize: "12px", color: "#6B7280", fontWeight: "600" }}>
-                                {new Date(coupon.createdAt).toLocaleString()}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Recent BuyCoin Activity */}
-              <div style={cardLayoutStyle}>
-                <div style={cardHeaderStyle}>
-                  <h3 style={cardTitleStyle}>Recent BuyCoin Activity</h3>
-                </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={tableStyle}>
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>User</th>
-                        <th style={thStyle}>Type</th>
-                        <th style={thStyle}>Coins</th>
-                        <th style={thStyle}>Order Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {!analytics?.recentBuyCoinOrders || analytics.recentBuyCoinOrders.length === 0 ? (
-                        <tr>
-                          <td colSpan="4" style={emptyTdStyle}>No BuyCoin activity recorded.</td>
-                        </tr>
-                      ) : (
-                        analytics.recentBuyCoinOrders.map((order) => {
-                          const isRedemption = order.buyCoinsRedeemed > 0;
-                          const coinAmt = isRedemption ? order.buyCoinsRedeemed : Math.floor(order.totalAmount / 100);
-                          return (
+                      </thead>
+                      <tbody>
+                        {recentOrders.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" style={emptyTdStyle}>No recent orders recorded.</td>
+                          </tr>
+                        ) : (
+                          recentOrders.map((order) => (
                             <tr key={order._id} style={trStyle}>
+                              <td style={tdIdStyle}>{order._id.substring(order._id.length - 8)}</td>
                               <td style={tdCustomerStyle}>
                                 <div style={{ display: "flex", flexDirection: "column" }}>
-                                  <span style={{ fontWeight: "800", color: "#111827" }}>{order.user?.name || "Guest"}</span>
-                                  <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{order.user?.phone || ""}</span>
+                                  <span style={{ fontWeight: "800", color: "#111827" }}>{order.user?.name}</span>
+                                  <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{order.user?.phone}</span>
                                 </div>
                               </td>
+                              <td style={tdAmountStyle}>₹{order.totalAmount}</td>
                               <td>
-                                <span style={{
-                                  fontSize: "10px",
-                                  fontWeight: "855",
-                                  padding: "3px 8px",
-                                  borderRadius: "6px",
-                                  color: isRedemption ? "#dc2626" : "#16a34a",
-                                  background: isRedemption ? "#fef2f2" : "#f0fdf4",
-                                  textTransform: "uppercase"
-                                }}>
-                                  {isRedemption ? "Redeemed" : "Earned"}
+                                <span style={payBadgeStyle(order.paymentStatus)}>
+                                  {order.paymentStatus}
                                 </span>
                               </td>
-                              <td style={{ fontWeight: "800", color: isRedemption ? "#dc2626" : "#16a34a" }}>
-                                {isRedemption ? "-" : "+"}{coinAmt} 🪙
+                              <td>
+                                <span style={statusBadgeStyle(order.orderStatus)}>
+                                  {order.orderStatus}
+                                </span>
                               </td>
-                              <td style={{ fontSize: "12px", color: "#6B7280", fontWeight: "700" }}>
-                                ₹{order.totalAmount}
-                              </td>
+                              <td style={tdDateStyle}>{new Date(order.createdAt).toLocaleDateString()}</td>
                             </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {activeView === "buycoins" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            <h2 style={{ fontSize: "22px", fontWeight: "850", color: "#0f172a", margin: 0 }}>💰 BuyCoins Loyalty Management</h2>
-
-            {/* BuyCoins Analytics Metrics */}
-            <div style={statsGridStyle}>
-              {/* Total Coins Issued */}
-              <div style={statCardStyle("#fbbf24")}>
-                <div style={statIconStyle("🪙", "#fffbeb", "#d97706")} />
-                <div style={statContentStyle}>
-                  <span style={statLabelStyle}>Total Coins Issued</span>
-                  <span style={statValStyle}>{buyCoinsAnalytics?.totalIssued || 0}</span>
-                </div>
-              </div>
-
-              {/* Total Coins Redeemed */}
-              <div style={statCardStyle("#ef4444")}>
-                <div style={statIconStyle("🛒", "#fef2f2", "#dc2626")} />
-                <div style={statContentStyle}>
-                  <span style={statLabelStyle}>Total Coins Redeemed</span>
-                  <span style={statValStyle}>{buyCoinsAnalytics?.totalRedeemed || 0}</span>
-                </div>
-              </div>
-
-              {/* Active Wallets */}
-              <div style={statCardStyle("#10b981")}>
-                <div style={statIconStyle("💼", "#ecfdf5", "#10b981")} />
-                <div style={statContentStyle}>
-                  <span style={statLabelStyle}>Active Wallets</span>
-                  <span style={statValStyle}>{buyCoinsAnalytics?.activeWallets || 0}</span>
-                </div>
-              </div>
-
-              {/* Coins Expiring Soon */}
-              <div style={statCardStyle("#f59e0b")}>
-                <div style={statIconStyle("⏳", "#fef3c7", "#d97706")} />
-                <div style={statContentStyle}>
-                  <span style={statLabelStyle}>Expiring (30 days)</span>
-                  <span style={statValStyle}>{buyCoinsAnalytics?.coinsExpiringSoon || 0}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Grid layout for Adjust Form and Top Customers */}
-            <div style={dashboardDetailsGridStyle}>
-              {/* Adjust Coins Form */}
-              <div style={cardLayoutStyle}>
-                <h3 style={cardTitleStyle}>Adjust Customer Coins</h3>
-                <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
-                  Add or deduct loyalty coins for any registered customer.
-                </p>
-                <form onSubmit={handleAdjustCoins} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "20px" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Customer Email</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. customer@example.com"
-                      value={adjustEmail}
-                      onChange={(e) => setAdjustEmail(e.target.value)}
-                      style={{
-                        padding: "10px 14px",
-                        borderRadius: "10px",
-                        border: "1.5px solid #cbd5e1",
-                        fontSize: "14px",
-                        fontWeight: "600"
-                      }}
-                    />
+                {/* Quick Summary Cards */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <div style={cardLayoutStyle}>
+                    <h3 style={cardTitleStyle}>Store Operations</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
+                      <div style={storeInfoRowStyle}>
+                        <span style={{ color: "#6B7280", fontWeight: 600 }}>Delivered Orders</span>
+                        <span style={storeInfoValStyle(analytics?.deliveredOrders > 0 ? "#10B981" : "#6B7280")}>
+                          {analytics?.deliveredOrders || 0}
+                        </span>
+                      </div>
+                      <div style={storeInfoRowStyle}>
+                        <span style={{ color: "#6B7280", fontWeight: 600 }}>Store Status</span>
+                        <span style={storeInfoValStyle("#10B981")}>🟢 ONLINE</span>
+                      </div>
+                      <div style={storeInfoRowStyle}>
+                        <span style={{ color: "#6B7280", fontWeight: 600 }}>System Mode</span>
+                        <span style={{ color: "#FF4D4F", fontWeight: "800", fontSize: "13px" }}>Production Ready</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  {/* Delivery Settings Card */}
+                  <div style={cardLayoutStyle}>
+                    <h3 style={cardTitleStyle}>Delivery Settings</h3>
+                    <p style={{ color: "#6B7280", fontSize: "13px", marginTop: "4px", lineHeight: "1.5", fontWeight: 500 }}>
+                      Manage delivery surcharges dynamically.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
+                      {/* Late Night Delivery Toggle */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontWeight: "700", fontSize: "14px" }}>🌙 Late Night Delivery</div>
+                          <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
+                            Apply ₹30 surcharge for orders placed after 10 PM
+                          </div>
+                        </div>
+                        <div
+                          onClick={toggleLateNight}
+                          style={{
+                            width: "50px",
+                            height: "26px",
+                            background: deliverySettings?.lateNightDeliveryEnabled ? "#318616" : "#E5E7EB",
+                            borderRadius: "999px",
+                            position: "relative",
+                            cursor: "pointer",
+                            transition: "background-color 0.2s ease"
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "20px",
+                              height: "20px",
+                              background: "white",
+                              borderRadius: "50%",
+                              position: "absolute",
+                              top: "3px",
+                              left: deliverySettings?.lateNightDeliveryEnabled ? "27px" : "3px",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                              transition: "left 0.2s ease"
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Rainy Delivery Toggle */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontWeight: "700", fontSize: "14px" }}>🌧️ Rainy Delivery</div>
+                          <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
+                            Apply ₹30 surcharge during rainy conditions
+                          </div>
+                        </div>
+                        <div
+                          onClick={toggleRainy}
+                          style={{
+                            width: "50px",
+                            height: "26px",
+                            background: deliverySettings?.rainyDeliveryEnabled ? "#318616" : "#E5E7EB",
+                            borderRadius: "999px",
+                            position: "relative",
+                            cursor: "pointer",
+                            transition: "background-color 0.2s ease"
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "20px",
+                              height: "20px",
+                              background: "white",
+                              borderRadius: "50%",
+                              position: "absolute",
+                              top: "3px",
+                              left: deliverySettings?.rainyDeliveryEnabled ? "27px" : "3px",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                              transition: "left 0.2s ease"
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={cardLayoutStyle}>
+                    <h3 style={cardTitleStyle}>Quick Controls</h3>
+                    <p style={{ color: "#6B7280", fontSize: "13px", marginTop: "4px", lineHeight: "1.5", fontWeight: 500 }}>
+                      Directly modify products catalog stock, add variants, or update order dispatch details.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
+                      <button onClick={() => navigate("/admin/orders")} style={quickBtnStyle}>
+                        📦 Dispatch Orders
+                      </button>
+                      <button onClick={() => navigate("/admin/products")} style={quickBtnStyle}>
+                        🍎 Restock Products
+                      </button>
+                      <button onClick={() => navigate("/admin/riders")} style={quickBtnStyle}>
+                        🛵 Manage Riders
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeView === "rewards" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+              {/* Rewards Statistics Cards */}
+              <div style={statsGridStyle}>
+                {/* Total Coupons Generated */}
+                <div style={statCardStyle("#3b82f6")}>
+                  <div style={statIconStyle("🎟️", "#eff6ff", "#3b82f6")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Coupons Issued</span>
+                    <span style={statValStyle}>{analytics?.totalCouponsGenerated || 0}</span>
+                  </div>
+                </div>
+
+                {/* Total Coupons Redeemed */}
+                <div style={statCardStyle("#10b981")}>
+                  <div style={statIconStyle("🎁", "#ecfdf5", "#10b981")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Coupons Redeemed</span>
+                    <span style={statValStyle}>{analytics?.totalCouponsRedeemed || 0}</span>
+                  </div>
+                </div>
+
+                {/* Total BuyCoins Issued */}
+                <div style={statCardStyle("#fbbf24")}>
+                  <div style={statIconStyle("🪙", "#fffbeb", "#d97706")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>BuyCoins Issued</span>
+                    <span style={statValStyle}>{analytics?.totalBuyCoinsIssued || 0}</span>
+                  </div>
+                </div>
+
+                {/* Total BuyCoins Redeemed */}
+                <div style={statCardStyle("#ef4444")}>
+                  <div style={statIconStyle("🪙", "#fef2f2", "#dc2626")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>BuyCoins Redeemed</span>
+                    <span style={statValStyle}>{analytics?.totalBuyCoinsRedeemed || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity Lists Grid */}
+              <div style={dashboardDetailsGridStyle}>
+                {/* Recent Coupon Activity */}
+                <div style={cardLayoutStyle}>
+                  <div style={cardHeaderStyle}>
+                    <h3 style={cardTitleStyle}>Recent Coupon Activity</h3>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>User</th>
+                          <th style={thStyle}>Code</th>
+                          <th style={thStyle}>Status</th>
+                          <th style={thStyle}>Generated Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {!analytics?.recentCoupons || analytics.recentCoupons.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" style={emptyTdStyle}>No coupon activity recorded.</td>
+                          </tr>
+                        ) : (
+                          analytics.recentCoupons.map((coupon) => {
+                            const now = new Date();
+                            const isExpired = new Date(coupon.expiryDate) < now;
+                            let statusLabel = "Available";
+                            let statusColor = "#10b981";
+                            let statusBg = "rgba(16, 185, 129, 0.1)";
+
+                            if (coupon.isUsed) {
+                              statusLabel = "Used";
+                              statusColor = "#64748b";
+                              statusBg = "#e2e8f0";
+                            } else if (isExpired) {
+                              statusLabel = "Expired";
+                              statusColor = "#ef4444";
+                              statusBg = "rgba(239, 68, 68, 0.1)";
+                            }
+
+                            return (
+                              <tr key={coupon._id} style={trStyle}>
+                                <td style={tdCustomerStyle}>
+                                  <div style={{ display: "flex", flexDirection: "column" }}>
+                                    <span style={{ fontWeight: "800", color: "#111827" }}>{coupon.userId?.name || "Guest"}</span>
+                                    <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{coupon.userId?.phone || ""}</span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span style={{ fontFamily: "monospace", fontWeight: "800", color: "#FF4D4F" }}>{coupon.couponCode}</span>
+                                </td>
+                                <td>
+                                  <span style={{
+                                    fontSize: "10px",
+                                    fontWeight: "855",
+                                    padding: "3px 8px",
+                                    borderRadius: "6px",
+                                    color: statusColor,
+                                    background: statusBg,
+                                    textTransform: "uppercase"
+                                  }}>
+                                    {statusLabel}
+                                  </span>
+                                </td>
+                                <td style={{ fontSize: "12px", color: "#6B7280", fontWeight: "600" }}>
+                                  {(() => {
+                                    try {
+                                      const d = new Date(coupon.createdAt);
+                                      return isNaN(d.getTime()) ? "Unknown" : d.toLocaleString();
+                                    } catch (e) {
+                                      return "Unknown";
+                                    }
+                                  })()}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Recent BuyCoin Activity */}
+                <div style={cardLayoutStyle}>
+                  <div style={cardHeaderStyle}>
+                    <h3 style={cardTitleStyle}>Recent BuyCoin Activity</h3>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>User</th>
+                          <th style={thStyle}>Type</th>
+                          <th style={thStyle}>Coins</th>
+                          <th style={thStyle}>Order Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {!analytics?.recentBuyCoinOrders || analytics.recentBuyCoinOrders.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" style={emptyTdStyle}>No BuyCoin activity recorded.</td>
+                          </tr>
+                        ) : (
+                          analytics.recentBuyCoinOrders.map((order) => {
+                            const isRedemption = order.buyCoinsRedeemed > 0;
+                            const coinAmt = isRedemption ? order.buyCoinsRedeemed : Math.floor(order.totalAmount / 100);
+                            return (
+                              <tr key={order._id} style={trStyle}>
+                                <td style={tdCustomerStyle}>
+                                  <div style={{ display: "flex", flexDirection: "column" }}>
+                                    <span style={{ fontWeight: "800", color: "#111827" }}>{order.user?.name || "Guest"}</span>
+                                    <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{order.user?.phone || ""}</span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span style={{
+                                    fontSize: "10px",
+                                    fontWeight: "855",
+                                    padding: "3px 8px",
+                                    borderRadius: "6px",
+                                    color: isRedemption ? "#dc2626" : "#16a34a",
+                                    background: isRedemption ? "#fef2f2" : "#f0fdf4",
+                                    textTransform: "uppercase"
+                                  }}>
+                                    {isRedemption ? "Redeemed" : "Earned"}
+                                  </span>
+                                </td>
+                                <td style={{ fontWeight: "800", color: isRedemption ? "#dc2626" : "#16a34a" }}>
+                                  {isRedemption ? "-" : "+"}{coinAmt} 🪙
+                                </td>
+                                <td style={{ fontSize: "12px", color: "#6B7280", fontWeight: "700" }}>
+                                  ₹{order.totalAmount}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeView === "buycoins" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+              <h2 style={{ fontSize: "22px", fontWeight: "850", color: "#0f172a", margin: 0 }}>💰 BuyCoins Loyalty Management</h2>
+
+              {/* BuyCoins Analytics Metrics */}
+              <div style={statsGridStyle}>
+                {/* Total Coins Issued */}
+                <div style={statCardStyle("#fbbf24")}>
+                  <div style={statIconStyle("🪙", "#fffbeb", "#d97706")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Total Coins Issued</span>
+                    <span style={statValStyle}>{buyCoinsAnalytics?.totalIssued || 0}</span>
+                  </div>
+                </div>
+
+                {/* Total Coins Redeemed */}
+                <div style={statCardStyle("#ef4444")}>
+                  <div style={statIconStyle("🛒", "#fef2f2", "#dc2626")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Total Coins Redeemed</span>
+                    <span style={statValStyle}>{buyCoinsAnalytics?.totalRedeemed || 0}</span>
+                  </div>
+                </div>
+
+                {/* Active Wallets */}
+                <div style={statCardStyle("#10b981")}>
+                  <div style={statIconStyle("💼", "#ecfdf5", "#10b981")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Active Wallets</span>
+                    <span style={statValStyle}>{buyCoinsAnalytics?.activeWallets || 0}</span>
+                  </div>
+                </div>
+
+                {/* Coins Expiring Soon */}
+                <div style={statCardStyle("#f59e0b")}>
+                  <div style={statIconStyle("⏳", "#fef3c7", "#d97706")} />
+                  <div style={statContentStyle}>
+                    <span style={statLabelStyle}>Expiring (30 days)</span>
+                    <span style={statValStyle}>{buyCoinsAnalytics?.coinsExpiringSoon || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid layout for Adjust Form and Top Customers */}
+              <div style={dashboardDetailsGridStyle}>
+                {/* Adjust Coins Form */}
+                <div style={cardLayoutStyle}>
+                  <h3 style={cardTitleStyle}>Adjust Customer Coins</h3>
+                  <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
+                    Add or deduct loyalty coins for any registered customer.
+                  </p>
+                  <form onSubmit={handleAdjustCoins} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "20px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Coins Amount</label>
+                      <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Customer Email</label>
                       <input
-                        type="number"
+                        type="email"
                         required
-                        min="1"
-                        placeholder="e.g. 15"
-                        value={adjustCoins}
-                        onChange={(e) => setAdjustCoins(e.target.value)}
+                        placeholder="e.g. customer@example.com"
+                        value={adjustEmail}
+                        onChange={(e) => setAdjustEmail(e.target.value)}
                         style={{
                           padding: "10px 14px",
                           borderRadius: "10px",
@@ -905,421 +1075,198 @@ export default function AdminDashboard() {
                       />
                     </div>
 
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Coins Amount</label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          placeholder="e.g. 15"
+                          value={adjustCoins}
+                          onChange={(e) => setAdjustCoins(e.target.value)}
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: "10px",
+                            border: "1.5px solid #cbd5e1",
+                            fontSize: "14px",
+                            fontWeight: "600"
+                          }}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Adjustment Type</label>
+                        <select
+                          value={adjustType}
+                          onChange={(e) => setAdjustType(e.target.value)}
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: "10px",
+                            border: "1.5px solid #cbd5e1",
+                            fontSize: "14px",
+                            fontWeight: "650",
+                            background: "white"
+                          }}
+                        >
+                          <option value="earn">Add Coins (Earn)</option>
+                          <option value="bonus">Add Coins (Bonus)</option>
+                          <option value="redeem">Deduct Coins (Redeem)</option>
+                        </select>
+                      </div>
+                    </div>
+
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Adjustment Type</label>
-                      <select
-                        value={adjustType}
-                        onChange={(e) => setAdjustType(e.target.value)}
+                      <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Reason / Note</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Compensation for delayed order"
+                        value={adjustReason}
+                        onChange={(e) => setAdjustReason(e.target.value)}
                         style={{
                           padding: "10px 14px",
                           borderRadius: "10px",
                           border: "1.5px solid #cbd5e1",
                           fontSize: "14px",
-                          fontWeight: "650",
-                          background: "white"
+                          fontWeight: "600"
                         }}
-                      >
-                        <option value="earn">Add Coins (Earn)</option>
-                        <option value="bonus">Add Coins (Bonus)</option>
-                        <option value="redeem">Deduct Coins (Redeem)</option>
-                      </select>
+                      />
                     </div>
-                  </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Reason / Note</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Compensation for delayed order"
-                      value={adjustReason}
-                      onChange={(e) => setAdjustReason(e.target.value)}
+                    <button
+                      type="submit"
+                      disabled={isAdjusting}
                       style={{
-                        padding: "10px 14px",
-                        borderRadius: "10px",
-                        border: "1.5px solid #cbd5e1",
+                        background: "linear-gradient(135deg, #318616 0%, #286f12 100%)",
+                        color: "white",
+                        border: "none",
+                        padding: "12px",
+                        borderRadius: "12px",
+                        fontWeight: "750",
                         fontSize: "14px",
-                        fontWeight: "600"
+                        cursor: isAdjusting ? "not-allowed" : "pointer",
+                        boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
+                        marginTop: "10px"
                       }}
-                    />
-                  </div>
+                    >
+                      {isAdjusting ? "Processing..." : "Apply Adjustment ⚡"}
+                    </button>
+                  </form>
+                </div>
 
-                  <button
-                    type="submit"
-                    disabled={isAdjusting}
-                    style={{
-                      background: "linear-gradient(135deg, #318616 0%, #286f12 100%)",
-                      color: "white",
-                      border: "none",
-                      padding: "12px",
-                      borderRadius: "12px",
-                      fontWeight: "750",
-                      fontSize: "14px",
-                      cursor: isAdjusting ? "not-allowed" : "pointer",
-                      boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
-                      marginTop: "10px"
-                    }}
-                  >
-                    {isAdjusting ? "Processing..." : "Apply Adjustment ⚡"}
-                  </button>
-                </form>
+                {/* Top Customers Panel */}
+                <div style={cardLayoutStyle}>
+                  <h3 style={cardTitleStyle}>Top Customer Wallets</h3>
+                  <div style={{ overflowX: "auto", marginTop: "16px" }}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Customer Email</th>
+                          <th style={thStyle}>Available</th>
+                          <th style={thStyle}>Lifetime Earned</th>
+                          <th style={thStyle}>Lifetime Redeemed</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {!buyCoinsAnalytics?.topWallets || buyCoinsAnalytics.topWallets.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" style={emptyTdStyle}>No active wallets recorded.</td>
+                          </tr>
+                        ) : (
+                          buyCoinsAnalytics.topWallets.map((w) => (
+                            <tr key={w._id} style={trStyle}>
+                              <td style={{ ...tdCustomerStyle, fontWeight: "700" }}>{w.email}</td>
+                              <td style={{ fontWeight: "800", color: "#318616" }}>{w.availableCoins} 🪙</td>
+                              <td style={{ fontWeight: "600", color: "#6b7280" }}>{w.lifetimeEarned}</td>
+                              <td style={{ fontWeight: "600", color: "#ef4444" }}>{w.lifetimeRedeemed}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
 
-              {/* Top Customers Panel */}
+              {/* Transactions Log Section */}
               <div style={cardLayoutStyle}>
-                <h3 style={cardTitleStyle}>Top Customer Wallets</h3>
+                <h3 style={cardTitleStyle}>Loyalty Transactions History</h3>
                 <div style={{ overflowX: "auto", marginTop: "16px" }}>
                   <table style={tableStyle}>
                     <thead>
                       <tr>
-                        <th style={thStyle}>Customer Email</th>
-                        <th style={thStyle}>Available</th>
-                        <th style={thStyle}>Lifetime Earned</th>
-                        <th style={thStyle}>Lifetime Redeemed</th>
+                        <th style={thStyle}>Date & Time</th>
+                        <th style={thStyle}>Customer</th>
+                        <th style={thStyle}>Type</th>
+                        <th style={thStyle}>Amount</th>
+                        <th style={thStyle}>Source / Description</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {!buyCoinsAnalytics?.topWallets || buyCoinsAnalytics.topWallets.length === 0 ? (
+                      {buyCoinsTransactions.length === 0 ? (
                         <tr>
-                          <td colSpan="4" style={emptyTdStyle}>No active wallets recorded.</td>
+                          <td colSpan="5" style={emptyTdStyle}>No loyalty transactions recorded yet.</td>
                         </tr>
                       ) : (
-                        buyCoinsAnalytics.topWallets.map((w) => (
-                          <tr key={w._id} style={trStyle}>
-                            <td style={{ ...tdCustomerStyle, fontWeight: "700" }}>{w.email}</td>
-                            <td style={{ fontWeight: "800", color: "#318616" }}>{w.availableCoins} 🪙</td>
-                            <td style={{ fontWeight: "600", color: "#6b7280" }}>{w.lifetimeEarned}</td>
-                            <td style={{ fontWeight: "600", color: "#ef4444" }}>{w.lifetimeRedeemed}</td>
-                          </tr>
-                        ))
+                        buyCoinsTransactions.map((tx) => {
+                          const isPositive = ["earn", "bonus"].includes(tx.type);
+                          return (
+                            <tr key={tx._id} style={trStyle}>
+                              <td style={{ fontSize: "12px", color: "#6b7280", fontWeight: "600" }}>
+                                {(() => {
+                                  try {
+                                    const d = new Date(tx.createdAt);
+                                    return isNaN(d.getTime()) ? "Unknown" : d.toLocaleString();
+                                  } catch (e) {
+                                    return "Unknown";
+                                  }
+                                })()}
+                              </td>
+                              <td style={{ fontWeight: "700", color: "#1f2937" }}>
+                                {tx.userId?.name || "Guest User"}
+                                <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "500" }}>{tx.email}</div>
+                              </td>
+                              <td>
+                                <span style={{
+                                  fontSize: "10px",
+                                  fontWeight: "850",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  color: tx.type === "redeem" ? "#dc2626" : tx.type === "expire" ? "#64748b" : "#16a34a",
+                                  background: tx.type === "redeem" ? "#fef2f2" : tx.type === "expire" ? "#e2e8f0" : "#f0fdf4",
+                                  textTransform: "uppercase"
+                                }}>
+                                  {tx.type}
+                                </span>
+                              </td>
+                              <td style={{ fontWeight: "800", color: isPositive ? "#16a34a" : "#dc2626" }}>
+                                {isPositive ? "+" : "-"}{tx.coins}
+                              </td>
+                              <td style={{ fontSize: "12px", color: "#4b5563", fontWeight: "500" }}>
+                                {tx.source}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Transactions Log Section */}
-            <div style={cardLayoutStyle}>
-              <h3 style={cardTitleStyle}>Loyalty Transactions History</h3>
-              <div style={{ overflowX: "auto", marginTop: "16px" }}>
-                <table style={tableStyle}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Date & Time</th>
-                      <th style={thStyle}>Customer</th>
-                      <th style={thStyle}>Type</th>
-                      <th style={thStyle}>Amount</th>
-                      <th style={thStyle}>Source / Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {buyCoinsTransactions.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" style={emptyTdStyle}>No loyalty transactions recorded yet.</td>
-                      </tr>
-                    ) : (
-                      buyCoinsTransactions.map((tx) => {
-                        const isPositive = ["earn", "bonus"].includes(tx.type);
-                        return (
-                          <tr key={tx._id} style={trStyle}>
-                            <td style={{ fontSize: "12px", color: "#6b7280", fontWeight: "600" }}>
-                              {new Date(tx.createdAt).toLocaleString()}
-                            </td>
-                            <td style={{ fontWeight: "700", color: "#1f2937" }}>
-                              {tx.userId?.name || "Guest User"}
-                              <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "500" }}>{tx.email}</div>
-                            </td>
-                            <td>
-                              <span style={{
-                                fontSize: "10px",
-                                fontWeight: "850",
-                                padding: "3px 8px",
-                                borderRadius: "6px",
-                                color: tx.type === "redeem" ? "#dc2626" : tx.type === "expire" ? "#64748b" : "#16a34a",
-                                background: tx.type === "redeem" ? "#fef2f2" : tx.type === "expire" ? "#e2e8f0" : "#f0fdf4",
-                                textTransform: "uppercase"
-                              }}>
-                                {tx.type}
-                              </span>
-                            </td>
-                            <td style={{ fontWeight: "800", color: isPositive ? "#16a34a" : "#dc2626" }}>
-                              {isPositive ? "+" : "-"}{tx.coins}
-                            </td>
-                            <td style={{ fontSize: "12px", color: "#4b5563", fontWeight: "500" }}>
-                              {tx.source}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeView === "delivery" && <DeliveryServicesPanel />}
-        {activeView === "categories" && <CategoriesPanel />}
-        {activeView === "notifications" && renderNotificationsView()}
-      </main>
-    </div>
-  </div>
-  );
-}
-
-const renderNotificationsView = () => {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-      <h2 style={{ fontSize: "22px", fontWeight: "850", color: "#0f172a", margin: 0 }}>🔔 Push Notification Center</h2>
-
-      {/* Analytics Cards */}
-      <div style={statsGridStyle}>
-        <div style={statCardStyle("#3b82f6")}>
-          <div style={statIconStyle("📱", "#eff6ff", "#3b82f6")} />
-          <div style={statContentStyle}>
-            <span style={statLabelStyle}>Devices Registered</span>
-            <span style={statValStyle}>{notifStats?.totalDevices || 0}</span>
-          </div>
-        </div>
-        <div style={statCardStyle("#22c55e")}>
-          <div style={statIconStyle("🚀", "#f0fdf4", "#22c55e")} />
-          <div style={statContentStyle}>
-            <span style={statLabelStyle}>Campaigns Sent</span>
-            <span style={statValStyle}>{notifStats?.totalCampaigns || 0}</span>
-          </div>
-        </div>
-        <div style={statCardStyle("#eab308")}>
-          <div style={statIconStyle("📨", "#fefbeb", "#eab308")} />
-          <div style={statContentStyle}>
-            <span style={statLabelStyle}>Total Pushes Sent</span>
-            <span style={statValStyle}>{notifStats?.totalSent || 0}</span>
-          </div>
-        </div>
-        <div style={statCardStyle("#a855f7")}>
-          <div style={statIconStyle("⏳", "#faf5ff", "#a855f7")} />
-          <div style={statContentStyle}>
-            <span style={statLabelStyle}>Last Sent Time</span>
-            <span style={{ ...statValStyle, fontSize: "12px", marginTop: "4px" }}>
-              {notifStats?.lastSentTime ? new Date(notifStats.lastSentTime).toLocaleString() : "Never"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Form and History */}
-      <div style={dashboardDetailsGridStyle}>
-        {/* Create Campaign */}
-        <div style={cardLayoutStyle}>
-          <h3 style={cardTitleStyle}>Create New Campaign</h3>
-          <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
-            Send real-time alerts or promotions directly to your customers' mobile screens.
-          </p>
-          <form onSubmit={handleSendNotification} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "20px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Campaign Title</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. 🎁 Get ₹100 OFF on your next order!"
-                value={notifTitle}
-                onChange={(e) => setNotifTitle(e.target.value)}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: "10px",
-                  border: "1.5px solid #cbd5e1",
-                  fontSize: "14px",
-                  fontWeight: "600"
-                }}
-              />
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Campaign Message Body</label>
-              <textarea
-                required
-                rows="3"
-                placeholder="e.g. Complete your order now and grab flat ₹100 cashback. Valid for today only!"
-                value={notifBody}
-                onChange={(e) => setNotifBody(e.target.value)}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: "10px",
-                  border: "1.5px solid #cbd5e1",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  resize: "vertical"
-                }}
-              />
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Image URL (Optional)</label>
-              <input
-                type="url"
-                placeholder="e.g. https://images.unsplash.com/photo-..."
-                value={notifImage}
-                onChange={(e) => setNotifImage(e.target.value)}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: "10px",
-                  border: "1.5px solid #cbd5e1",
-                  fontSize: "14px",
-                  fontWeight: "600"
-                }}
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Target Audience</label>
-                <select
-                  value={notifTarget}
-                  onChange={(e) => setNotifTarget(e.target.value)}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: "10px",
-                    border: "1.5px solid #cbd5e1",
-                    fontSize: "14px",
-                    fontWeight: "600"
-                  }}
-                >
-                  <option value="all">Send to All Customers</option>
-                  <option value="selected">Send to Selected Emails</option>
-                </select>
-              </div>
-            </div>
-
-            {notifTarget === "selected" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Selected Customer Emails</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. user1@gmail.com, user2@gmail.com"
-                  value={notifEmails}
-                  onChange={(e) => setNotifEmails(e.target.value)}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: "10px",
-                    border: "1.5px solid #cbd5e1",
-                    fontSize: "14px",
-                    fontWeight: "600"
-                  }}
-                />
-                <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "500" }}>Separate multiple emails with commas.</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={notifSending}
-              style={{
-                padding: "12px 18px",
-                borderRadius: "12px",
-                background: notifSending ? "#9CA3AF" : "#318616",
-                color: "white",
-                border: "none",
-                fontWeight: "800",
-                cursor: notifSending ? "not-allowed" : "pointer",
-                boxShadow: "0 4px 6px -1px rgba(49, 134, 22, 0.2)",
-                transition: "all 0.15s ease"
-              }}
-            >
-              {notifSending ? "Sending Broadcast..." : "🚀 Send Push Campaign"}
-            </button>
-          </form>
-        </div>
-
-        {/* Campaign History */}
-        <div style={cardLayoutStyle}>
-          <div style={cardHeaderStyle}>
-            <h3 style={cardTitleStyle}>Campaign Logs</h3>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Date & Time</th>
-                  <th style={thStyle}>Details</th>
-                  <th style={thStyle}>Target</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {notifHistory.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={emptyTdStyle}>No campaign records found.</td>
-                  </tr>
-                ) : (
-                  notifHistory.map((camp) => (
-                    <tr key={camp._id} style={trStyle}>
-                      <td style={tdDateStyle}>
-                        {new Date(camp.sentAt || camp.createdAt).toLocaleString()}
-                      </td>
-                      <td>
-                        <div style={{ display: "flex", flexDirection: "column" }}>
-                          <span style={{ fontWeight: "800", color: "#111827" }}>{camp.title}</span>
-                          <span style={{ fontSize: "11px", color: "#4B5563", marginTop: "2px" }}>{camp.body}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span style={{
-                          fontSize: "10px",
-                          fontWeight: "800",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          background: camp.recipients === "all" ? "#eff6ff" : "#f1f5f9",
-                          color: camp.recipients === "all" ? "#3b82f6" : "#475569"
-                        }}>
-                          {camp.recipients === "all" ? "All Customers" : `${Array.isArray(camp.recipients) ? camp.recipients.length : 1} Selected`}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{
-                          fontSize: "10px",
-                          fontWeight: "800",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          background: camp.status === "sent" ? "#ecfdf5" : "#fef2f2",
-                          color: camp.status === "sent" ? "#10b981" : "#ef4444"
-                        }}>
-                          {camp.status || "sent"}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => {
-                            setNotifTitle(camp.title);
-                            setNotifBody(camp.body);
-                            setNotifImage(camp.image || "");
-                            setNotifTarget(camp.recipients === "all" ? "all" : "selected");
-                            setNotifEmails("");
-                          }}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "#318616",
-                            fontWeight: "800",
-                            cursor: "pointer",
-                            fontSize: "12px"
-                          }}
-                        >
-                          Resend
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          {activeView === "delivery" && <DeliveryServicesPanel />}
+          {activeView === "categories" && <CategoriesPanel />}
+          {activeView === "notifications" && renderNotificationsView()}
+          {activeView === "settings" && renderSettingsView()}
+        </main>
       </div>
     </div>
   );
+
+
 }
 
 
@@ -1437,7 +1384,7 @@ function DeliveryServicesPanel() {
     };
 
     try {
-      const url = editingZoneId 
+      const url = editingZoneId
         ? `${window.API_BASE_URL}/api/admin/delivery-zones/${editingZoneId}`
         : `${window.API_BASE_URL}/api/admin/delivery-zones`;
       const method = editingZoneId ? "PUT" : "POST";
@@ -2370,21 +2317,20 @@ const payBadgeStyle = (status) => ({
     status === "Paid"
       ? "#F0FDF4"
       : status === "Pending"
-      ? "#FEF3C7"
-      : "#FEF2F2",
+        ? "#FEF3C7"
+        : "#FEF2F2",
   color:
     status === "Paid"
       ? "#10B981"
       : status === "Pending"
-      ? "#F59E0B"
-      : "#EF4444",
-  border: `1.5px solid ${
-    status === "Paid"
+        ? "#F59E0B"
+        : "#EF4444",
+  border: `1.5px solid ${status === "Paid"
       ? "rgba(16, 185, 129, 0.15)"
       : status === "Pending"
-      ? "rgba(245, 158, 11, 0.15)"
-      : "rgba(239, 68, 68, 0.15)"
-  }`,
+        ? "rgba(245, 158, 11, 0.15)"
+        : "rgba(239, 68, 68, 0.15)"
+    }`,
 });
 
 const statusBadgeStyle = (status) => ({
@@ -2398,21 +2344,20 @@ const statusBadgeStyle = (status) => ({
     status === "Delivered"
       ? "#F0FDF4"
       : status === "Cancelled"
-      ? "#FEF2F2"
-      : "#EFF6FF",
+        ? "#FEF2F2"
+        : "#EFF6FF",
   color:
     status === "Delivered"
       ? "#10B981"
       : status === "Cancelled"
-      ? "#EF4444"
-      : "#3B82F6",
-  border: `1.5px solid ${
-    status === "Delivered"
+        ? "#EF4444"
+        : "#3B82F6",
+  border: `1.5px solid ${status === "Delivered"
       ? "rgba(16, 185, 129, 0.15)"
       : status === "Cancelled"
-      ? "rgba(239, 68, 68, 0.15)"
-      : "rgba(59, 130, 246, 0.15)"
-  }`,
+        ? "rgba(239, 68, 68, 0.15)"
+        : "rgba(59, 130, 246, 0.15)"
+    }`,
 });
 
 const tdDateStyle = {

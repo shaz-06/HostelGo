@@ -8,13 +8,25 @@ const NotificationHistory = require("../models/NotificationHistory");
  */
 async function removeInvalidToken(token) {
   try {
-    await User.updateMany(
-      { $or: [{ fcmTokens: token }, { fcmToken: token }] },
-      {
-        $pull: { fcmTokens: token },
-        $set: { fcmToken: null }
+    const users = await User.find({
+      $or: [
+        { fcmToken: token },
+        { "fcmTokens.token": token },
+        { fcmTokens: token }
+      ]
+    });
+    for (const u of users) {
+      if (u.fcmToken === token) {
+        u.fcmToken = null;
       }
-    );
+      if (Array.isArray(u.fcmTokens)) {
+        u.fcmTokens = u.fcmTokens.filter(t => {
+          const tVal = (t && typeof t === "object") ? t.token : t;
+          return tVal !== token;
+        });
+      }
+      await u.save();
+    }
     console.log(`[Notification FCM] Cleaned up invalid token: ${token}`);
   } catch (err) {
     console.error(`[Notification FCM] Error removing invalid token: ${err.message}`);
@@ -167,7 +179,13 @@ async function sendOrderNotification(order, status) {
     };
 
     // Gather all tokens (support both fcmTokens array and legacy fcmToken)
-    let tokens = [...(user.fcmTokens || [])];
+    let tokens = [];
+    if (Array.isArray(user.fcmTokens)) {
+      user.fcmTokens.forEach(t => {
+        const tokenStr = (t && typeof t === "object") ? t.token : t;
+        if (tokenStr) tokens.push(tokenStr);
+      });
+    }
     if (user.fcmToken && !tokens.includes(user.fcmToken)) {
       tokens.push(user.fcmToken);
     }
@@ -211,7 +229,13 @@ async function sendCartReminder(user) {
       deepLink
     };
 
-    let tokens = [...(user.fcmTokens || [])];
+    let tokens = [];
+    if (Array.isArray(user.fcmTokens)) {
+      user.fcmTokens.forEach(t => {
+        const tokenStr = (t && typeof t === "object") ? t.token : t;
+        if (tokenStr) tokens.push(tokenStr);
+      });
+    }
     if (user.fcmToken && !tokens.includes(user.fcmToken)) {
       tokens.push(user.fcmToken);
     }
@@ -282,9 +306,15 @@ async function sendPromotionalNotification({ title, body, image, target, selecte
 
     users.forEach(u => {
       userIds.push(u._id);
-      if (u.fcmTokens && u.fcmTokens.length > 0) {
-        allTokens.push(...u.fcmTokens);
-      } else if (u.fcmToken) {
+      if (Array.isArray(u.fcmTokens)) {
+        u.fcmTokens.forEach(t => {
+          const tokenStr = (t && typeof t === "object") ? t.token : t;
+          if (tokenStr && !allTokens.includes(tokenStr)) {
+            allTokens.push(tokenStr);
+          }
+        });
+      }
+      if (u.fcmToken && !allTokens.includes(u.fcmToken)) {
         allTokens.push(u.fcmToken);
       }
     });

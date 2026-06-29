@@ -418,6 +418,9 @@ export default function AdminSupportPage() {
             <button onClick={() => navigate("/admin")} style={navLinkStyle}>
               📊 Dashboard
             </button>
+            <button onClick={() => navigate("/admin/notifications")} style={navLinkStyle}>
+              📢 Notifications
+            </button>
             <button onClick={() => navigate("/admin/orders")} style={navLinkStyle}>
               📦 Orders Lifecycle
             </button>

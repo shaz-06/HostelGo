@@ -165,4 +165,60 @@ router.get("/admin/transactions", authMiddleware, adminMiddleware, async (req, r
   }
 });
 
+// GET /api/buycoins/transactions - Get logged in user's transactions
+router.get("/transactions", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const transactions = await BuyCoinTransaction.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+    return res.json({ success: true, transactions });
+  } catch (error) {
+    console.error("❌ Error fetching transactions:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch transactions", error: error.message });
+  }
+});
+
+// POST /api/buycoins/redeem - Redeem a reward from catalog
+router.post("/redeem", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { rewardName, cost } = req.body;
+    
+    if (!rewardName || !cost) {
+      return res.status(400).json({ success: false, message: "Reward name and cost are required" });
+    }
+    
+    const email = req.user.email ? req.user.email.toLowerCase() : "";
+    const wallet = await recalculateWallet(userId, email);
+    
+    if (wallet.availableCoins < cost) {
+      return res.status(400).json({ success: false, message: "Insufficient BuyCoins" });
+    }
+    
+    // Create redeemed transaction
+    const tx = new BuyCoinTransaction({
+      userId,
+      email,
+      type: "redeemed",
+      amount: Number(cost),
+      coins: Number(cost),
+      description: `Redeemed ${rewardName}`
+    });
+    await tx.save();
+    
+    // Recalculate wallet
+    const updatedWallet = await recalculateWallet(userId, email);
+    
+    return res.json({
+      success: true,
+      message: `Successfully redeemed ${rewardName}`,
+      wallet: updatedWallet
+    });
+  } catch (error) {
+    console.error("❌ Error redeeming reward:", error);
+    return res.status(500).json({ success: false, message: "Failed to redeem reward", error: error.message });
+  }
+});
+
 module.exports = router;

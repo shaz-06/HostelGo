@@ -2,6 +2,8 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
+import BuyCoin from "../components/common/BuyCoin";
+
 export default function WalletPage() {
   const navigate = useNavigate();
   const { user, token } = useContext(AuthContext);
@@ -77,7 +79,7 @@ export default function WalletPage() {
             <h2 style={balanceValueStyle}>{balance} Coins</h2>
             <span style={balanceCashValueStyle}>Equivalent to ₹{balance}</span>
           </div>
-          <span style={coinIconStyle}>🪙</span>
+          <span style={coinIconStyle}><BuyCoin size={48} animate={true} /></span>
         </div>
 
         {/* Quick Stats Grid */}

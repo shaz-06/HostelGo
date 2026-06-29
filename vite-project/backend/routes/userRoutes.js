@@ -7,31 +7,56 @@ const { sendPushNotification } = require("../services/notificationService");
 
 // POST /api/users/fcm-token
 router.post("/fcm-token", authMiddleware, async (req, res) => {
+  console.log("=== [API REQUEST: POST /api/users/fcm-token] ===");
   try {
-    const { token, removeToken } = req.body;
+    const { token, platform, removeToken } = req.body;
+    console.log(`Payload: token="${token || ''}", platform="${platform || ''}", removeToken="${removeToken || ''}"`);
+    console.log(`User context: email="${req.user.email}", id="${req.user._id}"`);
 
     if (token) {
       if (!req.user.fcmTokens) req.user.fcmTokens = [];
-      if (!req.user.fcmTokens.includes(token)) {
-        req.user.fcmTokens.push(token);
+      
+      // Check if token already exists in any of the elements
+      const exists = req.user.fcmTokens.some(t => {
+        if (t && typeof t === "object") return t.token === token;
+        return t === token;
+      });
+
+      if (!exists) {
+        req.user.fcmTokens.push({
+          token,
+          platform: platform || "unknown",
+          createdAt: new Date()
+        });
+        console.log(`Added new FCM token: ${token} [Platform: ${platform || 'unknown'}]`);
+      } else {
+        console.log(`FCM token already registered for this user: ${token}`);
       }
       req.user.fcmToken = token; // backward-compatibility
     } else {
-      const tokenToRemove = removeToken || token;
+      const tokenToRemove = removeToken;
       if (tokenToRemove) {
-        req.user.fcmTokens = (req.user.fcmTokens || []).filter(t => t !== tokenToRemove);
+        req.user.fcmTokens = (req.user.fcmTokens || []).filter(t => {
+          const tVal = (t && typeof t === "object") ? t.token : t;
+          return tVal !== tokenToRemove;
+        });
+        console.log(`Removed FCM token: ${tokenToRemove}`);
       } else {
         req.user.fcmTokens = [];
         req.user.fcmToken = null;
+        console.log("Cleared all FCM tokens for user.");
       }
     }
 
-    await req.user.save();
+    const savedUser = await req.user.save();
+    console.log("=== [MONGODB SAVE RESULT] ===");
+    console.log(`User ID: ${savedUser._id}`);
+    console.log(`Current fcmTokens:`, JSON.stringify(savedUser.fcmTokens, null, 2));
 
-    console.log(`FCM Token updated for user: ${req.user.email}`);
     return res.status(200).json({
       success: true,
-      message: "FCM token updated successfully"
+      message: "FCM token updated successfully",
+      fcmTokens: savedUser.fcmTokens
     });
   } catch (error) {
     console.error("Error updating FCM token:", error);
@@ -50,8 +75,9 @@ const getNotificationsHandler = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(50);
 
-    return res.status(200).json(
-      notifications.map(n => ({
+    return res.status(200).json({
+      success: true,
+      notifications: notifications.map(n => ({
         _id: n._id,
         title: n.title,
         body: n.body,
@@ -61,7 +87,7 @@ const getNotificationsHandler = async (req, res) => {
         image: n.image,
         deepLink: n.deepLink
       }))
-    );
+    });
   } catch (error) {
     console.error("Error fetching notifications:", error);
     return res.status(500).json({
@@ -107,7 +133,16 @@ router.post("/notifications/test", authMiddleware, async (req, res) => {
   try {
     console.log(`[Test Push] Dispatching test notification to user: ${req.user.email}`);
     
-    let tokens = [...(req.user.fcmTokens || [])];
+    let tokens = [];
+    if (Array.isArray(req.user.fcmTokens)) {
+      req.user.fcmTokens.forEach(t => {
+        if (t && typeof t === "object" && t.token) {
+          tokens.push(t.token);
+        } else if (typeof t === "string") {
+          tokens.push(t);
+        }
+      });
+    }
     if (req.user.fcmToken && !tokens.includes(req.user.fcmToken)) {
       tokens.push(req.user.fcmToken);
     }
@@ -156,12 +191,26 @@ router.post("/cart-activity", authMiddleware, async (req, res) => {
 // PUT /api/users/preferences
 router.put("/preferences", authMiddleware, async (req, res) => {
   try {
-    const { orderUpdates, promotions, cartReminders } = req.body;
+    const { 
+      orderUpdates, 
+      promotions, 
+      cartReminders, 
+      newOrderAlerts, 
+      riderAlerts, 
+      lowStockAlerts, 
+      newUserRegistrations 
+    } = req.body;
+
     req.user.notificationPreferences = {
       orderUpdates: orderUpdates !== undefined ? Boolean(orderUpdates) : req.user.notificationPreferences?.orderUpdates ?? true,
       promotions: promotions !== undefined ? Boolean(promotions) : req.user.notificationPreferences?.promotions ?? true,
-      cartReminders: cartReminders !== undefined ? Boolean(cartReminders) : req.user.notificationPreferences?.cartReminders ?? true
+      cartReminders: cartReminders !== undefined ? Boolean(cartReminders) : req.user.notificationPreferences?.cartReminders ?? true,
+      newOrderAlerts: newOrderAlerts !== undefined ? Boolean(newOrderAlerts) : req.user.notificationPreferences?.newOrderAlerts ?? true,
+      riderAlerts: riderAlerts !== undefined ? Boolean(riderAlerts) : req.user.notificationPreferences?.riderAlerts ?? true,
+      lowStockAlerts: lowStockAlerts !== undefined ? Boolean(lowStockAlerts) : req.user.notificationPreferences?.lowStockAlerts ?? true,
+      newUserRegistrations: newUserRegistrations !== undefined ? Boolean(newUserRegistrations) : req.user.notificationPreferences?.newUserRegistrations ?? true
     };
+
     await req.user.save();
     return res.status(200).json({ success: true, preferences: req.user.notificationPreferences });
   } catch (error) {

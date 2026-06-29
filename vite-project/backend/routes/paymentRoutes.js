@@ -311,6 +311,22 @@ router.post("/payment/verify", async (req, res) => {
         console.error("Failed to send order placed notification:", err);
       });
 
+      // Send admin notifications
+      try {
+        const { sendAdminNotification } = require("../services/fcmService");
+        sendAdminNotification(savedOrder).catch(err => {
+          console.error("Failed to send FCM admin notification:", err);
+        });
+      } catch (err) {
+        console.error("Failed to require/call sendAdminNotification:", err);
+      }
+
+      // Emit socket event for admin dashboard
+      if (req.io) {
+        req.io.emit("newOrderArrived", savedOrder);
+        console.log("=== Socket.IO emitted newOrderArrived (Razorpay) ===");
+      }
+
 
       // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
       console.log("Reducing inventory stock...");
@@ -466,6 +482,22 @@ router.post("/orders", authMiddleware, async (req, res) => {
       sendOrderStatusNotification(savedOrder, "Order Placed").catch(err => {
         console.error("Failed to send COD order placed notification:", err);
       });
+
+      // Send admin notifications
+      try {
+        const { sendAdminNotification } = require("../services/fcmService");
+        sendAdminNotification(savedOrder).catch(err => {
+          console.error("Failed to send FCM admin notification:", err);
+        });
+      } catch (err) {
+        console.error("Failed to require/call sendAdminNotification:", err);
+      }
+
+      // Emit socket event for admin dashboard
+      if (req.io) {
+        req.io.emit("newOrderArrived", savedOrder);
+        console.log("=== Socket.IO emitted newOrderArrived (COD) ===");
+      }
 
 
       // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)

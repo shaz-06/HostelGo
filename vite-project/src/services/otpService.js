@@ -5,19 +5,39 @@
  */
 export const msg91Login = async (accessToken) => {
   const url = `${window.API_BASE_URL}/api/auth/msg91-login`;
-  console.log("MSG91 Login Request Url:", url);
+  console.log("=== MSG91 LOGIN INITIATED ===");
+  console.log("API_BASE_URL:", window.API_BASE_URL);
+  console.log("URL being fetched:", url);
+  console.log("Request body:", JSON.stringify({ accessToken }));
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ accessToken })
-  });
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ accessToken })
+    });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || "Failed to log in via MSG91.");
+    console.log("Response status:", res.status);
+    const text = await res.text();
+    console.log("Response text:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Invalid JSON response: ${text}`);
+    }
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to log in via MSG91.");
+    }
+    return data;
+  } catch (err) {
+    console.error("=== MSG91 LOGIN FETCH ERROR ===");
+    console.error("Error message:", err.message);
+    console.error("Error stack:", err.stack);
+    throw err;
   }
-  return data;
 };

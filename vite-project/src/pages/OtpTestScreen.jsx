@@ -44,6 +44,20 @@ export default function OtpTestScreen() {
             user: res.user
           });
           await setAuthSession(res.token, res.user);
+
+          if (res.user && res.user.role === "admin" && res.user.isFounder) {
+            console.log("PHONE:", res.user.phone);
+            console.log("ROLE:", res.user.role);
+            console.log("FOUNDER:", res.user.isFounder);
+            console.log("REDIRECT TARGET: /admin-verify");
+            navigate("/admin-verify");
+          } else {
+            console.log("PHONE:", res.user?.phone);
+            console.log("ROLE:", res.user?.role);
+            console.log("FOUNDER:", res.user?.isFounder);
+            console.log("REDIRECT TARGET: /");
+            navigate("/");
+          }
         } catch (err) {
           console.error("Backend login error:", err);
           setError("Backend Authentication Error: " + err.message);

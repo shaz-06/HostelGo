@@ -1,5 +1,6 @@
 const adminMiddleware = (req, res, next) => {
-  if (req.user && req.user.role === "admin") {
+  const tokenPayload = req.tokenPayload || {};
+  if (req.user && req.user.role === "admin" && tokenPayload.isAdminVerified === true) {
     console.log("=== [ADMIN ACCESS GRANTED] ===");
     console.log(`User Name: ${req.user.name} | Role: ${req.user.role}`);
     next();

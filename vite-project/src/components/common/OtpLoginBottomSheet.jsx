@@ -1,14 +1,19 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { msg91Login } from "../../services/otpService";
 
 export default function OtpLoginBottomSheet() {
   const { isLoginOpen, closeLogin, setAuthSession, openOnboarding } = useContext(AuthContext);
   const loginBottomSheetOpen = isLoginOpen;
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  
+  const verifyingTokenRef = useRef(null);
+  const hasVerifiedRef = useRef(false);
 
   // Reset state when sheet is opened/closed
   useEffect(() => {
@@ -16,6 +21,8 @@ export default function OtpLoginBottomSheet() {
       setError("");
       setSuccessMsg("");
       setLoading(false);
+      verifyingTokenRef.current = null;
+      hasVerifiedRef.current = false;
     }
   }, [loginBottomSheetOpen]);
 
@@ -28,18 +35,24 @@ export default function OtpLoginBottomSheet() {
       widgetId: "366676677233393137373632",
       tokenAuth: "543604TezJRg0EB6a38de05P1",
       success: async (data) => {
-        console.log("=== MSG91 SUCCESS CALLBACK TRIGGERED ===");
-        console.log("MSG91 SUCCESS PAYLOAD:", JSON.stringify(data, null, 2));
+        console.log("OTP SUCCESS CALLBACK", Date.now());
         
         // Dynamic search for token property names
         const accessToken = data?.accessToken || data?.access_token || data?.token || data?.message || (data?.data && (data.data.accessToken || data.data.access_token || data.data.token));
-        console.log("MSG91 SUCCESS PAYLOAD:", data);
-        console.log("EXTRACTED ACCESS TOKEN:", accessToken);
+        console.log("accessToken:", accessToken);
+        console.log("verification in progress:", hasVerifiedRef.current);
         
         if (!accessToken) {
           setError("Failed to fetch verified access token from widget. Payload: " + JSON.stringify(data));
           return;
         }
+
+        // Prevent duplicate verification attempts for the same token
+        if (hasVerifiedRef.current) {
+          console.log("[DEBUG-SHEET] Verification already succeeded or in progress, ignoring duplicate success callback.");
+          return;
+        }
+        hasVerifiedRef.current = true;
 
         setLoading(true);
         setError("");
@@ -48,15 +61,30 @@ export default function OtpLoginBottomSheet() {
         try {
           // Log user in using access token validation route
           const loginData = await msg91Login(accessToken);
-          setSuccessMsg("Logged in successfully! Redirecting...");
+          
           await setAuthSession(loginData.token, loginData.user);
+          
+          if (loginData.user && loginData.user.role === "admin" && loginData.user.isFounder) {
+            console.log("PHONE:", loginData.user.phone);
+            console.log("ROLE:", loginData.user.role);
+            console.log("FOUNDER:", loginData.user.isFounder);
+            console.log("REDIRECT TARGET: /admin-verify");
+            navigate("/admin-verify");
+          } else {
+            console.log("PHONE:", loginData.user?.phone);
+            console.log("ROLE:", loginData.user?.role);
+            console.log("FOUNDER:", loginData.user?.isFounder);
+            console.log("REDIRECT TARGET: /");
+            navigate("/");
+          }
+
           if (!loginData.profileCompleted) {
             openOnboarding();
           }
-          closeLogin();
         } catch (err) {
           console.error("Backend Session Validation Error:", err);
           setError(err.message || "Failed to log in. Please try again.");
+          hasVerifiedRef.current = false;
         } finally {
           setLoading(false);
         }

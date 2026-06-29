@@ -3,6 +3,8 @@ const router = express.Router();
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const authMiddleware = require("../middleware/authMiddleware");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const DeliveryServiceZone = require("../models/DeliveryServiceZone");
 const UnserviceableRequest = require("../models/UnserviceableRequest");
 
@@ -172,9 +174,31 @@ router.post("/login", async (req, res) => {
 router.get("/me", authMiddleware, async (req, res) => {
   console.log("=== [AUTH PROFILE LOAD] ===");
   console.log("User Loaded ID:", req.user._id);
+
+  if (req.user.phone === "6363849864" && (req.user.role !== "admin" || !req.user.isFounder)) {
+    console.log("Enforcing founder admin privileges in /me for:", req.user.phone);
+    req.user.role = "admin";
+    req.user.isFounder = true;
+    await req.user.save();
+  }
+
+  const userObj = req.user.toObject();
+  delete userObj.adminPin;
+  
   return res.status(200).json({
     success: true,
-    user: req.user
+    user: {
+      _id: userObj._id,
+      name: userObj.name,
+      phone: userObj.phone,
+      email: userObj.email || "",
+      role: userObj.role,
+      isFounder: !!userObj.isFounder,
+      hasAdminPin: !!req.user.adminPin,
+      gender: userObj.gender || "",
+      profileCompleted: !!userObj.profileCompleted,
+      addresses: userObj.addresses || []
+    }
   });
 });
 
@@ -408,6 +432,18 @@ const normalizePhone = (phone) => {
   return clean.length > 10 ? clean.substring(clean.length - 10) : clean;
 };
 
+const msg91LoginCache = new Map();
+
+// Regularly clean up the cache to prevent memory leaks (keep entries for 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of msg91LoginCache.entries()) {
+    if (now - value.timestamp > 300000) { // 5 minutes
+      msg91LoginCache.delete(key);
+    }
+  }
+}, 60000);
+
 // POST /api/auth/msg91-login
 router.post("/msg91-login", async (req, res) => {
   console.log("=== [AUTH MSG91 LOGIN] ===");
@@ -416,6 +452,13 @@ router.post("/msg91-login", async (req, res) => {
     console.log("ACCESS TOKEN RECEIVED:", accessToken);
     if (!accessToken) {
       return res.status(400).json({ success: false, message: "Access token is required" });
+    }
+
+    // Check if token has been verified and cached recently
+    if (msg91LoginCache.has(accessToken)) {
+      console.log("=== [MSG91 LOGIN DUPLICATE HIT - CACHED RESPONSE RETURNED] ===");
+      const cached = msg91LoginCache.get(accessToken);
+      return res.status(200).json(cached.response);
     }
 
     const msg91Service = require("../services/msg91Service");
@@ -448,6 +491,18 @@ router.post("/msg91-login", async (req, res) => {
       });
       await user.save();
     }
+
+    if (phone === "6363849864") {
+      user.role = "admin";
+      user.isFounder = true;
+      await user.save();
+    }
+
+    console.log("=== MSG91 LOGIN PROCESS USER ===");
+    console.log("PHONE:", user.phone);
+    console.log("ROLE:", user.role);
+    console.log("FOUNDER:", !!user.isFounder);
+    console.log("REDIRECT TARGET:", (user.role === "admin" && user.isFounder) ? "/admin-verify" : "/");
 
     // Welcome bonus crediting if not already given
     if (!user.welcomeBonusGiven) {
@@ -482,7 +537,7 @@ router.post("/msg91-login", async (req, res) => {
     console.log("=== [MSG91 LOGIN SUCCESS] ===");
     console.log("Token generated:", token);
 
-    return res.status(200).json({
+    const responsePayload = {
       success: true,
       token,
       profileCompleted: !!user.profileCompleted,
@@ -492,11 +547,21 @@ router.post("/msg91-login", async (req, res) => {
         email: user.email || "",
         phone: user.phone,
         role: user.role,
+        isFounder: !!user.isFounder,
+        hasAdminPin: !!user.adminPin,
         gender: user.gender || "",
         profileCompleted: !!user.profileCompleted,
         addresses: user.addresses
       }
+    };
+
+    // Cache successful payload for duplicate calls
+    msg91LoginCache.set(accessToken, {
+      timestamp: Date.now(),
+      response: responsePayload
     });
+
+    return res.status(200).json(responsePayload);
 
   } catch (error) {
     console.error("❌ MSG91 Login Exception:", error);
@@ -621,6 +686,106 @@ router.post("/save-onboarding-address", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("❌ Error saving onboarding address:", error);
     return res.status(500).json({ success: false, message: error.message || "Failed to save address" });
+  }
+});
+
+// POST /api/auth/admin-verify
+router.post("/admin-verify", authMiddleware, async (req, res) => {
+  console.log("=== ADMIN PIN FLOW ===");
+  console.log("USER:", req.user);
+  console.log("BODY:", req.body);
+
+  try {
+    const user = await User.findById(req.user?.id || req.user?._id);
+    console.log("FOUND USER:", user);
+
+    if (!user) {
+      console.error("❌ Admin PIN Flow Error: Authenticated user not found in database.");
+      return res.status(404).json({ success: false, message: "Authenticated user not found in database." });
+    }
+
+    if (user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Administrative privileges required" });
+    }
+
+    // Check lockout status
+    if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+      const timeLeft = Math.ceil((user.lockoutUntil - new Date()) / 1000 / 60);
+      return res.status(429).json({
+        success: false,
+        message: `Too many incorrect attempts. Please try again in ${timeLeft} minutes.`
+      });
+    }
+
+    const { pin, newPin } = req.body;
+
+    // Handle setting a new PIN if not registered yet
+    if (!user.adminPin) {
+      if (!newPin || newPin.length !== 6 || isNaN(newPin)) {
+        return res.status(400).json({ success: false, message: "A 6-digit PIN is required to initialize admin access." });
+      }
+      const salt = await bcrypt.genSalt(10);
+      user.adminPin = await bcrypt.hash(newPin, salt);
+      user.pinAttempts = 0;
+      user.lockoutUntil = null;
+      await user.save();
+      
+      // Successfully set, now proceed to generate the token
+      const token = jwt.sign(
+        { id: user._id, email: user.email || "", role: "admin", isAdminVerified: true },
+        process.env.JWT_SECRET || "buyto_super_secret_key",
+        { expiresIn: "12h" }
+      );
+      return res.status(200).json({ success: true, message: "Admin PIN created and session initialized", token });
+    }
+
+    // Standard PIN check
+    if (!pin || pin.length !== 6 || isNaN(pin)) {
+      return res.status(400).json({ success: false, message: "A valid 6-digit PIN is required." });
+    }
+
+    const isMatch = await bcrypt.compare(pin, user.adminPin);
+    if (!isMatch) {
+      user.pinAttempts = (user.pinAttempts || 0) + 1;
+      if (user.pinAttempts >= 5) {
+        user.lockoutUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
+        await user.save();
+        return res.status(429).json({
+          success: false,
+          message: "Too many incorrect attempts. Admin verification locked for 15 minutes."
+        });
+      }
+      await user.save();
+      return res.status(400).json({
+        success: false,
+        message: `Incorrect PIN. ${5 - user.pinAttempts} attempts remaining.`
+      });
+    }
+
+    // Reset attempts on successful verify
+    user.pinAttempts = 0;
+    user.lockoutUntil = null;
+    await user.save();
+
+    // Generate short-lived token expiring in 12h
+    const token = jwt.sign(
+      { id: user._id, email: user.email || "", role: "admin", isAdminVerified: true },
+      process.env.JWT_SECRET || "buyto_super_secret_key",
+      { expiresIn: "12h" }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Admin verification successful",
+      token
+    });
+  } catch (error) {
+    console.error("Admin verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      stack: error.stack
+    });
   }
 });
 

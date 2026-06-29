@@ -10,6 +10,9 @@ const Coupon = require("../models/Coupon");
 const DeliveryServiceZone = require("../models/DeliveryServiceZone");
 const UnserviceableRequest = require("../models/UnserviceableRequest");
 const Category = require("../models/Category");
+const SentNotification = require("../models/SentNotification");
+const NotificationHistory = require("../models/NotificationHistory");
+
 
 const STATUS_TIMESTAMP_KEYS = {
   "Pending": "pending",
@@ -86,7 +89,7 @@ router.get("/analytics", async (req, res) => {
       totalBuyCoinsIssued: (await User.aggregate([{ $group: { _id: null, total: { $sum: "$buyCoinsLifetimeEarned" } } }]))[0]?.total || 0,
       totalBuyCoinsRedeemed: (await User.aggregate([{ $group: { _id: null, total: { $sum: "$buyCoinsRedeemed" } } }]))[0]?.total || 0,
       recentCoupons: await Coupon.find({}).populate("userId", "name email phone").sort({ createdAt: -1 }).limit(10).lean(),
-      recentBuyCoinOrders: await Order.find({ $or: [ { orderStatus: "Delivered" }, { buyCoinsRedeemed: { $gt: 0 } } ] }).sort({ updatedAt: -1 }).limit(10).lean()
+      recentBuyCoinOrders: await Order.find({ $or: [{ orderStatus: "Delivered" }, { buyCoinsRedeemed: { $gt: 0 } }] }).sort({ updatedAt: -1 }).limit(10).lean()
     };
 
     console.log("Analytics calculated successfully:", analytics);
@@ -193,7 +196,7 @@ router.get("/orders/:id", async (req, res) => {
 router.put("/orders/:id/status", async (req, res) => {
   console.log("=== [ADMIN STATUS UPDATE] ===");
   console.log("Updating Order ID:", req.params.id);
-  
+
   const { orderStatus } = req.body;
   if (!orderStatus) {
     return res.status(400).json({ message: "orderStatus is required" });
@@ -274,7 +277,7 @@ router.post("/products", async (req, res) => {
 
   try {
     const { name, category, price, originalPrice, weight, stock, image, variants, isTrending, subCategory, section, brand, description, eta, isAd } = req.body;
-    
+
     if (!name || !category || price === undefined || stock === undefined) {
       return res.status(400).json({ message: "Name, category, price, and stock are required fields" });
     }
@@ -321,7 +324,7 @@ router.put("/products/:id", async (req, res) => {
 
   try {
     const { name, category, price, originalPrice, weight, stock, image, variants, isTrending, subCategory, section, brand, description, eta, isAd } = req.body;
-    
+
     const product = await Product.findOne({
       $or: [
         { _id: mongoose.isValidObjectId(req.params.id) ? req.params.id : null },
@@ -485,9 +488,9 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Earth radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -711,12 +714,23 @@ router.get("/notifications/stats", async (req, res) => {
   }
 });
 
+// GET /api/admin/users/count
+router.get("/users/count", async (req, res) => {
+  try {
+    const count = await User.countDocuments({ role: { $in: ["user", "customer"] } });
+    return res.json({ success: true, count });
+  } catch (error) {
+    console.error("Error fetching user count:", error);
+    return res.status(500).json({ message: "Failed to fetch user count", error: error.message });
+  }
+});
+
 // GET /api/admin/notifications/history
 router.get("/notifications/history", async (req, res) => {
   try {
-    const campaigns = await Notification.find({ type: "PROMO" })
-      .populate("createdBy", "name email")
-      .sort({ sentAt: -1 })
+    const campaigns = await SentNotification.find()
+      .populate("sentBy", "name email")
+      .sort({ createdAt: -1 })
       .limit(50);
     return res.json(campaigns);
   } catch (error) {
@@ -725,32 +739,205 @@ router.get("/notifications/history", async (req, res) => {
   }
 });
 
-// POST /api/admin/notifications/send
-router.post("/notifications/send", async (req, res) => {
-  const { title, body, image, target, selectedEmails } = req.body;
-  if (!title || !body) {
-    return res.status(400).json({ message: "Title and body are required" });
+// POST /api/admin/notifications/send-test
+router.post("/notifications/send-test", async (req, res) => {
+  const { title, message, type, image, ctaText, ctaLink } = req.body;
+  if (!title || !message || !type) {
+    return res.status(400).json({ message: "Title, message, and type are required" });
+  }
+  if (message.length > 200) {
+    return res.status(400).json({ message: "Message cannot exceed 200 characters" });
   }
 
   try {
-    const { sendPromotionalNotification } = require("../services/notificationService");
-    const result = await sendPromotionalNotification({
+    const adminUser = await User.findById(req.user._id);
+    if (!adminUser) {
+      return res.status(404).json({ message: "Admin user not found" });
+    }
+
+    // Save in-app notification for the Admin
+    const inAppNotif = new NotificationHistory({
+      user: adminUser._id,
       title,
-      body,
-      image,
-      target,
-      selectedEmails,
-      createdBy: req.user?._id
+      body: message,
+      type,
+      image: image || null,
+      deepLink: ctaLink || null
     });
-    return res.json(result);
+    await inAppNotif.save();
+
+    // Collect admin tokens
+    const tokens = [...(adminUser.fcmTokens || [])];
+    if (adminUser.fcmToken && !tokens.includes(adminUser.fcmToken)) {
+      tokens.push(adminUser.fcmToken);
+    }
+
+    let successCount = 0;
+    let failedCount = 0;
+    if (tokens.length > 0) {
+      const { sendPushNotification } = require("../services/notificationService");
+      const pushRes = await sendPushNotification(
+        tokens,
+        title,
+        message,
+        { type, deepLink: ctaLink || "", ctaText: ctaText || "" },
+        image || null
+      );
+      if (pushRes.success) {
+        successCount = pushRes.successCount || tokens.length;
+        failedCount = pushRes.failureCount || 0;
+      } else {
+        failedCount = tokens.length;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: "Test notification dispatched to your admin device",
+      tokensCount: tokens.length,
+      successCount,
+      failedCount
+    });
+  } catch (error) {
+    console.error("Test campaign notification error:", error);
+    return res.status(500).json({ message: "Failed to dispatch test notification", error: error.message });
+  }
+});
+
+// POST /api/admin/notifications/send
+router.post("/notifications/send", async (req, res) => {
+  const { title, message, body, type, image, ctaText, ctaLink } = req.body;
+  const finalMessage = message || body;
+  const finalType = type || "Announcement";
+  if (!title || !finalMessage) {
+    return res.status(400).json({ message: "Title, message (or body) are required" });
+  }
+  if (finalMessage.length > 200) {
+    return res.status(400).json({ message: "Message cannot exceed 200 characters" });
+  }
+
+  try {
+    // 1. Fetch all normal users/customers
+    const users = await User.find({ role: { $in: ["user", "customer"] } });
+    if (users.length === 0) {
+      return res.json({ success: true, message: "No recipients found", recipientCount: 0 });
+    }
+
+    // 2. Save individual in-app notification logs to MongoDB
+    const historyPromises = users.map(u => {
+      const historyItem = new NotificationHistory({
+        user: u._id,
+        title,
+        body: finalMessage,
+        type: finalType,
+        image: image || null,
+        deepLink: ctaLink || null
+      });
+      return historyItem.save();
+    });
+    await Promise.all(historyPromises);
+
+    // 3. Gather active FCM tokens
+    const allTokens = [];
+    users.forEach(u => {
+      if (Array.isArray(u.fcmTokens)) {
+        u.fcmTokens.forEach(t => {
+          const tokenStr = (t && typeof t === "object") ? t.token : t;
+          if (tokenStr && !allTokens.includes(tokenStr)) {
+            allTokens.push(tokenStr);
+          }
+        });
+      }
+      if (u.fcmToken && !allTokens.includes(u.fcmToken)) {
+        allTokens.push(u.fcmToken);
+      }
+    });
+
+    // 4. Send FCM push notifications (chunked)
+    let successCount = 0;
+    let failedCount = 0;
+    if (allTokens.length > 0) {
+      console.log(`[Campaign Dispatch] Dispatching FCM push to ${allTokens.length} active devices.`);
+      const { sendBulkNotification } = require("../services/notificationService");
+      const pushRes = await sendBulkNotification(
+        allTokens,
+        title,
+        finalMessage,
+        { type: finalType, deepLink: ctaLink || "", ctaText: ctaText || "" },
+        image || null
+      );
+      successCount = pushRes.successCount || 0;
+      failedCount = pushRes.failureCount || 0;
+      console.log(`[Campaign Dispatch] Firebase Admin SDK Call Result: success=${successCount}, failed=${failedCount}`);
+    } else {
+      console.log("[Campaign Dispatch] No active FCM devices found to target. Skipping push dispatch.");
+      successCount = 0;
+    }
+
+    // 5. Create SentNotification campaign log
+    const campaignLog = new SentNotification({
+      title,
+      message: finalMessage,
+      type: finalType,
+      image: image || null,
+      ctaText: ctaText || null,
+      ctaLink: ctaLink || null,
+      sentBy: req.user?._id,
+      recipientCount: users.length,
+      deliveredCount: successCount,
+      failedCount: failedCount,
+      scheduledFor: null
+    });
+    await campaignLog.save();
+
+    return res.json({
+      success: true,
+      recipientCount: users.length,
+      deliveredCount: successCount,
+      failedCount: failedCount
+    });
   } catch (error) {
     console.error("Send campaign notification error:", error);
     return res.status(500).json({ message: "Failed to dispatch notifications", error: error.message });
   }
 });
 
+// POST /api/admin/broadcast
+// Sends promotional broadcast push notifications to all users
+router.post("/broadcast", async (req, res) => {
+  const { title, message } = req.body;
+  if (!title || !message) {
+    return res.status(400).json({ message: "Title and message are required for broadcast" });
+  }
+
+  try {
+    const { sendPromotionalNotification } = require("../services/notificationService");
+    const result = await sendPromotionalNotification({
+      target: "all",
+      title,
+      body: message,
+      createdBy: req.user?._id
+    });
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        message: `Notification sent to ${result.recipientsCount} users.`,
+        recipientCount: result.recipientsCount,
+        deliveredCount: result.successCount,
+        failedCount: result.failureCount
+      });
+    } else {
+      return res.status(500).json({ message: "Failed to broadcast notifications", error: result.error });
+    }
+  } catch (error) {
+    console.error("Broadcast endpoint error:", error);
+    return res.status(500).json({ message: "Failed to broadcast notifications", error: error.message });
+  }
+});
+
 // POST /api/admin/send-broadcast
-// Sends promotional broadcast push notifications
+// Sends promotional broadcast push notifications (legacy fallback)
 router.post("/send-broadcast", async (req, res) => {
   const { target, title, body, data } = req.body;
   if (!title || !body) {
