@@ -9,6 +9,7 @@ export default function FloatingCartPopup({
   totalPrice = 0,
   freeDeliveryThreshold = 99,
   mobileOffset = 80,
+  bottomNavVisible = true,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -54,9 +55,10 @@ export default function FloatingCartPopup({
         <div
           style={{
             position: "fixed",
-            bottom: hasBottomNav ? `${mobileOffset}px` : "24px",
+            bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
             left: "50%",
-            transform: "translateX(-50%)",
+            transform: `translate3d(-50%, ${hasBottomNav && bottomNavVisible ? -56 : 0}px, 0)`,
+            transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

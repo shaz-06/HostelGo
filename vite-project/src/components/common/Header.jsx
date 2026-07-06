@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo, useContext } from "react";
+import React, { useState, useEffect, useMemo, useContext, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import BuytoLogo from "./BuytoLogo";
 import { AuthContext } from "../../context/AuthContext";
 import { logoPath } from "../../config/branding";
+import { useHeaderTheme } from "../../hooks/useHeaderTheme";
+import { useCollapsingHeader } from "../../hooks/useCollapsingHeader";
 
 const searchSuggestions = [
   "Milk",
@@ -29,14 +31,14 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
       className="hide-scrollbar"
       style={{
         display: "flex",
-        gap: "12px",
+        gap: "22px",
         overflowX: "auto",
         overflowY: "hidden",
         scrollBehavior: "smooth",
         width: "100%",
         maxWidth: "100%",
         boxSizing: "border-box",
-        padding: "8px 0 4px 0",
+        padding: "8px 0 10px 0",
         transform: "translate3d(0, 0, 0)",
         willChange: "transform",
         userSelect: "none",
@@ -64,15 +66,15 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
                 width: "64px",
                 height: "64px",
                 borderRadius: "50%",
-                border: isActive ? "2px solid #318616" : "1px solid #e5e7eb",
+                border: isActive ? "2px solid #589f42ff" : "1px solid #e5e7eb",
                 background: isActive ? "#f0fdf4" : "#ffffff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden",
                 transition: "all 0.2s ease",
-                transform: isActive ? "scale(1.05)" : "scale(1)",
-                boxShadow: isActive ? "0 4px 10px rgba(49, 134, 22, 0.15)" : "none"
+                transform: isActive ? "scale(1.08)" : "scale(1)",
+                boxShadow: isActive ? "0 8px 24px rgba(49,134,22,0.25)" : "none"
               }}
             >
               {cat.image ? (
@@ -149,17 +151,37 @@ const Header = React.memo(({
     }
   });
 
+  const { headerColor, textColor, isGreenTheme } = useHeaderTheme();
+
   const { saveForLaterIds } = useContext(AuthContext) || { saveForLaterIds: [] };
   const savedCount = saveForLaterIds ? saveForLaterIds.length : 0;
   const [searchIndex, setSearchIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const isCollapsed = useCollapsingHeader();
+  const [collapsibleHeight, setCollapsibleHeight] = useState(80);
+  const collapsibleRef = useRef(null);
+  const promos = [
+    { text: "Flat ₹100 OFF", sub: "on first order", icon: "🎁" },
+    { text: "Free Delivery", sub: "above ₹99", icon: "⚡" },
+    { text: "Up to 50% OFF", sub: "on snacks", icon: "🔥" }
+  ];
+  const [promoIdx, setPromoIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPromoIdx((prev) => (prev + 1) % promos.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
   const [localQuery, setLocalQuery] = useState(searchQuery);
 
   useEffect(() => {
-    setLocalQuery(searchQuery);
-  }, [searchQuery]);
+    if (!isFocused || searchQuery === "") {
+      setLocalQuery(searchQuery);
+    }
+  }, [searchQuery, isFocused]);
 
   useEffect(() => {
     if (localQuery === searchQuery) return;
@@ -169,33 +191,16 @@ const Header = React.memo(({
     return () => clearTimeout(handler);
   }, [localQuery, searchQuery, setSearchQuery]);
 
-
   useEffect(() => {
-    let ticking = false;
-    const handleScroll = (e) => {
-      const target = e.target;
-      const scrollY = target === document || target === window
-        ? (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop)
-        : (target.scrollTop || 0);
-
-      if (scrollY > 50) {
-        setIsCollapsed(true);
-      } else if (scrollY <= 10) {
-        setIsCollapsed(false);
-      }
-      ticking = false;
-    };
-
-    const onScroll = (e) => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => handleScroll(e));
-        ticking = true;
-      }
-    };
-
-    // Use capture phase (third argument = true) to catch scroll events on scrollable children like #root
-    window.addEventListener("scroll", onScroll, true);
-    return () => window.removeEventListener("scroll", onScroll, true);
+    if (collapsibleRef.current) {
+      const observer = new ResizeObserver((entries) => {
+        for (let entry of entries) {
+          setCollapsibleHeight(entry.target.offsetHeight);
+        }
+      });
+      observer.observe(collapsibleRef.current);
+      return () => observer.disconnect();
+    }
   }, []);
 
   useEffect(() => {
@@ -270,6 +275,13 @@ const Header = React.memo(({
     }
   };
 
+  const getGreeting = () => {
+    const hr = new Date().getHours();
+    if (hr < 12) return "Good Morning 👋";
+    if (hr < 17) return "Good Afternoon 👋";
+    return "Good Evening 👋";
+  };
+
   const isDown = isCollapsed;
   const headerRef = React.useRef(null);
 
@@ -278,210 +290,318 @@ const Header = React.memo(({
     const updateHeight = () => {
       if (headerRef.current) {
         const rect = headerRef.current.getBoundingClientRect();
-        document.documentElement.style.setProperty("--header-height", `${rect.height}px`);
+        const visualHeight = isDown ? rect.height - (collapsibleHeight + 10) : rect.height;
+        document.documentElement.style.setProperty("--header-height", `${visualHeight}px`);
       }
     };
     updateHeight();
     const observer = new ResizeObserver(updateHeight);
     observer.observe(headerRef.current);
     return () => observer.disconnect();
-  }, [isDown]);
+  }, [isDown, collapsibleHeight]);
 
   return (
     <div
       ref={headerRef}
       style={{
         position: "sticky",
-        top: "env(safe-area-inset-top)",
+        top: 0,
         zIndex: 1000,
-        background: headerGradient || "linear-gradient(135deg, #edf7e5 0%, #e6f2db 60%, #dceccf 100%)",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-        transform: "translate3d(0, 0, 0)",
-        willChange: "transform",
+        background: "linear-gradient(135deg, #D8F0B4 0%, #BEE08A 100%)",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
         fontFamily: "'Outfit', 'Inter', sans-serif",
-        paddingTop: isDown ? "calc(env(safe-area-inset-top) + 12px)" : "calc(env(safe-area-inset-top) + 16px)",
-        paddingBottom: "12px",
+        paddingTop: "calc(env(safe-area-inset-top) + 24px)",
+        paddingBottom: "20px",
         paddingLeft: "16px",
         paddingRight: "16px",
         display: "flex",
         flexDirection: "column",
-        gap: isDown ? "0px" : "10px",
-        transition: "padding 300ms cubic-bezier(0.4, 0, 0.2, 1), gap 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+        gap: "12px",
+        transform: isDown ? `translate3d(0, -${collapsibleHeight + 10}px, 0)` : "translate3d(0, 0, 0)",
+        willChange: "transform",
+        transition: isDown
+          ? "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), background 300ms ease"
+          : "transform 320ms ease-in-out, background 300ms ease",
         width: "100%",
         maxWidth: "100%",
-        overflowX: "hidden",
-        boxSizing: "border-box"
+        overflow: "hidden",
+        boxSizing: "border-box",
+        borderBottomLeftRadius: isDown ? "20px" : "36px",
+        borderBottomRightRadius: isDown ? "20px" : "36px",
+        minHeight: isDown ? "auto" : "280px"
       }}
     >
-      {/* COLLAPSIBLE HEADER BLOCK */}
+      {/* Background blobs for premium depth */}
+      <div
+        style={{
+          position: "absolute",
+          top: "-80px",
+          right: "-60px",
+          width: "288px",
+          height: "288px",
+          borderRadius: "50%",
+          background: "rgba(255, 255, 255, 0.15)",
+          filter: "blur(48px)",
+          pointerEvents: "none",
+          zIndex: 1
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: "-60px",
+          left: "-60px",
+          width: "256px",
+          height: "256px",
+          borderRadius: "50%",
+          background: "rgba(255, 255, 255, 0.10)",
+          filter: "blur(48px)",
+          pointerEvents: "none",
+          zIndex: 1
+        }}
+      />
+
+      <div
+        ref={collapsibleRef}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+          transform: isDown ? "translate3d(0, -100%, 0)" : "translate3d(0, 0, 0)",
+          opacity: isDown ? 0 : 1,
+          willChange: "transform",
+          transition: isDown
+            ? "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms cubic-bezier(0.22, 1, 0.36, 1)"
+            : "transform 320ms ease-in-out, opacity 320ms ease-in-out",
+          pointerEvents: isDown ? "none" : "auto"
+        }}
+      >
+        {/* Row 1: Pills, Greetings, and Actions */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", zIndex: 2 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-start" }}>
+            
+            {/* Pills Container (Side-by-Side) */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {/* Delivery Pill */}
+              <div
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: "999px",
+                  background: "#1F2937",
+                  color: "white",
+                  fontWeight: "750",
+                  fontSize: "13px",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  display: "inline-flex",
+                  alignItems: "center"
+                }}
+              >
+                ⚡ Delivery in {eta} mins
+              </div>
+
+              {/* Buyto Minutes Pill */}
+              <div
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: "999px",
+                  background: "rgba(255, 255, 255, 0.7)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  fontSize: "13px",
+                  fontWeight: "750",
+                  color: "#318616",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                  display: "inline-flex",
+                  alignItems: "center"
+                }}
+              >
+                🛒 Buyto Minutes
+              </div>
+            </div>
+
+            {/* Greeting */}
+            <div style={{ marginTop: "4px" }}>
+              <p style={{ fontSize: "13px", color: "#374151", margin: 0, fontWeight: "500" }}>
+                {getGreeting()}
+              </p>
+              <h2
+                style={{
+                  fontSize: "clamp(18px, 5vw, 24px)",
+                  fontWeight: "800",
+                  color: "#1F2937",
+                  margin: "4px 0 0 0",
+                  lineHeight: "1.2"
+                }}
+              >
+                What can we get for you today?
+              </h2>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "rgba(31, 41, 55, 0.65)",
+                  fontWeight: "500",
+                  margin: "4px 0 0 0"
+                }}
+              >
+                Fresh groceries, essentials & more delivered fast.
+              </p>
+            </div>
+          </div>
+
+          {/* Right Column: Action Icons on top, and Rotating Offer Pill below them */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+            {/* Action Icons */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {/* Bell Icon */}
+              <div
+                onClick={() => navigate("/notifications")}
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "20px",
+                  background: "rgba(255, 255, 255, 0.75)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+                onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+                title="Notifications"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+              </div>
+
+              {/* Profile Avatar */}
+              <div
+                onClick={() => navigate("/profile")}
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "20px",
+                  background: "rgba(255, 255, 255, 0.75)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+                onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+                title="Profile"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+            </div>
+
+            {/* Rotating Offer Pill */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "rgba(255, 255, 255, 0.65)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                padding: "8px 12px",
+                borderRadius: "18px",
+                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.5)",
+                fontSize: "12px",
+                fontWeight: "600",
+                color: "#1F2937",
+                height: "44px",
+                boxSizing: "border-box",
+                transition: "all 0.3s ease",
+                maxWidth: "160px",
+                cursor: "default"
+              }}
+            >
+              <span style={{ fontSize: "16px" }}>{promos[promoIdx].icon}</span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: "1.2" }}>
+                <span style={{ fontWeight: "750", color: "#318616", whiteSpace: "nowrap" }}>
+                  {promos[promoIdx].text}
+                </span>
+                <span style={{ fontSize: "9px", color: "#4b5563", whiteSpace: "nowrap" }}>
+                  {promos[promoIdx].sub}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Location Card */}
+        <div
+          onClick={onOpenAddressModal}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "12px",
+            background: "rgba(255, 255, 255, 0.5)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            padding: "10px 14px",
+            borderRadius: "18px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.03)",
+            cursor: "pointer",
+            zIndex: 2,
+            alignSelf: "flex-start",
+            marginTop: "6px",
+            border: "1px solid rgba(255, 255, 255, 0.4)",
+            fontSize: "13px"
+          }}
+        >
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              background: "rgba(255, 255, 255, 0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+              fontSize: "16px"
+            }}
+          >
+            📍
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+            <p style={{ fontSize: "11px", color: "#4b5563", margin: 0, fontWeight: "500" }}>
+              Delivering to
+            </p>
+            <p style={{ fontSize: "13px", fontWeight: "800", color: "#111827", margin: 0 }}>
+              {addressText} <span style={{ fontSize: "8px", color: "#4b5563" }}>▼</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* STICKY/SEARCH/CATEGORY SECTION */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           gap: "10px",
-          transition: "max-height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease, transform 300ms cubic-bezier(0.4, 0, 0.2, 1), margin-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-          maxHeight: isDown ? "0px" : "100px",
-          opacity: isDown ? 0 : 1,
-          transform: isDown ? "translateY(-30px)" : "translateY(0)",
-          overflow: "hidden",
-          pointerEvents: isDown ? "none" : "auto",
-          marginBottom: isDown ? "0px" : "4px"
+          width: "100%",
+          maxWidth: "100%"
         }}
       >
-        {/* ROW 1: ETA Badge, Branding, and Profile Button */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {/* Branding & ETA Badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {/* Buyto Logo and Text */}
-            <div
-              onClick={() => {
-                if (location.pathname === "/") {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                } else {
-                  navigate("/");
-                }
-              }}
-              style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
-            >
-              {/* Desktop/Tablet Logo Image (width >= 768px) */}
-              <img
-                src={logoPath}
-                alt="Buyto Minutes"
-                className="brand-logo-desktop"
-                style={{
-                  height: "36px",
-                  width: "auto",
-                  objectFit: "contain",
-                }}
-              />
-              {/* Mobile Text Branding (width < 768px) */}
-              <span
-                className="brand-text-mobile"
-                style={{
-                  fontWeight: "900",
-                  letterSpacing: "-0.5px",
-                  display: "flex",
-                  alignItems: "center",
-                  fontSize: "clamp(15px, 4.8vw, 19px)",
-                }}
-              >
-                <span style={{ color: "#f59e0b" }}>Buyto</span>
-                <span
-                  style={{
-                    color: "#318616",
-                    marginLeft: "2px",
-                    fontSize: "0.9em"
-                  }}
-                >
-                  Minutes
-                </span>
-              </span>
-            </div>
-
-            {/* Dynamic ETA Badge */}
-            <div
-              style={{
-                background: "#1e293b",
-                color: "white",
-                padding: "4px clamp(6px, 2.5vw, 10px)",
-                borderRadius: "20px",
-                fontSize: "clamp(10px, 3.2vw, 12px)",
-                fontWeight: "800",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                minWidth: "clamp(90px, 32vw, 120px)", // Avoid layout shift while staying responsive
-                justifyContent: "center"
-              }}
-            >
-              ⚡ {eta} mins delivery
-            </div>
-          </div>
-
-          {/* Profile & Notifications Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {/* Bell Icon */}
-            <div
-              onClick={() => navigate("/notifications")}
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "50%",
-                background: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                cursor: "pointer",
-                transition: "transform 0.15s ease",
-              }}
-              onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-              onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-              title="Notifications"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              </svg>
-            </div>
-
-            {/* Profile/Avatar Circle */}
-            <div
-              onClick={() => navigate("/profile")}
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "50%",
-                background: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                cursor: "pointer",
-                transition: "transform 0.15s ease",
-              }}
-              onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-              onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* ROW 2: Location Selector */}
-        <div
-          onClick={onOpenAddressModal}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            cursor: "pointer",
-            maxWidth: "100%"
-          }}
-        >
-          <span style={{ fontSize: "14px", display: "flex", alignItems: "center" }}>📍</span>
-          <span
-            style={{
-              fontSize: "13px",
-              fontWeight: "750",
-              color: "#1f2937",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              maxWidth: "calc(100% - 30px)"
-            }}
-          >
-            {addressText}
-          </span>
-          <span style={{ fontSize: "9px", color: "#4b5563" }}>▼</span>
-        </div>
-      </div>
-
-      {/* ROW 3: Full-width Search Bar and Side Action Buttons */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
+        {/* ROW 3: Full-width Search Bar and Side Action Buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
         {/* Search Input Container */}
         <div style={{ position: "relative", flexGrow: 1 }}>
           <input
@@ -495,20 +615,22 @@ const Header = React.memo(({
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             style={{
-              background: "white",
-              borderRadius: "24px",
+              background: "rgba(255, 255, 255, 0.9)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              borderRadius: "30px",
               padding: "12px 40px",
               width: "100%",
-              border: "none",
+              border: "1px solid rgba(255, 255, 255, 0.7)",
               fontSize: "14px",
               fontWeight: "600",
               color: "#1f2937",
               outline: "none",
               boxSizing: "border-box",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+              boxShadow: "0 12px 35px rgba(0,0,0,0.08)"
             }}
           />
-           {(!localQuery && !isFocused) && (
+          {(!localQuery && !isFocused) && (
             <div
               style={{
                 position: "absolute",
@@ -665,6 +787,7 @@ const Header = React.memo(({
           onCategoryClick={onCategoryClick}
         />
       )}
+      </div>
     </div>
   );
 });

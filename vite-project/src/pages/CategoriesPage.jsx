@@ -2,6 +2,58 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { classifyProduct, canonicalCategory } from "../utils/productClassifier";
 
+const getCategoryGradient = (name, isStore = false) => {
+  if (isStore) {
+    return "linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)";
+  }
+
+  const lower = name.toLowerCase();
+
+  if (lower.includes("vegetable"))
+    return "linear-gradient(180deg,#F7FDEB,#EAF7D7)";
+
+  if (lower.includes("fruit"))
+    return "linear-gradient(180deg,#FFF5E6,#FFE8CC)";
+
+  if (lower.includes("dairy"))
+    return "linear-gradient(180deg,#FFFDF5,#FFF5D6)";
+
+  if (
+    lower.includes("meat") ||
+    lower.includes("seafood")
+  )
+    return "linear-gradient(180deg,#FFF1F1,#FFE3E3)";
+
+  if (
+    lower.includes("snack") ||
+    lower.includes("sweet") ||
+    lower.includes("chocolate")
+  )
+    return "linear-gradient(180deg,#FFF7E8,#FFE9BF)";
+
+  return "linear-gradient(180deg,#F7FDEB,#EAF7D7)";
+};
+
+const getCategoryBadge = (name, isStore = false) => {
+  if (isStore) return "Best Seller";
+
+  const lower = name.toLowerCase();
+
+  if (lower.includes("vegetable")) return "Organic";
+  if (lower.includes("fruit")) return "Fresh";
+  if (lower.includes("dairy")) return "Daily";
+  if (
+    lower.includes("meat") ||
+    lower.includes("seafood")
+  )
+    return "Premium";
+  if (lower.includes("sweet")) return "Trending";
+  if (lower.includes("drink")) return "Chilled";
+  if (lower.includes("paan")) return "New";
+
+  return "Popular";
+};
+
 const discoverySections = [
   {
     title: "Grocery & Kitchen",
@@ -321,16 +373,16 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
                 <div
                   key={item.name}
                   onClick={() => handleCardClick(item.name)}
-                  className="category-discovery-card"
+                  className="category-discovery-card group"
+                  style={{
+                    background: getCategoryGradient(item.name, section.isStore),
+                    boxShadow: "0 4px 20px rgba(49, 134, 22, 0.08)"
+                  }}
                 >
-                  <div
-                    className="category-discovery-image-wrapper"
-                    style={{
-                      background: section.isStore
-                        ? "linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)"
-                        : "#f3f4f6"
-                    }}
-                  >
+                  <span className="category-discovery-badge">
+                    {getCategoryBadge(item.name, section.isStore)}
+                  </span>
+                  <div className="category-discovery-image-wrapper">
                     <img
                       src={item.image}
                       alt={item.name}
@@ -338,10 +390,7 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
                       loading="lazy"
                     />
                   </div>
-                  <span className="category-discovery-text">
-                    {item.name}
-                    {item.count > 0 && ` (${item.count})`}
-                  </span>
+                  <h3 className="category-discovery-text">{item.name}</h3>
                 </div>
               ))}
             </div>
@@ -365,53 +414,72 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
           flex-direction: column;
           align-items: center;
           cursor: pointer;
-          transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          border-radius: 28px;
+          border: 1px solid #DCECC7;
+          transition: all 300ms ease;
+          padding: 16px;
+          gap: 12px;
+          position: relative;
+          box-sizing: border-box;
         }
 
         .category-discovery-card:hover {
-          transform: translateY(-2px);
+          transform: translateY(-4px);
+          box-shadow: 0 12px 32px rgba(49, 134, 22, 0.15) !important;
+        }
+
+        .category-discovery-badge {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: rgba(255, 255, 255, 0.9);
+          color: #318616;
+          font-size: 8px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 99px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          z-index: 5;
         }
 
         .category-discovery-image-wrapper {
-          width: 100%;
-          aspect-ratio: 80/72;
-          border-radius: 16px;
+          width: 64px; /* w-16 */
+          height: 64px; /* h-16 */
+          border-radius: 16px; /* rounded-2xl */
+          background-color: #ffffff;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.06); /* shadow-md */
           display: flex;
           align-items: center;
           justify-content: center;
-          overflow: hidden;
-          box-sizing: border-box;
-          border: 1px solid rgba(0, 0, 0, 0.01);
-          background-color: #f3f4f6;
+          transition: transform 300ms ease;
+          z-index: 2;
         }
 
-        .category-discovery-img {
-          width: 66px;
-          height: 61px;
-          max-width: 85%;
-          max-height: 85%;
-          object-fit: contain;
-          transition: transform 0.2s ease-in-out;
-        }
-
-        .category-discovery-card:hover .category-discovery-img {
+        .category-discovery-card:hover .category-discovery-image-wrapper {
           transform: scale(1.05);
         }
 
+        .category-discovery-img {
+          width: 48px; /* w-12 */
+          height: 48px; /* h-12 */
+          object-fit: contain;
+          transition: transform 300ms ease;
+        }
+
         .category-discovery-text {
-          margin-top: 8px;
           font-size: 11px;
           font-weight: 600;
-          color: #374151;
+          color: #1F2937;
+          line-height: 1.3;
           text-align: center;
-          line-height: 1.2;
+          margin: 0;
+          word-break: break-word;
+          min-height: 30px;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          word-break: break-word;
-          min-height: 28px;
-          padding: 0 2px;
+          z-index: 2;
         }
 
         @media (min-width: 768px) {
@@ -420,7 +488,7 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
             gap: 18px;
           }
           .category-discovery-text {
-            font-size: 12px;
+            font-size: 14px;
           }
         }
       `}</style>

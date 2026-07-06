@@ -113,7 +113,7 @@ const products = [
     "originalPrice": 35,
     "weight": "1 kg",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500"
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149832/d72cb109-40e3-4746-863a-39bf2b739b12_1108_1_pzpefg.jpg"
   },
   {
     "id": "veg2",
@@ -144,7 +144,7 @@ const products = [
     "originalPrice": 18,
     "weight": "100 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500"
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147688/fb5792fb-432f-44ab-9090-db68553e2b1b_1041_1_ftezbh.jpg"
   },
   {
     "id": "veg3",
@@ -175,7 +175,7 @@ const products = [
     "originalPrice": 40,
     "weight": "500 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500"
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150692/6709d282-5089-42f4-8810-6069a286ec3a_8689_ptdow2.jpg"
   },
   {
     "id": "fr3",
@@ -1384,7 +1384,7 @@ const products = [
     "price": 28,
     "originalPrice": 35,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147709/a571cc74-b070-43d5-8578-d414312f0551_2116_1_vikiri.jpg",
     "tags": [
       "onion eerulli",
       "eerulli",
@@ -1422,7 +1422,7 @@ const products = [
         "stock": 30
       }
     ],
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147629/8968c489-2838-49f5-ac11-ebd217fbe52c_5593_1_jcdia1.jpg",
     "tags": [
       "coriander leaves kottambari soppu",
       "kottambari soppu",
@@ -1450,7 +1450,7 @@ const products = [
     "price": 17,
     "originalPrice": 21,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147728/8796d7f6-10fe-40d2-9376-de022541dae3_5580_1_s9errw.jpg",
     "tags": [
       "ladys finger bende kaayi",
       "bende kaayi",
@@ -1479,7 +1479,7 @@ const products = [
     "price": 38,
     "originalPrice": 48,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149794/d5d7ccb9-05a8-42b9-a1bc-1a552bbabd2c_666976_i9ewnu.jpg",
     "tags": [
       "ginger shunti",
       "shunti",
@@ -1505,7 +1505,7 @@ const products = [
     "price": 13,
     "originalPrice": 16,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149870/7f95ad7d-6732-4abe-b6cb-960c1f5d88ac_1092_1_bgb2he.jpg",
     "tags": [
       "mint leaves pudina",
       "pudina",
@@ -1532,7 +1532,7 @@ const products = [
     "price": 12,
     "originalPrice": 15,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783151292/04d47a81-d0b6-4732-8cfe-5994d5d1cf05_602530_1_j4psi8.jpg",
     "tags": [
       "curry leaves karibevu soppu",
       "karibevu soppu",
@@ -1562,7 +1562,7 @@ const products = [
     "price": 49,
     "originalPrice": 61,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783151422/c956f32da8c49433c640707526a346e5_yiwaer.png",
     "tags": [
       "garlic bellulli",
       "bellulli",
@@ -1588,7 +1588,7 @@ const products = [
     "price": 43,
     "originalPrice": 54,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783151440/36a38d53-a2c2-4b38-87c9-e8aab9ce6465_99610_1_kb1xrb.jpg",
     "tags": [
       "cabbage yelekosu",
       "yelekosu",
@@ -1614,7 +1614,7 @@ const products = [
     "price": 20,
     "originalPrice": 25,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156432/c8d8e5ac-b592-48f9-9903-d87ff01fcd9c_5T14VUSUV5_MN_20112025_dgl1pc.jpg",
     "tags": [
       "raw mango mavinakayi",
       "mavinakayi",
@@ -1643,7 +1643,7 @@ const products = [
     "price": 44,
     "originalPrice": 55,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147748/eb297988-cff6-43b0-8e85-8ccdf5cc6ee0_5588_1_qpj1vd.jpg",
     "tags": [
       "spinach palak soppu",
       "palak soppu",
@@ -1670,7 +1670,7 @@ const products = [
     "price": 30,
     "originalPrice": 38,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149815/cd9136ecedec6ed4f49a568cf7be8dbc_isnrq7.jpg",
     "tags": [
       "ooty carrot",
       "ooty",
@@ -1700,7 +1700,7 @@ const products = [
     "price": 25,
     "originalPrice": 31,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156255/405467b3-111c-4838-8699-f58103d3eade_1128_1_wekwhz.png",
     "tags": [
       "sweet potato sihi genasu",
       "sihi genasu",
@@ -1733,7 +1733,7 @@ const products = [
     "price": 25,
     "originalPrice": 31,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156279/8d0055a3-9316-4c71-bbc9-55a90e5a5221_IORXJKJQ9F_MN_18122025_uy6bsf.jpg",
     "tags": [
       "bottle gaurd sorekaayi",
       "sorekaayi",
@@ -1758,7 +1758,7 @@ const products = [
     "price": 14,
     "originalPrice": 18,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156316/4c3730f5-abc6-40fa-aa99-f07af9b8a2f2_3967_xahau3.jpg",
     "tags": [
       "bharta purple brinjal badanekaayi",
       "badanekaayi",
@@ -1786,7 +1786,7 @@ const products = [
     "price": 24,
     "originalPrice": 53,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156353/412fa1971a6753dd37051f8cefc7c018_q18lc0.jpg",
     "tags": [
       "fenugreek menthya soppu",
       "menthya soppu",
@@ -1814,7 +1814,7 @@ const products = [
     "price": 46,
     "originalPrice": 60,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156369/8d80d133-9e62-4cf3-ac44-fef6fb402b5a_24381_1_v9ddv6.jpg",
     "tags": [
       "white radish moolangi",
       "moolangi",
@@ -1841,7 +1841,7 @@ const products = [
     "price": 28,
     "originalPrice": 35,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156389/2a9e48e9-6f30-4399-8571-7dd0ce8edf3c_3943_1_xyia3s.jpg",
     "tags": [
       "sambar onion sambar eerulli",
       "sambar eerulli",
@@ -1871,7 +1871,7 @@ const products = [
     "price": 12,
     "originalPrice": 44,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156405/2896c909-722a-43f3-9f75-019ef10fedd4_1288_1_bjutst.jpg",
     "tags": [
       "spring onion hasiru eerulli",
       "hasiru eerulli",
@@ -1902,7 +1902,7 @@ const products = [
     "price": 16,
     "originalPrice": 20,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156432/c8d8e5ac-b592-48f9-9903-d87ff01fcd9c_5T14VUSUV5_MN_20112025_dgl1pc.jpg",
     "tags": [
       "totapuri raw mango mavinahannu",
       "mavinahannu",
@@ -1932,7 +1932,7 @@ const products = [
     "price": 32,
     "originalPrice": 39,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156456/24742740-59cb-4e2c-a1cb-429842ca61e7_3941_1_obvcaq.jpg",
     "tags": [
       "haricot beans hurulikayi",
       "hurulikayi",
@@ -1960,7 +1960,7 @@ const products = [
     "price": 54,
     "originalPrice": 70,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149876/8ecd3ee3-9549-4356-8c98-c02d7fc795a5_FJY2OUS80Q_MN_18122025_booxtd.png",
     "tags": [
       "broad beans huralikaayi",
       "huralikaayi",
@@ -1988,7 +1988,7 @@ const products = [
     "price": 34,
     "originalPrice": 43,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156480/8d150b28-e535-4135-bd4b-cb08de1097ae_1289_1_nyifpr.jpg",
     "tags": [
       "raw banana baalekayi",
       "baalekayi",
@@ -2018,7 +2018,7 @@ const products = [
     "price": 15,
     "originalPrice": 19,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156502/198cd675-b03c-47da-bf67-5a4391b9e38b_15024_1_i9va0b.jpg",
     "tags": [
       "kateri brinjal geeru gundu badanekaayi",
       "geeru gundu badanekaayi",
@@ -2048,7 +2048,7 @@ const products = [
     "price": 50,
     "originalPrice": 63,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156545/289f9379-d63e-42bd-8073-0a7b846a4c4b_R5C58DYA16_MN_20112025_qixzyh.jpg",
     "tags": [
       "coconut thenginakayi",
       "thenginakayi",
@@ -2074,7 +2074,7 @@ const products = [
     "price": 42,
     "originalPrice": 53,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149815/cd9136ecedec6ed4f49a568cf7be8dbc_isnrq7.jpg",
     "tags": [
       "carrot",
       "the veggie store",
@@ -2102,7 +2102,7 @@ const products = [
     "price": 39,
     "originalPrice": 48,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157031/5cd854ba-f4ac-41b8-9aa9-0ef810610a5b_2610_o99ixa.jpg",
     "tags": [
       "french beans bili hurulikaayi",
       "bili hurulikaayi",
@@ -2133,7 +2133,7 @@ const products = [
     "price": 31,
     "originalPrice": 38,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150724/d1ee7be1-1749-4d7d-9c88-03cd6b8c7be2_QB9Q9Z7ZCH_MN_18122025_yyk3e0.png",
     "tags": [
       "ridge gourd herekaayi",
       "herekaayi",
@@ -2160,7 +2160,7 @@ const products = [
     "price": 18,
     "originalPrice": 21,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157058/70aafedb-d3a7-41fb-978b-6dedfcaa69e0_6LQGC4JOV8_MN_18122025_cmqt02.jpg",
     "tags": [
       "green capsicum dappa menasinakaayi",
       "dappa menasinakaayi",
@@ -2189,7 +2189,7 @@ const products = [
     "price": 32,
     "originalPrice": 40,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157083/d09c188edec2c8652bc56594b7ae57af_rljkwf.jpg",
     "tags": [
       "cauliflower hoo kosu",
       "hoo kosu",
@@ -2503,7 +2503,7 @@ const products = [
     "originalPrice": 120,
     "weight": "50 g x 2",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1621447509373-3f1212440eff?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157132/69cddaed-be9a-4908-ac75-0c514bf85eaf_XRIHO46WUM_1_27714783-6e28-4629-a4b3-4c8e7a8cd98c_dx8ryn.png",
     "tags": [
       "piknik classic tomato chilli",
       "piknik",
@@ -3005,7 +3005,7 @@ const products = [
     "originalPrice": 235,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157197/1a939ea2-c65e-4fee-bb01-48b62c2a75ee_HC3B2H7A1R_MN_18122025_t82dnq.png",
     "tags": [
       "the little farm co homemade red chilli pickleachar",
       "little",
@@ -3054,7 +3054,7 @@ const products = [
     "originalPrice": 235,
     "weight": "300 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157217/3d0825ec-73b5-4d0f-8e4f-b2d25f5f0db2_BBN0WI9GSU_MN_18122025_yzy5je.png",
     "tags": [
       "the little farm co homemade lemon khatta meetha pickle",
       "little",
@@ -3080,7 +3080,7 @@ const products = [
     "originalPrice": 235,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157262/5cef7e9a-a089-4612-8ad5-5f0e14a91fe3_N3AMNU3OC4_MN_18122025_eddunq.png",
     "tags": [
       "the little farm co homemade green chilli pickleachar",
       "little",
@@ -4259,7 +4259,7 @@ const products = [
     "originalPrice": 20,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1569870499742-7f3d8e52b21a?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156432/c8d8e5ac-b592-48f9-9903-d87ff01fcd9c_5T14VUSUV5_MN_20112025_dgl1pc.jpg",
     "variants": []
   },
   {
@@ -5164,7 +5164,7 @@ const products = [
     "originalPrice": 45,
     "weight": "100 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157299/9347e7cb-9409-42c3-8a49-925ce73e85b8_Q3KG7FK6KR_MN_18122025_h9tikc.png",
     "variants": []
   },
   {
@@ -5383,7 +5383,7 @@ const products = [
     "originalPrice": 195,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157347/2613b516-ec08-4700-bdd8-08887f29758d_RW063J7F7G_MN_18122025_cqwcrn.png",
     "variants": []
   },
   {
@@ -7006,7 +7006,7 @@ const products = [
     "originalPrice": 150,
     "weight": "1 kg",
     "stock": 60,
-    "image": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157464/1fcc41c5-fdff-4cf9-a4a6-d8cb72423919_21458_1_d9niqm.png",
     "variants": []
   },
   {
@@ -7719,7 +7719,7 @@ const products = [
     "originalPrice": 92,
     "weight": "1 Pack x 2",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150718/1526a159-33a7-4f63-b835-901685087f44_MW96GZS5O0_MN_18122025_bx2txx.jpg",
     "variants": []
   },
   {
@@ -7746,7 +7746,7 @@ const products = [
     "originalPrice": 26,
     "weight": "2 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157493/195cf96406eec0d209c6e666e69b6082_nis6z3.jpg",
     "variants": []
   },
   {
@@ -7775,7 +7775,7 @@ const products = [
     "originalPrice": 66,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590004953392-5aba2e72269a?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158216/85c6c0f1-ed77-48a1-94f0-c714b234bbb0_7MVUJULLMW_MN_18122025_mognnf.jpg",
     "variants": []
   },
   {
@@ -7802,7 +7802,7 @@ const products = [
     "originalPrice": 164,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590004953392-5aba2e72269a?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783157544/58d1e606-28dc-4455-b0d7-4c0fda15e7b6_MALYUIIBDA_MN_18122025_bx5w4v.jpg",
     "variants": []
   },
   {
@@ -7829,7 +7829,7 @@ const products = [
     "originalPrice": 175,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590004953392-5aba2e72269a?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158216/85c6c0f1-ed77-48a1-94f0-c714b234bbb0_7MVUJULLMW_MN_18122025_mognnf.jpg",
     "variants": []
   },
   {
@@ -7859,7 +7859,7 @@ const products = [
     "originalPrice": 23,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158275/467bffabd4fda9f03e53653736cb63c9_ou6u2l.jpg",
     "variants": []
   },
   {
@@ -7889,7 +7889,7 @@ const products = [
     "originalPrice": 28,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158308/8398ff27-89cb-41ae-9874-b090e2bc9608_XX05H71XO6_MN_18122025_q8ctqk.jpg",
     "variants": []
   },
   {
@@ -7921,7 +7921,7 @@ const products = [
     "originalPrice": 59,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149801/c4ec6365-b3e4-4100-abde-bada9a29ccb1_6456_1_ikf19h.jpg",
     "variants": []
   },
   {
@@ -7952,7 +7952,7 @@ const products = [
     "originalPrice": 70,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149801/c4ec6365-b3e4-4100-abde-bada9a29ccb1_6456_1_ikf19h.jpg",
     "variants": []
   },
   {
@@ -7979,7 +7979,7 @@ const products = [
     "originalPrice": 39,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1604974244764-7c3c07eef848?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158339/66613c9a-78a5-4ad8-b91f-38240a72e383_7821_1_rtjmrp.jpg",
     "variants": []
   },
   {
@@ -8008,7 +8008,7 @@ const products = [
     "originalPrice": 18,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147740/ac60c724-32c8-49bc-95a7-2b205e59a8eb_55568_1_joifxf.jpg",
     "variants": []
   },
   {
@@ -8041,7 +8041,7 @@ const products = [
     "originalPrice": 41,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147723/453075e6eea4c156a8214418abf08089_coybhv.png",
     "variants": []
   },
   {
@@ -8073,7 +8073,7 @@ const products = [
     "originalPrice": 20,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158379/01217c87-86a0-4139-9649-f03c6360aeea_128584_1_umpkek.jpg",
     "variants": []
   },
   {
@@ -8112,7 +8112,7 @@ const products = [
     "originalPrice": 142,
     "weight": "1 Combo",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500"
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158448/d77abbcb56c4e631a90aca5b06734a67_cakazq.png"
   },
   {
     "id": "veg47",
@@ -8150,7 +8150,7 @@ const products = [
     "originalPrice": 150,
     "weight": "1 Combo",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158420/e3e554e14180b27ad2607002a26889c5_rzjn5l.png",
     "variants": []
   },
   {
@@ -8183,7 +8183,7 @@ const products = [
     "originalPrice": 73,
     "weight": "1 Combo",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147629/8968c489-2838-49f5-ac11-ebd217fbe52c_5593_1_jcdia1.jpg",
     "variants": []
   },
   {
@@ -8209,7 +8209,7 @@ const products = [
     "originalPrice": 18,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158472/52148459-5cf3-4720-bcf2-bd496bc70fcc_4597_1_agfuf9.jpg",
     "variants": []
   },
   {
@@ -8235,7 +8235,7 @@ const products = [
     "originalPrice": 25,
     "weight": "2 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158493/f2a48231-6797-4ca2-a058-ebb3887950d1_BSOD4CRA3H_MN_20112025_smmvsq.jpg",
     "variants": []
   },
   {
@@ -8262,7 +8262,7 @@ const products = [
     "originalPrice": 141,
     "weight": "1 Combo",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158526/093fcb36-8fea-4d76-b2ad-82fe8aea29f2_NPIC-009765_1_20260410_113435_zeultj.png",
     "variants": []
   },
   {
@@ -8294,7 +8294,7 @@ const products = [
     "originalPrice": 16,
     "weight": "1 Bunch",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149870/7f95ad7d-6732-4abe-b6cb-960c1f5d88ac_1092_1_bgb2he.jpg",
     "variants": []
   },
   {
@@ -8327,7 +8327,7 @@ const products = [
     "originalPrice": 81,
     "weight": "1 kg",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783158557/2b926012-c86f-4622-a64d-ae6257a68cbe_678939_2_g92lq8.png",
     "variants": []
   },
   {
@@ -8358,7 +8358,7 @@ const products = [
     "originalPrice": 71,
     "weight": "500 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1604974244764-7c3c07eef848?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149832/d72cb109-40e3-4746-863a-39bf2b739b12_1108_1_pzpefg.jpg",
     "variants": []
   },
   {
@@ -8385,7 +8385,7 @@ const products = [
     "originalPrice": 80,
     "weight": "1 Pack",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590004953392-5aba2e72269a?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783160341/1d5ee15e-9746-4618-b892-6901eff43486_1095_1_f9x6xy.jpg",
     "variants": []
   },
   {
@@ -8414,7 +8414,7 @@ const products = [
     "originalPrice": 53,
     "weight": "2 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590004953392-5aba2e72269a?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783160360/d4d7ac17-6abf-4c4a-ae1e-809c5e13364e_G100GAHFI6_MN_18122025_v8q2t4.jpg",
     "variants": []
   },
   {
@@ -8441,7 +8441,7 @@ const products = [
     "originalPrice": 60,
     "weight": "1 Small",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156545/289f9379-d63e-42bd-8073-0a7b846a4c4b_R5C58DYA16_MN_20112025_qixzyh.jpg",
     "variants": []
   },
   {
@@ -8474,7 +8474,7 @@ const products = [
     "originalPrice": 89,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156545/289f9379-d63e-42bd-8073-0a7b846a4c4b_R5C58DYA16_MN_20112025_qixzyh.jpg",
     "variants": []
   },
   {
@@ -8500,7 +8500,7 @@ const products = [
     "originalPrice": 25,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783160419/14ecc1bf-0295-4854-8e85-382d7b39850a_1049_1_rytyhq.jpg",
     "variants": []
   },
   {
@@ -8524,7 +8524,7 @@ const products = [
     "originalPrice": 36,
     "weight": "500 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783160434/da103519-97a6-4a3c-8b83-0b3700fcedd7_1013_1_xjsfiq.png",
     "variants": []
   },
   {
@@ -8554,7 +8554,7 @@ const products = [
     "originalPrice": 43,
     "weight": "2 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783159880/8d4f3ec8-7029-43b0-adb8-9d85978813bb_VDZ0UFIPWK_MN_18122025_skom62.jpg",
     "variants": []
   },
   {
@@ -8584,7 +8584,7 @@ const products = [
     "originalPrice": 15,
     "weight": "1 Bunch",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783151292/04d47a81-d0b6-4732-8cfe-5994d5d1cf05_602530_1_j4psi8.jpg",
     "variants": []
   },
   {
@@ -8615,7 +8615,7 @@ const products = [
     "originalPrice": 86,
     "weight": "2 Pieces * 2",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156480/8d150b28-e535-4135-bd4b-cb08de1097ae_1289_1_nyifpr.jpg",
     "variants": []
   },
   {
@@ -8646,7 +8646,7 @@ const products = [
     "originalPrice": 56,
     "weight": "500 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783160486/e68805ed-0059-4d77-b085-d7adb108a04b_845303_1_krgq6q.jpg",
     "variants": []
   },
   {
@@ -8676,7 +8676,7 @@ const products = [
     "originalPrice": 35,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156389/2a9e48e9-6f30-4399-8571-7dd0ce8edf3c_3943_1_xyia3s.jpg",
     "variants": []
   },
   {
@@ -8703,7 +8703,7 @@ const products = [
     "originalPrice": 61,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783160800/c956f32da8c49433c640707526a346e5_lkz3ws.png",
     "variants": []
   },
   {
@@ -8735,7 +8735,7 @@ const products = [
     "originalPrice": 84,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783160833/d88d40240cca66dedaa88a64671d6c22_idkwtu.jpg",
     "variants": []
   },
   {
@@ -8766,7 +8766,7 @@ const products = [
     "originalPrice": 49,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147681/0d96927c-533f-41c8-8ca1-bd50a18e0cec_redcapsicum-1-fotor-bg-remover-20251007192224_awqt7q.jpg",
     "variants": []
   },
   {
@@ -8821,7 +8821,7 @@ const products = [
     "originalPrice": 73,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161007/b686b6c1-0af5-4ff3-8df6-aa18f85afea1_OFPZ37P15Y_1_pyvrfg.jpg",
     "variants": []
   },
   {
@@ -8853,7 +8853,7 @@ const products = [
     "originalPrice": 40,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156405/2896c909-722a-43f3-9f75-019ef10fedd4_1288_1_bjutst.jpg",
     "variants": []
   },
   {
@@ -8882,7 +8882,7 @@ const products = [
     "originalPrice": 40,
     "weight": "1 Bunch",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/raw/upload/v1783161112/fresho-beans-french-ring-organically-grown-250-g_teazyp",
     "variants": []
   },
   {
@@ -8911,7 +8911,7 @@ const products = [
     "originalPrice": 60,
     "weight": "500 g * 2",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161145/619027cc-b7c3-410c-a58f-29cf55658ec7_K0UOL4BIGS_MN_20112025_hapmcp.jpg",
     "variants": []
   },
   {
@@ -8939,7 +8939,7 @@ const products = [
     "originalPrice": 88,
     "weight": "75 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783176513/sztjkbg8o0oue0ux8x23_ty8e7n.png",
     "variants": []
   },
   {
@@ -8995,7 +8995,7 @@ const products = [
     "originalPrice": 44,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161212/bdd5e256-cf88-45ac-9002-1a12d3077d08_NOG29D5ZM9_MN_20112025_duelgd.jpg",
     "variants": []
   },
   {
@@ -9019,7 +9019,7 @@ const products = [
     "originalPrice": 30,
     "weight": "10 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161268/a76c4eb4-a2bf-45d8-ad63-8f014918b50b_917430_2_yd5oro.png",
     "variants": []
   },
   {
@@ -9049,7 +9049,7 @@ const products = [
     "originalPrice": 38,
     "weight": "1 Bunch",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161603/c421954d-8b66-40d4-8cf2-8012a4d3e152_1062_1_v9udhr.jpg",
     "variants": []
   },
   {
@@ -9075,7 +9075,7 @@ const products = [
     "originalPrice": 58,
     "weight": "100 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161624/7ccd50c7-9d64-409c-a726-f87576e98d2b_KHQVIT87Q9_MN_18122025_onbjmm.png",
     "variants": []
   },
   {
@@ -9101,7 +9101,7 @@ const products = [
     "originalPrice": 21,
     "weight": "100 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161642/7793f565-f14a-4192-8fa0-fbfc24df9d67_V7MTDKW3O1_MN_20112025_zhotlp.jpg",
     "variants": []
   },
   {
@@ -9125,7 +9125,7 @@ const products = [
     "originalPrice": 45,
     "weight": "1 Bunch",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161655/9d69b146-96ce-4ec3-963d-9d882299c1d6_RWU5Z74D4R_MN_20112025_yn3a9y.jpg",
     "variants": []
   },
   {
@@ -9149,7 +9149,7 @@ const products = [
     "originalPrice": 26,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161683/75209c62-0b80-47f6-bc2c-08d9b4024c27_R1GOHJ9VWV_MN_20112025_ggoiik.jpg",
     "variants": []
   },
   {
@@ -9176,7 +9176,7 @@ const products = [
     "originalPrice": 51,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161702/fb0e0678-d60c-45a7-9b16-6fe6a4778cdc_S2F35KIBCA_MN_18122025_gr5nyy.jpg",
     "variants": []
   },
   {
@@ -9210,7 +9210,7 @@ const products = [
     "originalPrice": 41,
     "weight": "500 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149862/a9559675-1a91-40f3-8b93-fa5ae2c62615_DX7SJWHNXZ_MN_18122025_y9v45y.jpg",
     "variants": []
   },
   {
@@ -9239,7 +9239,7 @@ const products = [
     "originalPrice": 96,
     "weight": "1 Bunch * 2",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156353/412fa1971a6753dd37051f8cefc7c018_q18lc0.jpg",
     "variants": []
   },
   {
@@ -9269,7 +9269,7 @@ const products = [
     "originalPrice": 56,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161737/8f5723ed-6c6e-4409-baa0-b5bad24459fd_118126_2_bbcwdv.png",
     "variants": []
   },
   {
@@ -9302,7 +9302,7 @@ const products = [
     "originalPrice": 28,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161768/ed07c5ca-c45c-4c37-ae3d-cbfecb08e001_VTJW0FJ8YY_MN_18122025_id9emo.jpg",
     "variants": []
   },
   {
@@ -9335,7 +9335,7 @@ const products = [
     "originalPrice": 35,
     "weight": "500 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149862/a9559675-1a91-40f3-8b93-fa5ae2c62615_DX7SJWHNXZ_MN_18122025_y9v45y.jpg",
     "variants": []
   },
   {
@@ -9366,7 +9366,7 @@ const products = [
     "originalPrice": 111,
     "weight": "2 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161791/611c5e9c-e3a4-4da6-b667-be43eadb3770_197543_2_fbo7cb.png",
     "variants": []
   },
   {
@@ -9392,12 +9392,12 @@ const products = [
     "originalPrice": 58,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161850/c939aa62-1bb3-4c1a-842e-0d89c7962bf5_2X9F8XX5YM_MN_20112025_b7pgku.jpg",
     "variants": []
   },
   {
     "id": "veg90",
-    "name": "Green Batavia Lettuce Hydroponically Grown)",
+    "name": "Green Batavia Lettuce Hydroponically Grown",
     "category": "The Veggie Store",
     "tags": [
       "green batavia lettuce hydroponically grown",
@@ -9421,7 +9421,7 @@ const products = [
     "originalPrice": 76,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161879/65137515-8b9e-4329-b6f9-6c0e82df5703_PFUC9ALMEY_MN_18122025_f0ghnp.png",
     "variants": []
   },
   {
@@ -9453,7 +9453,7 @@ const products = [
     "originalPrice": 119,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161899/912aa3f8-119d-4c0c-ae9e-e94d73803c2c_865335_1_yqxeco.jpg",
     "variants": []
   },
   {
@@ -9482,7 +9482,7 @@ const products = [
     "originalPrice": 50,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161939/5e0c656e-2041-4643-9fc6-0e7d0b32db03_U1MTNJ3H9R_MN_20112025_u3hy4y.jpg",
     "variants": []
   },
   {
@@ -9512,7 +9512,7 @@ const products = [
     "originalPrice": 110,
     "weight": "100 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177434/d7e777ab-c8a0-404d-ac77-b10bdf42a5c1_UYYBBKYVW6_MN_18122025_jawhev.jpg",
     "variants": []
   },
   {
@@ -9539,7 +9539,7 @@ const products = [
     "originalPrice": 240,
     "weight": "500 g * 2",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177481/c43c1e29c5311c96a0063f38765cdd0a_icebxr.jpg",
     "variants": []
   },
   {
@@ -9600,7 +9600,7 @@ const products = [
     "originalPrice": 55,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177536/229934cc-5ce5-4bf4-bfc9-b1539f7fa0e6_D8494WLUBZ_MN_20112025_swfer4.jpg",
     "variants": []
   },
   {
@@ -9656,7 +9656,7 @@ const products = [
     "originalPrice": 36,
     "weight": "4 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177644/249b5eb2-544b-4886-a431-4fee743a8f6a_869253_1_yvtwtb.jpg",
     "variants": []
   },
   {
@@ -9683,7 +9683,7 @@ const products = [
     "originalPrice": 40,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177674/df6bbe27-1bdd-4070-add8-bf51ee12f29e_XHCFGSCNL6_MN_18122025_fae1dc.jpg",
     "variants": []
   },
   {
@@ -9712,7 +9712,7 @@ const products = [
     "originalPrice": 74,
     "weight": "100 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177704/bc496dad-19a8-4e54-9ac1-95851917d6d5_EE33PG8OVZ_1_01510de4-1602-4eae-ba87-603bbde4bc83_cc4tgq.jpg",
     "variants": []
   },
   {
@@ -9742,7 +9742,7 @@ const products = [
     "originalPrice": 89,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177725/46d50cbe-6245-4378-93d4-7df980f3ff34_830255_2_viab71.png",
     "variants": []
   },
   {
@@ -9772,7 +9772,7 @@ const products = [
     "originalPrice": 101,
     "weight": "3 kg",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147715/6c684affda38df4b0a9a7b6ba43a8bf2_db1vqe.png",
     "variants": []
   },
   {
@@ -9805,7 +9805,7 @@ const products = [
     "originalPrice": 75,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177747/663e51bf-e81a-401d-ae11-cedf61a7165d_V5RSSUJGTZ_MN_18122025_dgw2gj.jpg",
     "variants": []
   },
   {
@@ -9833,7 +9833,7 @@ const products = [
     "originalPrice": 63,
     "weight": "75 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177816/b9cd0196-ef72-4bc9-b40f-3c787df17def_XYKRMKZ1ZX_MN_18122025_qhiy1z.jpg",
     "variants": []
   },
   {
@@ -9866,7 +9866,7 @@ const products = [
     "originalPrice": 64,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177854/934ba890-1825-4df7-ac4c-fe226224555d_883490_1_uokows.jpg",
     "variants": []
   },
   {
@@ -9899,7 +9899,7 @@ const products = [
     "originalPrice": 76,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177891/ef187bc6-868b-4d79-bba0-b9f564bde5b2_229558_1_iyepil.png",
     "variants": []
   },
   {
@@ -9980,7 +9980,7 @@ const products = [
     "originalPrice": 178,
     "weight": "2 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147648/f805676b-6417-408a-8340-b9e1c94551d9_Lemon_hchnlx.jpg",
     "variants": []
   },
   {
@@ -10041,7 +10041,7 @@ const products = [
     "originalPrice": 23,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149820/035bcbdc-64fa-4a91-a272-2189156c9e10_1036_1_cpgwjs.png",
     "variants": []
   },
   {
@@ -10073,7 +10073,7 @@ const products = [
     "originalPrice": 61,
     "weight": "4 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149815/cd9136ecedec6ed4f49a568cf7be8dbc_isnrq7.jpg",
     "variants": []
   },
   {
@@ -10106,7 +10106,7 @@ const products = [
     "originalPrice": 66,
     "weight": "200 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156389/2a9e48e9-6f30-4399-8571-7dd0ce8edf3c_3943_1_xyia3s.jpg",
     "variants": []
   },
   {
@@ -10138,7 +10138,7 @@ const products = [
     "originalPrice": 99,
     "weight": "1 Bunch",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147748/eb297988-cff6-43b0-8e85-8ccdf5cc6ee0_5588_1_qpj1vd.jpg",
     "variants": []
   },
   {
@@ -10169,7 +10169,7 @@ const products = [
     "originalPrice": 50,
     "weight": "500 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149856/41a2e0d7-e258-48e6-bfa3-40c746a9e51e_7816_1_pnwxln.jpg",
     "variants": []
   },
   {
@@ -10195,7 +10195,7 @@ const products = [
     "originalPrice": 34,
     "weight": "5 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178660/74d180c7-2faf-4c3b-8e8f-893f5205b93e_U3N6H3MA2P_MN_18122025_pcvi9l.png",
     "variants": []
   },
   {
@@ -10224,7 +10224,7 @@ const products = [
     "originalPrice": 99,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178763/a39d38f9-8d04-42a2-b569-a786ce6babbc_0V5PMS26A2_MN_18122025_g1gl0t.jpg",
     "variants": []
   },
   {
@@ -10252,7 +10252,7 @@ const products = [
     "originalPrice": 40,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178795/759558d6-3278-4e47-aad1-b9e67b79dd95_XMTUDQ40JV_MN_18122025_uovsl3.jpg",
     "variants": []
   },
   {
@@ -10283,7 +10283,7 @@ const products = [
     "originalPrice": 66,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178812/1ee72c98-baa7-4e62-bbb4-bf0b0addbfdf_465837_1_bgkcks.jpg",
     "variants": []
   },
   {
@@ -10309,7 +10309,7 @@ const products = [
     "originalPrice": 82,
     "weight": "2 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178835/67133288-8d2e-41dc-b660-3882648bf3e7_beetroot_1_h2ko3m.jpg",
     "variants": []
   },
   {
@@ -10335,7 +10335,7 @@ const products = [
     "originalPrice": 69,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178861/5a05bd8d-4416-458e-a14b-aa889ee8ff8b_8G274PYDUO_MN_18122025_tyirj2.jpg",
     "variants": []
   },
   {
@@ -10367,7 +10367,7 @@ const products = [
     "originalPrice": 37,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150724/d1ee7be1-1749-4d7d-9c88-03cd6b8c7be2_QB9Q9Z7ZCH_MN_18122025_yyk3e0.png",
     "variants": []
   },
   {
@@ -10402,7 +10402,7 @@ const products = [
     "originalPrice": 66,
     "weight": "1 kg",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149832/d72cb109-40e3-4746-863a-39bf2b739b12_1108_1_pzpefg.jpg",
     "variants": []
   },
   {
@@ -10438,7 +10438,7 @@ const products = [
     "originalPrice": 37,
     "weight": "500g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149832/d72cb109-40e3-4746-863a-39bf2b739b12_1108_1_pzpefg.jpg",
     "variants": []
   },
   {
@@ -10498,7 +10498,7 @@ const products = [
     "originalPrice": 36,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178923/515f1bfb-7d01-4dbd-92e7-0cf00a75b116_854514_1_dmydnm.jpg",
     "variants": []
   },
   {
@@ -10525,7 +10525,7 @@ const products = [
     "originalPrice": 320,
     "weight": "250g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178959/41d8899e-ffb4-46e3-9986-407bca3d4e2d_503344_1_qkf876.jpg",
     "variants": []
   },
   {
@@ -10556,7 +10556,7 @@ const products = [
     "originalPrice": 75,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178987/227767ee-7eb2-4c3b-a21f-8198c3e29206_746008_1_dt0eg0.jpg",
     "variants": []
   },
   {
@@ -10583,7 +10583,7 @@ const products = [
     "originalPrice": 132,
     "weight": "1 Combo",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179471/7513b2cd-6d3d-447c-8d75-fda0ce291e70_201073_yepcws.png",
     "variants": []
   },
   {
@@ -10613,7 +10613,7 @@ const products = [
     "originalPrice": 115,
     "weight": "3 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147675/1cc3f66a-21d6-450e-9f18-9336743b3ee3_SCA2FH0MPN_MN_20112025_vyeldf.jpg",
     "variants": []
   },
   {
@@ -10640,7 +10640,7 @@ const products = [
     "originalPrice": 35,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179501/ee7b1cef-5db9-4762-94b9-23ea5be3cb40_3O3GS7CI1L_MN_18122025_nqommi.png",
     "variants": []
   },
   {
@@ -10674,7 +10674,7 @@ const products = [
     "originalPrice": 75,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179537/24ece178-989f-4a70-abcf-c25ffa1862fb_700200_1_ltgoij.jpg",
     "variants": []
   },
   {
@@ -10704,7 +10704,7 @@ const products = [
     "originalPrice": 70,
     "weight": "2 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179570/f7b5048b-498f-4f9f-9c7a-36af7f77b115_749522_1_lp8xze.jpg",
     "variants": []
   },
   {
@@ -10732,7 +10732,7 @@ const products = [
     "originalPrice": 34,
     "weight": "250 g",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179597/6fc633df-9391-4633-85f4-57ed3706cd93_706761_rg8kri.jpg",
     "variants": []
   },
   {
@@ -10771,7 +10771,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1595855759920-86582396756a?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179630/0b6ddea9-2530-49d3-ae02-cf8a90753812_19646_1_d0il51.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Organic Certified Hybrid Tomato. Sourced with high-quality hygiene and nutritional standards.",
@@ -10805,7 +10805,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1449300079324-b2692b85b150?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179660/b2a2c632-bfcc-42d7-a97b-f289d2f80d93_19027_1_eheyvi.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Cucumber. Sourced with high-quality hygiene and nutritional standards.",
@@ -10849,7 +10849,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1595855759920-86582396756a?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179642/90fba939adf709ef8f8ead5c936ae3fc_v6h440.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Organic Certified Indian Tomato. Sourced with high-quality hygiene and nutritional standards.",
@@ -10889,7 +10889,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156279/8d0055a3-9316-4c71-bbc9-55a90e5a5221_IORXJKJQ9F_MN_18122025_uy6bsf.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Bottle Gourd(Sorekaayi). Sourced with high-quality hygiene and nutritional standards.",
@@ -10937,7 +10937,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1508747702-f5e1ad6d020b?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179702/7bc000fa-9f1e-4f93-8f4e-1c32b5273e18_874167_1_w1b50w.jpg",
     "section": "",
     "brand": "Nectr",
     "description": "Fresh and premium grade Nectr Onion(Chemical Free). Sourced with high-quality hygiene and nutritional standards.",
@@ -10981,7 +10981,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1508747702-f5e1ad6d020b?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179725/cd81bcb8-cc78-4372-9a1e-eefb25be9d87_262849_1_rfwy06.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Minimeal Onion. Sourced with high-quality hygiene and nutritional standards.",
@@ -11026,7 +11026,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590502593747-42a996133562?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147660/150bd898-ba8f-4040-9af4-452c293c895c_FreshVegetables_CVYKUI5M9B_MN_k5b4it.png",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Organic Certified Lemon(Nimbe Hannu). Sourced with high-quality hygiene and nutritional standards.",
@@ -11068,7 +11068,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590502593747-42a996133562?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147648/f805676b-6417-408a-8340-b9e1c94551d9_Lemon_hchnlx.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Gandharaj Lemon(Nimbe Hannu). Sourced with high-quality hygiene and nutritional standards.",
@@ -11110,7 +11110,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590502593747-42a996133562?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147648/f805676b-6417-408a-8340-b9e1c94551d9_Lemon_hchnlx.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Lemon Kaji(Nimbe Hannu). Sourced with high-quality hygiene and nutritional standards.",
@@ -11156,7 +11156,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149801/c4ec6365-b3e4-4100-abde-bada9a29ccb1_6456_1_ikf19h.jpg",
     "section": "",
     "brand": "Nectr",
     "description": "Fresh and premium grade Nectr Ginger(Chemical Free). Sourced with high-quality hygiene and nutritional standards.",
@@ -11198,7 +11198,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149801/c4ec6365-b3e4-4100-abde-bada9a29ccb1_6456_1_ikf19h.jpg",
     "section": "",
     "brand": "Pluckk",
     "description": "Fresh and premium grade Pluckk Ozone Washed Ginger. Sourced with high-quality hygiene and nutritional standards.",
@@ -11240,7 +11240,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1528825871115-3581a5387919?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156316/4c3730f5-abc6-40fa-aa99-f07af9b8a2f2_3967_xahau3.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Bharata Purple Brinjal (Badanekaayi). Sourced with high-quality hygiene and nutritional standards.",
@@ -11277,7 +11277,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150704/f2a48231-6797-4ca2-a058-ebb3887950d1_BSOD4CRA3H_MN_20112025_b5hrir.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Drumstick(Nuggekaayi). Sourced with high-quality hygiene and nutritional standards.",
@@ -11357,7 +11357,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179814/76142b0c-90cb-462d-99c1-920fd2b8672e_N8LMO8H7VM_MN_18122025_ytplzk.png",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Oyster Mushroom Fresh(Anabe). Sourced with high-quality hygiene and nutritional standards.",
@@ -11396,7 +11396,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590502593747-42a996133562?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147648/f805676b-6417-408a-8340-b9e1c94551d9_Lemon_hchnlx.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Lemon Imported. Sourced with high-quality hygiene and nutritional standards.",
@@ -11444,7 +11444,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590502593747-42a996133562?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147648/f805676b-6417-408a-8340-b9e1c94551d9_Lemon_hchnlx.jpg",
     "section": "",
     "brand": "Nectr",
     "description": "Fresh and premium grade Nectr Lemon Grass(Chemical Free). Sourced with high-quality hygiene and nutritional standards.",
@@ -11487,7 +11487,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1595855759920-86582396756a?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783180400/c0876307-37d6-454a-a96e-199da02a8207_FSDGMWXOZV_MN_18122025_riewg8.jpg",
     "section": "",
     "brand": "Pluckk",
     "description": "Fresh and premium grade Pluckk Ozone Washed Hybride Tomato. Sourced with high-quality hygiene and nutritional standards.",
@@ -11758,7 +11758,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783186284/54a3a1a3-c5d0-40fe-aa80-11646075008d_625882_1_fzuaft.jpg",
     "section": "",
     "brand": "Nectr",
     "description": "Fresh and premium grade nectr Small Yellow Zucchini(Chemical Free). Sourced with high-quality hygiene and nutritional standards.",
@@ -11806,7 +11806,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1528825871115-3581a5387919?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156316/4c3730f5-abc6-40fa-aa99-f07af9b8a2f2_3967_xahau3.jpg",
     "section": "",
     "brand": "Nectr",
     "description": "Fresh and premium grade nectr Purple Bharata Brinjal(Chemical Free). Sourced with high-quality hygiene and nutritional standards.",
@@ -11855,7 +11855,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783151288/6ad9fdd5-fbf7-4226-8b69-dfe277dad834_14817_1_yow1yf.jpg",
     "section": "",
     "brand": "Nectr",
     "description": "Fresh and premium grade nectr Curry Leaves(Chemical FRee). Sourced with high-quality hygiene and nutritional standards.",
@@ -11895,7 +11895,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783177747/663e51bf-e81a-401d-ae11-cedf61a7165d_V5RSSUJGTZ_MN_18122025_dgw2gj.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Bak Choy Hydroponically Grown. Sourced with high-quality hygiene and nutritional standards.",
@@ -11932,7 +11932,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783186365/11948f4f-ff62-48f1-b0a0-fe8933bbaf94_CNGZMO76MH_MN_20112025_xn1md4.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Leeks. Sourced with high-quality hygiene and nutritional standards.",
@@ -11972,7 +11972,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783186386/11038303-2f61-4057-9957-afa933fef357_1045_1_hz61jf.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Chilli Bhajji(Bhajji Menasinakaayi). Sourced with high-quality hygiene and nutritional standards.",
@@ -12104,7 +12104,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783186449/5c6277af-9b94-4350-b234-f67b17dc640f_VSPWKL0111_MN_20112025_k8h9a5.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Round Gourd(Dundagain Sorekaayi). Sourced with high-quality hygiene and nutritional standards.",
@@ -12186,7 +12186,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783186508/5e6794d8-b89d-4914-86b7-e6fc18af21ec_I9JI3ONTV8_MN_20112025_xjtb2x.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Yam Portion(Suvarna Gedde). Sourced with high-quality hygiene and nutritional standards.",
@@ -12230,7 +12230,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783186527/d907f021-511c-4f30-9f82-6b5632fcd890_353115_2_qmkr2d.png",
     "section": "",
     "brand": "Nectr",
     "description": "Fresh and premium grade nectr Thyme(Chemical Free). Sourced with high-quality hygiene and nutritional standards.",
@@ -12274,7 +12274,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149844/gslhg2y6ythtu14d3skh_rulrpn.png",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Potato(Aloo GAdde) Value Pack. Sourced with high-quality hygiene and nutritional standards.",
@@ -12312,7 +12312,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783186546/111f48fc61a2b87e4906e278208b6907_fzqchx.png",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Herbs and Seasonings. Sourced with high-quality hygiene and nutritional standards.",
@@ -12553,7 +12553,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149809/7ae1ccbe-50b7-4959-abce-1eddd84c4992_IRJTF3AWJ7_MN_18122025_adsb3f.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Thai Ginger (Shunti). Sourced with high-quality hygiene and nutritional standards.",
@@ -12686,7 +12686,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149820/035bcbdc-64fa-4a91-a272-2189156c9e10_1036_1_cpgwjs.png",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Ooty Baby Carrot(Chemical Free). Sourced with high-quality hygiene and nutritional standards.",
@@ -12765,7 +12765,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147694/3c769e96-fe39-40cd-8904-e3df5f0f4c99_8536_1_qfxre4.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Bullet Chilli(Menasinakaayi). Sourced with high-quality hygiene and nutritional standards.",
@@ -12805,7 +12805,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150718/1526a159-33a7-4f63-b835-901685087f44_MW96GZS5O0_MN_18122025_bx2txx.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Bitter Gourd(Haagalakaayi). Sourced with high-quality hygiene and nutritional standards.",
@@ -12917,7 +12917,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783179686/8d0055a3-9316-4c71-bbc9-55a90e5a5221_IORXJKJQ9F_MN_18122025_j6dsm4.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Bottle Gourd. Sourced with high-quality hygiene and nutritional standards.",
@@ -13004,7 +13004,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590502593747-42a996133562?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147648/f805676b-6417-408a-8340-b9e1c94551d9_Lemon_hchnlx.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Lemongrass (Nimbe hullu). Sourced with high-quality hygiene and nutritional standards.",
@@ -13137,7 +13137,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147629/8968c489-2838-49f5-ac11-ebd217fbe52c_5593_1_jcdia1.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Desi Coriander Leaves(Chemical Free). Sourced with high-quality hygiene and nutritional standards.",
@@ -13178,7 +13178,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1590502593747-42a996133562?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147648/f805676b-6417-408a-8340-b9e1c94551d9_Lemon_hchnlx.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade Lemon (Nimbe Hannu). Sourced with high-quality hygiene and nutritional standards.",
@@ -13225,7 +13225,7 @@ const products = [
     ],
     "isTrending": false,
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1508747702-f5e1ad6d020b?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783178883/69d408a0-2f96-42d3-9ccc-2ab600d9cb9f_7039_1_blm6r5.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Fresh and premium grade White Onion (Bili Onion). Sourced with high-quality hygiene and nutritional standards.",
@@ -19538,7 +19538,7 @@ const products = [
     "originalPrice": 46,
     "weight": "250 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1588252398678-30a52f877ca9?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147728/8796d7f6-10fe-40d2-9376-de022541dae3_5580_1_s9errw.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Lady's Finger (Bendekaayi). Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -19574,7 +19574,7 @@ const products = [
     "originalPrice": 58,
     "weight": "1 Pack",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147728/8796d7f6-10fe-40d2-9376-de022541dae3_5580_1_s9errw.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Lady's Finger. Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -19688,7 +19688,7 @@ const products = [
     "originalPrice": 48,
     "weight": "250 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1588252398678-30a52f877ca9?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149820/035bcbdc-64fa-4a91-a272-2189156c9e10_1036_1_cpgwjs.png",
     "section": "",
     "brand": "Pluckk",
     "description": "Pluckk Organic Carrot(Orange). Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -19765,7 +19765,7 @@ const products = [
     "originalPrice": 55,
     "weight": "500 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1590868309235-ea34fed7ad80?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150724/d1ee7be1-1749-4d7d-9c88-03cd6b8c7be2_QB9Q9Z7ZCH_MN_18122025_yyk3e0.png",
     "section": "",
     "brand": "Generic",
     "description": "Organic Certified Ridge Gourd (Herekaayi). Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -19805,7 +19805,7 @@ const products = [
     "originalPrice": 60,
     "weight": "500 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1625940484795-021d7b30fb0f?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150718/1526a159-33a7-4f63-b835-901685087f44_MW96GZS5O0_MN_18122025_bx2txx.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Organic Certified Bitter Gourd(Haagalakaayi). Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -19844,7 +19844,7 @@ const products = [
     "originalPrice": 52,
     "weight": "250 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783160453/8d4f3ec8-7029-43b0-adb8-9d85978813bb_VDZ0UFIPWK_MN_18122025_aj5zmn.jpg",
     "section": "",
     "brand": "Pluckk",
     "description": "Pluckk Organic Beetroot. Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -19885,7 +19885,7 @@ const products = [
     "originalPrice": 42,
     "weight": "250 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1625940484795-021d7b30fb0f?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783147723/453075e6eea4c156a8214418abf08089_coybhv.png",
     "section": "",
     "brand": "Pluckk",
     "description": "Pluckk Organic Lady's Finger. Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -19963,7 +19963,7 @@ const products = [
     "originalPrice": 85,
     "weight": "500 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1588252398678-30a52f877ca9?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783150718/1526a159-33a7-4f63-b835-901685087f44_MW96GZS5O0_MN_18122025_bx2txx.jpg",
     "section": "",
     "brand": "Pluckk",
     "description": "Pluckk Organic Bitter Gourd. Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -20044,7 +20044,7 @@ const products = [
     "originalPrice": 44,
     "weight": "100 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1588252398678-30a52f877ca9?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783149801/c4ec6365-b3e4-4100-abde-bada9a29ccb1_6456_1_ikf19h.jpg",
     "section": "",
     "brand": "Generic",
     "description": "Organic Ginger. Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",
@@ -20129,7 +20129,7 @@ const products = [
     "originalPrice": 36,
     "weight": "50 g",
     "stock": 50,
-    "image": "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=500&auto=format&fit=crop",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783151300/fc2d0c47-7538-441f-b1bc-d82b571347b7_ONVGS1OQ3W_MN_18122025_fjf4a8.png",
     "section": "",
     "brand": "Generic",
     "description": "Organic Curry Leaves. Sourced fresh and packed under strict hygiene conditions. Sourced with high-quality standards.",

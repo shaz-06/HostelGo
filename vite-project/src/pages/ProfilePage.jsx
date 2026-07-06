@@ -629,15 +629,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* 7. OTP TEST SCREEN BUTTON - CONDITIONAL */}
-        {isDev && (
-          <button
-            onClick={() => navigate("/otp-test")}
-            style={otpTestBtnStyle}
-          >
-            🧪 Run OTP Test Screen (Dev Only)
-          </button>
-        )}
+
 
         {/* 8. BOTTOM BRANDING */}
         <div style={footerStyle}>
@@ -1148,19 +1140,7 @@ const couponStatusStyle = (isUsed) => ({
   color: isUsed ? "#9ca3af" : "#10b981"
 });
 
-const otpTestBtnStyle = {
-  width: "100%",
-  padding: "14px",
-  borderRadius: "16px",
-  border: "1.5px solid #fbbf24",
-  background: "#fffbeb",
-  color: "#d97706",
-  fontWeight: "850",
-  fontSize: "13px",
-  cursor: "pointer",
-  boxShadow: "0 4px 12px rgba(245, 158, 11, 0.03)",
-  marginTop: "24px"
-};
+
 
 const footerStyle = {
   textAlign: "center",

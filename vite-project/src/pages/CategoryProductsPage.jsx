@@ -286,6 +286,141 @@ const getSubcategoryKey = (slug) => {
   return map[norm] || norm;
 };
 
+const categoryFilters = {
+  "fresh-fruits": {
+    "Type": ["Mangoes", "Bananas", "Apples", "Watermelons"],
+    "Freshness": ["Organic", "Farm Fresh", "Seasonal"],
+    "Price": ["Under ₹50", "₹50-₹100", "₹100+"],
+    "Offers": ["10%+ OFF", "20%+ OFF"]
+  },
+  "fresh-vegetables": {
+    "Type": ["Leafy", "Root", "Exotic"],
+    "Freshness": ["Organic", "Farm Fresh"],
+    "Price": ["Under ₹30", "₹30-₹80", "₹80+"]
+  },
+  "dairy-bread-eggs": {
+    "Type": ["Milk", "Curd", "Cheese", "Butter", "Eggs", "Bread"],
+    "Brand": ["Amul", "Nandini", "Britannia"],
+    "Offers": ["Combo Packs", "Buy 1 Get 1"]
+  },
+  "dairy-bread-and-eggs": {
+    "Type": ["Milk", "Curd", "Cheese", "Butter", "Eggs", "Bread"],
+    "Brand": ["Amul", "Nandini", "Britannia"],
+    "Offers": ["Combo Packs", "Buy 1 Get 1"]
+  },
+  "meat-seafood": {
+    "Type": ["Chicken", "Mutton", "Fish", "Prawns"],
+    "Cuts": ["Boneless", "Curry Cut", "Whole"],
+    "Freshness": ["Fresh Today", "Premium"]
+  },
+  "meat-and-seafood": {
+    "Type": ["Chicken", "Mutton", "Fish", "Prawns"],
+    "Cuts": ["Boneless", "Curry Cut", "Whole"],
+    "Freshness": ["Fresh Today", "Premium"]
+  },
+  "chips-namkeens": {
+    "Type": ["Chips", "Biscuits", "Chocolates", "Namkeens"],
+    "Brand": ["Lays", "Haldiram", "Cadbury"],
+    "Offers": ["Combo Offers", "10%+ OFF"]
+  },
+  "chips-and-namkeens": {
+    "Type": ["Chips", "Biscuits", "Chocolates", "Namkeens"],
+    "Brand": ["Lays", "Haldiram", "Cadbury"],
+    "Offers": ["Combo Offers", "10%+ OFF"]
+  },
+  "cold-drinks-juices": {
+    "Type": ["Soft Drinks", "Juices", "Energy Drinks", "Water"],
+    "Brand": ["Coca-Cola", "Pepsi", "Real", "Red Bull"]
+  },
+  "cold-drinks-and-juices": {
+    "Type": ["Soft Drinks", "Juices", "Energy Drinks", "Water"],
+    "Brand": ["Coca-Cola", "Pepsi", "Real", "Red Bull"]
+  },
+  "baby-care": {
+    "Type": ["Diapers", "Wipes", "Baby Food", "Lotion"],
+    "Brand": ["Pampers", "Huggies", "Johnson's"]
+  },
+  "bath-body": {
+    "Type": ["Soap", "Shampoo", "Face Wash", "Body Wash"],
+    "Brand": ["Dove", "Nivea", "Mamaearth"]
+  },
+  "bath-and-body": {
+    "Type": ["Soap", "Shampoo", "Face Wash", "Body Wash"],
+    "Brand": ["Dove", "Nivea", "Mamaearth"]
+  }
+};
+
+const matchPrice = (priceVal, priceStr) => {
+  const pVal = Number(priceVal) || 0;
+  const matchUnder = priceStr.match(/Under\s*₹\s*(\d+)/i);
+  if (matchUnder) {
+    return pVal < parseInt(matchUnder[1], 10);
+  }
+  const matchRange = priceStr.match(/₹\s*(\d+)\s*-\s*₹\s*(\d+)/i);
+  if (matchRange) {
+    return pVal >= parseInt(matchRange[1], 10) && pVal <= parseInt(matchRange[2], 10);
+  }
+  const matchPlus = priceStr.match(/₹\s*(\d+)\s*\+/i);
+  if (matchPlus) {
+    return pVal >= parseInt(matchPlus[1], 10);
+  }
+  return true;
+};
+
+const matchOffer = (p, offerStr) => {
+  const price = Number(p.price) || 0;
+  const originalPrice = Number(p.originalPrice) || 0;
+  if (!originalPrice || originalPrice <= price) return false;
+  const discount = ((originalPrice - price) / originalPrice) * 100;
+  const matchPct = offerStr.match(/(\d+)%\+\s*OFF/i);
+  if (matchPct) {
+    return discount >= parseInt(matchPct[1], 10);
+  }
+  if (offerStr.toLowerCase().includes("buy 1 get 1")) {
+    const nameMatch = p.name && String(p.name).toLowerCase().includes("buy 1 get 1");
+    const descMatch = p.description && String(p.description).toLowerCase().includes("bogo");
+    const tagsMatch = p.tags && (Array.isArray(p.tags) 
+      ? p.tags.some(t => String(t).toLowerCase().includes("bogo")) 
+      : String(p.tags).toLowerCase().includes("bogo"));
+    return nameMatch || descMatch || tagsMatch;
+  }
+  return true;
+};
+
+const matchType = (p, typeVal) => {
+  const val = typeVal.toLowerCase();
+  const nameMatch = p.name && String(p.name).toLowerCase().includes(val);
+  const subCategoryMatch = p.subCategory && String(p.subCategory).toLowerCase().includes(val);
+  const subcategoryMatch = p.subcategory && String(p.subcategory).toLowerCase().includes(val);
+  const descMatch = p.description && String(p.description).toLowerCase().includes(val);
+  const tagsMatch = p.tags && (Array.isArray(p.tags) 
+    ? p.tags.some(t => String(t).toLowerCase().includes(val)) 
+    : String(p.tags).toLowerCase().includes(val));
+  return nameMatch || subCategoryMatch || subcategoryMatch || descMatch || tagsMatch;
+};
+
+const matchBrand = (p, brandVal) => {
+  const val = brandVal.toLowerCase();
+  return (p.brand && String(p.brand).toLowerCase().includes(val)) ||
+         (p.name && String(p.name).toLowerCase().includes(val));
+};
+
+const matchFreshness = (p, freshVal) => {
+  const val = freshVal.toLowerCase();
+  const nameMatch = p.name && String(p.name).toLowerCase().includes(val);
+  const descMatch = p.description && String(p.description).toLowerCase().includes(val);
+  const tagsMatch = p.tags && (Array.isArray(p.tags) 
+    ? p.tags.some(t => String(t).toLowerCase().includes(val)) 
+    : String(p.tags).toLowerCase().includes(val));
+  return nameMatch || descMatch || tagsMatch;
+};
+
+const matchCuts = (p, cutVal) => {
+  const val = cutVal.toLowerCase();
+  return (p.name && String(p.name).toLowerCase().includes(val)) ||
+         (p.description && String(p.description).toLowerCase().includes(val));
+};
+
 export default function CategoryProductsPage({
   products = [],
   categories = [],
@@ -313,8 +448,11 @@ export default function CategoryProductsPage({
   
   const [activeSubcategory, setActiveSubcategory] = useState("Show All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFilters, setSelectedFilters] = useState({});
+  const [isFilterBottomSheetOpen, setIsFilterBottomSheetOpen] = useState(false);
+  const [activeMobileFilterSection, setActiveMobileFilterSection] = useState("All");
 
-  // Scroll to top on slug/subcategory change
+  // Scroll to top on slug change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
@@ -380,10 +518,17 @@ export default function CategoryProductsPage({
     return CATEGORY_SUBCATEGORIES[key] || ["Show All"];
   }, [slug]);
 
-  // Reset active subcategory when slug changes
+  // Get active filters configuration based on category slug
+  const activeFiltersConfig = useMemo(() => {
+    const key = getSubcategoryKey(slug);
+    return categoryFilters[key] || {};
+  }, [slug]);
+
+  // Reset active subcategory and filters when slug changes
   useEffect(() => {
     setActiveSubcategory("Show All");
     setSearchQuery("");
+    setSelectedFilters({});
   }, [slug]);
 
   // Normalization helper for category matching
@@ -399,7 +544,7 @@ export default function CategoryProductsPage({
     return normProd === normTarget || normProd.includes(normTarget) || normTarget.includes(normProd);
   };
 
-  // Filter category products based on dynamic subcategory and search query
+  // Filter category products based on dynamic subcategory, search query, and category specific checkbox filters
   const filteredCategoryProducts = useMemo(() => {
     if (!matchedCategory) return [];
     const targetCanonical = canonicalCategory(matchedCategory.name);
@@ -435,8 +580,37 @@ export default function CategoryProductsPage({
       );
     }
 
+    // 4. Dynamic category-specific filters
+    Object.entries(selectedFilters).forEach(([section, selectedOptions]) => {
+      if (!selectedOptions || selectedOptions.length === 0) return;
+      list = list.filter(p => {
+        return selectedOptions.some(option => {
+          const lowerSection = section.toLowerCase();
+          if (lowerSection === "price") {
+            return matchPrice(p.price, option);
+          }
+          if (lowerSection === "offers") {
+            return matchOffer(p, option);
+          }
+          if (lowerSection === "type") {
+            return matchType(p, option);
+          }
+          if (lowerSection === "brand") {
+            return matchBrand(p, option);
+          }
+          if (lowerSection === "freshness") {
+            return matchFreshness(p, option);
+          }
+          if (lowerSection === "cuts") {
+            return matchCuts(p, option);
+          }
+          return true;
+        });
+      });
+    });
+
     return list;
-  }, [localProducts, matchedCategory, activeSubcategory, searchQuery]);
+  }, [localProducts, matchedCategory, activeSubcategory, searchQuery, selectedFilters]);
 
   // SEO Dynamic Page Title
   useEffect(() => {
@@ -444,6 +618,25 @@ export default function CategoryProductsPage({
       document.title = `${matchedCategory.name} | Buyto`;
     }
   }, [matchedCategory]);
+
+  const handleCheckboxChange = (section, option) => {
+    setSelectedFilters((prev) => {
+      const current = prev[section] || [];
+      const updated = current.includes(option)
+        ? current.filter((x) => x !== option)
+        : [...current, option];
+      
+      const newFilters = { ...prev, [section]: updated };
+      if (newFilters[section].length === 0) {
+        delete newFilters[section];
+      }
+      return newFilters;
+    });
+  };
+
+  const handleClearAll = () => {
+    setSelectedFilters({});
+  };
 
   if (loading || parentLoading) {
     return (
@@ -509,7 +702,6 @@ export default function CategoryProductsPage({
             ({filteredCategoryProducts.length} items)
           </span>
         </div>
-
       </div>
 
       <div
@@ -523,24 +715,158 @@ export default function CategoryProductsPage({
           boxSizing: "border-box"
         }}
       >
-        {/* Left Sidebar Subcategories - Sticky */}
+        {/* Left Sidebar Layout (Subcategories + Filters) */}
         {!isMobile && (
-          <aside
-            style={{
-              width: "220px",
-              position: "sticky",
-              top: "120px",
-              background: "white",
-              borderRadius: "16px",
-              padding: "12px 8px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
-              border: "1px solid #f3f4f6",
-              maxHeight: "calc(100vh - 160px)",
-              overflowY: "auto",
-              boxSizing: "border-box"
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "220px" }}>
+            {/* Subcategories list */}
+            <aside
+              style={{
+                background: "white",
+                borderRadius: "28px",
+                padding: "16px 12px",
+                boxShadow: "0 8px 30px rgba(0,0,0,0.04)",
+                border: "1px solid #f3f4f6",
+                maxHeight: "350px",
+                overflowY: "auto",
+                boxSizing: "border-box"
+              }}
+            >
+              <span style={{ fontWeight: "800", fontSize: "14px", color: "#111827", paddingLeft: "14px", display: "block", marginBottom: "10px" }}>
+                Subcategories
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {subcategories.map((sub) => {
+                  const isActive = activeSubcategory === sub;
+                  return (
+                    <button
+                      key={sub}
+                      onClick={() => setActiveSubcategory(sub)}
+                      style={{
+                        textAlign: "left",
+                        padding: "8px 14px",
+                        borderRadius: "10px",
+                        border: "none",
+                        background: isActive ? "#eefaf2" : "transparent",
+                        color: isActive ? "#318616" : "#4b5563",
+                        fontSize: "13px",
+                        fontWeight: isActive ? "800" : "600",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between"
+                      }}
+                      onMouseOver={(e) => {
+                        if (!isActive) e.currentTarget.style.background = "#f7f8fa";
+                      }}
+                      onMouseOut={(e) => {
+                        if (!isActive) e.currentTarget.style.background = "transparent";
+                      }}
+                    >
+                      <span>{sub}</span>
+                      {isActive && <span style={{ fontSize: "10px" }}>●</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            {/* Dynamic Filter Sidebar */}
+            {Object.keys(activeFiltersConfig).length > 0 && (
+              <aside
+                style={{
+                  background: "white",
+                  borderRadius: "28px",
+                  padding: "20px",
+                  boxShadow: "0 8px 30px rgba(0,0,0,0.04)",
+                  border: "1px solid #f3f4f6",
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "20px"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: "800", fontSize: "14px", color: "#111827" }}>Filters</span>
+                  {Object.keys(selectedFilters).length > 0 && (
+                    <button
+                      onClick={handleClearAll}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#318616",
+                        fontSize: "11px",
+                        fontWeight: "750",
+                        cursor: "pointer",
+                        padding: 0
+                      }}
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {Object.entries(activeFiltersConfig).map(([section, options]) => (
+                  <div key={section} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <span style={{ fontWeight: "750", fontSize: "11px", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      {section}
+                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {options.map((opt) => {
+                        const isChecked = (selectedFilters[section] || []).includes(opt);
+                        return (
+                          <label
+                            key={opt}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              fontSize: "13px",
+                              fontWeight: isChecked ? "700" : "500",
+                              color: isChecked ? "#318616" : "#4b5563",
+                              cursor: "pointer",
+                              userSelect: "none"
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleCheckboxChange(section, opt)}
+                              style={{
+                                accentColor: "#318616",
+                                width: "16px",
+                                height: "16px",
+                                cursor: "pointer"
+                              }}
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div style={{ height: "1px", background: "#f3f4f6", marginTop: "10px" }} />
+                  </div>
+                ))}
+              </aside>
+            )}
+          </div>
+        )}
+
+        {/* Mobile Filter Chips Row */}
+        {isMobile && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {/* Subcategories Horizontal Bar */}
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                overflowX: "auto",
+                padding: "4px 0",
+                width: "100%",
+                scrollbarWidth: "none"
+              }}
+              className="hide-scrollbar"
+            >
               {subcategories.map((sub) => {
                 const isActive = activeSubcategory === sub;
                 return (
@@ -548,73 +874,96 @@ export default function CategoryProductsPage({
                     key={sub}
                     onClick={() => setActiveSubcategory(sub)}
                     style={{
-                      textAlign: "left",
-                      padding: "10px 14px",
-                      borderRadius: "10px",
+                      padding: "8px 14px",
+                      borderRadius: "20px",
                       border: "none",
-                      background: isActive ? "#eefaf2" : "transparent",
-                      color: isActive ? "#318616" : "#4b5563",
-                      fontSize: "13px",
-                      fontWeight: isActive ? "800" : "600",
+                      background: isActive ? "#318616" : "white",
+                      color: isActive ? "white" : "#4b5563",
+                      fontSize: "12px",
+                      fontWeight: "750",
                       cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between"
-                    }}
-                    onMouseOver={(e) => {
-                      if (!isActive) e.currentTarget.style.background = "#f7f8fa";
-                    }}
-                    onMouseOut={(e) => {
-                      if (!isActive) e.currentTarget.style.background = "transparent";
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                      border: "1px solid #e5e7eb"
                     }}
                   >
-                    <span>{sub}</span>
-                    {isActive && <span style={{ fontSize: "10px" }}>●</span>}
+                    {sub}
                   </button>
                 );
               })}
             </div>
-          </aside>
-        )}
 
-        {/* Mobile Horizontal Subcategory Bar */}
-        {isMobile && (
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              overflowX: "auto",
-              padding: "4px 0 12px 0",
-              width: "100%",
-              scrollbarWidth: "none"
-            }}
-            className="hide-scrollbar"
-          >
-            {subcategories.map((sub) => {
-              const isActive = activeSubcategory === sub;
-              return (
+            {/* Filter Section Chips */}
+            {Object.keys(activeFiltersConfig).length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  overflowX: "auto",
+                  padding: "4px 0 12px 0",
+                  width: "100%",
+                  scrollbarWidth: "none"
+                }}
+                className="hide-scrollbar"
+              >
                 <button
-                  key={sub}
-                  onClick={() => setActiveSubcategory(sub)}
+                  onClick={() => {
+                    setActiveMobileFilterSection("All");
+                    setIsFilterBottomSheetOpen(true);
+                  }}
                   style={{
                     padding: "8px 14px",
                     borderRadius: "20px",
                     border: "none",
-                    background: isActive ? "#318616" : "white",
-                    color: isActive ? "white" : "#4b5563",
+                    background: "#1F2937",
+                    color: "white",
                     fontSize: "12px",
                     fontWeight: "750",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                    border: "1px solid #e5e7eb"
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px"
                   }}
                 >
-                  {sub}
+                  <span>🔍 Filters</span>
+                  {Object.keys(selectedFilters).length > 0 && (
+                    <span style={{ background: "#318616", color: "white", borderRadius: "50%", width: "16px", height: "16px", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "10px" }}>
+                      {Object.values(selectedFilters).reduce((a, b) => a + b.length, 0)}
+                    </span>
+                  )}
                 </button>
-              );
-            })}
+
+                {Object.keys(activeFiltersConfig).map((section) => {
+                  const selectedCount = (selectedFilters[section] || []).length;
+                  return (
+                    <button
+                      key={section}
+                      onClick={() => {
+                        setActiveMobileFilterSection(section);
+                        setIsFilterBottomSheetOpen(true);
+                      }}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "20px",
+                        border: "none",
+                        background: selectedCount > 0 ? "#eefaf2" : "white",
+                        color: selectedCount > 0 ? "#318616" : "#4b5563",
+                        fontSize: "12px",
+                        fontWeight: "750",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                        border: selectedCount > 0 ? "1px solid #318616" : "1px solid #e5e7eb"
+                      }}
+                    >
+                      {section} {selectedCount > 0 ? `(${selectedCount})` : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -626,12 +975,12 @@ export default function CategoryProductsPage({
             maxWidth: "100%",
             overflowX: "hidden",
             boxSizing: "border-box",
-            paddingLeft: isMobile ? "12px" : "0",
-            paddingRight: isMobile ? "12px" : "0"
+            paddingLeft: isMobile ? "4px" : "0",
+            paddingRight: isMobile ? "4px" : "0"
           }}
         >
           {filteredCategoryProducts.length === 0 ? (
-            <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "16px", border: "1px solid #f3f4f6" }}>
+            <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "28px", border: "1px solid #f3f4f6", boxShadow: "0 8px 30px rgba(0,0,0,0.02)" }}>
               <div style={{ fontSize: "40px", marginBottom: "12px" }}>📦</div>
               <p style={{ color: "#6b7280", fontSize: "14px", fontWeight: "600" }}>
                 No matching products found in this category or subcategory.
@@ -667,6 +1016,134 @@ export default function CategoryProductsPage({
           )}
         </div>
       </div>
+
+      {/* Mobile Filter Bottom Sheet */}
+      {isFilterBottomSheetOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.4)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            zIndex: 9999,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end"
+          }}
+          onClick={() => setIsFilterBottomSheetOpen(false)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderTopLeftRadius: "28px",
+              borderTopRightRadius: "28px",
+              padding: "20px",
+              maxHeight: "80vh",
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Bottom Sheet Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: "900", fontSize: "18px", color: "#1f2937" }}>
+                {activeMobileFilterSection === "All" ? "Filter Products" : `${activeMobileFilterSection} Filters`}
+              </span>
+              <button
+                onClick={() => setIsFilterBottomSheetOpen(false)}
+                style={{ background: "none", border: "none", fontSize: "20px", fontWeight: "bold", cursor: "pointer", color: "#9ca3af" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Filter Content */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {Object.entries(activeFiltersConfig)
+                .filter(([section]) => activeMobileFilterSection === "All" || activeMobileFilterSection === section)
+                .map(([section, options]) => (
+                  <div key={section} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <span style={{ fontWeight: "800", fontSize: "14px", color: "#374151" }}>{section}</span>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+                      {options.map((opt) => {
+                        const isChecked = (selectedFilters[section] || []).includes(opt);
+                        return (
+                          <label
+                            key={opt}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              padding: "8px 12px",
+                              borderRadius: "12px",
+                              border: isChecked ? "1px solid #318616" : "1px solid #e5e7eb",
+                              background: isChecked ? "#eefaf2" : "white",
+                              fontSize: "12px",
+                              fontWeight: isChecked ? "700" : "500",
+                              color: isChecked ? "#318616" : "#4b5563",
+                              cursor: "pointer"
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleCheckboxChange(section, opt)}
+                              style={{ accentColor: "#318616", width: "16px", height: "16px" }}
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {/* Actions Footer */}
+            <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
+              <button
+                onClick={() => {
+                  handleClearAll();
+                  setIsFilterBottomSheetOpen(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  borderRadius: "14px",
+                  border: "1px solid #e5e7eb",
+                  background: "white",
+                  color: "#4b5563",
+                  fontWeight: "750",
+                  cursor: "pointer"
+                }}
+              >
+                Clear All
+              </button>
+              <button
+                onClick={() => setIsFilterBottomSheetOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  borderRadius: "14px",
+                  border: "none",
+                  background: "#318616",
+                  color: "white",
+                  fontWeight: "750",
+                  cursor: "pointer"
+                }}
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

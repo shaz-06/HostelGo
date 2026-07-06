@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useMemo, useRef, useCallback, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, useSearchParams, Navigate } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 import { initializePushNotifications, retrySyncIfNeeded } from "./services/pushNotifications";
 import { BRANDING } from "./config/branding";
@@ -31,6 +31,7 @@ import HorizontalProductSection from "./HorizontalProductSection";
 import TrendingThisWeek from "./components/TrendingThisWeek";
 import MobileBannerCarousel from "./components/mobile/MobileBannerCarousel";
 import Header, { CategoryStrip } from "./components/common/Header";
+import { useHeaderTheme } from "./hooks/useHeaderTheme";
 
 import ProductCard from "./ProductCard";
 import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
@@ -38,7 +39,7 @@ import OnboardingBottomSheet from "./components/common/OnboardingBottomSheet";
 
 // Lazy-loaded components & pages
 const AddressSelectorModal = lazy(() => import("./components/common/AddressSelectorModal"));
-const OtpTestScreen = lazy(() => import("./pages/OtpTestScreen"));
+
 const CartPage = lazy(() => import("./pages/CartPage"));
 const UserDetails = lazy(() => import("./pages/UserDetails"));
 const PaymentPage = lazy(() => import("./pages/PaymentPage"));
@@ -449,155 +450,23 @@ function GlobalLayout({ children }) {
 }
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [splashFade, setSplashFade] = useState(false);
   const [appReady, setAppReady] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = "/images/splash/new_splash.jpg";
-    img.onload = () => setImageLoaded(true);
-    img.onerror = () => setImageLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (imageLoaded && Capacitor.isNativePlatform()) {
-      SplashScreen.hide().catch((err) => console.warn("Native SplashScreen.hide failed:", err));
-    }
-  }, [imageLoaded]);
 
   useEffect(() => {
     if (!appReady) return;
-
-    const timerFade = setTimeout(() => {
-      setSplashFade(true);
-      document.body.classList.add("app-ready");
-    }, 1500);
-    const timerDismiss = setTimeout(() => {
-      setShowSplash(false);
-    }, 2000);
-    return () => {
-      clearTimeout(timerFade);
-      clearTimeout(timerDismiss);
-    };
+    document.body.classList.add("app-ready");
+    if (Capacitor.isNativePlatform()) {
+      SplashScreen.hide({
+        fadeOutDuration: 250
+      }).catch((err) => {
+        console.warn("Failed to hide native splash screen:", err);
+      });
+    }
   }, [appReady]);
 
   return (
     <AuthProvider>
       <BrowserRouter>
-        {showSplash && (
-          <div
-            onClick={() => {
-              setSplashFade(true);
-              setTimeout(() => setShowSplash(false), 500);
-            }}
-            className="splash-bg"
-            style={{
-              opacity: splashFade ? 0 : 1,
-              transition: "opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1)",
-            }}
-          >
-            <div className="splash-brand">
-              <span className="buy">Buy</span>
-              <span className="to">to</span>
-            </div>
-
-            <img
-              src="/images/splash/new_splash.jpg"
-              className="splash-image"
-              alt="Buyto Splash Screen"
-            />
-
-            <style>{`
-              .splash-bg {
-                position: fixed;
-                inset: 0;
-                background: linear-gradient(
-                  180deg,
-                  #ffffff 0%,
-                  #fffdf5 25%,
-                  #fff3cf 65%,
-                  #ffe59a 100%
-                );
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-start;
-                align-items: center;
-                height: 100vh;
-                width: 100%;
-                overflow: hidden;
-                z-index: 999999;
-                user-select: none;
-                will-change: opacity;
-              }
-
-              .splash-brand {
-                text-align: center;
-                margin-top: 48px;
-                font-size: 42px;
-                font-weight: 900;
-                font-family: 'Outfit', sans-serif;
-                letter-spacing: -1px;
-                animation: fadeIn 800ms ease;
-                z-index: 1000000;
-              }
-
-              .splash-brand .buy {
-                color: #f59e0b;
-              }
-
-              .splash-brand .to {
-                color: #318616;
-              }
-
-              .splash-image {
-                position: absolute;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                width: 100vw;
-                max-width: none;
-                height: auto;
-                object-fit: cover;
-                animation: splashZoom 1000ms ease;
-                transform-origin: bottom center;
-              }
-
-              @media (min-width: 768px) {
-                .splash-image {
-                  width: 100%;
-                  max-width: 800px;
-                  margin: 0 auto;
-                  left: 0;
-                  right: 0;
-                  height: 70vh;
-                  object-fit: contain;
-                }
-              }
-
-              @keyframes fadeIn {
-                from {
-                  opacity: 0;
-                }
-                to {
-                  opacity: 1;
-                }
-              }
-
-              @keyframes splashZoom {
-                from {
-                  transform: scale(0.95);
-                  opacity: 0;
-                }
-                to {
-                  transform: scale(1);
-                  opacity: 1;
-                }
-              }
-            `}</style>
-          </div>
-        )}
         <GlobalLayout>
           <Suspense fallback={
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: "'Outfit', sans-serif" }}>
@@ -633,6 +502,39 @@ function App() {
 
 function AppContent({ onReady }) {
   usePerfLogger("AppContent");
+  useHeaderTheme();
+  const [bottomNavVisible, setBottomNavVisible] = useState(true);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    let ticking = false;
+
+    const handleScroll = () => {
+      const scrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+
+      const diff = scrollY - lastScrollY;
+
+      if (scrollY <= 10) {
+        setBottomNavVisible(true);
+      } else if (Math.abs(diff) > 5) {
+        // Scroll Up -> Show (true)
+        // Scroll Down -> Hide (false)
+        setBottomNavVisible(scrollY < lastScrollY);
+      }
+      lastScrollY = scrollY;
+      ticking = false;
+    };
+
+    const onScroll = (e) => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => handleScroll(e));
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, true);
+    return () => window.removeEventListener("scroll", onScroll, true);
+  }, []);
 
   useEffect(() => {
     console.log({
@@ -643,12 +545,9 @@ function AppContent({ onReady }) {
     });
 
     if (Capacitor.isNativePlatform()) {
-      StatusBar.setOverlaysWebView({ overlay: false })
+      StatusBar.setOverlaysWebView({ overlay: true })
         .then(() => {
-          return StatusBar.setBackgroundColor({ color: "#ffffff" });
-        })
-        .then(() => {
-          return StatusBar.setStyle({ style: Style.Light });
+          return StatusBar.setBackgroundColor({ color: "#00000000" });
         })
         .catch((err) => console.error("Error setting status bar:", err));
     }
@@ -834,7 +733,12 @@ function AppContent({ onReady }) {
       const slug = c.slug || generateSlug(c.name);
       const id = c._id || c.id || slug;
       return { ...c, id, slug };
-    }).filter(c => c.showInHeader !== false);
+    }).filter(c => 
+      c.showInHeader !== false &&
+      c.image &&
+      c.image.trim() !== "" &&
+      c.icon !== "🛍️"
+    );
 
     filtered.sort((a, b) => {
       const pA = getPriorityIndex(a.name);
@@ -847,61 +751,29 @@ function AppContent({ onReady }) {
     return [allCat, ...filtered];
   }, [categories]);
 
-  const handleCategoryClick = useCallback((cat) => {
-    const category = cat;
-    const name = category.name;
-    const slug = category.slug || generateSlug(name);
-    console.log('Category Clicked:', category);
-    console.log('Generated Slug:', slug);
+  const handleCategoryClick = useCallback((category) => {
+    navigate(`/products/${getCategorySlug(category.name)}`);
+  }, [navigate]);
 
-    const sectionMap = {
-      "The Fruit Store": "fresh-fruits",
-      "Fresh Fruits": "fresh-fruits",
-      "Fruit Store": "fresh-fruits",
-
-      "The Veggie Store": "fresh-vegetables",
-      "Fresh Vegetables": "fresh-vegetables",
-      "Veggie Store": "fresh-vegetables",
-
-      "Dairy, Bread & Eggs": "dairy-bread-eggs",
-      "Dairy, Bread and Eggs": "dairy-bread-eggs",
-
-      "Meat and Seafood": "meat-seafood",
-      "Meat & Seafood": "meat-seafood",
-
-      "Beverages": "cold-drinks-juices",
-      "Cold Drinks & Juices": "cold-drinks-juices",
-
-      "Electronics & Appliances": "mobiles-electronics",
-      "Mobiles & Electronics": "mobiles-electronics",
-
-      "Snacks": "snacks",
-      "Atta, Rice and Dal": "atta-rice-and-dal",
-      "Atta, Rice & Dal": "atta-rice-and-dal"
-    };
-
-    const targetId = sectionMap[name];
-
-    if (location.pathname !== "/") {
-      setSelectedCategory(name);
-      navigate("/", { state: { scrollToSectionId: targetId, categoryName: name } });
-      return;
-    }
-
-    if (name === "All") {
-      setSelectedCategory("All");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    if (targetId) {
-      setSelectedCategory(name);
-      const element = document.getElementById(targetId);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
+  useEffect(() => {
+    const match = location.pathname.match(/^\/(?:products|category)\/([^/]+)/);
+    if (match) {
+      const slug = match[1];
+      if (slug === "all") {
+        setSelectedCategory("All");
+      } else {
+        const found = displayCats.find(c => {
+          const cSlug = c.slug || generateSlug(c.name);
+          return cSlug.toLowerCase() === slug.toLowerCase();
+        });
+        if (found) {
+          setSelectedCategory(found.name);
+        }
       }
+    } else if (location.pathname === "/") {
+      setSelectedCategory("All");
     }
-  }, [location.pathname, navigate]);
+  }, [location.pathname, displayCats]);
 
   const memoizedDisplayCats = useMemo(
     () => displayCats,
@@ -1603,7 +1475,7 @@ function AppContent({ onReady }) {
         fontFamily: windowWidth < 768 ? "'Outfit', 'Inter', sans-serif" : "Inter, system-ui, sans-serif",
         width: "100%",
         maxWidth: "100%",
-        overflowX: "hidden",
+        overflowX: "clip",
         position: "relative",
         boxSizing: "border-box"
       }}>
@@ -1627,12 +1499,12 @@ function AppContent({ onReady }) {
           boxSizing: "border-box",
           width: "100%",
           maxWidth: "100%",
-          overflowX: "hidden"
+          overflowX: "clip"
         }}>
           {element}
         </div>
-        <FloatingCartPopup totalItems={totalItems} totalPrice={totalPrice} />
-        <MobileBottomNavigation />
+        <FloatingCartPopup totalItems={totalItems} totalPrice={totalPrice} bottomNavVisible={bottomNavVisible} />
+        <MobileBottomNavigation isVisible={bottomNavVisible} />
 
         {/* STEP 4 — POPUP SELECTOR FOR MULTI-VARIANT PRODUCTS */}
         {selectedProduct && (
@@ -1848,11 +1720,6 @@ function AppContent({ onReady }) {
   }
 
 
-
-  if (location.pathname === "/otp-test") {
-    return <OtpTestScreen />;
-  }
-
   if (location.pathname === "/details") {
     return <UserDetails />;
   }
@@ -1873,7 +1740,7 @@ function AppContent({ onReady }) {
       return (
         <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
           {el}
-          <MobileBottomNavigation />
+          <MobileBottomNavigation isVisible={bottomNavVisible} />
         </div>
       );
     }
@@ -2124,13 +1991,45 @@ function AppContent({ onReady }) {
 
   if (windowWidth < 768) {
     return wrapCustomerLayout(
-      <div style={{ background: getAppBackground(), width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+      <div style={{ background: getAppBackground(), width: "100%", maxWidth: "100%", overflowX: "clip" }}>
         <Routes>
           <Route
             path="/category/:slug"
             element={
               <div>
-                <div style={{ position: "sticky", top: "calc(env(safe-area-inset-top) + var(--header-height, 60px))", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+                <div style={{ position: "sticky", top: "var(--header-height, 60px)", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "clip", boxSizing: "border-box" }}>
+                  <CategoryStrip
+                    displayCats={memoizedDisplayCats}
+                    selectedCategory={selectedCategory}
+                    onCategoryClick={handleCategoryClick}
+                  />
+                </div>
+                <div style={{ padding: "12px" }}>
+                  <CategoryProductsPage
+                    products={products}
+                    categories={displayCats}
+                    addToCart={addToCart}
+                    removeFromCart={removeFromCart}
+                    cart={cart}
+                    cartItems={cartItems}
+                    windowWidth={windowWidth}
+                    getCartKey={getCartKey}
+                    setSelectedProduct={setSelectedProduct}
+                    loading={loading}
+                  />
+                </div>
+              </div>
+            }
+          />
+          <Route
+            path="/products/all"
+            element={<Navigate to="/" replace />}
+          />
+          <Route
+            path="/products/:slug"
+            element={
+              <div>
+                <div style={{ position: "sticky", top: "var(--header-height, 60px)", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "clip", boxSizing: "border-box" }}>
                   <CategoryStrip
                     displayCats={memoizedDisplayCats}
                     selectedCategory={selectedCategory}
@@ -2296,6 +2195,27 @@ function AppContent({ onReady }) {
           />
           <Route
             path="/category/:slug"
+            element={
+              <CategoryProductsPage
+                products={products}
+                categories={displayCats}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                cartItems={cartItems}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                setSelectedProduct={setSelectedProduct}
+                loading={loading}
+              />
+            }
+          />
+          <Route
+            path="/products/all"
+            element={<Navigate to="/" replace />}
+          />
+          <Route
+            path="/products/:slug"
             element={
               <CategoryProductsPage
                 products={products}

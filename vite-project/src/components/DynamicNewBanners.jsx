@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const leftBanners = [
+const promoSlides = [
   {
     image: "/images/dabur_red_toothpaste_banner.png",
     alt: "Dabur Red Toothpaste",
@@ -16,10 +16,7 @@ const leftBanners = [
     image: "/images/dabur_hair_care_banner.png",
     alt: "Dabur Hair Care",
     link: "/category/hair-care"
-  }
-];
-
-const rightBanners = [
+  },
   {
     image: "/images/appliances_banner.png",
     alt: "Home Appliances",
@@ -34,21 +31,24 @@ const rightBanners = [
 
 export default function DynamicNewBanners() {
   const navigate = useNavigate();
-  const [leftIdx, setLeftIdx] = useState(0);
-  const [rightIdx, setRightIdx] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
-    let toggle = true;
     const timer = setInterval(() => {
-      if (toggle) {
-        setLeftIdx((prev) => (prev + 1) % leftBanners.length);
-      } else {
-        setRightIdx((prev) => (prev + 1) % rightBanners.length);
-      }
-      toggle = !toggle;
-    }, 3500); // alternating slides every 3.5s
+      setCurrentSlide((prev) => (prev + 1) % promoSlides.length);
+    }, 3500); // auto-slide every 3.5 seconds
     return () => clearInterval(timer);
   }, []);
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    setCurrentSlide((prev) => (prev + 1) % promoSlides.length);
+  };
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    setCurrentSlide((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
+  };
 
   return (
     <div
@@ -60,167 +60,167 @@ export default function DynamicNewBanners() {
         fontFamily: "'Outfit', 'Inter', sans-serif"
       }}
     >
-      <div style={{ display: "flex", gap: "12px", width: "100%" }}>
-        {/* Left Dynamic Banner */}
+      <div
+        style={{
+          position: "relative",
+          borderRadius: "20px",
+          overflow: "hidden",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
+          aspectRatio: "3/1", // matching general banner landscape ratio
+          width: "100%",
+          background: "#f3f4f6"
+        }}
+      >
+        {/* Slides Wrapper */}
         <div
           style={{
-            flex: 1,
-            position: "relative",
-            borderRadius: "20px",
-            overflow: "hidden",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
-            aspectRatio: "1.65/1",
-            background: "#f3f4f6",
             display: "flex",
-            alignItems: "center"
+            width: `${promoSlides.length * 100}%`,
+            height: "100%",
+            transform: `translateX(-${(currentSlide * 100) / promoSlides.length}%)`,
+            transition: "transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              width: `${leftBanners.length * 100}%`,
-              height: "100%",
-              transform: `translateX(-${(leftIdx * 100) / leftBanners.length}%)`,
-              transition: "transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
-            }}
-          >
-            {leftBanners.map((slide, idx) => (
+          {promoSlides.map((slide, idx) => (
+            <div
+              key={idx}
+              onClick={() => navigate(slide.link)}
+              style={{
+                width: `${100 / promoSlides.length}%`,
+                flex: `0 0 ${100 / promoSlides.length}%`,
+                height: "100%",
+                position: "relative",
+                cursor: "pointer",
+                padding: "12px",
+                boxSizing: "border-box",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#111"
+              }}
+            >
+              {/* Blurred Background Cover */}
               <div
-                key={idx}
-                onClick={() => navigate(slide.link)}
                 style={{
-                  width: `${100 / leftBanners.length}%`,
-                  height: "100%",
-                  position: "relative",
-                  cursor: "pointer"
-                }}
-              >
-                <img
-                  src={slide.image}
-                  alt={slide.alt}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    objectPosition: "center"
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Dots Left */}
-          <div
-            style={{
-              position: "absolute",
-              bottom: "8px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: "5px",
-              zIndex: 10
-            }}
-          >
-            {leftBanners.map((_, idx) => (
-              <div
-                key={idx}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLeftIdx(idx);
-                }}
-                style={{
-                  width: idx === leftIdx ? "12px" : "5px",
-                  height: "5px",
-                  borderRadius: "999px",
-                  background: idx === leftIdx ? "#318616" : "rgba(255, 255, 255, 0.6)",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundImage: `url(${slide.image})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  filter: "blur(16px) brightness(0.7)",
+                  transform: "scale(1.2)",
+                  zIndex: 1
                 }}
               />
-            ))}
-          </div>
+              <img
+                src={slide.image}
+                alt={slide.alt}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  position: "relative",
+                  zIndex: 2
+                }}
+              />
+            </div>
+          ))}
         </div>
 
-        {/* Right Dynamic Banner */}
+        {/* Left Arrow Button */}
+        <button
+          onClick={handlePrev}
+          style={{
+            position: "absolute",
+            left: "16px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "rgba(255, 255, 255, 0.8)",
+            border: "none",
+            borderRadius: "50%",
+            width: "36px",
+            height: "36px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+            zIndex: 10,
+            transition: "all 0.2s ease"
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#ffffff")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.8)")}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+
+        {/* Right Arrow Button */}
+        <button
+          onClick={handleNext}
+          style={{
+            position: "absolute",
+            right: "16px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "rgba(255, 255, 255, 0.8)",
+            border: "none",
+            borderRadius: "50%",
+            width: "36px",
+            height: "36px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+            zIndex: 10,
+            transition: "all 0.2s ease"
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#ffffff")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.8)")}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+
+        {/* Dots Indicators */}
         <div
           style={{
-            flex: 1,
-            position: "relative",
-            borderRadius: "20px",
-            overflow: "hidden",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
-            aspectRatio: "1.65/1",
-            background: "#f3f4f6",
+            position: "absolute",
+            bottom: "12px",
+            left: "50%",
+            transform: "translateX(-50%)",
             display: "flex",
-            alignItems: "center"
+            gap: "6px",
+            zIndex: 10
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              width: `${rightBanners.length * 100}%`,
-              height: "100%",
-              transform: `translateX(-${(rightIdx * 100) / rightBanners.length}%)`,
-              transition: "transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
-            }}
-          >
-            {rightBanners.map((slide, idx) => (
-              <div
-                key={idx}
-                onClick={() => navigate(slide.link)}
-                style={{
-                  width: `${100 / rightBanners.length}%`,
-                  height: "100%",
-                  position: "relative",
-                  cursor: "pointer"
-                }}
-              >
-                <img
-                  src={slide.image}
-                  alt={slide.alt}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    objectPosition: "center"
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Dots Right */}
-          <div
-            style={{
-              position: "absolute",
-              bottom: "8px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: "5px",
-              zIndex: 10
-            }}
-          >
-            {rightBanners.map((_, idx) => (
-              <div
-                key={idx}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRightIdx(idx);
-                }}
-                style={{
-                  width: idx === rightIdx ? "12px" : "5px",
-                  height: "5px",
-                  borderRadius: "999px",
-                  background: idx === rightIdx ? "#318616" : "rgba(255, 255, 255, 0.6)",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-                }}
-              />
-            ))}
-          </div>
+          {promoSlides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentSlide(idx);
+              }}
+              style={{
+                width: idx === currentSlide ? "16px" : "6px",
+                height: "6px",
+                borderRadius: "999px",
+                border: "none",
+                padding: 0,
+                background: idx === currentSlide ? "#318616" : "rgba(255, 255, 255, 0.5)",
+                cursor: "pointer",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+              }}
+            />
+          ))}
         </div>
       </div>
     </div>

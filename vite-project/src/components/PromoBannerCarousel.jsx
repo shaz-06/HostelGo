@@ -62,9 +62,7 @@ export default function PromoBannerCarousel() {
           boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
           aspectRatio: "3/1", // matching general banner landscape ratio
           width: "100%",
-          background: "#f3f4f6",
-          display: "flex",
-          alignItems: "center"
+          background: "#f3f4f6"
         }}
       >
         {/* Slides Wrapper */}
@@ -80,20 +78,47 @@ export default function PromoBannerCarousel() {
           {promoSlides.map((slide, idx) => (
             <div
               key={idx}
+              onClick={() => navigate(slide.link)}
               style={{
                 width: `${100 / promoSlides.length}%`,
+                flex: `0 0 ${100 / promoSlides.length}%`,
                 height: "100%",
                 position: "relative",
-                cursor: "pointer"
+                cursor: "pointer",
+                padding: "12px",
+                boxSizing: "border-box",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#111"
               }}
             >
+              {/* Blurred Background Cover */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundImage: `url(${slide.image})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  filter: "blur(16px) brightness(0.7)",
+                  transform: "scale(1.2)",
+                  zIndex: 1
+                }}
+              />
               <img
                 src={slide.image}
                 alt={slide.alt}
                 style={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover"
+                  objectFit: "contain",
+                  position: "relative",
+                  zIndex: 2
                 }}
               />
             </div>

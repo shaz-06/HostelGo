@@ -1,154 +1,208 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
-const slides = [
-  {
-    bg: "#edeefd", // Light lavender
-    titlePrefix: "Buy your ",
-    titleHighlight: "essentials",
-    badge: "Up to 50%",
-    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&auto=format&fit=crop&q=80",
-    brandLogo: "Buyto Instant",
-  },
-  {
-    bg: "#eefaf2", // Soft green
-    titlePrefix: "Fresh ",
-    titleHighlight: "organic food",
-    badge: "100% Clean",
-    image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400&auto=format&fit=crop&q=80",
-    brandLogo: "Farm Sourced",
-  },
-  {
-    bg: "#fff1f2", // Soft pink
-    titlePrefix: "Tasty ",
-    titleHighlight: "snacks & treats",
-    badge: "Flat 20%",
-    image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=400&auto=format&fit=crop&q=80",
-    brandLogo: "Quick Bite",
-  },
-  {
-    bg: "#fffbeb", // Soft yellow
-    titlePrefix: "Summer ",
-    titleHighlight: "ice creams",
-    badge: "Cool Deals",
-    image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&auto=format&fit=crop&q=80",
-    brandLogo: "Sweet Deals",
-  },
-  {
-    bg: "#f0f7ff", // Soft blue
-    titlePrefix: "Dairy & ",
-    titleHighlight: "breakfast",
-    badge: "Fresh Daily",
-    image: "https://images.unsplash.com/photo-1588710922810-ee4047b470d9?w=400&auto=format&fit=crop&q=80",
-    brandLogo: "Buyto Fresh",
-  }
+import banner1 from "../../images/Screenshot 2026-07-05 at 17.14.11.png";
+import banner2 from "../../images/Screenshot 2026-07-05 at 17.14.25.png";
+import banner3 from "../../images/Screenshot 2026-07-05 at 17.18.11.png";
+import banner4 from "../../images/Screenshot 2026-07-05 at 17.18.20.png";
+import banner5 from "../../images/Screenshot 2026-07-05 at 17.24.14.png";
+import banner6 from "../../images/Screenshot 2026-07-05 at 17.24.21.png";
+import banner7 from "../../images/Screenshot 2026-07-05 at 17.25.42.png";
+import banner8 from "../../images/Screenshot 2026-07-05 at 17.25.48.png";
+import banner9 from "../../images/Screenshot 2026-07-05 at 17.26.34.png";
+import banner10 from "../../images/Screenshot 2026-07-05 at 17.26.42.png";
+
+const bannerSlides = [
+  [banner1, banner2],
+  [banner3, banner4],
+  [banner5, banner6],
+  [banner7, banner8],
+  [banner9, banner10],
 ];
+
+// Append first slide to the end for seamless looping
+const slidesWithClone = [...bannerSlides, bannerSlides[0]];
 
 function MobileBannerCarousel() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [transitionEnabled, setTransitionEnabled] = useState(true);
+
+  const timeoutRef = useRef(null);
+  const minSwipeDistance = 50;
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const slideCount = bannerSlides.length; // 5 original slides
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 3000);
+      setTransitionEnabled(true);
+      setCurrentSlide((prev) => prev + 1);
+    }, 3500);
     return () => clearInterval(timer);
   }, []);
 
+  // Handle snapping back to start when reaching the cloned slide (index 5)
+  useEffect(() => {
+    if (currentSlide === slideCount) {
+      timeoutRef.current = setTimeout(() => {
+        setTransitionEnabled(false);
+        setCurrentSlide(0);
+      }, 500); // Wait for the 500ms sliding transition to finish
+    }
+  }, [currentSlide, slideCount]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      setTransitionEnabled(true);
+      setCurrentSlide((prev) => prev + 1);
+    } else if (isRightSwipe) {
+      setTransitionEnabled(true);
+      if (currentSlide === 0) {
+        // Snap instantly to the cloned last slide, then slide left to slide index 4
+        setTransitionEnabled(false);
+        setCurrentSlide(slideCount);
+        setTimeout(() => {
+          setTransitionEnabled(true);
+          setCurrentSlide(slideCount - 1);
+        }, 30);
+      } else {
+        setCurrentSlide((prev) => prev - 1);
+      }
+    }
+  };
+
+  const handleDotClick = (idx) => {
+    setTransitionEnabled(true);
+    setCurrentSlide(idx);
+  };
+
+  // Map the current index to the dots (cloned index 5 behaves like dot index 0)
+  const activeDotIndex = currentSlide === slideCount ? 0 : currentSlide;
+
   return (
-    <div style={{ padding: "0 16px", marginBottom: "20px", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-      {/* Banner Card */}
+    <div className="hero-banner-section">
+      <style>{`
+        .hero-banner-section {
+          padding: 0 16px;
+          margin: 24px 0;
+          font-family: 'Outfit', 'Inter', sans-serif;
+          box-sizing: border-box;
+          width: 100%;
+        }
+        .hero-banner-container {
+          width: 100%;
+          overflow: hidden;
+          border-radius: 20px;
+          position: relative;
+          box-sizing: border-box;
+          cursor: grab;
+        }
+        .hero-banner-track {
+          display: flex;
+        }
+        .hero-banner-slide {
+          display: flex;
+          gap: 16px;
+          box-sizing: border-box;
+          padding: 0 2px;
+        }
+        .hero-banner-card {
+          flex: 1;
+          aspect-ratio: 16 / 7;
+          border-radius: 20px;
+          overflow: hidden;
+          background: #f8f8f8;
+          box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+          transition: transform 0.3s ease;
+          box-sizing: border-box;
+          height: 200px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 6px;
+        }
+        @media (max-width: 1024px) {
+          .hero-banner-card {
+            height: 170px;
+          }
+        }
+        @media (max-width: 640px) {
+          .hero-banner-card {
+            height: 140px;
+            border-radius: 12px;
+            padding: 6px;
+          }
+          .hero-banner-container {
+            border-radius: 12px;
+          }
+        }
+        .hero-banner-card:hover {
+          transform: translateY(-4px);
+        }
+        .hero-banner-card img {
+          width: auto;
+          height: 135%;
+          max-width: 90%;
+          object-fit: contain;
+          object-position: center;
+          display: block;
+        }
+      `}</style>
+
+      {/* Outer Slider Container */}
       <div
-        style={{
-          background: slides[currentSlide].bg,
-          borderRadius: "20px",
-          height: "140px",
-          width: "100%",
-          display: "flex",
-          position: "relative",
-          overflow: "hidden",
-          transition: "background 0.5s ease",
-          boxSizing: "border-box",
-          padding: "16px",
-        }}
+        className="hero-banner-container"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
-        {/* Left Side Info */}
-        <div style={{ flex: 1.2, display: "flex", flexDirection: "column", justifyContent: "space-between", zIndex: 2 }}>
-          <div>
-            <h2
-              style={{
-                fontSize: "18px",
-                fontWeight: "900",
-                color: "#1f2937",
-                margin: 0,
-                lineHeight: "1.2",
-              }}
-            >
-              {slides[currentSlide].titlePrefix}
-              <span style={{ color: "#ef4444" }}>{slides[currentSlide].titleHighlight}</span>
-            </h2>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            <span
-              style={{
-                fontSize: "10px",
-                fontWeight: "800",
-                color: "#059669",
-                letterSpacing: "0.5px",
-                textTransform: "uppercase",
-              }}
-            >
-              {slides[currentSlide].brandLogo}
-            </span>
-          </div>
-        </div>
-
-        {/* Center/Right Artwork */}
+        {/* Sliding Track */}
         <div
+          className="hero-banner-track"
           style={{
-            flex: 1,
-            position: "relative",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "100%",
-            height: "100%",
+            width: `${slidesWithClone.length * 100}%`,
+            transform: `translateX(-${(currentSlide * 100) / slidesWithClone.length}%)`,
+            transition: transitionEnabled ? "transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)" : "none",
           }}
         >
-          <img
-            src={slides[currentSlide].image}
-            alt="promo artwork"
-            style={{
-              width: "100%",
-              maxWidth: "100%",
-              height: "auto",
-              objectFit: "cover",
-              borderRadius: "12px",
-              mixBlendMode: "multiply",
-            }}
-          />
-        </div>
-
-        {/* Green Discount Badge */}
-        <div
-          style={{
-            position: "absolute",
-            top: "16px",
-            right: "16px",
-            background: "#84cc16", // Lime green
-            color: "white",
-            padding: "4px 8px",
-            borderRadius: "6px",
-            fontSize: "11px",
-            fontWeight: "800",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            lineHeight: "1.1",
-            boxShadow: "0 2px 6px rgba(132,204,22,0.3)",
-          }}
-        >
-          {slides[currentSlide].badge.split(" ").map((word, wIdx) => (
-            <span key={wIdx}>{word}</span>
+          {slidesWithClone.map((slidePair, slideIdx) => (
+            <div
+              key={slideIdx}
+              className="hero-banner-slide"
+              style={{
+                width: `${100 / slidesWithClone.length}%`,
+              }}
+            >
+              {slidePair.map((img, imgIdx) => (
+                <div key={imgIdx} className="hero-banner-card">
+                  <img
+                    src={img}
+                    alt={`banner-${slideIdx * 2 + imgIdx + 1}`}
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -162,15 +216,15 @@ function MobileBannerCarousel() {
           marginTop: "10px",
         }}
       >
-        {slides.map((_, idx) => (
+        {bannerSlides.map((_, idx) => (
           <div
             key={idx}
-            onClick={() => setCurrentSlide(idx)}
+            onClick={() => handleDotClick(idx)}
             style={{
-              width: idx === currentSlide ? "10px" : "6px",
+              width: idx === activeDotIndex ? "10px" : "6px",
               height: "6px",
               borderRadius: "50%",
-              background: idx === currentSlide ? "#4b5563" : "#d1d5db",
+              background: idx === activeDotIndex ? "#4b5563" : "#d1d5db",
               cursor: "pointer",
               transition: "all 0.3s ease",
             }}

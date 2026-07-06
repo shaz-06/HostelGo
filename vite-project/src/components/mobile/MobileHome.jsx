@@ -7,6 +7,7 @@ import MobileProductCard from "./MobileProductCard";
 import CategoryDiscovery from "../CategoryDiscovery";
 import TrendingThisWeek from "../TrendingThisWeek";
 import DynamicNewBanners from "../DynamicNewBanners";
+import PromoBannerCarousel from "../PromoBannerCarousel";
 
 function MobileHome({
   products,
@@ -254,6 +255,8 @@ function MobileHome({
           <div style={{ padding: "0 16px", background: "white", borderRadius: "24px", margin: "12px 16px", border: "1px solid #f3f4f6" }}>
             <CategoryDiscovery />
           </div>
+
+          <PromoBannerCarousel />
 
           {/* Dynamic Staggered Row Banners */}
           <DynamicNewBanners />

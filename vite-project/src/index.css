@@ -38,11 +38,10 @@ body,
 #root {
   width: 100%;
   max-width: 100%;
-  height: 100%;
   margin: 0;
   padding: 0;
   background-color: #f7f8fa; /* Fallback */
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -103,4 +102,10 @@ body.app-ready {
 /* Page safe bottom spacing when floating navigation is visible */
 .page-with-bottom-nav {
   padding-bottom: calc(120px + env(safe-area-inset-bottom)) !important;
+}
+
+@media (max-width: 580px) {
+  .header-promo-pill {
+    display: none !important;
+  }
 }

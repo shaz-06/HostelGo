@@ -2,10 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { MOBILE_NAV_HEIGHT } from "../../constants/layoutConstants";
 
-const MobileBottomNavigation = React.memo(() => {
+const MobileBottomNavigation = React.memo(({ isVisible = true }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isVisible, setIsVisible] = useState(true);
 
   const [supportsBlur, setSupportsBlur] = useState(true);
   useEffect(() => {
@@ -15,29 +14,6 @@ const MobileBottomNavigation = React.memo(() => {
         window.CSS?.supports?.("-webkit-backdrop-filter", "blur(20px)");
       setSupportsBlur(!!supports);
     }
-  }, []);
-
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const diff = scrollY - lastScrollY;
-
-      if (scrollY <= 10) {
-        setIsVisible(true);
-        lastScrollY = scrollY;
-        return;
-      }
-
-      if (Math.abs(diff) > 5) {
-        setIsVisible(scrollY > lastScrollY);
-        lastScrollY = scrollY;
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const getActiveTab = () => {
@@ -116,7 +92,7 @@ const MobileBottomNavigation = React.memo(() => {
     <div
       style={{
         position: "fixed",
-        bottom: "16px",
+        bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
         left: "50%",
         transform: isVisible ? "translate3d(-50%, 0, 0)" : "translate3d(-50%, 150px, 0)",
         opacity: isVisible ? 1 : 0,

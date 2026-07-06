@@ -71,7 +71,7 @@ export default function BuyCoinsRewardsPage() {
   return (
     <div style={containerStyle}>
       <div style={cardWrapperStyle}>
-        
+
         {/* Back Button */}
         <button onClick={() => navigate(-1)} style={backButtonStyle}>
           ← Back to Wallet
@@ -110,13 +110,13 @@ export default function BuyCoinsRewardsPage() {
                   <h4 style={rewardNameStyle}>{reward.name}</h4>
                   <p style={rewardDescStyle}>{reward.desc}</p>
                 </div>
-                
+
                 <div style={rewardFooterStyle}>
                   <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                     <span style={costStyle(hasEnough)}>{reward.cost}</span>
                     <BuyCoin size={14} />
                   </div>
-                  
+
                   <button
                     onClick={() => handleRedeem(reward)}
                     disabled={isRedeeming}
@@ -254,10 +254,10 @@ const costStyle = (hasEnough) => ({
 });
 
 const redeemBtnStyle = (hasEnough, isRedeeming) => ({
-  background: isRedeeming 
-    ? "#94a3b8" 
-    : hasEnough 
-      ? "linear-gradient(135deg, #f59e0b, #ffb81c)" 
+  background: isRedeeming
+    ? "#94a3b8"
+    : hasEnough
+      ? "linear-gradient(135deg, #d1a558ff, #ffb81c)"
       : "#e2e8f0",
   color: hasEnough ? "white" : "#94a3b8",
   border: "none",
