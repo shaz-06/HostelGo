@@ -99,6 +99,15 @@ export default function SupportChatPage() {
     return () => clearInterval(timer);
   }, [supportStatus]);
 
+  // Reset scroll container to top on mount
+  useEffect(() => {
+    chatContainerRef.current?.scrollTo({
+      top: 0,
+      behavior: "instant"
+    });
+    setShouldAutoScroll(false);
+  }, []);
+
   // Load customer's active session on mount
   useEffect(() => {
     document.title = "Chat With Us";
@@ -281,6 +290,7 @@ export default function SupportChatPage() {
 
   // Bot Click Handlers
   const handleBotOption = (option) => {
+    setShouldAutoScroll(true);
     const userMsg = {
       senderName: user?.name || "Customer",
       role: "user",
@@ -323,6 +333,7 @@ export default function SupportChatPage() {
   };
 
   const handleSelectOrderForBot = (order) => {
+    setShouldAutoScroll(true);
     setSelectedOrder(null);
     const userMsg = {
       senderName: user?.name || "Customer",
@@ -353,11 +364,13 @@ export default function SupportChatPage() {
   };
 
   const handleReconnect = () => {
+    setShouldAutoScroll(true);
     connectToLiveSupport();
   };
 
   // Convert Bot session to Live Support waitlist
   const connectToLiveSupport = async () => {
+    setShouldAutoScroll(true);
     if (!navigator.onLine) {
       addBotReply("⚠️ You appear to be offline. Please check your internet connection.");
       setIsBotOptionsActive(true);
@@ -429,6 +442,7 @@ export default function SupportChatPage() {
     e.preventDefault();
     if (!inputMessage.trim() || !chatSession) return;
 
+    setShouldAutoScroll(true);
     const messageText = inputMessage.trim();
     setInputMessage("");
 
