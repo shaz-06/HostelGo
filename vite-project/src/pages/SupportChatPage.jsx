@@ -81,14 +81,16 @@ export default function SupportChatPage() {
     const isNewMessage = messageCount > prevMessageCountRef.current;
     prevMessageCountRef.current = messageCount;
 
-    if (shouldAutoScroll) {
-      scrollToBottom();
-      setShowNewMessageIndicator(false);
-    } else if (isNewMessage) {
-      // Show indicator when scrolled up and new message arrives
-      setShowNewMessageIndicator(true);
+    if (isNewMessage) {
+      if (shouldAutoScroll) {
+        scrollToBottom();
+        setShowNewMessageIndicator(false);
+      } else {
+        // Show indicator when scrolled up and new message arrives
+        setShowNewMessageIndicator(true);
+      }
     }
-  }, [localMessages, partnerTyping, shouldAutoScroll]);
+  }, [localMessages, shouldAutoScroll]);
 
   // Animated searching text ellipsis cycle
   useEffect(() => {
