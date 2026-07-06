@@ -251,6 +251,28 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("hostelgoUser", JSON.stringify(updatedUser));
   };
 
+  const refreshUser = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(window.API_BASE_URL + "/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUser(data.user);
+          localStorage.setItem("buyto_user", JSON.stringify(data.user));
+          localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
+          return data.user;
+        }
+      }
+    } catch (err) {
+      console.error("refreshUser error:", err);
+    }
+  };
+
   const openLogin = (onSuccess) => {
     console.log("Opening OTP bottom sheet");
     setOnLoginSuccessCallback(() => typeof onSuccess === "function" ? onSuccess : null);
@@ -376,7 +398,8 @@ export const AuthProvider = ({ children }) => {
       isOnboardingOpen: onboardingOpen,
       openOnboarding,
       closeOnboarding,
-      updateUserInSession
+      updateUserInSession,
+      refreshUser
     }}>
       {children}
     </AuthContext.Provider>

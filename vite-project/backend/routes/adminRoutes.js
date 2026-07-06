@@ -233,6 +233,12 @@ router.put("/orders/:id/status", async (req, res) => {
       order.deliveredAt = order.deliveredAt || new Date();
       order.estimatedArrivalMinutes = 0;
       order.estimatedDeliveryTime = new Date();
+      try {
+        const { handleOrderCheckoutRewards } = require("../utils/rewards");
+        await handleOrderCheckoutRewards(order);
+      } catch (rewardErr) {
+        console.error("Failed to credit BuyCoins on Delivered:", rewardErr);
+      }
     }
     const updatedOrder = await order.save();
     console.log("Order status updated successfully in DB:", updatedOrder._id);

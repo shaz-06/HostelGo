@@ -311,6 +311,12 @@ router.put("/orders/:id/delivered", async (req, res) => {
     if (order.paymentMethod === "cod") {
       order.paymentStatus = "Paid";
     }
+    try {
+      const { handleOrderCheckoutRewards } = require("../utils/rewards");
+      await handleOrderCheckoutRewards(order);
+    } catch (rewardErr) {
+      console.error("Failed to credit BuyCoins on Delivered (Rider):", rewardErr);
+    }
     await order.save();
 
     try {

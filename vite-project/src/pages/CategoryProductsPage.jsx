@@ -254,7 +254,7 @@ const CATEGORY_SUBCATEGORIES = {
 const getSubcategoryKey = (slug) => {
   if (!slug) return "";
   const norm = slug.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
-  
+
   const map = {
     "dairy-bread-eggs": "dairy-bread-eggs",
     "dairy-bread-and-eggs": "dairy-bread-eggs",
@@ -379,8 +379,8 @@ const matchOffer = (p, offerStr) => {
   if (offerStr.toLowerCase().includes("buy 1 get 1")) {
     const nameMatch = p.name && String(p.name).toLowerCase().includes("buy 1 get 1");
     const descMatch = p.description && String(p.description).toLowerCase().includes("bogo");
-    const tagsMatch = p.tags && (Array.isArray(p.tags) 
-      ? p.tags.some(t => String(t).toLowerCase().includes("bogo")) 
+    const tagsMatch = p.tags && (Array.isArray(p.tags)
+      ? p.tags.some(t => String(t).toLowerCase().includes("bogo"))
       : String(p.tags).toLowerCase().includes("bogo"));
     return nameMatch || descMatch || tagsMatch;
   }
@@ -393,8 +393,8 @@ const matchType = (p, typeVal) => {
   const subCategoryMatch = p.subCategory && String(p.subCategory).toLowerCase().includes(val);
   const subcategoryMatch = p.subcategory && String(p.subcategory).toLowerCase().includes(val);
   const descMatch = p.description && String(p.description).toLowerCase().includes(val);
-  const tagsMatch = p.tags && (Array.isArray(p.tags) 
-    ? p.tags.some(t => String(t).toLowerCase().includes(val)) 
+  const tagsMatch = p.tags && (Array.isArray(p.tags)
+    ? p.tags.some(t => String(t).toLowerCase().includes(val))
     : String(p.tags).toLowerCase().includes(val));
   return nameMatch || subCategoryMatch || subcategoryMatch || descMatch || tagsMatch;
 };
@@ -402,15 +402,15 @@ const matchType = (p, typeVal) => {
 const matchBrand = (p, brandVal) => {
   const val = brandVal.toLowerCase();
   return (p.brand && String(p.brand).toLowerCase().includes(val)) ||
-         (p.name && String(p.name).toLowerCase().includes(val));
+    (p.name && String(p.name).toLowerCase().includes(val));
 };
 
 const matchFreshness = (p, freshVal) => {
   const val = freshVal.toLowerCase();
   const nameMatch = p.name && String(p.name).toLowerCase().includes(val);
   const descMatch = p.description && String(p.description).toLowerCase().includes(val);
-  const tagsMatch = p.tags && (Array.isArray(p.tags) 
-    ? p.tags.some(t => String(t).toLowerCase().includes(val)) 
+  const tagsMatch = p.tags && (Array.isArray(p.tags)
+    ? p.tags.some(t => String(t).toLowerCase().includes(val))
     : String(p.tags).toLowerCase().includes(val));
   return nameMatch || descMatch || tagsMatch;
 };
@@ -418,7 +418,7 @@ const matchFreshness = (p, freshVal) => {
 const matchCuts = (p, cutVal) => {
   const val = cutVal.toLowerCase();
   return (p.name && String(p.name).toLowerCase().includes(val)) ||
-         (p.description && String(p.description).toLowerCase().includes(val));
+    (p.description && String(p.description).toLowerCase().includes(val));
 };
 
 export default function CategoryProductsPage({
@@ -445,7 +445,7 @@ export default function CategoryProductsPage({
   useEffect(() => {
     setLoading(parentLoading);
   }, [parentLoading]);
-  
+
   const [activeSubcategory, setActiveSubcategory] = useState("Show All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilters, setSelectedFilters] = useState({});
@@ -552,8 +552,8 @@ export default function CategoryProductsPage({
     // 1. Get all products belonging to this category
     let list = localProducts.filter(p => {
       const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-      return classified === targetCanonical || 
-             canonicalCategory(p.category) === targetCanonical;
+      return classified === targetCanonical ||
+        canonicalCategory(p.category) === targetCanonical;
     });
 
     // 2. Filter by active left sidebar subcategory
@@ -561,8 +561,8 @@ export default function CategoryProductsPage({
       if (activeSubcategory === "Top Deals") {
         list = list.filter(p => p.originalPrice > p.price);
       } else {
-        list = list.filter(p => 
-          getSubcategoryMatch(p.subCategory, activeSubcategory) || 
+        list = list.filter(p =>
+          getSubcategoryMatch(p.subCategory, activeSubcategory) ||
           getSubcategoryMatch(p.subcategory, activeSubcategory)
         );
       }
@@ -571,7 +571,7 @@ export default function CategoryProductsPage({
     // 3. Filter by search query within this category
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
-      list = list.filter(p => 
+      list = list.filter(p =>
         (p.name && p.name.toLowerCase().includes(query)) ||
         (p.brand && p.brand.toLowerCase().includes(query)) ||
         (p.subCategory && p.subCategory.toLowerCase().includes(query)) ||
@@ -625,7 +625,7 @@ export default function CategoryProductsPage({
       const updated = current.includes(option)
         ? current.filter((x) => x !== option)
         : [...current, option];
-      
+
       const newFilters = { ...prev, [section]: updated };
       if (newFilters[section].length === 0) {
         delete newFilters[section];
@@ -990,8 +990,8 @@ export default function CategoryProductsPage({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: isMobile 
-                  ? "repeat(2, minmax(0, 1fr))" 
+                gridTemplateColumns: isMobile
+                  ? "repeat(2, minmax(0, 1fr))"
                   : "repeat(auto-fill, minmax(180px, 1fr))",
                 gap: isMobile ? "12px" : "20px",
                 width: "100%",

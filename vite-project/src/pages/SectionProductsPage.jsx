@@ -3211,7 +3211,7 @@ export default function SectionProductsPage({
   };
 
   if (type === "trending") {
-    sectionTitle = "⚡ Trending Near You";
+    sectionTitle = "⚡ Top Picks";
     filtered = products.filter((p) => p.isTrending);
   } else if (type === "fruits") {
     sectionTitle = "🍎 Fresh Fruits";

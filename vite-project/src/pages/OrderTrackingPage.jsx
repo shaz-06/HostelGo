@@ -28,7 +28,7 @@ const formatMoney = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}
 
 export default function OrderTrackingPage({ orderId }) {
   const navigate = useNavigate();
-  const { token } = useContext(AuthContext);
+  const { token, refreshUser } = useContext(AuthContext);
   const [tracking, setTracking] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -40,10 +40,13 @@ export default function OrderTrackingPage({ orderId }) {
     if (tracking?.order?.orderStatus === "Delivered" && !hasTriggeredDelivered) {
       setShowDeliveredModal(true);
       setHasTriggeredDelivered(true);
+      if (refreshUser) {
+        refreshUser().catch(err => console.error("Failed to refresh user on delivery:", err));
+      }
     } else if (tracking?.order?.orderStatus !== "Delivered") {
       setHasTriggeredDelivered(false);
     }
-  }, [tracking?.order?.orderStatus, hasTriggeredDelivered]);
+  }, [tracking?.order?.orderStatus, hasTriggeredDelivered, refreshUser]);
 
   const loadTracking = useCallback(async () => {
     try {

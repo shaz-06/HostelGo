@@ -197,7 +197,8 @@ router.get("/me", authMiddleware, async (req, res) => {
       hasAdminPin: !!req.user.adminPin,
       gender: userObj.gender || "",
       profileCompleted: !!userObj.profileCompleted,
-      addresses: userObj.addresses || []
+      addresses: userObj.addresses || [],
+      buyCoins: userObj.buyCoins || 0
     }
   });
 });

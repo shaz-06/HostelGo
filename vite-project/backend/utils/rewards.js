@@ -76,6 +76,12 @@ async function recalculateWallet(userId, email) {
       user.totalBuyCoinsEarned = lifetimeEarned;
       user.totalBuyCoinsSpent = lifetimeRedeemed;
       await user.save();
+      console.log(
+        "Coins credited:",
+        lifetimeEarned,
+        "Total:",
+        user.buyCoins
+      );
     }
     
     return wallet;

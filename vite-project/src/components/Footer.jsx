@@ -225,7 +225,7 @@ export default function Footer() {
                                     display: "inline-block"
                                 }}
                             >
-                                Coming Soon on Android & iOS
+                                Coming Soon on iOS
                             </div>
                         </div>
                     </div>

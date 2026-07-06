@@ -15,17 +15,17 @@ function MobileProductCard({
 
   const productId = product._id || product.id;
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
-  
-  const price = product.price !== undefined && product.price !== null 
-    ? product.price 
+
+  const price = product.price !== undefined && product.price !== null
+    ? product.price
     : (hasVariants && product.variants[0] ? product.variants[0].price : 0);
-    
-  const originalPrice = product.originalPrice !== undefined && product.originalPrice !== null 
-    ? product.originalPrice 
-    : (hasVariants && product.variants[0] && product.variants[0].originalPrice !== undefined 
-        ? product.variants[0].originalPrice 
-        : price);
-        
+
+  const originalPrice = product.originalPrice !== undefined && product.originalPrice !== null
+    ? product.originalPrice
+    : (hasVariants && product.variants[0] && product.variants[0].originalPrice !== undefined
+      ? product.variants[0].originalPrice
+      : price);
+
   const weight = product.weight || (hasVariants && product.variants[0] ? product.variants[0].weight : "");
   const defaultWeight = hasVariants && product.variants[0] ? product.variants[0].weight : "";
 

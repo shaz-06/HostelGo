@@ -379,7 +379,7 @@ const Header = React.memo(({
         {/* Row 1: Pills, Greetings, and Actions */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", zIndex: 2 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-start" }}>
-            
+
             {/* Pills Container (Side-by-Side) */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               {/* Delivery Pill */}
@@ -602,191 +602,191 @@ const Header = React.memo(({
       >
         {/* ROW 3: Full-width Search Bar and Side Action Buttons */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
-        {/* Search Input Container */}
-        <div style={{ position: "relative", flexGrow: 1 }}>
-          <input
-            type="text"
-            placeholder=""
-            value={localQuery}
-            onChange={(e) => {
-              const val = e.target.value;
-              setLocalQuery(val);
-            }}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            style={{
-              background: "rgba(255, 255, 255, 0.9)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              borderRadius: "30px",
-              padding: "12px 40px",
-              width: "100%",
-              border: "1px solid rgba(255, 255, 255, 0.7)",
-              fontSize: "14px",
-              fontWeight: "600",
-              color: "#1f2937",
-              outline: "none",
-              boxSizing: "border-box",
-              boxShadow: "0 12px 35px rgba(0,0,0,0.08)"
-            }}
-          />
-          {(!localQuery && !isFocused) && (
-            <div
+          {/* Search Input Container */}
+          <div style={{ position: "relative", flexGrow: 1 }}>
+            <input
+              type="text"
+              placeholder=""
+              value={localQuery}
+              onChange={(e) => {
+                const val = e.target.value;
+                setLocalQuery(val);
+              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               style={{
-                position: "absolute",
-                left: "40px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                display: "flex",
-                alignItems: "center",
-                pointerEvents: "none",
+                background: "rgba(255, 255, 255, 0.9)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                borderRadius: "30px",
+                padding: "12px 40px",
+                width: "100%",
+                border: "1px solid rgba(255, 255, 255, 0.7)",
                 fontSize: "14px",
                 fontWeight: "600",
-                color: "#9ca3af",
-                fontFamily: "inherit",
-                height: "24px",
-                overflow: "hidden"
+                color: "#1f2937",
+                outline: "none",
+                boxSizing: "border-box",
+                boxShadow: "0 12px 35px rgba(0,0,0,0.08)"
               }}
-            >
-              <span>Search for&nbsp;</span>
+            />
+            {(!localQuery && !isFocused) && (
               <div
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-                  transform: `translateY(-${searchIndex * 24}px)`,
-                  height: "24px"
-                }}
-              >
-                {searchSuggestions.map((sug, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      height: "24px",
-                      lineHeight: "24px",
-                      display: "flex",
-                      alignItems: "center"
-                    }}
-                  >
-                    '{sug}'
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* Left search icon */}
-          <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", display: "flex", alignItems: "center" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </span>
-          {/* Right mic icon */}
-          <button
-            onClick={handleVoiceSearch}
-            style={{
-              position: "absolute",
-              right: "14px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: isListening ? "#ef4444" : "#4b5563",
-              display: "flex",
-              alignItems: "center",
-              padding: "4px"
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-              <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
-              <line x1="12" y1="19" x2="12" y2="23"></line>
-              <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
-          </button>
-        </div>
-
-        {/* Action Buttons: Orders | Wishlist */}
-        <div
-          style={{
-            background: "white",
-            borderRadius: "24px",
-            display: "flex",
-            alignItems: "center",
-            padding: "8px 16px",
-            gap: "12px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-            height: "42px",
-            boxSizing: "border-box"
-          }}
-        >
-          {/* Shopping List Note Icon */}
-          <button
-            onClick={() => navigate("/shopping-list")}
-            style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
-            title="Shopping List"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9"></path>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-            </svg>
-          </button>
-
-          {/* Divider */}
-          <div style={{ width: "1px", height: "16px", background: "#cbd5e1" }}></div>
-
-          {/* Save For Later Badge */}
-          <button
-            onClick={() => navigate("/save-for-later")}
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-              display: "flex",
-              alignItems: "center",
-              position: "relative"
-            }}
-            title="Save for Later"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-            {savedCount > 0 && (
-              <span
-                style={{
                   position: "absolute",
-                  top: "-6px",
-                  right: "-8px",
-                  background: "#10b981",
-                  color: "white",
-                  fontSize: "8px",
-                  fontWeight: "900",
-                  borderRadius: "50%",
-                  width: "14px",
-                  height: "14px",
+                  left: "40px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.15)"
+                  pointerEvents: "none",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#9ca3af",
+                  fontFamily: "inherit",
+                  height: "24px",
+                  overflow: "hidden"
                 }}
               >
-                {savedCount}
-              </span>
+                <span>Search for&nbsp;</span>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                    transform: `translateY(-${searchIndex * 24}px)`,
+                    height: "24px"
+                  }}
+                >
+                  {searchSuggestions.map((sug, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        height: "24px",
+                        lineHeight: "24px",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      '{sug}'
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
-          </button>
-        </div>
-      </div>
+            {/* Left search icon */}
+            <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", display: "flex", alignItems: "center" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+            {/* Right mic icon */}
+            <button
+              onClick={handleVoiceSearch}
+              style={{
+                position: "absolute",
+                right: "14px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: isListening ? "#ef4444" : "#4b5563",
+                display: "flex",
+                alignItems: "center",
+                padding: "4px"
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
+            </button>
+          </div>
 
-      {/* ROW 4: Category Quick Access Strip */}
-      {location.pathname === "/" && (
-        <CategoryStrip
-          displayCats={displayCats}
-          selectedCategory={selectedCategory}
-          onCategoryClick={onCategoryClick}
-        />
-      )}
+          {/* Action Buttons: Orders | Wishlist */}
+          <div
+            style={{
+              background: "white",
+              borderRadius: "24px",
+              display: "flex",
+              alignItems: "center",
+              padding: "8px 16px",
+              gap: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+              height: "42px",
+              boxSizing: "border-box"
+            }}
+          >
+            {/* Shopping List Note Icon */}
+            <button
+              onClick={() => navigate("/shopping-list")}
+              style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
+              title="Shopping List"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+            </button>
+
+            {/* Divider */}
+            <div style={{ width: "1px", height: "16px", background: "#cbd5e1" }}></div>
+
+            {/* Save For Later Badge */}
+            <button
+              onClick={() => navigate("/save-for-later")}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                position: "relative"
+              }}
+              title="Save for Later"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+              {savedCount > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "-6px",
+                    right: "-8px",
+                    background: "#10b981",
+                    color: "white",
+                    fontSize: "8px",
+                    fontWeight: "900",
+                    borderRadius: "50%",
+                    width: "14px",
+                    height: "14px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.15)"
+                  }}
+                >
+                  {savedCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ROW 4: Category Quick Access Strip */}
+        {location.pathname === "/" && (
+          <CategoryStrip
+            displayCats={displayCats}
+            selectedCategory={selectedCategory}
+            onCategoryClick={onCategoryClick}
+          />
+        )}
       </div>
     </div>
   );

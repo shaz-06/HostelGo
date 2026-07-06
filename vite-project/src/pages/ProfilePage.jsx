@@ -6,7 +6,10 @@ import BuyCoin from "../components/common/BuyCoin";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, isLoggedIn, token, logout, openLogin } = useContext(AuthContext);
+  const { user, isLoggedIn, token, logout, openLogin, refreshUser } = useContext(AuthContext);
+
+  console.log("Current user:", user);
+  console.log("BuyCoins:", user?.buyCoins);
 
   // States for API data
   const [orders, setOrders] = useState([]);
@@ -28,23 +31,12 @@ export default function ProfilePage() {
   // Sync session & live profile details
   useEffect(() => {
     if (!token) return;
-    const fetchLiveUser = async () => {
-      try {
-        const res = await fetch(window.API_BASE_URL + "/api/auth/me", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.user) {
-            setLiveUser(data.user);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch live profile:", err);
-      }
-    };
-    fetchLiveUser();
-  }, [token]);
+    if (refreshUser) {
+      refreshUser().then((usr) => {
+        if (usr) setLiveUser(usr);
+      });
+    }
+  }, [token, refreshUser]);
 
   // Load stats & core data on mount
   useEffect(() => {
@@ -314,7 +306,7 @@ export default function ProfilePage() {
           </div>
           <div style={statItemStyle}>
             <span style={{ height: "18px", display: "flex", alignItems: "center", marginBottom: "4px" }}><BuyCoin size={18} /></span>
-            <span style={statValStyle}>{liveUser?.buyCoins !== undefined ? liveUser.buyCoins : 0}</span>
+            <span style={statValStyle}>{user?.buyCoins ?? 0}</span>
             <span style={statLabelStyle}>Coins</span>
           </div>
           <div style={statItemStyle}>
@@ -361,7 +353,7 @@ export default function ProfilePage() {
                 <BuyCoin size={12} style={{ marginRight: "4px" }} /> BuyCoins Wallet
               </span>
               <div style={{ fontSize: "24px", fontWeight: "900", color: "#78350f", marginTop: "12px" }}>
-                {liveUser?.buyCoins !== undefined ? liveUser.buyCoins : 0} Coins Available
+                {user?.buyCoins ?? 0} Coins Available
               </div>
               <p style={{ fontSize: "12px", color: "#6b7280", margin: "4px 0 0 0", fontWeight: "600" }}>
                 Earn rewards on every order • Earned this month: {earnedThisMonth} Coins
