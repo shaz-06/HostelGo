@@ -6,17 +6,11 @@ import './index.css'
 import { Capacitor } from '@capacitor/core'
 
 // Dynamically resolve API URL depending on build environment
-let API_BASE_URL =
+const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD
     ? "https://api.buyto.co.in"
     : "http://localhost:8000");
-
-// If in development and accessing from a remote IP (e.g. mobile device testing),
-// replace localhost with the host's actual IP address.
-if (!import.meta.env.PROD && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-  API_BASE_URL = API_BASE_URL.replace("localhost", window.location.hostname);
-}
 
 window.API_BASE_URL = API_BASE_URL;
 

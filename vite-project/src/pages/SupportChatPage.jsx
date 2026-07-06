@@ -40,14 +40,55 @@ export default function SupportChatPage() {
   const typingTimeoutRef = useRef(null);
   const supportStatus = chatSession?.status;
 
+  const chatContainerRef = useRef(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [showNewMessageIndicator, setShowNewMessageIndicator] = useState(false);
+  const prevMessageCountRef = useRef(0);
+
   // Auto-scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
+  // Scroll event handler to track if user is near bottom
+  const handleScroll = () => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const isNearBottom =
+      container.scrollHeight -
+        container.scrollTop -
+        container.clientHeight <
+      120;
+
+    setShouldAutoScroll(isNearBottom);
+
+    if (isNearBottom) {
+      setShowNewMessageIndicator(false);
+    }
+  };
+
+  // Scroll to bottom click handler for floating button
+  const handleScrollToBottomClick = () => {
+    setShouldAutoScroll(true);
     scrollToBottom();
-  }, [localMessages, partnerTyping]);
+    setShowNewMessageIndicator(false);
+  };
+
+  // Auto-scroll logic depending on user scroll position
+  useEffect(() => {
+    const messageCount = localMessages.length;
+    const isNewMessage = messageCount > prevMessageCountRef.current;
+    prevMessageCountRef.current = messageCount;
+
+    if (shouldAutoScroll) {
+      scrollToBottom();
+      setShowNewMessageIndicator(false);
+    } else if (isNewMessage) {
+      // Show indicator when scrolled up and new message arrives
+      setShowNewMessageIndicator(true);
+    }
+  }, [localMessages, partnerTyping, shouldAutoScroll]);
 
   // Animated searching text ellipsis cycle
   useEffect(() => {
@@ -704,7 +745,7 @@ export default function SupportChatPage() {
         )}
 
         {/* MESSAGES DISPLAY SCROLL AREA */}
-        <div style={messagesWindowStyle}>
+        <div ref={chatContainerRef} onScroll={handleScroll} style={messagesWindowStyle}>
 
           {localMessages.map((msg, index) => {
             const isBot = msg.role === "bot";
@@ -948,6 +989,35 @@ export default function SupportChatPage() {
 
           <div ref={messagesEndRef} />
         </div>
+
+        {/* FLOATING NEW MESSAGE INDICATOR */}
+        {showNewMessageIndicator && (
+          <button
+            onClick={handleScrollToBottomClick}
+            style={{
+              position: "absolute",
+              bottom: "74px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "#318616",
+              color: "white",
+              border: "none",
+              padding: "10px 18px",
+              borderRadius: "20px",
+              fontSize: "13px",
+              fontWeight: "700",
+              boxShadow: "0 4px 15px rgba(49, 134, 22, 0.35)",
+              cursor: "pointer",
+              zIndex: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              animation: "slideUpFade 0.25s ease-out"
+            }}
+          >
+            ⬇️ New Messages
+          </button>
+        )}
 
         {/* BOTTOM MESSAGE INPUT BAR - ACTIVE IN WAITING & CONNECTING & ACTIVE */}
         {chatSession && ["active", "waiting", "connecting"].includes(chatSession.status) && (
