@@ -7,7 +7,7 @@ export default function ContactPage() {
   return (
     <div style={pageContainerStyle}>
       <div style={contentWrapperStyle}>
-        
+
         {/* Back Button */}
         <div style={{ marginBottom: "24px" }}>
           <button
@@ -30,16 +30,16 @@ export default function ContactPage() {
 
         {/* Grid of Contact Cards */}
         <div style={cardsGridStyle}>
-          
+
           {/* Card 1: Phone Support */}
           <div style={contactCardStyle}>
             <div style={cardHeaderStyle}>
               <span style={{ fontSize: "28px" }}>☎</span>
               <h3 style={cardTitleStyle}>Phone Support</h3>
             </div>
-            <p style={cardContentStyle}>+91 XXXXX XXXXX</p>
-            <button 
-              onClick={() => window.open("tel:+919999999999")} 
+            <p style={cardContentStyle}>+91 6363849864</p>
+            <button
+              onClick={() => window.open("tel:+91 6363849864")}
               style={ctaButtonStyle}
             >
               Call Now 📞
@@ -53,8 +53,8 @@ export default function ContactPage() {
               <h3 style={cardTitleStyle}>Email Support</h3>
             </div>
             <p style={cardContentStyle}>support@buyto.co.in</p>
-            <button 
-              onClick={() => window.open("mailto:support@buyto.co.in")} 
+            <button
+              onClick={() => window.open("mailto:support@buyto.co.in")}
               style={ctaButtonStyle}
             >
               Email Us ✉️
@@ -68,8 +68,8 @@ export default function ContactPage() {
               <h3 style={cardTitleStyle}>Live Chat</h3>
             </div>
             <p style={cardContentStyle}>Open Buyto Assistant</p>
-            <button 
-              onClick={() => navigate("/support/chat")} 
+            <button
+              onClick={() => navigate("/support/chat")}
               style={{ ...ctaButtonStyle, background: "linear-gradient(135deg, #318616, #4ca728)" }}
             >
               Chat Now 💬
