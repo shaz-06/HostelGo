@@ -20,6 +20,7 @@ export default function SupportChatPage() {
   const [isBotOptionsActive, setIsBotOptionsActive] = useState(true);
   const [recentOrders, setRecentOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isCheckingAssociate, setIsCheckingAssociate] = useState(false);
 
   // UI States
   const [inputMessage, setInputMessage] = useState("");
@@ -276,9 +277,7 @@ export default function SupportChatPage() {
         setIsBotOptionsActive(true);
       });
     } else if (option === "Chat with Associate") {
-      addBotReply("Checking live associate availability...", () => {
-        connectToLiveSupport();
-      });
+      connectToLiveSupport();
     }
   };
 
@@ -318,7 +317,37 @@ export default function SupportChatPage() {
 
   // Convert Bot session to Live Support waitlist
   const connectToLiveSupport = async () => {
+    if (!navigator.onLine) {
+      addBotReply("⚠️ You appear to be offline. Please check your internet connection.");
+      setIsBotOptionsActive(true);
+      return;
+    }
+
+    setIsCheckingAssociate(true);
+    addBotReply("🔄 Checking live associate availability...");
+
+    console.log("Checking associate availability...");
+    console.log("API URL:", window.API_BASE_URL);
+
     try {
+      const statusRes = await fetch(window.API_BASE_URL + "/api/chat/associate/status", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!statusRes.ok) {
+        throw new Error("Support service is temporarily unavailable. Please try again in a few minutes.");
+      }
+
+      const statusData = await statusRes.json();
+
+      if (statusData.available) {
+        addBotReply("✅ Connecting you with a live associate...");
+      } else {
+        addBotReply("⚠️ No associates are available right now. Please leave your message and we'll get back to you soon.");
+      }
+
       const res = await fetch(window.API_BASE_URL + "/api/support/start", {
         method: "POST",
         headers: {
@@ -326,6 +355,7 @@ export default function SupportChatPage() {
           Authorization: `Bearer ${token}`
         }
       });
+
       if (res.ok) {
         const data = await res.json();
         setChatSession(data.chat);
@@ -336,14 +366,20 @@ export default function SupportChatPage() {
           estimatedWaitTime: data.chat.queuePosition * 3
         } : null);
         initializeSocket(data.chat._id);
+        setIsBotOptionsActive(false);
       } else {
-        addBotReply("We are unable to connect to support servers right now. Please try again later.");
+        const errData = await res.json().catch(() => ({}));
+        const message = errData.message || "Support service is temporarily unavailable. Please try again in a few minutes.";
+        addBotReply(`⚠️ ${message}`);
         setIsBotOptionsActive(true);
       }
-    } catch (err) {
-      console.error(err);
-      addBotReply("Connection failed. Check your internet connection.");
+    } catch (error) {
+      console.error("Associate Chat Error:", error);
+      const message = error?.message || "Support service is temporarily unavailable. Please try again in a few minutes.";
+      addBotReply(`⚠️ ${message}`);
       setIsBotOptionsActive(true);
+    } finally {
+      setIsCheckingAssociate(false);
     }
   };
 
@@ -847,6 +883,11 @@ export default function SupportChatPage() {
                     key={option}
                     onClick={() => handleBotOption(option)}
                     className="chip-button"
+                    disabled={isCheckingAssociate}
+                    style={{
+                      opacity: isCheckingAssociate ? 0.6 : 1,
+                      cursor: isCheckingAssociate ? "not-allowed" : "pointer"
+                    }}
                   >
                     {option}
                   </button>

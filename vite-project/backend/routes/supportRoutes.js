@@ -401,6 +401,17 @@ router.get("/support/queue", authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/chat/associate/status
+router.get("/chat/associate/status", async (req, res) => {
+  const availability = getAvailability(req);
+  console.log("Associate availability request received");
+  console.log("Associates online:", availability.availableCount);
+  return res.json({
+    success: true,
+    available: availability.hasAvailableAssociate
+  });
+});
+
 // 7. GET /api/support/availability - Fetch live associate availability
 router.get("/support/availability", authMiddleware, async (req, res) => {
   return res.json(getAvailability(req));
