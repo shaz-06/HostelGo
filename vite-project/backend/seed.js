@@ -30,7 +30,7 @@ const products = [
     "originalPrice": 36,
     "weight": "4 Pieces",
     "stock": 30,
-    "image": "https://drive.google.com/uc?export=view&id=1ripXxMuW8WJibXXA8Atxr65ol7W9_1DL"
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783243231/09a3ae13-6792-479b-a564-bf116f84b317_068761a9-938f-4c18-bb9e-8e190bf57a45_wucu2q.png"
   },
   {
     "id": "DBE1",
@@ -8770,37 +8770,6 @@ const products = [
     "variants": []
   },
   {
-    "id": "veg68",
-    "name": "Yellow Bell Pepper (Haladi Dappa Mensinkaayi)",
-    "category": "The Veggie Store",
-    "tags": [
-      "yellow bell pepper haladi dappa mensinkaayi",
-      "haladi dappa mensinkaayi",
-      "haladi",
-      "dappa",
-      "mensinkaayi",
-      "yellow",
-      "bell",
-      "pepper",
-      "the veggie store",
-      "vegetable",
-      "vegetables",
-      "veggie",
-      "veggies",
-      "veggy",
-      "fresh vegetable",
-      "fresh vegetables",
-      "1 piece"
-    ],
-    "isTrending": false,
-    "price": 39,
-    "originalPrice": 49,
-    "weight": "1 Piece",
-    "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
-    "variants": []
-  },
-  {
     "id": "veg69",
     "name": "Broccoli",
     "category": "The Veggie Store",
@@ -8940,36 +8909,6 @@ const products = [
     "weight": "75 g",
     "stock": 30,
     "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783176513/sztjkbg8o0oue0ux8x23_ty8e7n.png",
-    "variants": []
-  },
-  {
-    "id": "veg74",
-    "name": "Drumstick Leaves (Nugge Soppu)",
-    "category": "The Veggie Store",
-    "tags": [
-      "drumstick leaves nugge soppu",
-      "nugge soppu",
-      "nugge",
-      "soppu",
-      "drumstick",
-      "leaves",
-      "leave",
-      "the veggie store",
-      "vegetable",
-      "vegetables",
-      "veggie",
-      "veggies",
-      "veggy",
-      "fresh vegetable",
-      "fresh vegetables",
-      "100 g"
-    ],
-    "isTrending": false,
-    "price": 23,
-    "originalPrice": 29,
-    "weight": "100 g",
-    "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
     "variants": []
   },
   {
@@ -9573,7 +9512,7 @@ const products = [
     "originalPrice": 75,
     "weight": "3 Pieces",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783156480/8d150b28-e535-4135-bd4b-cb08de1097ae_1289_1_nyifpr.jpg",
     "variants": []
   },
   {
@@ -9626,7 +9565,7 @@ const products = [
     "originalPrice": 33,
     "weight": "1 Piece",
     "stock": 30,
-    "image": "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500",
+    "image": "https://res.cloudinary.com/dshelwy43/image/upload/v1783161737/8f5723ed-6c6e-4409-baa0-b5bad24459fd_118126_2_bbcwdv.png",
     "variants": []
   },
   {

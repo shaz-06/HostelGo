@@ -136,7 +136,7 @@ export default function ProfilePage() {
     navigate("/");
   };
 
-  const memberDateStr = liveUser?.createdAt 
+  const memberDateStr = liveUser?.createdAt
     ? new Date(liveUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "June 2026";
 
@@ -145,9 +145,9 @@ export default function ProfilePage() {
       if (!tx.createdAt) return false;
       const txDate = new Date(tx.createdAt);
       const now = new Date();
-      return txDate.getMonth() === now.getMonth() && 
-             txDate.getFullYear() === now.getFullYear() && 
-             ["earn", "earned", "bonus", "admin", "refund"].includes(tx.type);
+      return txDate.getMonth() === now.getMonth() &&
+        txDate.getFullYear() === now.getFullYear() &&
+        ["earn", "earned", "bonus", "admin", "refund"].includes(tx.type);
     })
     .reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
@@ -174,7 +174,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <button 
+          <button
             onClick={openLogin}
             style={primaryBtnStyle}
           >
@@ -215,7 +215,7 @@ export default function ProfilePage() {
               { label: "Shipping Policy", path: "/shipping-policy" },
               { label: "Contact Us", path: "/contact" }
             ].map((item, idx, arr) => (
-              <div 
+              <div
                 key={item.label}
                 onClick={() => navigate(item.path)}
                 style={{
@@ -233,10 +233,10 @@ export default function ProfilePage() {
           <div style={followContainerStyle}>
             <p style={followTitleStyle}>Follow Buyto</p>
             <div style={socialGridStyle}>
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" style={socialIconStyle}>📸</a>
-              <a href="https://facebook.com" target="_blank" rel="noreferrer" style={socialIconStyle}>📘</a>
-              <a href="https://youtube.com" target="_blank" rel="noreferrer" style={socialIconStyle}>📺</a>
-              <a href="https://twitter.com" target="_blank" rel="noreferrer" style={socialIconStyle}>🐦</a>
+              <a href="https://www.instagram.com/letsbuyto/" target="_blank" rel="noreferrer" style={socialIconStyle}>🅾 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦</a>
+              <a href="https://facebook.com" target="_blank" rel="noreferrer" style={socialIconStyle}>ⓕ Facebook</a>
+              <a href="https://youtube.com" target="_blank" rel="noreferrer" style={socialIconStyle}>📺▶️YouTube</a>
+              <a href="https://twitter.com" target="_blank" rel="noreferrer" style={socialIconStyle}>𝕏Twitter𝕏</a>
             </div>
           </div>
 
@@ -257,7 +257,7 @@ export default function ProfilePage() {
   return (
     <div className="page-with-bottom-nav" style={containerStyle}>
       <div style={cardWrapperStyle}>
-        
+
         {/* Global style injections for premium interactions */}
         <style>{`
           .menu-row-hover {
@@ -325,7 +325,7 @@ export default function ProfilePage() {
         </div>
 
         {/* 6. ACTIVE ADDRESS PREVIEW */}
-        <div 
+        <div
           onClick={() => setShowAddressModal(true)}
           style={addressPreviewCardStyle}
           className="menu-row-hover"
@@ -369,15 +369,15 @@ export default function ProfilePage() {
             </div>
             <span className="coin-spin" style={{ fontSize: "36px" }}><BuyCoin size={36} animate={true} /></span>
           </div>
-          
+
           <div style={{ marginTop: "16px", display: "flex", gap: "10px" }}>
-            <button 
+            <button
               onClick={() => navigate("/buycoins/transactions")}
               style={walletOutlineBtnStyle}
             >
               View Transactions
             </button>
-            <button 
+            <button
               onClick={() => navigate("/buycoins/rewards")}
               style={walletSolidBtnStyle}
             >
@@ -387,11 +387,11 @@ export default function ProfilePage() {
         </div>
 
         {/* 3. GROUPED SECTIONS & MENU ITEMS */}
-        
+
         {/* Section: Orders */}
         <h3 style={groupHeaderStyle}>Orders</h3>
         <div style={groupContainerStyle}>
-          <div 
+          <div
             onClick={() => setActiveSection(activeSection === "orders" ? "" : "orders")}
             style={groupRowStyle}
             className="menu-row-hover"
@@ -432,8 +432,8 @@ export default function ProfilePage() {
                       <div style={orderFooterStyle}>
                         <span>Total Paid: ₹{order.totalAmount}</span>
                         {order.orderStatus !== "Cancelled" && (
-                          <button 
-                            onClick={() => navigate(`/track-order/${order._id}`)} 
+                          <button
+                            onClick={() => navigate(`/track-order/${order._id}`)}
                             style={trackBtnStyle}
                           >
                             Track Live Order
@@ -447,7 +447,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <div 
+          <div
             onClick={() => navigate("/help")}
             style={{ ...groupRowStyle, borderBottom: "none" }}
             className="menu-row-hover"
@@ -463,7 +463,7 @@ export default function ProfilePage() {
         {/* Section: Addresses */}
         <h3 style={groupHeaderStyle}>Addresses</h3>
         <div style={groupContainerStyle}>
-          <div 
+          <div
             onClick={() => setShowAddressModal(true)}
             style={{ ...groupRowStyle, borderBottom: "none" }}
             className="menu-row-hover"
@@ -479,7 +479,7 @@ export default function ProfilePage() {
         {/* Section: Rewards */}
         <h3 style={groupHeaderStyle}>Rewards</h3>
         <div style={groupContainerStyle}>
-          <div 
+          <div
             onClick={() => setActiveSection(activeSection === "wallet" ? "" : "wallet")}
             style={groupRowStyle}
             className="menu-row-hover"
@@ -538,7 +538,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <div 
+          <div
             onClick={() => setActiveSection(activeSection === "coupons" ? "" : "coupons")}
             style={{ ...groupRowStyle, borderBottom: "none" }}
             className="menu-row-hover"
@@ -578,7 +578,7 @@ export default function ProfilePage() {
         {/* Section: Support */}
         <h3 style={groupHeaderStyle}>Support</h3>
         <div style={groupContainerStyle}>
-          <div 
+          <div
             onClick={() => navigate("/help")}
             style={groupRowStyle}
             className="menu-row-hover"
@@ -589,7 +589,7 @@ export default function ProfilePage() {
             </div>
             <span style={{ color: "#9ca3af", fontWeight: "700" }}>→</span>
           </div>
-          <div 
+          <div
             onClick={() => navigate("/contact")}
             style={{ ...groupRowStyle, borderBottom: "none" }}
             className="menu-row-hover"
@@ -605,7 +605,7 @@ export default function ProfilePage() {
         {/* Section: Account */}
         <h3 style={groupHeaderStyle}>Account</h3>
         <div style={groupContainerStyle}>
-          <div 
+          <div
             onClick={() => navigate("/settings")}
             style={groupRowStyle}
             className="menu-row-hover"
@@ -616,7 +616,7 @@ export default function ProfilePage() {
             </div>
             <span style={{ color: "#9ca3af", fontWeight: "700" }}>→</span>
           </div>
-          <div 
+          <div
             onClick={handleLogoutClick}
             style={{ ...groupRowStyle, borderBottom: "none" }}
             className="menu-row-hover"
@@ -645,9 +645,9 @@ export default function ProfilePage() {
 
       {/* Render Address selector modal */}
       {showAddressModal && (
-        <AddressSelectorModal 
+        <AddressSelectorModal
           onClose={() => setShowAddressModal(false)}
-          onSelectAddress={() => {}}
+          onSelectAddress={() => { }}
           isLoggedIn={isLoggedIn}
         />
       )}
