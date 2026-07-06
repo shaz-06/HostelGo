@@ -47,7 +47,14 @@ export default function SupportChatPage() {
 
   // Auto-scroll to bottom of messages
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = chatContainerRef.current;
+
+    if (!container || !messagesEndRef.current) return;
+
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end"
+    });
   };
 
   // Scroll event handler to track if user is near bottom
@@ -57,8 +64,8 @@ export default function SupportChatPage() {
 
     const isNearBottom =
       container.scrollHeight -
-        container.scrollTop -
-        container.clientHeight <
+      container.scrollTop -
+      container.clientHeight <
       120;
 
     setShouldAutoScroll(isNearBottom);
@@ -82,9 +89,20 @@ export default function SupportChatPage() {
     prevMessageCountRef.current = messageCount;
 
     if (isNewMessage) {
-      if (shouldAutoScroll) {
+      const container = chatContainerRef.current;
+
+      const isNearBottom =
+        container &&
+        container.scrollHeight -
+        container.scrollTop -
+        container.clientHeight <
+        120;
+
+      if (shouldAutoScroll && isNearBottom) {
         scrollToBottom();
         setShowNewMessageIndicator(false);
+      } else if (isNewMessage) {
+        setShowNewMessageIndicator(true);
       } else {
         // Show indicator when scrolled up and new message arrives
         setShowNewMessageIndicator(true);
@@ -292,7 +310,7 @@ export default function SupportChatPage() {
 
   // Bot Click Handlers
   const handleBotOption = (option) => {
-    setShouldAutoScroll(true);
+
     const userMsg = {
       senderName: user?.name || "Customer",
       role: "user",
@@ -372,7 +390,7 @@ export default function SupportChatPage() {
 
   // Convert Bot session to Live Support waitlist
   const connectToLiveSupport = async () => {
-    setShouldAutoScroll(true);
+
     if (!navigator.onLine) {
       addBotReply("⚠️ You appear to be offline. Please check your internet connection.");
       setIsBotOptionsActive(true);
@@ -717,10 +735,10 @@ export default function SupportChatPage() {
                 ? "none"
                 : "blur(10px)"
             }}>
-              {chatSession?.status === "active" 
-                ? "🟢 Active" 
-                : chatSession?.status === "waiting" || chatSession?.status === "connecting" 
-                  ? "🟠 Waiting" 
+              {chatSession?.status === "active"
+                ? "🟢 Active"
+                : chatSession?.status === "waiting" || chatSession?.status === "connecting"
+                  ? "🟠 Waiting"
                   : "⚫ Closed"}
             </span>
             <div>
@@ -765,16 +783,16 @@ export default function SupportChatPage() {
 
           {localMessages.map((msg, index) => {
             const isBot = msg.role === "bot";
-            const isSelf = msg.role === "user";
+            const isSelf = msg.role === "user" || msg.role === "customer" || (user && msg.senderId === user._id) || (user && msg.senderName === user.name);
 
             const isSystem = msg.senderName === "System" || (isBot && (
-              msg.message.includes("joined the chat") || 
-              msg.message.includes("ended due to inactivity") || 
+              msg.message.includes("joined the chat") ||
+              msg.message.includes("ended due to inactivity") ||
               msg.message.includes("ended the conversation") ||
               msg.message.includes("joined the conversation") ||
               msg.message.includes("Associate Connected")
             ));
-            
+
             // If it's a System or Timeout notification, render a centered system alert
             if (isSystem) {
               return (
@@ -821,7 +839,7 @@ export default function SupportChatPage() {
                   style={{
                     maxWidth: "75%",
                     background: isSelf
-                      ? "#d9fdd3"
+                      ? "#dcf8c6"
                       : isBot
                         ? "linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(49, 134, 22, 0.08))"
                         : "#ffffff",
@@ -961,7 +979,7 @@ export default function SupportChatPage() {
                 <span className="system-searching-dot" />
                 <span className="system-searching-dot" />
               </div>
-              
+
               <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: "800", color: "#1f2937" }}>
                 Associate is busy with another user, please wait {ellipsis}
               </h3>
@@ -1065,11 +1083,11 @@ export default function SupportChatPage() {
                 Send 🚀
               </button>
             </div>
-            
+
             <div style={reconnectContainerStyle}>
               <p style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: "700", color: "#4b5563", textAlign: "center" }}>
-                {localMessages[localMessages.length - 1]?.message === "Chat session ended due to inactivity." 
-                  ? "Chat session ended due to inactivity." 
+                {localMessages[localMessages.length - 1]?.message === "Chat session ended due to inactivity."
+                  ? "Chat session ended due to inactivity."
                   : "Associate has ended the conversation."}
               </p>
               <button onClick={handleReconnect} style={reconnectBtnStyle}>
