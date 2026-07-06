@@ -53,8 +53,8 @@ export default function SupportChatPage() {
   useEffect(() => {
     if (!["connecting", "waiting"].includes(supportStatus)) return;
     const timer = setInterval(() => {
-      setEllipsis((prev) => (prev.length >= 3 ? "." : prev + "."));
-    }, 600);
+      setEllipsis((prev) => (prev.length >= 5 ? "." : prev + "."));
+    }, 500);
     return () => clearInterval(timer);
   }, [supportStatus]);
 
@@ -905,12 +905,9 @@ export default function SupportChatPage() {
                 <span className="system-searching-dot" />
               </div>
               
-              <h3 style={{ margin: "0 0 6px 0", fontSize: "15px", fontWeight: "800", color: "#1f2937" }}>
-                Looking for an available associate...
+              <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: "800", color: "#1f2937" }}>
+                Associate is busy with another user, please wait {ellipsis}
               </h3>
-              <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: "#6b7280", fontWeight: "600" }}>
-                Please wait while we connect you with an associate.
-              </p>
 
               {chatSession.status === "waiting" && queueInfo && (
                 <div

@@ -3,6 +3,8 @@ const router = express.Router();
 const SupportChat = require("../models/SupportChat");
 const authMiddleware = require("../middleware/authMiddleware");
 const adminMiddleware = require("../middleware/adminMiddleware");
+const User = require("../models/User");
+const { sendPushNotification } = require("../services/notificationService");
 
 const userReplyTimers = new Map();
 
@@ -133,6 +135,37 @@ router.post("/support/start", authMiddleware, async (req, res) => {
     if (req.io) {
       req.io.to("support_admins").emit(shouldQueue ? "newWaitingSupportChat" : "incomingSupportRequest", chat);
       req.io.emit("adminChatStatusUpdated", chat);
+    }
+
+    // Send push notification to all admins' phones
+    try {
+      const admins = await User.find({ role: "admin" });
+      const adminTokens = [];
+      admins.forEach(adminUser => {
+        if (Array.isArray(adminUser.fcmTokens)) {
+          adminUser.fcmTokens.forEach(t => {
+            const tokenStr = (t && typeof t === "object") ? t.token : t;
+            if (tokenStr && !adminTokens.includes(tokenStr)) {
+              adminTokens.push(tokenStr);
+            }
+          });
+        }
+        if (adminUser.fcmToken && !adminTokens.includes(adminUser.fcmToken)) {
+          adminTokens.push(adminUser.fcmToken);
+        }
+      });
+
+      if (adminTokens.length > 0) {
+        console.log(`[Support Notify] Sending push to ${adminTokens.length} admin devices for user ${req.user.name}`);
+        await sendPushNotification(
+          adminTokens,
+          "💬 New Support Chat Request",
+          `${req.user.name || "A user"} is waiting to chat with an associate.`,
+          { type: "SUPPORT_CHAT", chatId: String(chat._id), deepLink: "/admin/support" }
+        );
+      }
+    } catch (pushErr) {
+      console.error("Support API: Failed to send admin push notification:", pushErr.message);
     }
 
     return res.status(201).json({ chat, availability });
