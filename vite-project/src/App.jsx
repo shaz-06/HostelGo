@@ -1502,6 +1502,7 @@ function AppContent({ onReady }) {
           overflowX: "clip"
         }}>
           {element}
+          <Footer />
         </div>
         <FloatingCartPopup totalItems={totalItems} totalPrice={totalPrice} bottomNavVisible={bottomNavVisible} />
         <MobileBottomNavigation isVisible={bottomNavVisible} />
@@ -1812,21 +1813,11 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/about") {
-    return wrapCustomerLayout(
-      <>
-        <AboutPage />
-        <Footer />
-      </>
-    );
+    return wrapCustomerLayout(<AboutPage />);
   }
 
   if (location.pathname === "/contact") {
-    return wrapCustomerLayout(
-      <>
-        <ContactPage />
-        <Footer />
-      </>
-    );
+    return wrapCustomerLayout(<ContactPage />);
   }
 
   if (location.pathname === "/settings") {
@@ -1842,48 +1833,23 @@ function AppContent({ onReady }) {
   }
 
   if (location.pathname === "/privacy-policy") {
-    return wrapCustomerLayout(
-      <>
-        <PrivacyPolicyPage />
-        <Footer />
-      </>
-    );
+    return wrapCustomerLayout(<PrivacyPolicyPage />);
   }
 
   if (location.pathname === "/terms") {
-    return wrapCustomerLayout(
-      <>
-        <TermsPage />
-        <Footer />
-      </>
-    );
+    return wrapCustomerLayout(<TermsPage />);
   }
 
   if (location.pathname === "/refund-policy") {
-    return wrapCustomerLayout(
-      <>
-        <RefundPolicyPage />
-        <Footer />
-      </>
-    );
+    return wrapCustomerLayout(<RefundPolicyPage />);
   }
 
   if (location.pathname === "/shipping-policy") {
-    return wrapCustomerLayout(
-      <>
-        <ShippingPolicyPage />
-        <Footer />
-      </>
-    );
+    return wrapCustomerLayout(<ShippingPolicyPage />);
   }
 
   if (location.pathname === "/faq") {
-    return wrapCustomerLayout(
-      <>
-        <FAQPage />
-        <Footer />
-      </>
-    );
+    return wrapCustomerLayout(<FAQPage />);
   }
 
   if (location.pathname === "/support/chat") {
