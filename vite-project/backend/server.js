@@ -2,9 +2,13 @@ require("./firebase");
 
 const express = require("express");
 const mongoose = require("mongoose");
+const mongoSanitize = require("./middleware/mongoSanitize");
+const xss = require("./middleware/xssClean");
 const cors = require("cors");
+
 const path = require("path");
 const compression = require("compression");
+const helmet = require("helmet");
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 
 const Product = require("./models/Product");
@@ -27,12 +31,50 @@ const { sendCartReminder } = require("./services/notificationService");
 const userRoutes = require("./routes/userRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 const adminMiddleware = require("./middleware/adminMiddleware");
+const {
+  globalLimiter,
+  authLimiter,
+  otpLimiter,
+  adminLimiter
+} = require("./middleware/rateLimiter");
 
 const app = express();
 
+// 301 Redirect from non-www to www
+app.use((req, res, next) => {
+  const host = (req.headers["x-forwarded-host"] || req.headers.host || "").toLowerCase();
+
+  if (host === "buyto.co.in") {
+    return res.redirect(
+      301,
+      `https://www.buyto.co.in${req.originalUrl}`
+    );
+  }
+
+  next();
+});
+
+app.set("trust proxy", 1);
+
+app.use(helmet({
+  contentSecurityPolicy: false
+}));
 app.use(compression());
 app.use(cors());
 app.use(express.json());
+
+// Prevent NoSQL injection attacks by sanitizing body, query, and params
+app.use(mongoSanitize);
+
+// Prevent cross-site scripting (XSS) attacks by sanitizing body, query, and params
+app.use(xss());
+
+// Apply rate limiters
+app.use("/api", globalLimiter);
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/send-otp", otpLimiter);
+app.use("/api/auth/verify-otp", otpLimiter);
+app.use("/api/admin/login", adminLimiter);
 
 // Development Response Time Logger
 app.use((req, res, next) => {
@@ -457,6 +499,17 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/save-for-later", saveForLaterRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", userRoutes);
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("UNHANDLED ERROR:", err);
+  console.error(err.stack);
+
+  res.status(500).json({
+    success: false,
+    message: err.message
+  });
+});
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server Started and running on port ${PORT} bound to all interfaces`);

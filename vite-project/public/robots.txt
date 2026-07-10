@@ -7,4 +7,4 @@ Disallow: /admin
 Disallow: /seller-dashboard
 Disallow: /account
 
-Sitemap: https://buyto.co.in/sitemap.xml
+Sitemap: https://www.buyto.co.in/sitemap.xml

@@ -33,10 +33,9 @@ export default function PaymentPage({
   setSelectedCoupon = () => {}
 }) {
   const navigate = useNavigate();
-  const { token } = useContext(AuthContext);
+  const { token, user: contextUser, refreshUser } = useContext(AuthContext);
   const [isProcessing, setIsProcessing] = useState(false);
   const [gpsCoords, setGpsCoords] = useState(null);
-  const [userCoins, setUserCoins] = useState(0);
   const [coinsToRedeem, setCoinsToRedeem] = useState(() => Number(localStorage.getItem("buyto_coins_redeem") || 0));
 
   const [isAddressServiceable, setIsAddressServiceable] = useState(true);
@@ -80,23 +79,9 @@ export default function PaymentPage({
   }, []);
 
   useEffect(() => {
-    if (!token) return;
-    const fetchRewardsData = async () => {
-      try {
-        const meRes = await fetch(window.API_BASE_URL + "/api/auth/me", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          if (meData.success && meData.user) {
-            setUserCoins(meData.user.buyCoins || 0);
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching rewards details in PaymentPage:", err);
-      }
-    };
-    fetchRewardsData();
+    if (token && refreshUser) {
+      refreshUser();
+    }
   }, [token]);
 
   useEffect(() => {
@@ -880,7 +865,7 @@ export default function PaymentPage({
                     Use BuyCoins
                   </h3>
                   <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#6b7280", fontWeight: "500" }}>
-                    Available: {userCoins} Coins (₹{userCoins})
+                  Available: {user?.buyCoins ?? 0} Coins (₹{user?.buyCoins ?? 0})
                   </p>
                 </div>
               </div>
@@ -912,8 +897,8 @@ export default function PaymentPage({
                 </span>
                 <button
                   type="button"
-                  disabled={coinsToRedeem >= Math.min(userCoins, Math.floor(subtotal * 0.20))}
-                  onClick={() => setCoinsToRedeem(prev => Math.min(Math.min(userCoins, Math.floor(subtotal * 0.20)), prev + 1))}
+                  disabled={coinsToRedeem >= Math.min(user?.buyCoins ?? 0, Math.floor(subtotal * 0.20))}
+                  onClick={() => setCoinsToRedeem(prev => Math.min(Math.min(user?.buyCoins ?? 0, Math.floor(subtotal * 0.20)), prev + 1))}
                   style={{
                     border: "1px solid #cbd5e1",
                     borderRadius: "8px",
@@ -925,7 +910,7 @@ export default function PaymentPage({
                     justifyContent: "center",
                     fontSize: "16px",
                     fontWeight: "700",
-                    cursor: coinsToRedeem >= Math.min(userCoins, Math.floor(subtotal * 0.20)) ? "not-allowed" : "pointer",
+                    cursor: coinsToRedeem >= Math.min(user?.buyCoins ?? 0, Math.floor(subtotal * 0.20)) ? "not-allowed" : "pointer",
                     color: "#334155"
                   }}
                 >

@@ -591,6 +591,21 @@ function AppContent({ onReady }) {
   const FREE_DELIVERY_THRESHOLD = 99;
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    let canonicalLink = document.querySelector("link[rel='canonical']");
+    if (!canonicalLink) {
+      canonicalLink = document.createElement("link");
+      canonicalLink.rel = "canonical";
+      document.head.appendChild(canonicalLink);
+    }
+    if (location.pathname === "/about") {
+      canonicalLink.href = "https://www.buyto.co.in/about";
+    } else {
+      canonicalLink.href = "https://www.buyto.co.in/";
+    }
+  }, [location.pathname]);
+
   const { user, token, logout } = useContext(AuthContext);
   const isLoggedIn = !!user && !user.isGuest;
   const [products, setProducts] = useState([]);
