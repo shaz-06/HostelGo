@@ -310,9 +310,9 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => {
   res.json({
-    success: true,
-    message: "Backend reachable",
-    time: new Date()
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
   });
 });
 
