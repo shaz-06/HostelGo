@@ -12,6 +12,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import RiderProtectedRoute from "./components/RiderProtectedRoute";
 import CategoryDiscovery from "./components/CategoryDiscovery";
+import { initializeAnalytics, trackPageView } from "./utils/analytics";
 import PromoBannerCarousel from "./components/PromoBannerCarousel";
 import DynamicNewBanners from "./components/DynamicNewBanners";
 import { classifyProduct, canonicalCategory } from "./utils/productClassifier";
@@ -573,6 +574,9 @@ function AppContent({ onReady }) {
         .catch((err) => console.error("Error setting status bar:", err));
     }
 
+    // Initialize Google Analytics 4
+    initializeAnalytics();
+
     // Initialize push notifications & check if pending tokens need syncing
     initializePushNotifications();
     retrySyncIfNeeded();
@@ -593,17 +597,118 @@ function AppContent({ onReady }) {
   const location = useLocation();
 
   useEffect(() => {
+    const canonicalUrl = "https://www.buyto.co.in" + (location.pathname === "/" ? "/" : location.pathname.replace(/\/$/, ""));
+    
+    // 1. Canonical tag
     let canonicalLink = document.querySelector("link[rel='canonical']");
     if (!canonicalLink) {
       canonicalLink = document.createElement("link");
       canonicalLink.rel = "canonical";
       document.head.appendChild(canonicalLink);
     }
-    if (location.pathname === "/about") {
-      canonicalLink.href = "https://www.buyto.co.in/about";
-    } else {
-      canonicalLink.href = "https://www.buyto.co.in/";
+    canonicalLink.href = canonicalUrl;
+
+    // 2. Open Graph og:url
+    let ogUrl = document.querySelector("meta[property='og:url']");
+    if (!ogUrl) {
+      ogUrl = document.createElement("meta");
+      ogUrl.setAttribute("property", "og:url");
+      document.head.appendChild(ogUrl);
     }
+    ogUrl.setAttribute("content", canonicalUrl);
+
+    // 3. Twitter twitter:url
+    let twitterUrl = document.querySelector("meta[name='twitter:url']");
+    if (!twitterUrl) {
+      twitterUrl = document.createElement("meta");
+      twitterUrl.setAttribute("name", "twitter:url");
+      document.head.appendChild(twitterUrl);
+    }
+    twitterUrl.setAttribute("content", canonicalUrl);
+
+    // 4. Image tags
+    let ogImage = document.querySelector("meta[property='og:image']");
+    if (!ogImage) {
+      ogImage = document.createElement("meta");
+      ogImage.setAttribute("property", "og:image");
+      document.head.appendChild(ogImage);
+    }
+    ogImage.setAttribute("content", "https://www.buyto.co.in/logo.png");
+
+    let twitterImage = document.querySelector("meta[name='twitter:image']");
+    if (!twitterImage) {
+      twitterImage = document.createElement("meta");
+      twitterImage.setAttribute("name", "twitter:image");
+      document.head.appendChild(twitterImage);
+    }
+    twitterImage.setAttribute("content", "https://www.buyto.co.in/logo.png");
+
+    // 5. Dynamic Title & Descriptions depending on pathname
+    const routeMetadata = {
+      "/": {
+        title: "Buyto - Instant Grocery & Daily Essentials Delivery",
+        description: "Buyto is a quick-commerce platform delivering groceries, electronics, fashion, daily essentials and more in minutes."
+      },
+      "/categories": {
+        title: "Categories | Buyto - Instant Grocery & Daily Essentials Delivery",
+        description: "Browse various categories on Buyto including fresh fruits, vegetables, dairy, snacks, beverages and household essentials."
+      },
+      "/about": {
+        title: "About Us | Buyto - Instant Grocery & Daily Essentials Delivery",
+        description: "Learn more about Buyto, our micro-fulfillment centers, instant delivery networks, and our mission to simplify shopping."
+      },
+      "/contact": {
+        title: "Contact Us | Buyto - Instant Grocery & Daily Essentials Delivery",
+        description: "Get in touch with the Buyto customer support team for any queries regarding orders, payments, refunds or partner registrations."
+      },
+      "/faq": {
+        title: "Buyto FAQs | Delivery, Orders, Payments & Support",
+        description: "Find answers to common questions about Buyto, including Buyto Instant deliveries, Buyto Minutes, payments, refunds, orders, delivery partners, and customer support."
+      },
+      "/privacy-policy": {
+        title: "Privacy Policy | Buyto - Instant Grocery & Daily Essentials Delivery",
+        description: "Read the Buyto Privacy Policy to understand how we collect, store, protect, and use your personal information."
+      },
+      "/terms": {
+        title: "Terms & Conditions | Buyto - Instant Grocery & Daily Essentials Delivery",
+        description: "Review the Terms and Conditions for using the Buyto platform, placing orders, making payments, and utilizing our services."
+      },
+      "/refund-policy": {
+        title: "Refund Policy | Buyto - Instant Grocery & Daily Essentials Delivery",
+        description: "Understand Buyto's refund and return policies for damaged products, missing items, and order cancellations."
+      },
+      "/shipping-policy": {
+        title: "Shipping & Delivery Policy | Buyto - Instant Grocery & Daily Essentials Delivery",
+        description: "Find out more about Buyto's delivery rates, scheduled delivery slots, and shipping areas."
+      }
+    };
+
+    const metadata = routeMetadata[location.pathname] || routeMetadata["/"];
+
+    // Update title and description tags (unless on FAQ page which has its own metadata handlers)
+    if (location.pathname !== "/faq") {
+      document.title = metadata.title;
+
+      let metaDescription = document.querySelector("meta[name='description']");
+      if (metaDescription) {
+        metaDescription.setAttribute("content", metadata.description);
+      }
+
+      let ogTitle = document.querySelector("meta[property='og:title']");
+      if (ogTitle) ogTitle.setAttribute("content", metadata.title);
+
+      let ogDesc = document.querySelector("meta[property='og:description']");
+      if (ogDesc) ogDesc.setAttribute("content", metadata.description);
+
+      let twitterTitle = document.querySelector("meta[name='twitter:title']");
+      if (twitterTitle) twitterTitle.setAttribute("content", metadata.title);
+
+      let twitterDesc = document.querySelector("meta[name='twitter:description']");
+      if (twitterDesc) twitterDesc.setAttribute("content", metadata.description);
+    }
+
+    // 6. Track page view in GA4
+    trackPageView(location.pathname);
   }, [location.pathname]);
 
   const { user, token, logout } = useContext(AuthContext);

@@ -190,13 +190,13 @@ export default function SettingsPage() {
         await navigator.share({
           title: "Buyto Instant Grocery",
           text: "Order groceries in minutes!",
-          url: "https://buyto.co.in"
+          url: "https://www.buyto.co.in"
         });
       } catch (err) {
         console.log(err);
       }
     } else {
-      navigator.clipboard.writeText("https://buyto.co.in");
+      navigator.clipboard.writeText("https://www.buyto.co.in");
       alert("App Link copied to clipboard!");
     }
   };

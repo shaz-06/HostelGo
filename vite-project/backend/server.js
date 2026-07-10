@@ -40,21 +40,39 @@ const {
 
 const app = express();
 
-// 301 Redirect from non-www to www
-app.use((req, res, next) => {
-  const host = (req.headers["x-forwarded-host"] || req.headers.host || "").toLowerCase();
+// Trust reverse proxy (e.g. Render, AWS Load Balancer) to properly parse X-Forwarded-* headers
+app.set("trust proxy", true);
 
-  if (host === "buyto.co.in") {
-    return res.redirect(
-      301,
-      `https://www.buyto.co.in${req.originalUrl}`
-    );
+// 301 Redirect from non-www to www, and enforce HTTPS in production
+app.use((req, res, next) => {
+  const canonicalHost = "www.buyto.co.in";
+  
+  // Use Express proxy-aware request APIs
+  const hostname = req.hostname.toLowerCase();
+  const protocol = req.protocol.toLowerCase();
+
+  // Match production domains only
+  const isTargetDomain = hostname === "buyto.co.in" || hostname === "www.buyto.co.in";
+
+  if (isTargetDomain) {
+    const needsWww = hostname === "buyto.co.in";
+    const needsHttps = protocol === "http";
+
+    if (needsWww || needsHttps) {
+      const redirectUrl = `https://${canonicalHost}${req.originalUrl}`;
+      
+      // Temporary debug logging around redirect decisions
+      if (process.env.DEBUG_REDIRECTS === "true" || process.env.NODE_ENV !== "production") {
+        console.log(`[Redirect Debug] Incoming: ${protocol}://${req.get("host")}${req.originalUrl} | Hostname: ${hostname} | protocol: ${protocol} | redirecting to -> ${redirectUrl} | Reason: needsWww=${needsWww}, needsHttps=${needsHttps}`);
+      }
+
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      return res.redirect(301, redirectUrl);
+    }
   }
 
   next();
 });
-
-app.set("trust proxy", 1);
 
 app.use(helmet({
   contentSecurityPolicy: false
