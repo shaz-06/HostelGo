@@ -37,7 +37,9 @@ const BuyCoinWalletSchema = new mongoose.Schema({
 
 BuyCoinWalletSchema.pre("save", function (next) {
   this.updatedAt = new Date();
-  next();
+  if (typeof next === "function") {
+    next();
+  }
 });
 
 module.exports = mongoose.model("BuyCoinWallet", BuyCoinWalletSchema);

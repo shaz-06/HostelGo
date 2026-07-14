@@ -6,6 +6,19 @@ const Order = require("../models/Order");
 const generateToken = require("../utils/generateToken");
 const authMiddleware = require("../middleware/authMiddleware");
 const riderMiddleware = require("../middleware/riderMiddleware");
+const bcrypt = require("bcrypt");
+const { body, validationResult } = require("express-validator");
+const { loginLimiter } = require("../middleware/rateLimiter");
+const { logAuditEvent } = require("../utils/auditLogger");
+
+// Validation helper
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+  next();
+};
 
 const DELIVERY_EARNING = 35;
 const ACTIVE_DELIVERY_STATUSES = ["Rider Assigned", "Out for Delivery"];
@@ -76,33 +89,108 @@ router.post("/signup", async (req, res) => {
 });
 
 // POST /api/rider/login
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, [
+  body("email").isEmail().withMessage("Provide a valid email address").normalizeEmail(),
+  body("password").isString().notEmpty().withMessage("Password is required"),
+  validate
+], async (req, res) => {
   console.log("=== [RIDER LOGIN] ===");
-  console.log(`Body: { email: ${req.body.email}, password: '***' }`);
-
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
-    }
 
     const rider = await User.findOne({ email: email.toLowerCase(), role: "rider" });
-    if (!rider || !(await rider.comparePassword(password))) {
-      return res.status(401).json({ message: "Invalid rider email or password" });
+
+    // Lockout verification
+    if (rider) {
+      if (rider.accountLockedUntil && rider.accountLockedUntil > new Date()) {
+        logAuditEvent({
+          eventType: "RIDER_LOGIN_LOCKED_ACCOUNT",
+          userId: rider._id,
+          ip: req.ip,
+          userAgent: req.headers["user-agent"],
+          status: "FAILURE",
+          details: { email }
+        });
+        return res.status(401).json({ message: "Invalid credentials" });
+      } else if (rider.accountLockedUntil && rider.accountLockedUntil <= new Date()) {
+        // Lock has expired, reset counter and clear lock atomically
+        await User.updateOne(
+          { _id: rider._id },
+          { $set: { failedLoginAttempts: 0, accountLockedUntil: null } }
+        );
+        rider.failedLoginAttempts = 0;
+        rider.accountLockedUntil = null;
+      }
+    }
+
+    // Dummy hash for constant-time if rider not found
+    const dummyHash = "$2b$12$1234567890123456789012345678901234567890123456789012";
+    const valid = rider ? await bcrypt.compare(password, rider.password) : await bcrypt.compare(password, dummyHash);
+
+    if (!rider || !valid) {
+      if (rider) {
+        // Increment attempts atomically
+        const updates = { $inc: { failedLoginAttempts: 1 } };
+        if (rider.failedLoginAttempts + 1 >= 5) {
+          updates.$set = { accountLockedUntil: new Date(Date.now() + 15 * 60 * 1000) };
+          logAuditEvent({
+            eventType: "RIDER_ACCOUNT_LOCK",
+            userId: rider._id,
+            ip: req.ip,
+            userAgent: req.headers["user-agent"],
+            status: "FAILURE",
+            details: { email }
+          });
+        }
+        await User.updateOne({ _id: rider._id }, updates);
+      }
+
+      logAuditEvent({
+        eventType: "RIDER_LOGIN_FAILED",
+        userId: rider ? rider._id : null,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "FAILURE",
+        details: { email }
+      });
+
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     if (rider.isSuspended) {
+      logAuditEvent({
+        eventType: "RIDER_LOGIN_SUSPENDED",
+        userId: rider._id,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "FAILURE",
+        details: { email }
+      });
       return res.status(403).json({ message: "Rider account is suspended" });
     }
+
+    // Reset attempts on successful verify
+    await User.updateOne(
+      { _id: rider._id },
+      { $set: { failedLoginAttempts: 0, accountLockedUntil: null } }
+    );
 
     const token = generateToken(rider._id, rider.email, rider.role);
     console.log("=== [RIDER LOGIN SUCCESS] ===");
     console.log("Rider ID:", rider._id);
 
+    logAuditEvent({
+      eventType: "RIDER_LOGIN_SUCCESS",
+      userId: rider._id,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      status: "SUCCESS"
+    });
+
     return res.json({ success: true, token, user: publicRider(rider) });
   } catch (error) {
     console.error("❌ Rider Login Error:", error);
-    return res.status(500).json({ message: "Rider login failed", error: error.message });
+    return res.status(500).json({ message: "Rider login failed" });
   }
 });
 

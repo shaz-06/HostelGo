@@ -19,11 +19,26 @@ try {
     }
 
     isFirebaseEnabled = true;
-    console.log("✅ Firebase Admin initialized");
+    console.log("✅ Firebase Admin initialized via Env");
   } else {
-    console.warn(
-      "⚠️ Firebase environment variables are missing. Push notifications are disabled."
-    );
+    // Fallback to serviceAccountKey.json
+    const path = require("path");
+    const fs = require("fs");
+    const serviceAccountPath = path.join(__dirname, "../serviceAccountKey.json");
+    if (fs.existsSync(serviceAccountPath)) {
+      const serviceAccount = require(serviceAccountPath);
+      if (!admin.apps.length) {
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+      }
+      isFirebaseEnabled = true;
+      console.log("✅ Firebase Admin initialized via serviceAccountKey.json");
+    } else {
+      console.warn(
+        "⚠️ Firebase environment variables and serviceAccountKey.json are missing. Push notifications are disabled."
+      );
+    }
   }
 } catch (error) {
   console.error("❌ Failed to initialize Firebase Admin:", error);

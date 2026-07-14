@@ -30,6 +30,12 @@ function MobileHome({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [trendingHover, setTrendingHover] = useState(false);
+  const [dealsHover, setDealsHover] = useState(false);
+  const [fruitsHover, setFruitsHover] = useState(false);
+  const [mosquitoesHover, setMosquitoesHover] = useState(false);
+  const [wellnessHover, setWellnessHover] = useState(false);
+  const [recommendedHover, setRecommendedHover] = useState(false);
 
   useEffect(() => {
     if (location.search.includes("scroll=categories")) {
@@ -107,8 +113,143 @@ function MobileHome({
 
   const renderProductSection = (title, items, route) => {
     if (!items || items.length === 0) return null;
+    const isTrendingNearYou = title && title.toLowerCase().includes("trending near you");
+    const isBestDeals = title && title.toLowerCase().includes("best deals");
+    const isFruits = title && title.toLowerCase().includes("fresh fruits");
+    const isMosquitoes = title && title.toLowerCase().includes("mosquito");
+    const isSexualWellness = title && title.toLowerCase().includes("sexual wellness");
+    const isRecommended = title && title.toLowerCase().includes("recommended");
+
+    const containerStyle = isTrendingNearYou
+      ? {
+          marginTop: "24px",
+          marginBottom: "16px",
+          background: "#F5FCF4",
+          border: "1px solid #E7F5E5",
+          borderRadius: "28px",
+          padding: "24px 16px",
+          boxShadow: "0 8px 30px rgba(49,134,22,0.06)",
+          position: "relative",
+        }
+      : isBestDeals
+      ? {
+          marginTop: "24px",
+          marginBottom: "16px",
+          background:
+            "radial-gradient(circle at top right, rgba(255,255,255,.35), transparent 30%), " +
+            "radial-gradient(circle at bottom left, rgba(245,158,11,.08), transparent 35%), " +
+            "linear-gradient(135deg, #FFF6D8 0%, #FFF3C4 40%, #FFEFB5 70%, #FFF6D8 100%)",
+          border: "1px solid rgba(245, 158, 11, 0.15)",
+          borderRadius: "28px",
+          padding: "24px 16px",
+          boxShadow: "0 8px 30px rgba(245, 158, 11, 0.08)",
+          position: "relative",
+          animation: "gentle-shimmer 25s ease-in-out infinite",
+        }
+      : isFruits
+      ? {
+          marginTop: "24px",
+          marginBottom: "16px",
+          background: "#DDF8D4",
+          border: "1px solid rgba(49, 134, 22, 0.12)",
+          borderRadius: "28px",
+          padding: "24px 16px",
+          boxShadow: "0 8px 30px rgba(49, 134, 22, 0.06)",
+          position: "relative",
+        }
+      : isMosquitoes
+      ? {
+          marginTop: "24px",
+          marginBottom: "16px",
+          background: "#F3ECFF",
+          border: "1px solid rgba(147, 112, 219, 0.12)",
+          borderRadius: "28px",
+          padding: "24px 16px",
+          boxShadow: "0 8px 30px rgba(147, 112, 219, 0.06)",
+          position: "relative",
+        }
+      : isSexualWellness
+      ? {
+          marginTop: "24px",
+          marginBottom: "16px",
+          background: "#FCEFF5",
+          border: "1px solid rgba(233, 167, 197, 0.15)",
+          borderRadius: "28px",
+          padding: "24px 16px",
+          boxShadow: "0 8px 30px rgba(233, 167, 197, 0.08)",
+          position: "relative",
+        }
+      : isRecommended
+      ? {
+          marginTop: "24px",
+          marginBottom: "16px",
+          background: "#FFF8D9",
+          border: "1px solid rgba(245, 158, 11, 0.12)",
+          borderRadius: "28px",
+          padding: "24px 16px",
+          boxShadow: "0 8px 30px rgba(245, 158, 11, 0.06)",
+          position: "relative",
+        }
+      : {
+          marginBottom: "16px",
+          background: "white",
+          paddingTop: "8px",
+          position: "relative",
+        };
+
+    const headingStyle = {
+      fontSize: "15px",
+      fontWeight: "850",
+      color: (isTrendingNearYou || isBestDeals || isFruits || isMosquitoes || isSexualWellness || isRecommended) ? "#1b4314" : "#1f2937",
+      margin: 0,
+      zIndex: 1,
+      position: "relative",
+    };
+
+    const seeAllStyle = (isTrendingNearYou || isBestDeals || isFruits || isMosquitoes || isSexualWellness || isRecommended)
+      ? {
+          border: "none",
+          background: "transparent",
+          color: (isTrendingNearYou ? trendingHover : isBestDeals ? dealsHover : isFruits ? fruitsHover : isMosquitoes ? mosquitoesHover : isSexualWellness ? wellnessHover : recommendedHover) ? "#286F12" : "#318616",
+          fontWeight: "600",
+          fontSize: "12px",
+          cursor: "pointer",
+          transition: "color 0.2s",
+          zIndex: 1,
+          position: "relative",
+        }
+      : {
+          border: "none",
+          background: "transparent",
+          color: "#2563eb",
+          fontWeight: "800",
+          fontSize: "12px",
+          cursor: "pointer",
+        };
+
     return (
-      <div style={{ marginBottom: "16px", background: "white", paddingTop: "8px" }}>
+      <div style={containerStyle}>
+        {/* Dynamic Keyframes for Mobile */}
+        <style>{`
+          @keyframes float-ambient {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(4deg); }
+          }
+          @keyframes gentle-shimmer {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.015); }
+          }
+        `}</style>
+
+        {/* Ambient background decorations for Best Deals */}
+        {isBestDeals && (
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", pointerEvents: "none", borderRadius: "28px", zIndex: 0 }}>
+            <div style={{ position: "absolute", top: "15%", left: "8%", fontSize: "20px", opacity: 0.03, animation: "float-ambient 8s ease-in-out infinite" }}>%</div>
+            <div style={{ position: "absolute", bottom: "20%", right: "12%", fontSize: "28px", opacity: 0.04, animation: "float-ambient 12s ease-in-out infinite" }}>✨</div>
+            <div style={{ position: "absolute", bottom: "10%", left: "30%", fontSize: "24px", opacity: 0.03, animation: "float-ambient 14s ease-in-out infinite" }}>🪙</div>
+          </div>
+        )}
+
         {/* Section Title & See All */}
         <div
           style={{
@@ -117,28 +258,18 @@ function MobileHome({
             alignItems: "center",
             padding: "0 16px",
             marginBottom: "8px",
+            zIndex: 1,
+            position: "relative",
           }}
         >
-          <h3
-            style={{
-              fontSize: "15px",
-              fontWeight: "850",
-              color: "#1f2937",
-              margin: 0,
-            }}
-          >
+          <h3 style={headingStyle}>
             {title}
           </h3>
           <button
             onClick={() => navigate(route)}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "#2563eb",
-              fontWeight: "800",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
+            style={seeAllStyle}
+            onMouseEnter={isTrendingNearYou ? () => setTrendingHover(true) : isBestDeals ? () => setDealsHover(true) : isFruits ? () => setFruitsHover(true) : isMosquitoes ? () => setMosquitoesHover(true) : isSexualWellness ? () => setWellnessHover(true) : isRecommended ? () => setRecommendedHover(true) : undefined}
+            onMouseLeave={isTrendingNearYou ? () => setTrendingHover(false) : isBestDeals ? () => setDealsHover(false) : isFruits ? () => setFruitsHover(false) : isMosquitoes ? () => setMosquitoesHover(false) : isSexualWellness ? () => setWellnessHover(false) : isRecommended ? () => setRecommendedHover(false) : undefined}
           >
             See All &gt;
           </button>
@@ -154,6 +285,8 @@ function MobileHome({
             scrollbarWidth: "none",
             msOverflowStyle: "none",
             WebkitOverflowScrolling: "touch",
+            zIndex: 1,
+            position: "relative",
           }}
           className="hide-scrollbar"
         >

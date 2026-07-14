@@ -53,7 +53,7 @@ export default function CartPage({
     products = [],
     addToCart = () => { },
 }) {
-    const { user, setUser, openLogin } = useContext(AuthContext);
+    const { user, setUser, openLogin, token } = useContext(AuthContext);
     const [showPhoneModal, setShowPhoneModal] = useState(false);
     const [phoneInput, setPhoneInput] = useState("");
     const [phoneError, setPhoneError] = useState("");
@@ -76,6 +76,14 @@ export default function CartPage({
     };
 
     const navigate = useNavigate();
+    const subtotal = cartItems.reduce(
+        (acc, item) => acc + item.price * item.quantity,
+        0
+    );
+    const originalSubtotal = cartItems.reduce(
+        (acc, item) => acc + (item.originalPrice || item.price) * item.quantity,
+        0
+    );
     const [noBagPledge, setNoBagPledge] = useState(() => {
         return localStorage.getItem("buyto_no_bag_pledge") === "true";
     });
@@ -93,6 +101,9 @@ export default function CartPage({
     const [lazyLoaded, setLazyLoaded] = useState(false);
     const [activeTab, setActiveTab] = useState("Snacks");
     const [availableCoins, setAvailableCoins] = useState(0);
+    const [maxRedeemableCoins, setMaxRedeemableCoins] = useState(0);
+    const [appliedCoinsState, setAppliedCoinsState] = useState(0);
+    const [buyCoinsDiscountState, setBuyCoinsDiscountState] = useState(0);
     const [coinsToRedeem, setCoinsToRedeem] = useState(() => {
         return Number(localStorage.getItem("buyto_coins_redeem") || 0);
     });
@@ -316,6 +327,57 @@ export default function CartPage({
         };
     }, [isLoggedIn]);
 
+    // Synchronize cart and calculate redemption limits dynamically
+    useEffect(() => {
+        const syncAndCalculate = async () => {
+            if (!isLoggedIn || !token) return;
+            try {
+                const cartArray = cartItems.map(item => ({
+                    productId: item._id || item.id,
+                    quantity: item.quantity
+                }));
+
+                if (cartArray.length === 0) return;
+
+                // 1. Sync cart to DB
+                await fetch(window.API_BASE_URL + "/api/checkout/cart", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ items: cartArray })
+                });
+
+                // 2. Apply BuyCoins
+                const res = await fetch(window.API_BASE_URL + "/api/checkout/apply-buycoins", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ coins: coinsToRedeem })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    setMaxRedeemableCoins(data.maxRedeemableCoins || 0);
+                    setAvailableCoins(data.buyCoinsBalance || 0);
+                    setAppliedCoinsState(data.appliedCoins || 0);
+                    setBuyCoinsDiscountState(data.discount || 0);
+                    
+                    if (data.appliedCoins !== coinsToRedeem) {
+                        setCoinsToRedeem(data.appliedCoins);
+                        localStorage.setItem("buyto_coins_redeem", String(data.appliedCoins));
+                    }
+                }
+            } catch (err) {
+                console.error("Error in BuyCoins sync and calculate:", err);
+            }
+        };
+
+        syncAndCalculate();
+    }, [isLoggedIn, token, cartItems, coinsToRedeem]);
+
     // Save noBagPledge to localStorage
     const handleNoBagToggle = () => {
         const newValue = !noBagPledge;
@@ -326,8 +388,7 @@ export default function CartPage({
 
     // Save coins to redeem
     const handleCoinsChange = (newCoins) => {
-        const maxCoinsAllowed = Math.floor(subtotal * 0.20);
-        const val = Math.max(0, Math.min(newCoins, availableCoins, maxCoinsAllowed));
+        const val = Math.max(0, Math.min(newCoins, maxRedeemableCoins));
         setCoinsToRedeem(val);
         localStorage.setItem("buyto_coins_redeem", String(val));
         console.log("Analytics Event: buycoins_used", { coinsUsed: val });
@@ -584,14 +645,7 @@ export default function CartPage({
         }
     };
 
-    const subtotal = cartItems.reduce(
-        (acc, item) => acc + item.price * item.quantity,
-        0
-    );
-    const originalSubtotal = cartItems.reduce(
-        (acc, item) => acc + (item.originalPrice || item.price) * item.quantity,
-        0
-    );
+
 
     // Apply calculated coins to bill
     const billBreakdown = calculateBill(
@@ -1250,65 +1304,82 @@ export default function CartPage({
     const renderBuyCoins = () => (
         isLoggedIn && (
             <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", marginBottom: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937" }}>💰 BuyCoins</h3>
-                    <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: "650" }}>
-                        Balance: {availableCoins} Coins
-                    </span>
-                </div>
-                <p style={{ margin: "0 0 12px 0", fontSize: "11px", color: "#6b7280" }}>Redeem coins for instant discount (Max 20% of subtotal: {Math.floor(subtotal * 0.20)} coins)</p>
-
-                <div style={{ display: "flex", alignItems: "center", justifyBox: "space-between", background: "#f9fafb", padding: "10px 16px", borderRadius: "14px", border: "1px solid #e5e7eb", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: "13px", fontWeight: "700", color: "#374151" }}>Use Coins:</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <button
-                            onClick={() => handleCoinsChange(coinsToRedeem - 1)}
-                            style={{
-                                width: "28px",
-                                height: "28px",
-                                borderRadius: "50%",
-                                border: "1px solid #d1d5db",
-                                background: "white",
-                                fontSize: "16px",
-                                fontWeight: "800",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifybox: "center",
-                                justifyContent: "center"
-                            }}
-                        >
-                            -
-                        </button>
-                        <span style={{ fontSize: "15px", fontWeight: "850", minWidth: "20px", textAlign: "center" }}>
-                            {coinsToRedeem}
-                        </span>
-                        <button
-                            onClick={() => handleCoinsChange(coinsToRedeem + 1)}
-                            style={{
-                                width: "28px",
-                                height: "28px",
-                                borderRadius: "50%",
-                                border: "1px solid #d1d5db",
-                                background: "white",
-                                fontSize: "16px",
-                                fontWeight: "800",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifybox: "center",
-                                justifyContent: "center"
-                            }}
-                        >
-                            +
-                        </button>
+                {availableCoins === 0 ? (
+                    <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937" }}>💰 BuyCoins</h3>
+                        </div>
+                        <p style={{ margin: 0, fontSize: "12px", color: "#6b7280", fontWeight: "500" }}>
+                            You don't have any BuyCoins yet. Place orders to earn BuyCoins.
+                        </p>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937" }}>💰 BuyCoins</h3>
+                            <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: "650" }}>
+                                Balance: {availableCoins} Coins
+                            </span>
+                        </div>
+                        <p style={{ margin: "0 0 12px 0", fontSize: "11px", color: "#6b7280" }}>Maximum redeemable: {maxRedeemableCoins} BuyCoins (20% of subtotal)</p>
 
-                {coinsToRedeem > 0 && (
-                    <div style={{ marginTop: "10px", background: "#d1fae5", color: "#065f46", padding: "8px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", textAlign: "center" }}>
-                        🎉 Applied! You Save ₹{coinsToRedeem}
-                    </div>
+                        <div style={{ display: "flex", alignItems: "center", justifyBox: "space-between", background: "#f9fafb", padding: "10px 16px", borderRadius: "14px", border: "1px solid #e5e7eb", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: "13px", fontWeight: "700", color: "#374151" }}>Use Coins:</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                <button
+                                    onClick={() => handleCoinsChange(coinsToRedeem - 1)}
+                                    disabled={coinsToRedeem <= 0}
+                                    style={{
+                                        width: "28px",
+                                        height: "28px",
+                                        borderRadius: "50%",
+                                        border: "1px solid #d1d5db",
+                                        background: "white",
+                                        fontSize: "16px",
+                                        fontWeight: "800",
+                                        cursor: coinsToRedeem <= 0 ? "not-allowed" : "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifybox: "center",
+                                        justifyContent: "center",
+                                        color: coinsToRedeem <= 0 ? "#9ca3af" : "#374151"
+                                    }}
+                                >
+                                    -
+                                </button>
+                                <span style={{ fontSize: "15px", fontWeight: "850", minWidth: "20px", textAlign: "center" }}>
+                                    {coinsToRedeem}
+                                </span>
+                                <button
+                                    onClick={() => handleCoinsChange(coinsToRedeem + 1)}
+                                    disabled={coinsToRedeem >= maxRedeemableCoins}
+                                    style={{
+                                        width: "28px",
+                                        height: "28px",
+                                        borderRadius: "50%",
+                                        border: "1px solid #d1d5db",
+                                        background: "white",
+                                        fontSize: "16px",
+                                        fontWeight: "800",
+                                        cursor: coinsToRedeem >= maxRedeemableCoins ? "not-allowed" : "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifybox: "center",
+                                        justifyContent: "center",
+                                        color: coinsToRedeem >= maxRedeemableCoins ? "#9ca3af" : "#374151"
+                                    }}
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+
+                        {coinsToRedeem > 0 && (
+                            <div style={{ marginTop: "10px", background: "#d1fae5", color: "#065f46", padding: "8px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", textAlign: "center" }}>
+                                🎉 Applied! You Save ₹{coinsToRedeem}
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         )

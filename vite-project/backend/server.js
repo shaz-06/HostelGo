@@ -11,6 +11,14 @@ const compression = require("compression");
 const helmet = require("helmet");
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 
+// Validate required environment variables on startup
+const requiredEnvVars = ["JWT_SECRET", "SECRET_KEY", "MONGODB_URI", "RAZORPAY_KEY_SECRET", "MSG91_AUTH_KEY"];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+  console.error(`❌ CRITICAL STARTUP FAILURE: Required environment variables are missing: ${missingEnvVars.join(", ")}`);
+  process.exit(1);
+}
+
 const Product = require("./models/Product");
 const User = require("./models/User");
 const Order = require("./models/Order");
@@ -26,6 +34,7 @@ const buyCoinRoutes = require("./routes/buyCoinRoutes");
 const addressRoutes = require("./routes/addressRoutes");
 const saveForLaterRoutes = require("./routes/saveForLaterRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
+const checkoutRoutes = require("./routes/checkoutRoutes");
 const cron = require("node-cron");
 const { sendCartReminder } = require("./services/notificationService");
 const userRoutes = require("./routes/userRoutes");
@@ -35,13 +44,60 @@ const {
   globalLimiter,
   authLimiter,
   otpLimiter,
-  adminLimiter
+  adminLimiter,
+  catalogLimiter
 } = require("./middleware/rateLimiter");
 
 const app = express();
 
 // Trust reverse proxy (e.g. Render, AWS Load Balancer) to properly parse X-Forwarded-* headers
 app.set("trust proxy", true);
+
+global.isShuttingDown = false;
+
+// Reject any incoming requests with 503 if server is shutting down
+app.use((req, res, next) => {
+  if (global.isShuttingDown) {
+    res.setHeader("Connection", "close");
+    return res.status(503).json({
+      success: false,
+      message: "Server is restarting. Please try again in a few moments."
+    });
+  }
+  next();
+});
+
+// Request Tracing (Request ID) Middleware
+app.use((req, res, next) => {
+  const crypto = require("crypto");
+  req.id = "REQ-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+  res.setHeader("X-Request-ID", req.id);
+
+  // Safely inject requestId and success: false to all error JSON responses
+  const originalJson = res.json;
+  res.json = function (body) {
+    if (res.statusCode >= 400 && body && typeof body === "object" && !Array.isArray(body)) {
+      body.requestId = req.id;
+      if (body.success === undefined) {
+        body.success = false;
+      }
+    }
+    return originalJson.call(this, body);
+  };
+
+  next();
+});
+
+// Performance Profiler Middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    const { logRequestPerformance } = require("./utils/auditLogger");
+    logRequestPerformance(req, res, duration);
+  });
+  next();
+});
 
 // 301 Redirect from non-www to www, and enforce HTTPS in production
 app.use((req, res, next) => {
@@ -74,8 +130,49 @@ app.use((req, res, next) => {
   next();
 });
 
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  fontSrc: ["'self'", "https://fonts.gstatic.com"],
+  imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+  connectSrc: ["'self'", "https://api.razorpay.com"],
+  frameSrc: ["'self'", "https://api.razorpay.com"],
+  objectSrc: ["'none'"],
+  upgradeInsecureRequests: [],
+};
+
+// Allow extension via env variables
+if (process.env.CSP_CONNECT_SRC) {
+  cspDirectives.connectSrc.push(...process.env.CSP_CONNECT_SRC.split(","));
+}
+if (process.env.CSP_IMG_SRC) {
+  cspDirectives.imgSrc.push(...process.env.CSP_IMG_SRC.split(","));
+}
+if (process.env.CSP_SCRIPT_SRC) {
+  cspDirectives.scriptSrc.push(...process.env.CSP_SCRIPT_SRC.split(","));
+}
+
 app.use(helmet({
-  contentSecurityPolicy: false
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: cspDirectives
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  referrerPolicy: {
+    policy: "strict-origin-when-cross-origin"
+  },
+  xContentTypeOptions: true,
+  xFrameOptions: {
+    action: "deny"
+  },
+  crossOriginResourcePolicy: {
+    policy: "same-site"
+  }
 }));
 app.use(compression());
 app.use(cors());
@@ -89,20 +186,17 @@ app.use(xss());
 
 // Apply rate limiters
 app.use("/api", globalLimiter);
+app.use("/api/products", catalogLimiter);
+app.use("/api/categories", catalogLimiter);
+app.use("/api/search", catalogLimiter);
+app.use("/api/banners", catalogLimiter);
+app.use("/api/promotions", catalogLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/send-otp", otpLimiter);
 app.use("/api/auth/verify-otp", otpLimiter);
 app.use("/api/admin/login", adminLimiter);
 
-// Development Response Time Logger
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    console.log(`[PERF] ${req.method} ${req.originalUrl} - ${duration}ms`);
-  });
-  next();
-});
+
 
 // In-memory fallback data for development if MongoDB Atlas is unreachable
 const mockProducts = require("./seed");
@@ -513,19 +607,50 @@ app.use("/api/auth", authRoutes);
 app.use("/api/rider", riderRoutes);
 app.use("/api/admin", authMiddleware, adminMiddleware, adminRoutes);
 app.use("/api/buycoins", buyCoinRoutes);
+app.use("/api/checkout", checkoutRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/save-for-later", saveForLaterRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", userRoutes);
 
-// Global Error Handler
+// Global Error Handler (Production Error Shield)
 app.use((err, req, res, next) => {
-  console.error("UNHANDLED ERROR:", err);
-  console.error(err.stack);
+  const crypto = require("crypto");
+  const { logErrorEvent } = require("./utils/auditLogger");
 
-  res.status(500).json({
+  const status = err.status || err.statusCode || 500;
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // Separate Operational Errors from Programming Errors
+  const isOperational = status >= 400 && status < 500;
+
+  if (isOperational) {
+    let message = err.message || "An error occurred.";
+    if (isProduction) {
+      if (status === 400) message = "Invalid request.";
+      else if (status === 401) message = "Authentication failed.";
+      else if (status === 403) message = "Access denied.";
+      else if (status === 404) message = "Resource not found.";
+      else if (status === 429) message = "Too many requests. Please try again later.";
+    }
+
+    return res.status(status).json({
+      success: false,
+      message,
+      requestId: req.id
+    });
+  }
+
+  // Programming Errors (Unexpected / 500)
+  const errorId = "ERR-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+  logErrorEvent(err, req, errorId, status);
+
+  return res.status(status).json({
     success: false,
-    message: err.message
+    message: isProduction ? "Something went wrong. Please try again later." : err.message,
+    requestId: req.id,
+    errorId,
+    ...(isProduction ? {} : { stack: err.stack })
   });
 });
 
@@ -578,4 +703,101 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log("Client ID loaded:", clientId || "Not Configured");
   console.log("Token loaded:", maskedToken);
   console.log("==============================\n");
+});
+
+// Graceful Shutdown & Process Lifecycle Management
+const { logShutdownEvent, logFatalProcessError } = require("./utils/auditLogger");
+
+const shutdown = async (signal, exitCode) => {
+  if (global.isShuttingDown) {
+    logShutdownEvent("WARN", `Shutdown already in progress. Ignoring duplicate signal: ${signal}`);
+    return;
+  }
+
+  global.isShuttingDown = true;
+  logShutdownEvent("INFO", `Server shutting down via ${signal}...`);
+
+  // Set timeout to force process exit if shutdown hangs
+  const forceExitTimeout = setTimeout(() => {
+    logShutdownEvent("WARN", "Graceful shutdown timed out. Forcing process exit.");
+    process.exit(exitCode);
+  }, 10000);
+
+  // Unref the timer so it doesn't keep the process alive
+  forceExitTimeout.unref();
+
+  // 1. Stop accepting new HTTP requests
+  if (server) {
+    logShutdownEvent("INFO", "Closing HTTP server...");
+    await new Promise((resolve) => {
+      server.close((err) => {
+        if (err) {
+          logShutdownEvent("ERROR", `Error closing HTTP server: ${err.message}`);
+        } else {
+          logShutdownEvent("INFO", "HTTP server closed.");
+        }
+        resolve();
+      });
+    });
+  }
+
+  // 2. Close Socket.IO server cleanly if active
+  if (io) {
+    logShutdownEvent("INFO", "Closing Socket.IO...");
+    try {
+      io.close();
+      logShutdownEvent("INFO", "Socket.IO closed.");
+    } catch (err) {
+      logShutdownEvent("ERROR", `Error closing Socket.IO: ${err.message}`);
+    }
+  }
+
+  // 3. Close Mongoose / MongoDB connections cleanly
+  if (mongoose.connection && mongoose.connection.readyState !== 0) {
+    logShutdownEvent("INFO", "Closing MongoDB connection...");
+    try {
+      await mongoose.disconnect();
+      logShutdownEvent("INFO", "MongoDB connection closed.");
+    } catch (err) {
+      logShutdownEvent("ERROR", `Error closing MongoDB connection: ${err.message}`);
+    }
+  }
+
+  logShutdownEvent("INFO", "Graceful shutdown completed.");
+
+  // Flush stdout/stderr streams before exiting
+  process.stdout.write("", () => {
+    process.stderr.write("", () => {
+      clearTimeout(forceExitTimeout);
+      process.exit(exitCode);
+    });
+  });
+};
+
+// Handle OS signals
+process.on("SIGINT", () => shutdown("SIGINT", 0));
+process.on("SIGTERM", () => shutdown("SIGTERM", 0));
+
+// Handle fatal runtime process errors
+process.on("uncaughtException", (err) => {
+  const crypto = require("crypto");
+  const errorId = "ERR-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+  
+  // Log fatal unhandled exception
+  logFatalProcessError(err, errorId);
+  
+  // Begin graceful shutdown and exit with code 1
+  shutdown(`uncaughtException (${errorId})`, 1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  const crypto = require("crypto");
+  const errorId = "ERR-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+
+  // Log unhandled promise rejection
+  logFatalProcessError(err, errorId);
+
+  // Begin graceful shutdown and exit with code 1
+  shutdown(`unhandledRejection (${errorId})`, 1);
 });

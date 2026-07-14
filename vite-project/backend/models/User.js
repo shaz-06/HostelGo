@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 
 const userSchema = new mongoose.Schema(
   {
@@ -201,23 +201,69 @@ const userSchema = new mongoose.Schema(
     lockoutUntil: {
       type: Date,
       default: null
-    }
+    },
+    passwordChangedAt: {
+      type: Date,
+      default: null
+    },
+    passwordResetTokenHash: {
+      type: String,
+      default: null,
+      index: true
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+      index: true
+    },
+    verificationTokenHash: {
+      type: String,
+      default: null,
+      index: true
+    },
+    verificationTokenExpires: {
+      type: Date,
+      default: null,
+      index: true
+    },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0
+    },
+    accountLockedUntil: {
+      type: Date,
+      default: null,
+      index: true
+    },
+    passwordHistory: [
+      {
+        hash: { type: String, required: true },
+        changedAt: { type: Date, default: Date.now }
+      }
+    ]
   },
   {
     timestamps: true
   }
 );
 
-userSchema.pre("save", async function () {
+userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
+    if (typeof next === "function") return next();
     return;
   }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  try {
+    this.password = await bcrypt.hash(this.password, 12);
+    if (typeof next === "function") next();
+  } catch (err) {
+    if (typeof next === "function") next(err);
+    else throw err;
+  }
 });
 
 // Instance method to compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

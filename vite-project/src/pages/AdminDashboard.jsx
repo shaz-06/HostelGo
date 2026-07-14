@@ -105,6 +105,75 @@ export default function AdminDashboard() {
   const [notifEmails, setNotifEmails] = useState("");
   const [notifSending, setNotifSending] = useState(false);
 
+  // Admin Preferences state
+  const [adminPreferences, setAdminPreferences] = useState({
+    newOrderAlerts: true,
+    riderAlerts: true,
+    lowStockAlerts: true,
+    newUserRegistrations: true
+  });
+
+  const fetchAdminPreferences = async () => {
+    try {
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(window.API_BASE_URL + "/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user && data.user.notificationPreferences) {
+          setAdminPreferences({
+            newOrderAlerts: data.user.notificationPreferences.newOrderAlerts ?? true,
+            riderAlerts: data.user.notificationPreferences.riderAlerts ?? true,
+            lowStockAlerts: data.user.notificationPreferences.lowStockAlerts ?? true,
+            newUserRegistrations: data.user.notificationPreferences.newUserRegistrations ?? true
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin preferences:", err);
+    }
+  };
+
+  const handleTogglePref = async (key, val) => {
+    setAdminPreferences(prev => ({
+      ...prev,
+      [key]: val
+    }));
+
+    try {
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(window.API_BASE_URL + "/api/users/preferences", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          [key]: val
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.preferences) {
+          setAdminPreferences(data.preferences);
+        }
+      } else {
+        setAdminPreferences(prev => ({
+          ...prev,
+          [key]: !val
+        }));
+        alert("Failed to update preferences on server");
+      }
+    } catch (err) {
+      console.error("Error updating admin preferences:", err);
+      setAdminPreferences(prev => ({
+        ...prev,
+        [key]: !val
+      }));
+    }
+  };
+
   const fetchNotificationsData = async () => {
     try {
       setNotifLoading(true);
@@ -135,6 +204,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeView === "notifications") {
       fetchNotificationsData();
+    }
+  }, [activeView]);
+
+  useEffect(() => {
+    if (activeView === "settings") {
+      fetchAdminPreferences();
     }
   }, [activeView]);
 
@@ -533,12 +608,12 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>{pref.desc}</span>
                 </div>
                 <div
-                  onClick={() => handleTogglePref(pref.key, !adminPreferences[pref.key])}
+                  onClick={() => handleTogglePref(pref.key, !adminPreferences?.[pref.key])}
                   style={{
                     width: "50px",
                     height: "26px",
                     borderRadius: "13px",
-                    background: adminPreferences[pref.key] ? "#318616" : "#E5E7EB",
+                    background: adminPreferences?.[pref.key] ? "#318616" : "#E5E7EB",
                     position: "relative",
                     cursor: "pointer",
                     transition: "background-color 0.2s"
@@ -551,7 +626,7 @@ export default function AdminDashboard() {
                     background: "white",
                     position: "absolute",
                     top: "3px",
-                    left: adminPreferences[pref.key] ? "27px" : "3px",
+                    left: adminPreferences?.[pref.key] ? "27px" : "3px",
                     transition: "left 0.2s",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
                   }} />

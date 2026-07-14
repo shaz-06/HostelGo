@@ -20,6 +20,14 @@ const authMiddleware = async (req, res, next) => {
         return res.status(401).json({ message: "Not authorized, user not found" });
       }
 
+      if (req.user.passwordChangedAt) {
+        const changedTimestamp = Math.floor(req.user.passwordChangedAt.getTime() / 1000);
+        if (decoded.iat < (changedTimestamp - 30)) {
+          console.error("❌ JWT Verify: Token rejected because password was changed since issuance");
+          return res.status(401).json({ message: "Not authorized, session expired due to password change" });
+        }
+      }
+
       next();
     } catch (error) {
       console.error("❌ === [JWT VERIFY ERROR] ===");

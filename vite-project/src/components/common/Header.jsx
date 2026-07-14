@@ -316,7 +316,7 @@ const Header = React.memo(({
         paddingRight: "16px",
         display: "flex",
         flexDirection: "column",
-        gap: "12px",
+        gap: "6px",
         transform: isDown ? `translate3d(0, -${collapsibleHeight + 10}px, 0)` : "translate3d(0, 0, 0)",
         willChange: "transform",
         transition: isDown
@@ -378,49 +378,78 @@ const Header = React.memo(({
       >
         {/* Row 1: Pills, Greetings, and Actions */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", zIndex: 2 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-start" }}>
-
-            {/* Pills Container (Side-by-Side) */}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              {/* Delivery Pill */}
-              <div
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: "999px",
-                  background: "#1F2937",
-                  color: "white",
-                  fontWeight: "750",
-                  fontSize: "13px",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                  display: "inline-flex",
-                  alignItems: "center"
-                }}
-              >
-                ⚡ Delivery in {eta} mins
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-start" }}>
+            
+            {/* Branded Section */}
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              <style dangerouslySetInnerHTML={{
+                __html: `
+                .premium-logo {
+                  height: 32px;
+                  width: auto;
+                  transition: transform 0.2s ease, opacity 0.2s ease;
+                }
+                .premium-wordmark {
+                  font-family: 'Outfit', sans-serif;
+                  font-weight: 900;
+                  font-size: 26px;
+                  line-height: 1;
+                  letter-spacing: -0.5px;
+                  transition: transform 0.2s ease;
+                }
+                @media (min-width: 768px) {
+                  .premium-logo {
+                    height: 38px;
+                  }
+                  .premium-wordmark {
+                    font-size: 32px;
+                  }
+                }
+                .address-block:hover .address-chevron {
+                  transform: rotate(180deg);
+                }
+                .address-block:hover .address-val {
+                  color: #318616 !important;
+                }
+              `}} />
+              <div style={{ display: "inline-flex", animation: "fadeIn 200ms ease" }}>
+                <BuytoLogo
+                  responsive={false}
+                  clickable={false}
+                  className="premium-logo"
+                  style={{ display: "flex" }}
+                />
               </div>
+              <span className="premium-wordmark">
+                <span style={{ color: "#F59E0B" }}>Buy</span>
+                <span style={{ color: "#318616" }}>to</span>
+              </span>
+            </div>
 
-              {/* Buyto Minutes Pill */}
-              <div
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: "999px",
-                  background: "rgba(255, 255, 255, 0.7)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
-                  fontSize: "13px",
-                  fontWeight: "750",
-                  color: "#318616",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                  display: "inline-flex",
-                  alignItems: "center"
-                }}
-              >
-                🛒 Buyto Minutes
-              </div>
+            {/* Delivering Address (Directly Clickable Block) */}
+            <div
+              className="address-block"
+              onClick={onOpenAddressModal}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                textAlign: "left",
+                cursor: "pointer",
+                userSelect: "none",
+                marginTop: "10px"
+              }}
+            >
+              <span style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500", lineHeight: "1.2" }}>
+                Delivering to
+              </span>
+              <span className="address-val" style={{ fontSize: "16px", fontWeight: "700", color: "#111827", display: "inline-flex", alignItems: "center", gap: "4px", marginTop: "2px", transition: "color 200ms ease" }}>
+                {addressText}
+                <span className="address-chevron" style={{ fontSize: "10px", color: "#6B7280", display: "inline-block", transition: "transform 200ms ease" }}>▼</span>
+              </span>
             </div>
 
             {/* Greeting */}
-            <div style={{ marginTop: "4px" }}>
+            <div style={{ marginTop: "16px" }}>
               <p style={{ fontSize: "13px", color: "#374151", margin: 0, fontWeight: "500" }}>
                 {getGreeting()}
               </p>
@@ -526,7 +555,7 @@ const Header = React.memo(({
                 height: "44px",
                 boxSizing: "border-box",
                 transition: "all 0.3s ease",
-                maxWidth: "160px",
+                maxWidth: "135px",
                 cursor: "default"
               }}
             >
@@ -543,51 +572,7 @@ const Header = React.memo(({
           </div>
         </div>
 
-        {/* Row 2: Location Card */}
-        <div
-          onClick={onOpenAddressModal}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "12px",
-            background: "rgba(255, 255, 255, 0.5)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            padding: "10px 14px",
-            borderRadius: "18px",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.03)",
-            cursor: "pointer",
-            zIndex: 2,
-            alignSelf: "flex-start",
-            marginTop: "6px",
-            border: "1px solid rgba(255, 255, 255, 0.4)",
-            fontSize: "13px"
-          }}
-        >
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.7)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-              fontSize: "16px"
-            }}
-          >
-            📍
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-            <p style={{ fontSize: "11px", color: "#4b5563", margin: 0, fontWeight: "500" }}>
-              Delivering to
-            </p>
-            <p style={{ fontSize: "13px", fontWeight: "800", color: "#111827", margin: 0 }}>
-              {addressText} <span style={{ fontSize: "8px", color: "#4b5563" }}>▼</span>
-            </p>
-          </div>
-        </div>
+
       </div>
 
       {/* STICKY/SEARCH/CATEGORY SECTION */}

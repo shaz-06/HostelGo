@@ -166,16 +166,67 @@ router.get("/admin/transactions", authMiddleware, adminMiddleware, async (req, r
 });
 
 // GET /api/buycoins/transactions - Get logged in user's transactions
-router.get("/transactions", authMiddleware, async (req, res) => {
+router.get("/transactions", authMiddleware, async (req, res, next) => {
+  const { logErrorEvent } = require("../utils/auditLogger");
+
+  console.log(`[INFO] [SHUTDOWN] Entered GET /buycoins/transactions (Request ID: ${req.id || "none"})`);
+  
+  // Verify authenticated user context
+  if (!req.user || (!req.user.id && !req.user._id)) {
+    console.warn(`[WARN] GET /buycoins/transactions: Unauthenticated request (Request ID: ${req.id || "none"})`);
+    return res.status(401).json({
+      success: false,
+      message: "Authentication failed."
+    });
+  }
+
+  const userId = req.user._id || req.user.id;
+  console.log(`[INFO] User authenticated. User ID: ${userId} (Request ID: ${req.id || "none"})`);
+
   try {
-    const userId = req.user._id;
+    console.log(`[INFO] Loading BuyCoinTransaction model...`);
+    // Check if the model is registered and exported properly
+    if (!BuyCoinTransaction) {
+      throw new Error("BuyCoinTransaction model is not loaded or undefined.");
+    }
+    
+    // Log diagnostics before query
+    console.log({
+      requestId: req.id,
+      user: req.user.email,
+      userId: userId,
+      modelLoaded: !!BuyCoinTransaction
+    });
+
+    console.log(`[INFO] Querying BuyCoinTransaction collection...`);
     const transactions = await BuyCoinTransaction.find({ userId })
       .sort({ createdAt: -1 })
       .lean();
-    return res.json({ success: true, transactions });
+
+    console.log(`[INFO] Query completed. Found ${transactions ? transactions.length : 0} transactions.`);
+    console.log({
+      transactionCount: transactions ? transactions.length : 0
+    });
+
+    return res.json({
+      success: true,
+      transactions: transactions || []
+    });
   } catch (error) {
-    console.error("❌ Error fetching transactions:", error);
-    return res.status(500).json({ success: false, message: "Failed to fetch transactions", error: error.message });
+    console.error(`[ERROR] GET /buycoins/transactions failed:`, error);
+    
+    // Log unexpected errors securely in the observability system
+    const crypto = require("crypto");
+    const errorId = "ERR-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+    
+    logErrorEvent(error, req, errorId, 500);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong. Please try again later.",
+      requestId: req.id,
+      errorId
+    });
   }
 });
 
@@ -218,6 +269,42 @@ router.post("/redeem", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("❌ Error redeeming reward:", error);
     return res.status(500).json({ success: false, message: "Failed to redeem reward", error: error.message });
+  }
+});
+
+// POST /api/buycoins/calculate-redemption - Calculate checkout/cart redemption limits
+router.post("/calculate-redemption", authMiddleware, async (req, res, next) => {
+  try {
+    const { subtotal } = req.body;
+    if (subtotal === undefined || subtotal === null) {
+      return res.status(400).json({ success: false, message: "Subtotal is required" });
+    }
+
+    const numericSubtotal = Number(subtotal);
+    const buyCoinsBalance = req.user.buyCoins || 0;
+    const maxDiscount = Math.floor(numericSubtotal * 0.20);
+    const maxRedeemableCoins = Math.min(buyCoinsBalance, maxDiscount);
+
+    // Development-only logs
+    if (process.env.NODE_ENV !== "production") {
+      console.log("=== [REDEMPTION CALCULATION DEBUG] ===");
+      console.log({
+        subtotal: numericSubtotal,
+        twentyPercentDiscountValue: maxDiscount,
+        userBuyCoinsBalance: buyCoinsBalance,
+        maxRedeemableCoins
+      });
+    }
+
+    return res.json({
+      success: true,
+      subtotal: numericSubtotal,
+      buyCoinsBalance,
+      maxDiscount,
+      maxRedeemableCoins
+    });
+  } catch (error) {
+    next(error);
   }
 });
 

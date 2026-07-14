@@ -11,6 +11,7 @@ import { StatusBar, Style } from "@capacitor/status-bar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import RiderProtectedRoute from "./components/RiderProtectedRoute";
+import GTMRouteTracker from "./components/GTMRouteTracker";
 import CategoryDiscovery from "./components/CategoryDiscovery";
 import { initializeAnalytics, trackPageView } from "./utils/analytics";
 import PromoBannerCarousel from "./components/PromoBannerCarousel";
@@ -488,6 +489,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <GTMRouteTracker />
         <ScrollToTop />
         <GlobalLayout>
           <Suspense fallback={

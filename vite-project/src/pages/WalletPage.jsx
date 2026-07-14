@@ -6,7 +6,7 @@ import BuyCoin from "../components/common/BuyCoin";
 
 export default function WalletPage() {
   const navigate = useNavigate();
-  const { user, token } = useContext(AuthContext);
+  const { user, token, refreshUser } = useContext(AuthContext);
 
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -27,6 +27,9 @@ export default function WalletPage() {
         if (res.ok && data.success) {
           setWallet(data.wallet);
           setTransactions(data.transactions || []);
+          if (refreshUser) {
+            refreshUser();
+          }
         } else {
           setError(data.message || "Failed to load wallet data");
         }

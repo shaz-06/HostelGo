@@ -5,7 +5,7 @@ import BuyCoin from "../components/common/BuyCoin";
 
 export default function BuyCoinsRewardsPage() {
   const navigate = useNavigate();
-  const { user, token } = useContext(AuthContext);
+  const { user, token, refreshUser } = useContext(AuthContext);
 
   const [availableCoins, setAvailableCoins] = useState(user?.buyCoins || 0);
   const [redeemingId, setRedeemingId] = useState(null);
@@ -57,6 +57,9 @@ export default function BuyCoinsRewardsPage() {
       if (res.ok && data.success) {
         alert(`Successfully redeemed: ${reward.name}! Your coupon/rewards have been activated and logged in your profile.`);
         setAvailableCoins(data.wallet.availableCoins);
+        if (refreshUser) {
+          await refreshUser();
+        }
       } else {
         alert(data.message || "Failed to redeem reward");
       }

@@ -376,6 +376,55 @@ export const AuthProvider = ({ children }) => {
 
   const isLoggedIn = !!user && !user.isGuest;
 
+  useEffect(() => {
+    const registerAdminPushToken = async () => {
+      if (user && (user.phone === "6363849864" || user.role === "admin")) {
+        try {
+          const { getMessaging, getToken } = await import("firebase/messaging");
+          const { app } = await import("../config/firebase");
+          
+          const messaging = getMessaging(app);
+          
+          if ("serviceWorker" in navigator) {
+            const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+            console.log("[Admin FCM] SW registered:", registration);
+            
+            let tokenOptions = { serviceWorkerRegistration: registration };
+            if (import.meta.env.VITE_FIREBASE_VAPID_KEY) {
+              tokenOptions.vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+            }
+            
+            const token = await getToken(messaging, tokenOptions);
+            if (token) {
+              console.log("[Admin FCM] Retrieved Web FCM Token:", token);
+              
+              const res = await fetch(window.API_BASE_URL + "/api/notifications/register-token", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${localStorage.getItem("buyto_token")}`
+                },
+                body: JSON.stringify({
+                  phone: user.phone || "6363849864",
+                  fcmToken: token
+                })
+              });
+              if (res.ok) {
+                console.log("[Admin FCM] Token registered on backend successfully");
+              } else {
+                console.error("[Admin FCM] Failed to register token on backend", res.status);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[Admin FCM] Error requesting Web FCM token:", err);
+        }
+      }
+    };
+
+    registerAdminPushToken();
+  }, [user]);
+
   return (
     <AuthContext.Provider value={{ 
       user, 

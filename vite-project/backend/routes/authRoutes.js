@@ -3,37 +3,65 @@ const router = express.Router();
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const authMiddleware = require("../middleware/authMiddleware");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const DeliveryServiceZone = require("../models/DeliveryServiceZone");
 const UnserviceableRequest = require("../models/UnserviceableRequest");
+const { body, param, validationResult } = require("express-validator");
+const { 
+  loginLimiter, 
+  forgotPasswordLimiter, 
+  resetPasswordLimiter, 
+  changePasswordLimiter, 
+  emailVerificationLimiter, 
+  sendVerificationLimiter 
+} = require("../middleware/rateLimiter");
+const { generateSecureToken, createHashSha256, timingSafeCompare } = require("../utils/cryptoUtils");
+const { logAuditEvent } = require("../utils/auditLogger");
+
+// Validation result helper
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+  next();
+};
+
+// Reusable password validator following policy
+const passwordDenylist = ["password123", "1234567890", "12345678", "qwertyuiop", "admin12345"];
+const passwordDenylistCheck = (value) => {
+  if (passwordDenylist.includes(value.toLowerCase())) {
+    throw new Error("Password is too common and insecure.");
+  }
+  return true;
+};
+
+const passwordValidator = body("password")
+  .isLength({ min: 12 })
+  .withMessage("Password must be at least 12 characters long.")
+  .matches(/[A-Z]/)
+  .withMessage("Password must contain at least one uppercase letter.")
+  .matches(/[a-z]/)
+  .withMessage("Password must contain at least one lowercase letter.")
+  .matches(/[0-9]/)
+  .withMessage("Password must contain at least one number.")
+  .matches(/[^A-Za-z0-9]/)
+  .withMessage("Password must contain at least one special character.");
 
 // POST /api/auth/signup
-router.post("/signup", async (req, res) => {
+router.post("/signup", [
+  body("name").isString().trim().notEmpty().withMessage("Name is required").escape(),
+  body("email").isEmail().withMessage("Provide a valid email address").normalizeEmail(),
+  body("phone").isString().trim().isLength({ min: 10, max: 15 }).withMessage("Provide a valid phone number"),
+  passwordValidator.custom(passwordDenylistCheck),
+  validate
+], async (req, res) => {
   console.log("=== [AUTH SIGNUP] ===");
-  console.log("Body:", JSON.stringify(req.body, null, 2));
-
   try {
     const { name, email, phone, password } = req.body;
 
-    // 1. Validation
-    if (!name || !email || !phone || !password) {
-      console.error("❌ Signup Error: Missing required fields");
-      return res.status(400).json({ message: "All fields (name, email, phone, password) are required" });
-    }
-
-    if (password.length < 6) {
-      console.error("❌ Signup Error: Password too short");
-      return res.status(400).json({ message: "Password must be at least 6 characters long" });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      console.error("❌ Signup Error: Invalid email format");
-      return res.status(400).json({ message: "Please provide a valid email address" });
-    }
-
-    // 2. Check duplicate accounts
+    // Check duplicate accounts
     const existingEmail = await User.findOne({ email: email.toLowerCase() });
     if (existingEmail) {
       console.error(`❌ Signup Error: Email already registered: ${email}`);
@@ -46,7 +74,7 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ message: "Phone number is already registered" });
     }
 
-    // 3. Create new User (password is hashed in pre-save hook)
+    // Create new User (password is hashed in pre-save hook)
     const user = new User({
       name,
       email,
@@ -87,8 +115,16 @@ router.post("/signup", async (req, res) => {
       console.error("❌ Error generating FIRST20 coupon on signup:", couponErr.message);
     }
 
-    // 4. Generate token
+    // Generate token
     const token = generateToken(savedUser._id, savedUser.email, savedUser.role);
+
+    logAuditEvent({
+      eventType: "USER_REGISTRATION",
+      userId: savedUser._id,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      status: "SUCCESS"
+    });
 
     return res.status(201).json({
       success: true,
@@ -106,46 +142,98 @@ router.post("/signup", async (req, res) => {
   } catch (error) {
     console.error("❌ Signup Exception:", error);
     return res.status(500).json({
-      message: "Signup failed",
-      error: error.message,
-      stack: error.stack
+      message: "Signup failed"
     });
   }
 });
 
 // POST /api/auth/login
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, [
+  body("email").isEmail().withMessage("Provide a valid email address").normalizeEmail(),
+  body("password").isString().notEmpty().withMessage("Password is required"),
+  validate
+], async (req, res) => {
   console.log("=== [AUTH LOGIN] ===");
-  console.log(`Body: { email: ${req.body.email}, password: '***' }`);
-
   try {
     const { email, password } = req.body;
 
-    // 1. Validation
-    if (!email || !password) {
-      console.error("❌ Login Error: Missing email or password");
-      return res.status(400).json({ message: "Email and password are required" });
-    }
-
-    // 2. Find user
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      console.error(`❌ Login Error: Account not found for email: ${email}`);
-      return res.status(401).json({ message: "Invalid email or password" });
+    
+    // Lockout verification
+    if (user) {
+      if (user.accountLockedUntil && user.accountLockedUntil > new Date()) {
+        logAuditEvent({
+          eventType: "LOGIN_LOCKED_ACCOUNT",
+          userId: user._id,
+          ip: req.ip,
+          userAgent: req.headers["user-agent"],
+          status: "FAILURE",
+          details: { email }
+        });
+        return res.status(401).json({ message: "Invalid credentials" });
+      } else if (user.accountLockedUntil && user.accountLockedUntil <= new Date()) {
+        // Lock has expired, reset counter and clear lock atomically
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { failedLoginAttempts: 0, accountLockedUntil: null } }
+        );
+        user.failedLoginAttempts = 0;
+        user.accountLockedUntil = null;
+      }
     }
 
-    // 3. Compare password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      console.error(`❌ Login Error: Incorrect password for account: ${email}`);
-      return res.status(401).json({ message: "Invalid email or password" });
+    // Compare password (using dummy compare if user doesn't exist)
+    const dummyHash = "$2b$12$1234567890123456789012345678901234567890123456789012";
+    const valid = user ? await bcrypt.compare(password, user.password) : await bcrypt.compare(password, dummyHash);
+
+    if (!user || !valid) {
+      if (user) {
+        // Increment attempts atomically
+        const updates = { $inc: { failedLoginAttempts: 1 } };
+        if (user.failedLoginAttempts + 1 >= 5) {
+          updates.$set = { accountLockedUntil: new Date(Date.now() + 15 * 60 * 1000) };
+          logAuditEvent({
+            eventType: "ACCOUNT_LOCK",
+            userId: user._id,
+            ip: req.ip,
+            userAgent: req.headers["user-agent"],
+            status: "FAILURE",
+            details: { email }
+          });
+        }
+        await User.updateOne({ _id: user._id }, updates);
+      }
+
+      logAuditEvent({
+        eventType: "LOGIN_FAILED",
+        userId: user ? user._id : null,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "FAILURE",
+        details: { email }
+      });
+
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     console.log("=== [AUTH LOGIN SUCCESS] ===");
     console.log("Authenticated User ID:", user._id);
 
-    // 4. Generate token
+    // Reset attempts and clear lock atomically on success
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { failedLoginAttempts: 0, accountLockedUntil: null } }
+    );
+
     const token = generateToken(user._id, user.email, user.role);
+
+    logAuditEvent({
+      eventType: "LOGIN_SUCCESS",
+      userId: user._id,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      status: "SUCCESS"
+    });
 
     return res.status(200).json({
       success: true,
@@ -163,9 +251,7 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     console.error("❌ Login Exception:", error);
     return res.status(500).json({
-      message: "Login failed",
-      error: error.message,
-      stack: error.stack
+      message: "Login failed"
     });
   }
 });
@@ -787,6 +873,336 @@ router.post("/admin-verify", authMiddleware, async (req, res) => {
       message: error.message,
       stack: error.stack
     });
+  }
+});
+
+// --- NEW SECURITY ENDPOINTS ---
+
+// Helper to execute MongoDB operations in a transaction with fallback
+const runInTransaction = async (work) => {
+  const mongoose = require("mongoose");
+  const conn = mongoose.connection;
+  let session = null;
+  try {
+    session = await conn.startSession();
+    session.startTransaction();
+    const result = await work(session);
+    await session.commitTransaction();
+    return result;
+  } catch (err) {
+    if (session && session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    // Check if error is related to replica sets or transaction support
+    const isUnsupported = err.message && (
+      err.message.includes("transaction") || 
+      err.message.includes("replica set") || 
+      err.message.includes("sessions are not supported") ||
+      err.code === 20
+    );
+    if (isUnsupported) {
+      console.warn("⚠️ MongoDB Transactions not supported. Falling back to non-transactional execution.");
+      return await work(null);
+    }
+    throw err;
+  } finally {
+    if (session) session.endSession();
+  }
+};
+
+// POST /api/auth/forgot-password
+router.post("/forgot-password", forgotPasswordLimiter, [
+  body("email").isEmail().withMessage("Provide a valid email address").normalizeEmail(),
+  validate
+], async (req, res) => {
+  console.log("=== [AUTH FORGOT PASSWORD] ===");
+  try {
+    const { email } = req.body;
+    const genericResponse = { success: true, message: "If an account exists, a password reset link has been sent." };
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      logAuditEvent({
+        eventType: "PASSWORD_RESET_REQUEST_NO_USER",
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "FAILURE",
+        details: { email }
+      });
+      return res.status(200).json(genericResponse);
+    }
+
+    const token = generateSecureToken();
+    const hash = createHashSha256(token);
+
+    user.passwordResetTokenHash = hash;
+    user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await user.save();
+
+    logAuditEvent({
+      eventType: "PASSWORD_RESET_REQUEST",
+      userId: user._id,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      status: "SUCCESS",
+      details: { email }
+    });
+
+    console.log(`[SECURITY RESET DEV ONLY] Reset Token: ${token} | Hash: ${hash}`);
+
+    return res.status(200).json(genericResponse);
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// POST /api/auth/reset-password/:token
+router.post("/reset-password/:token", resetPasswordLimiter, [
+  param("token").isString().notEmpty().withMessage("Token is required"),
+  passwordValidator.custom(passwordDenylistCheck),
+  validate
+], async (req, res) => {
+  console.log("=== [AUTH RESET PASSWORD] ===");
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+    const hash = createHashSha256(token);
+
+    const result = await runInTransaction(async (session) => {
+      const user = await User.findOne({
+        passwordResetTokenHash: hash,
+        passwordResetExpires: { $gt: new Date() }
+      }).session(session);
+
+      if (!user) {
+        return { success: false, status: 400, message: "Invalid or expired token" };
+      }
+
+      // Defense-in-depth timing-safe validation
+      const match = timingSafeCompare(user.passwordResetTokenHash, hash);
+      if (!match) {
+        return { success: false, status: 400, message: "Invalid or expired token" };
+      }
+
+      // Check password history reuse
+      for (const entry of user.passwordHistory) {
+        if (await bcrypt.compare(password, entry.hash)) {
+          return { success: false, status: 400, message: "You cannot reuse a recent password." };
+        }
+      }
+      if (await bcrypt.compare(password, user.password)) {
+        return { success: false, status: 400, message: "New password must differ from the current password." };
+      }
+
+      // Push current password to history
+      user.passwordHistory.push({ hash: user.password, changedAt: new Date() });
+      if (user.passwordHistory.length > 5) {
+        user.passwordHistory.shift();
+      }
+
+      user.password = password; // Hashed in pre-save hook
+      user.passwordChangedAt = new Date();
+      user.passwordResetTokenHash = null;
+      user.passwordResetExpires = null;
+      user.failedLoginAttempts = 0;
+      user.accountLockedUntil = null;
+
+      await user.save({ session });
+
+      logAuditEvent({
+        eventType: "PASSWORD_RESET_SUCCESS",
+        userId: user._id,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "SUCCESS"
+      });
+
+      return { success: true };
+    });
+
+    if (!result.success) {
+      logAuditEvent({
+        eventType: "PASSWORD_RESET_FAILED",
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "FAILURE",
+        details: { message: result.message }
+      });
+      return res.status(result.status).json({ success: false, message: result.message });
+    }
+
+    return res.status(200).json({ success: true, message: "Password reset successful" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// POST /api/auth/change-password
+router.post("/change-password", authMiddleware, changePasswordLimiter, [
+  body("currentPassword").isString().notEmpty().withMessage("Current password is required"),
+  passwordValidator.custom(passwordDenylistCheck),
+  validate
+], async (req, res) => {
+  console.log("=== [AUTH CHANGE PASSWORD] ===");
+  try {
+    const { currentPassword, password } = req.body;
+
+    const result = await runInTransaction(async (session) => {
+      const user = await User.findById(req.user._id).session(session);
+      if (!user) {
+        return { success: false, status: 404, message: "User not found" };
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return { success: false, status: 400, message: "Incorrect current password" };
+      }
+
+      // Check history reuse
+      for (const entry of user.passwordHistory) {
+        if (await bcrypt.compare(password, entry.hash)) {
+          return { success: false, status: 400, message: "You cannot reuse a recent password." };
+        }
+      }
+      if (await bcrypt.compare(password, user.password)) {
+        return { success: false, status: 400, message: "New password must differ from the current password." };
+      }
+
+      // Push current password to history
+      user.passwordHistory.push({ hash: user.password, changedAt: new Date() });
+      if (user.passwordHistory.length > 5) {
+        user.passwordHistory.shift();
+      }
+
+      user.password = password; // Hashed in pre-save hook
+      user.passwordChangedAt = new Date();
+      user.passwordResetTokenHash = null;
+      user.passwordResetExpires = null;
+
+      await user.save({ session });
+
+      logAuditEvent({
+        eventType: "PASSWORD_CHANGE_SUCCESS",
+        userId: user._id,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "SUCCESS"
+      });
+
+      return { success: true };
+    });
+
+    if (!result.success) {
+      logAuditEvent({
+        eventType: "PASSWORD_CHANGE_FAILED",
+        userId: req.user._id,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "FAILURE",
+        details: { message: result.message }
+      });
+      return res.status(result.status).json({ success: false, message: result.message });
+    }
+
+    return res.status(200).json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Change password error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// POST /api/auth/send-verification
+router.post("/send-verification", authMiddleware, sendVerificationLimiter, async (req, res) => {
+  console.log("=== [AUTH SEND VERIFICATION] ===");
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const token = generateSecureToken();
+    const hash = createHashSha256(token);
+
+    user.verificationTokenHash = hash;
+    user.verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    await user.save();
+
+    logAuditEvent({
+      eventType: "EMAIL_VERIFICATION_SENT",
+      userId: user._id,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      status: "SUCCESS"
+    });
+
+    console.log(`[SECURITY VERIFICATION DEV ONLY] Verification Token: ${token} | Hash: ${hash}`);
+
+    return res.status(200).json({ success: true, message: "Verification link generated successfully" });
+  } catch (error) {
+    console.error("Send verification error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// POST /api/auth/verify-email/:token
+router.post("/verify-email/:token", emailVerificationLimiter, [
+  param("token").isString().notEmpty().withMessage("Token is required"),
+  validate
+], async (req, res) => {
+  console.log("=== [AUTH VERIFY EMAIL] ===");
+  try {
+    const { token } = req.params;
+    const hash = createHashSha256(token);
+
+    const user = await User.findOne({
+      verificationTokenHash: hash,
+      verificationTokenExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      logAuditEvent({
+        eventType: "EMAIL_VERIFICATION_FAILED",
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "FAILURE",
+        details: { reason: "Invalid or expired token" }
+      });
+      return res.status(400).json({ success: false, message: "Invalid or expired token" });
+    }
+
+    const match = timingSafeCompare(user.verificationTokenHash, hash);
+    if (!match) {
+      logAuditEvent({
+        eventType: "EMAIL_VERIFICATION_FAILED",
+        userId: user._id,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        status: "FAILURE",
+        details: { reason: "Token timing compare failed" }
+      });
+      return res.status(400).json({ success: false, message: "Invalid or expired token" });
+    }
+
+    user.verificationTokenHash = null;
+    user.verificationTokenExpires = null;
+    user.emailVerified = true;
+
+    await user.save();
+
+    logAuditEvent({
+      eventType: "EMAIL_VERIFIED",
+      userId: user._id,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      status: "SUCCESS"
+    });
+
+    return res.status(200).json({ success: true, message: "Email verified successfully" });
+  } catch (error) {
+    console.error("Verify email error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 });
 

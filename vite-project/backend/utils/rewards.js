@@ -93,6 +93,10 @@ async function recalculateWallet(userId, email) {
 
 async function handleOrderCheckoutRewards(order) {
   if (!order) return;
+  if (order.orderStatus !== "Delivered") {
+    console.log(`=== Order ${order._id} status is ${order.orderStatus}. Rewards are only credited upon delivery. Skipping. ===`);
+    return;
+  }
 
   // Double crediting safeguard
   if (order.buyCoinsCredited) {
@@ -262,11 +266,11 @@ async function consumeOrderDiscounts(order) {
       const redeemTx = new BuyCoinTransaction({
         userId,
         email,
-        type: "spent",
+        type: "redeem",
         amount: order.buyCoinsRedeemed,
         coins: order.buyCoinsRedeemed,
         orderId: order._id,
-        description: `Redeemed at checkout for Order #${order._id.toString().substring(0, 8)}`
+        description: "Redeemed during checkout"
       });
       await redeemTx.save();
       console.log(`Created spent transaction for -${order.buyCoinsRedeemed} coins (Order ID: ${order._id})`);

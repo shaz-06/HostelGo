@@ -56,6 +56,7 @@ function ProductCard({
   const [isSavedIconAnimating, setIsSavedIconAnimating] = useState(false);
   const toastTimeoutRef = useRef(null);
   const [showActions, setShowActions] = useState(false);
+  const [isBookmarkHovered, setIsBookmarkHovered] = useState(false);
 
   if (!product) return null;
 
@@ -245,10 +246,30 @@ function ProductCard({
     >
       <button
         onClick={handleSaveClick}
-        style={bookmarkBtnStyle(isSaved, isSavedIconAnimating)}
+        onMouseEnter={() => setIsBookmarkHovered(true)}
+        onMouseLeave={() => setIsBookmarkHovered(false)}
+        style={{
+          position: "absolute",
+          top: "10px",
+          right: "10px",
+          width: "30px",
+          height: "30px",
+          borderRadius: "9999px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          cursor: "pointer",
+          zIndex: 25,
+          transition: "all 0.2s ease",
+          transform: isSavedIconAnimating ? "scale(1.15)" : isBookmarkHovered ? "scale(1.08)" : "scale(1)",
+          background: isSaved ? "#318616" : isBookmarkHovered ? "#F2FFF2" : "#FFFFFF",
+          border: isSaved ? "1px solid #318616" : "1px solid #D8F0D2",
+          outline: "none"
+        }}
         title="Save for Later"
       >
-        <BookmarkIcon filled={isSaved} color={isSaved ? "#318616" : "#94a3b8"} />
+        <BookmarkIcon filled={isSaved} color={isSaved ? "#FFFFFF" : isBookmarkHovered ? "#286F12" : "#318616"} />
       </button>
 
       {/* Image container: occupies around 58-60% height visually */}

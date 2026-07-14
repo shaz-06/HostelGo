@@ -222,4 +222,34 @@ router.put("/preferences", authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/notifications/register-token
+router.post("/register-token", async (req, res) => {
+  try {
+    const { phone, fcmToken } = req.body;
+    if (!phone || !fcmToken) {
+      return res.status(400).json({ success: false, message: "Missing phone or fcmToken" });
+    }
+
+    const AdminDeviceToken = require("../models/AdminDeviceToken");
+    let adminTokenDoc = await AdminDeviceToken.findOne({ phone });
+
+    if (!adminTokenDoc) {
+      adminTokenDoc = await AdminDeviceToken.create({
+        phone,
+        fcmTokens: [fcmToken],
+      });
+    } else {
+      if (!adminTokenDoc.fcmTokens.includes(fcmToken)) {
+        adminTokenDoc.fcmTokens.push(fcmToken);
+        await adminTokenDoc.save();
+      }
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("Error registering admin token:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

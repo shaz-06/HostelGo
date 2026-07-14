@@ -2,9 +2,11 @@ const express = require("express");
 const router = express.Router();
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
+const { createHmacSha256, timingSafeCompare } = require("../utils/cryptoUtils");
 const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const Cart = require("../models/Cart");
 const User = require("../models/User");
 const Config = require("../models/Config");
 const DeliverySettings = require("../models/DeliverySettings");
@@ -95,6 +97,47 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
     const { amount, user, products, deliveryAddress, couponId, couponCode, couponDiscount, buyCoinsRedeemed, buyCoinsDiscount, noBagPledge } = req.body;
 
     // 1. Validation
+    if (buyCoinsRedeemed && Number(buyCoinsRedeemed) > 0) {
+      const cart = await Cart.findOne({ userId: req.user._id });
+      if (!cart || !cart.items || cart.items.length === 0) {
+        return res.status(400).json({ message: "Cart is empty" });
+      }
+      
+      const productIds = cart.items.map(item => item.productId);
+      const dbProducts = await Product.find({ _id: { $in: productIds } }).lean();
+      const priceMap = new Map(dbProducts.map(p => [p._id.toString(), p.price]));
+      
+      let subtotal = 0;
+      for (const item of cart.items) {
+        const price = priceMap.get(item.productId.toString());
+        if (price !== undefined) {
+          subtotal += price * item.quantity;
+        }
+      }
+
+      const maxDiscount = Math.floor(subtotal * 0.20);
+      const maxRedeemableCoins = Math.min(req.user.buyCoins || 0, maxDiscount);
+
+      // Debug Logging (development only)
+      if (process.env.NODE_ENV !== "production") {
+        console.log("=== [BUYCOINS REDEMPTION DEBUG (CREATE-ORDER)] ===");
+        console.log({
+          subtotal,
+          twentyPercentDiscountValue: maxDiscount,
+          userBuyCoinsBalance: req.user.buyCoins || 0,
+          maxRedeemableCoins,
+          requestedCoins: buyCoinsRedeemed,
+          appliedCoins: Math.min(buyCoinsRedeemed, maxRedeemableCoins),
+          finalDiscount: Math.min(buyCoinsRedeemed, maxRedeemableCoins)
+        });
+      }
+
+      if (Number(buyCoinsRedeemed) > maxRedeemableCoins) {
+        console.error(`❌ Validation Error: Attempted to redeem more than maximum allowed BuyCoins. Requested: ${buyCoinsRedeemed}, Max: ${maxRedeemableCoins}`);
+        return res.status(400).json({ message: `Cannot redeem more than ${maxRedeemableCoins} BuyCoins.` });
+      }
+    }
+
     if (amount === undefined || amount === null) {
       console.error("❌ Validation Error: Amount is missing");
       return res.status(400).json({ message: "Amount is required" });
@@ -148,6 +191,10 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
       couponDiscount: Number(couponDiscount || 0),
       buyCoinsRedeemed: Number(buyCoinsRedeemed || 0),
       buyCoinsDiscount: Number(buyCoinsDiscount || 0),
+      buyCoins: {
+        applied: Number(buyCoinsRedeemed || 0),
+        discount: Number(buyCoinsDiscount || 0)
+      },
       noBagPledge: Boolean(noBagPledge)
     });
 
@@ -219,11 +266,10 @@ router.post("/payment/verify", async (req, res) => {
 
     // Cryptographic signature verification
     console.log("Performing signature verification...");
-    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "mock_key_secret");
-    hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
-    const generatedSignature = hmac.digest("hex");
+    const secret = process.env.RAZORPAY_KEY_SECRET || "mock_key_secret";
+    const generatedSignature = createHmacSha256(`${razorpay_order_id}|${razorpay_payment_id}`, secret);
 
-    const isValidSignature = generatedSignature === razorpay_signature;
+    const isValidSignature = timingSafeCompare(generatedSignature, razorpay_signature);
     console.log("Is signature valid?", isValidSignature);
 
     if (!isValidSignature) {
@@ -317,6 +363,10 @@ router.post("/payment/verify", async (req, res) => {
         sendAdminNotification(savedOrder).catch(err => {
           console.error("Failed to send FCM admin notification:", err);
         });
+        const { sendNewOrderNotification } = require("../services/adminNotificationService");
+        sendNewOrderNotification(savedOrder).catch(err => {
+          console.error("Failed to send new order notification to admin:", err);
+        });
       } catch (err) {
         console.error("Failed to require/call sendAdminNotification:", err);
       }
@@ -391,6 +441,48 @@ router.post("/orders", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    // Verify BuyCoins redemption limit
+    if (buyCoinsRedeemed && Number(buyCoinsRedeemed) > 0) {
+      const cart = await Cart.findOne({ userId: req.user._id });
+      if (!cart || !cart.items || cart.items.length === 0) {
+        return res.status(400).json({ message: "Cart is empty" });
+      }
+      
+      const productIds = cart.items.map(item => item.productId);
+      const dbProducts = await Product.find({ _id: { $in: productIds } }).lean();
+      const priceMap = new Map(dbProducts.map(p => [p._id.toString(), p.price]));
+      
+      let subtotal = 0;
+      for (const item of cart.items) {
+        const price = priceMap.get(item.productId.toString());
+        if (price !== undefined) {
+          subtotal += price * item.quantity;
+        }
+      }
+
+      const maxDiscount = Math.floor(subtotal * 0.20);
+      const maxRedeemableCoins = Math.min(req.user.buyCoins || 0, maxDiscount);
+
+      // Debug Logging (development only)
+      if (process.env.NODE_ENV !== "production") {
+        console.log("=== [BUYCOINS REDEMPTION DEBUG (COD-ORDER)] ===");
+        console.log({
+          subtotal,
+          twentyPercentDiscountValue: maxDiscount,
+          userBuyCoinsBalance: req.user.buyCoins || 0,
+          maxRedeemableCoins,
+          requestedCoins: buyCoinsRedeemed,
+          appliedCoins: Math.min(buyCoinsRedeemed, maxRedeemableCoins),
+          finalDiscount: Math.min(buyCoinsRedeemed, maxRedeemableCoins)
+        });
+      }
+
+      if (Number(buyCoinsRedeemed) > maxRedeemableCoins) {
+        console.error(`❌ Validation Error: Attempted to redeem more than maximum allowed BuyCoins. Requested: ${buyCoinsRedeemed}, Max: ${maxRedeemableCoins}`);
+        return res.status(400).json({ message: `Cannot redeem more than ${maxRedeemableCoins} BuyCoins.` });
+      }
+    }
+
     const deliveryLatitude = req.body.deliveryLatitude || null;
     const deliveryLongitude = req.body.deliveryLongitude || null;
 
@@ -413,6 +505,10 @@ router.post("/orders", authMiddleware, async (req, res) => {
       couponDiscount: Number(couponDiscount || 0),
       buyCoinsRedeemed: Number(buyCoinsRedeemed || 0),
       buyCoinsDiscount: Number(buyCoinsDiscount || 0),
+      buyCoins: {
+        applied: Number(buyCoinsRedeemed || 0),
+        discount: Number(buyCoinsDiscount || 0)
+      },
       noBagPledge: Boolean(noBagPledge)
     });
 
@@ -488,6 +584,10 @@ router.post("/orders", authMiddleware, async (req, res) => {
         const { sendAdminNotification } = require("../services/fcmService");
         sendAdminNotification(savedOrder).catch(err => {
           console.error("Failed to send FCM admin notification:", err);
+        });
+        const { sendNewOrderNotification } = require("../services/adminNotificationService");
+        sendNewOrderNotification(savedOrder).catch(err => {
+          console.error("Failed to send new order notification to admin:", err);
         });
       } catch (err) {
         console.error("Failed to require/call sendAdminNotification:", err);
