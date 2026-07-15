@@ -3,35 +3,201 @@ import { useNavigate } from "react-router-dom";
 import { classifyProduct, canonicalCategory } from "../utils/productClassifier";
 
 const getCategoryGradient = (name, isStore = false) => {
+  const lower = name.toLowerCase();
+
+  // Shop by Store specific themes
+  if (lower.includes("book store"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(235,220,180,.30), transparent 35%), linear-gradient(135deg, #FFFDF8 0%, #FBF6EA 35%, #F7EDD8 70%, #F2E4C5 100%)`;
+
+  if (lower.includes("noice store"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(180,220,255,.30), transparent 35%), linear-gradient(135deg, #F6FBFF 0%, #ECF6FF 35%, #DDEEFF 70%, #D2E9FF 100%)`;
+
+  if (lower.includes("health hub"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(190,235,200,.30), transparent 35%), linear-gradient(135deg, #F6FFF9 0%, #ECFFF3 35%, #E2FAEC 70%, #D8F5E5 100%)`;
+
+  if (lower.includes("sports & fitness"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(205,235,170,.35), transparent 35%), linear-gradient(135deg, #F9FDF8 0%, #F3FDEE 35%, #ECF9DE 70%, #E2F3CF 100%)`;
+
+  if (lower.includes("gourmet store"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,215,170,.30), transparent 35%), linear-gradient(135deg, #FFF9F2 0%, #FFF1E6 35%, #FFE6D4 70%, #FFDCC4 100%)`;
+
+  if (lower.includes("travel store"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(185,220,255,.30), transparent 35%), linear-gradient(135deg, #F7FBFF 0%, #EEF6FF 35%, #E3F0FF 70%, #D9EAFF 100%)`;
+
   if (isStore) {
     return "linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)";
   }
 
-  const lower = name.toLowerCase();
-
+  // Grocery & Kitchen
   if (lower.includes("vegetable"))
-    return "linear-gradient(180deg,#F7FDEB,#EAF7D7)";
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(205,235,170,.35), transparent 35%), linear-gradient(135deg, #F9FDF8 0%, #F3FDEE 35%, #F0FAEB 70%, #EAF8E2 100%)`;
 
   if (lower.includes("fruit"))
-    return "linear-gradient(180deg,#FFF5E6,#FFE8CC)";
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,221,180,.35), transparent 35%), linear-gradient(135deg, #FFFDF8 0%, #FFF5EA 35%, #FFEFD9 70%, #FFE7CC 100%)`;
 
   if (lower.includes("dairy"))
-    return "linear-gradient(180deg,#FFFDF5,#FFF5D6)";
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,241,186,.35), transparent 35%), linear-gradient(135deg, #FFFEF8 0%, #FFFBEA 35%, #FFF7D9 70%, #FFF3C8 100%)`;
 
   if (
     lower.includes("meat") ||
     lower.includes("seafood")
   )
-    return "linear-gradient(180deg,#FFF1F1,#FFE3E3)";
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(247,205,205,.35), transparent 35%), linear-gradient(135deg, #FFF9F9 0%, #FFF1F1 35%, #FCE5E5 70%, #F8DCDC 100%)`;
+
+  // Snacks & Drinks
+  if (lower.includes("cold drink") || lower.includes("juice"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(180,225,255,.30), transparent 35%), linear-gradient(135deg, #F2FAFF 0%, #E8F6FF 35%, #DFF2FF 70%, #D7EEFF 100%)`;
+
+  if (lower.includes("ice cream") || lower.includes("frozen dessert"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(225,210,255,.30), transparent 35%), linear-gradient(135deg, #F8F5FF 0%, #F2ECFF 35%, #ECE3FF 70%, #E7DBFF 100%)`;
+
+  if (lower.includes("chips") || lower.includes("namkeen"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,205,150,.30), transparent 35%), linear-gradient(135deg, #FFF9EF 0%, #FFF2DD 35%, #FFE9CC 70%, #FFE1B8 100%)`;
+
+  if (lower.includes("chocolate"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(230,195,160,.30), transparent 35%), linear-gradient(135deg, #FFF8F1 0%, #FFF2E7 35%, #F7E7D4 70%, #F1D8BE 100%)`;
+
+  if (lower.includes("noodle") || lower.includes("pasta") || lower.includes("vermicelli"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,235,170,.30), transparent 35%), linear-gradient(135deg, #FFFEF8 0%, #FFFBEA 35%, #FFF6D8 70%, #FFF1C5 100%)`;
+
+  if (lower.includes("frozen food"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(190,225,255,.30), transparent 35%), linear-gradient(135deg, #F7FCFF 0%, #EEF8FF 35%, #E4F2FF 70%, #DCEEFF 100%)`;
+
+  if (lower.includes("cake"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,210,225,.30), transparent 35%), linear-gradient(135deg, #FFF9FA 0%, #FFF2F5 35%, #FFE8EF 70%, #FFE0EB 100%)`;
+
+  if (lower.includes("paan"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(185,235,200,.30), transparent 35%), linear-gradient(135deg, #F5FFF7 0%, #ECFDF1 35%, #E3FAE9 70%, #DDF7E6 100%)`;
+
+  // Beauty & Wellness
+  if (lower.includes("bath"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(205,235,170,.35), transparent 35%), linear-gradient(135deg, #F9FDF8 0%, #F3FDEE 35%, #F0FAEB 70%, #EAF8E2 100%)`;
+
+  if (lower.includes("hair"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,225,185,.30), transparent 35%), linear-gradient(135deg, #FFFBF7 0%, #FFF4E8 35%, #FDEBD8 70%, #F8E3CB 100%)`;
+
+  if (lower.includes("skin"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(185,235,235,.30), transparent 35%), linear-gradient(135deg, #F5FEFE 0%, #ECFBFB 35%, #DDF7F7 70%, #D2F2F2 100%)`;
+
+  if (lower.includes("makeup"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,205,220,.30), transparent 35%), linear-gradient(135deg, #FFF9FB 0%, #FFF2F6 35%, #FFE7EF 70%, #FFDDE8 100%)`;
+
+  if (lower.includes("oral"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(190,225,255,.30), transparent 35%), linear-gradient(135deg, #F6FCFF 0%, #EDF8FF 35%, #E2F2FF 70%, #D8ECFF 100%)`;
+
+  if (lower.includes("grooming"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(195,225,195,.30), transparent 35%), linear-gradient(135deg, #F8FCF8 0%, #EEF8EF 35%, #E5F3E5 70%, #DBEFDC 100%)`;
+
+  if (lower.includes("baby"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(195,220,255,.30), transparent 35%), linear-gradient(135deg, #F7FBFF 0%, #EEF6FF 35%, #E3F0FF 70%, #D9EAFF 100%)`;
+
+  if (lower.includes("perfume") || lower.includes("fragrance"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(220,205,255,.30), transparent 35%), linear-gradient(135deg, #FBF9FF 0%, #F4F0FF 35%, #ECE5FF 70%, #E4DBFF 100%)`;
+
+  if (lower.includes("protein"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(235,220,180,.30), transparent 35%), linear-gradient(135deg, #FFFDF8 0%, #FBF6EA 35%, #F7EDD8 70%, #F2E4C5 100%)`;
+
+  if (lower.includes("female") || lower.includes("feminine"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,210,225,.30), transparent 35%), linear-gradient(135deg, #FFF9FA 0%, #FFF2F5 35%, #FFE8EF 70%, #FFE0EA 100%)`;
+
+  if (lower.includes("sexual"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,200,190,.30), transparent 35%), linear-gradient(135deg, #FFF9F7 0%, #FFF1ED 35%, #FFE4DD 70%, #FFD8CF 100%)`;
+
+  if (lower.includes("health"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(180,235,210,.30), transparent 35%), linear-gradient(135deg, #F6FFF9 0%, #ECFFF3 35%, #E2FAEC 70%, #D8F5E5 100%)`;
+
+  // Household & Lifestyle
+  if (lower.includes("home"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,230,195,.30), transparent 35%), linear-gradient(135deg, #FFFDF9 0%, #FFF6ED 35%, #FDEEDD 70%, #F8E7D1 100%)`;
+
+  if (lower.includes("kitchen") || lower.includes("cooking"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,210,170,.30), transparent 35%), linear-gradient(135deg, #FFF9F4 0%, #FFF2E6 35%, #FFE8D3 70%, #FFDFC4 100%)`;
+
+  if (lower.includes("clean"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(180,235,240,.30), transparent 35%), linear-gradient(135deg, #F5FEFF 0%, #ECFCFD 35%, #E1F8F8 70%, #D5F3F3 100%)`;
+
+  if (lower.includes("cloth"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(190,220,255,.30), transparent 35%), linear-gradient(135deg, #F8FBFF 0%, #EEF6FF 35%, #E4F0FF 70%, #D9EAFF 100%)`;
+
+  if (lower.includes("stationery") || lower.includes("book"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(220,210,255,.30), transparent 35%), linear-gradient(135deg, #FBF9FF 0%, #F4F0FF 35%, #ECE5FF 70%, #E4DCFF 100%)`;
+
+  // Electronics & Appliances
+  if (lower.includes("pooja") || lower.includes("puja"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(255,220,150,.30), transparent 35%), linear-gradient(135deg, #FFFDF7 0%, #FFF7E8 35%, #FFEFD1 70%, #FFE6B8 100%)`;
+
+  if (lower.includes("toy"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(225,210,255,.30), transparent 35%), linear-gradient(135deg, #FBF9FF 0%, #F4F0FF 35%, #ECE5FF 70%, #E4DCFF 100%)`;
+
+  if (lower.includes("sports"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(205,235,170,.35), transparent 35%), linear-gradient(135deg, #F9FDF8 0%, #F3FDEE 35%, #ECF9DE 70%, #E2F3CF 100%)`;
+
+  if (lower.includes("pet"))
+    return `radial-gradient(circle at 25% 20%, rgba(255,255,255,.55), transparent 30%), radial-gradient(circle at 80% 85%, rgba(190,220,255,.30), transparent 35%), linear-gradient(135deg, #F8FBFF 0%, #EEF6FF 35%, #E4F0FF 70%, #D9EAFF 100%)`;
 
   if (
     lower.includes("snack") ||
-    lower.includes("sweet") ||
-    lower.includes("chocolate")
+    lower.includes("sweet")
   )
     return "linear-gradient(180deg,#FFF7E8,#FFE9BF)";
 
   return "linear-gradient(180deg,#F7FDEB,#EAF7D7)";
+};
+
+const getCategoryBorder = (name) => {
+  const lower = name.toLowerCase();
+  // Grocery & Kitchen
+  if (lower.includes("vegetable")) return "#D5E9BF";
+  if (lower.includes("fruit")) return "#F5D7A4";
+  if (lower.includes("dairy")) return "#F5E2A8";
+  if (lower.includes("meat") || lower.includes("seafood")) return "#EFC8C8";
+
+  // Snacks & Drinks
+  if (lower.includes("cold drink") || lower.includes("juice")) return "#C9E8FF";
+  if (lower.includes("ice cream") || lower.includes("frozen dessert")) return "#DCCEFF";
+  if (lower.includes("chips") || lower.includes("namkeen")) return "#FFD19A";
+  if (lower.includes("chocolate")) return "#E6C6A4";
+  if (lower.includes("noodle") || lower.includes("pasta") || lower.includes("vermicelli")) return "#F5E3A4";
+  if (lower.includes("frozen food")) return "#CFE5FF";
+  if (lower.includes("cake")) return "#F4C8D7";
+  if (lower.includes("paan")) return "#C7EACF";
+
+  // Beauty & Wellness
+  if (lower.includes("bath")) return "#D5E9BF";
+  if (lower.includes("hair")) return "#EFD7B6";
+  if (lower.includes("skin")) return "#CBECEC";
+  if (lower.includes("makeup")) return "#F3CAD8";
+  if (lower.includes("oral")) return "#CAE4FF";
+  if (lower.includes("grooming")) return "#D2E7D2";
+  if (lower.includes("baby")) return "#D1E5FF";
+  if (lower.includes("perfume") || lower.includes("fragrance")) return "#D9CCFF";
+  if (lower.includes("protein")) return "#E7D7AF";
+  if (lower.includes("female") || lower.includes("feminine")) return "#F5CBD8";
+  if (lower.includes("sexual")) return "#F3C7BB";
+  if (lower.includes("health")) return "#CBEBD8";
+
+  // Household & Lifestyle
+  if (lower.includes("home")) return "#EDD7BA";
+  if (lower.includes("kitchen") || lower.includes("cooking")) return "#F3D0A6";
+  if (lower.includes("clean")) return "#CBECEC";
+  if (lower.includes("cloth")) return "#D0E4FF";
+  if (lower.includes("stationery") || lower.includes("book")) return "#D9CDFF";
+
+  // Electronics & Appliances
+  if (lower.includes("pooja") || lower.includes("puja")) return "#F5D59A";
+  if (lower.includes("toy")) return "#D9CDFF";
+  if (lower.includes("sports")) return "#D5E9BF";
+  if (lower.includes("pet")) return "#D0E4FF";
+
+  // Shop by Store specific borders
+  if (lower.includes("book store")) return "#E7D7AF";
+  if (lower.includes("noice store")) return "#CBE0FF";
+  if (lower.includes("health hub")) return "#CBEBD8";
+  if (lower.includes("sports & fitness")) return "#D5E9BF";
+  if (lower.includes("gourmet store")) return "#F2D2AF";
+  if (lower.includes("travel store")) return "#D0E4FF";
+
+  return "rgba(49, 134, 22, 0.08)";
 };
 
 const getCategoryBadge = (name, isStore = false) => {
@@ -355,47 +521,55 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
 
       {/* Category Sections */}
       <main style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "28px" }}>
-        {dynamicSections.map((section) => (
-          <div key={section.title} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <h2
-              style={{
-                fontSize: "15px",
-                fontWeight: "850",
-                color: "#111827",
-                margin: 0,
-                paddingLeft: "4px"
-              }}
-            >
-              {section.title}
-            </h2>
-            <div className="category-discovery-grid">
-              {section.items.map((item) => (
-                <div
-                  key={item.name}
-                  onClick={() => handleCardClick(item.name)}
-                  className="category-discovery-card group"
-                  style={{
-                    background: getCategoryGradient(item.name, section.isStore),
-                    boxShadow: "0 4px 20px rgba(49, 134, 22, 0.08)"
-                  }}
-                >
-                  <span className="category-discovery-badge">
-                    {getCategoryBadge(item.name, section.isStore)}
-                  </span>
-                  <div className="category-discovery-image-wrapper">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="category-discovery-img"
-                      loading="lazy"
-                    />
+        {dynamicSections.map((section) => {
+          const isPremium = section.title === "Grocery & Kitchen" || section.title === "Snacks & Drinks" || section.title === "Beauty & Wellness" || section.title === "Household & Lifestyle" || section.title === "Electronics & Appliances" || section.isStore;
+          return (
+            <div key={section.title} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <h2
+                style={{
+                  fontSize: "15px",
+                  fontWeight: "850",
+                  color: "#111827",
+                  margin: 0,
+                  paddingLeft: "4px"
+                }}
+              >
+                {section.title}
+              </h2>
+              <div className="category-discovery-grid">
+                {section.items.map((item) => (
+                  <div
+                    key={item.name}
+                    onClick={() => handleCardClick(item.name)}
+                    className={`category-discovery-card group ${isPremium ? "premium-collection-card" : ""}`}
+                    style={{
+                      background: getCategoryGradient(item.name, section.isStore),
+                      boxShadow: isPremium
+                        ? "0 10px 30px rgba(49, 134, 22, 0.06)"
+                        : "0 4px 20px rgba(49, 134, 22, 0.08)",
+                      border: isPremium
+                        ? `1px solid ${getCategoryBorder(item.name)}`
+                        : undefined
+                    }}
+                  >
+                    <span className={`category-discovery-badge ${isPremium ? "premium-glass-badge" : ""}`}>
+                      {getCategoryBadge(item.name, section.isStore)}
+                    </span>
+                    <div className={`category-discovery-image-wrapper ${isPremium ? "premium-image-wrapper" : ""}`}>
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="category-discovery-img"
+                        loading="lazy"
+                      />
+                    </div>
+                    <h3 className="category-discovery-text">{item.name}</h3>
                   </div>
-                  <h3 className="category-discovery-text">{item.name}</h3>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </main>
 
       <style>{`
@@ -490,6 +664,29 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
           .category-discovery-text {
             font-size: 14px;
           }
+        }
+
+        .premium-collection-card {
+          border-radius: 32px !important;
+          transition: transform .3s ease, box-shadow .3s ease, background .3s ease !important;
+        }
+
+        .premium-collection-card:hover {
+          transform: translateY(-6px) !important;
+          box-shadow: 0 18px 40px rgba(49, 134, 22, 0.10) !important;
+        }
+
+        .premium-glass-badge {
+          background: rgba(255, 255, 255, 0.88) !important;
+          backdrop-filter: blur(10px) !important;
+          -webkit-backdrop-filter: blur(10px) !important;
+          border: 1px solid rgba(255, 255, 255, 0.5) !important;
+        }
+
+        .premium-image-wrapper {
+          background: linear-gradient(135deg, #FFFFFF, #F8FAFC) !important;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05) !important;
+          border-radius: 24px !important;
         }
       `}</style>
     </div>

@@ -28,6 +28,7 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
   return (
     <div
       ref={scrollerRef}
+      id="category-strip-container"
       className="hide-scrollbar"
       style={{
         display: "flex",
@@ -591,6 +592,7 @@ const Header = React.memo(({
           <div style={{ position: "relative", flexGrow: 1 }}>
             <input
               type="text"
+              id="main-search-input"
               placeholder=""
               value={localQuery}
               onChange={(e) => {

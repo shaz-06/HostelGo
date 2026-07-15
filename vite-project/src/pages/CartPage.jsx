@@ -365,6 +365,13 @@ export default function CartPage({
                     setAppliedCoinsState(data.appliedCoins || 0);
                     setBuyCoinsDiscountState(data.discount || 0);
                     
+                    console.log({
+                        subtotal: data.subtotal,
+                        balance: data.buyCoinsBalance,
+                        maxRedeemable: data.maxRedeemableCoins,
+                        appliedCoins: data.appliedCoins
+                    });
+
                     if (data.appliedCoins !== coinsToRedeem) {
                         setCoinsToRedeem(data.appliedCoins);
                         localStorage.setItem("buyto_coins_redeem", String(data.appliedCoins));
@@ -376,7 +383,7 @@ export default function CartPage({
         };
 
         syncAndCalculate();
-    }, [isLoggedIn, token, cartItems, coinsToRedeem]);
+    }, [isLoggedIn, token, JSON.stringify(cartItems), coinsToRedeem]);
 
     // Save noBagPledge to localStorage
     const handleNoBagToggle = () => {
@@ -388,6 +395,7 @@ export default function CartPage({
 
     // Save coins to redeem
     const handleCoinsChange = (newCoins) => {
+        console.log("handleCoinsChange executed with newCoins =", newCoins, "maxRedeemable =", maxRedeemableCoins);
         const val = Math.max(0, Math.min(newCoins, maxRedeemableCoins));
         setCoinsToRedeem(val);
         localStorage.setItem("buyto_coins_redeem", String(val));
@@ -1323,56 +1331,62 @@ export default function CartPage({
                         </div>
                         <p style={{ margin: "0 0 12px 0", fontSize: "11px", color: "#6b7280" }}>Maximum redeemable: {maxRedeemableCoins} BuyCoins (20% of subtotal)</p>
 
-                        <div style={{ display: "flex", alignItems: "center", justifyBox: "space-between", background: "#f9fafb", padding: "10px 16px", borderRadius: "14px", border: "1px solid #e5e7eb", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: "13px", fontWeight: "700", color: "#374151" }}>Use Coins:</span>
-                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                <button
-                                    onClick={() => handleCoinsChange(coinsToRedeem - 1)}
-                                    disabled={coinsToRedeem <= 0}
-                                    style={{
-                                        width: "28px",
-                                        height: "28px",
-                                        borderRadius: "50%",
-                                        border: "1px solid #d1d5db",
-                                        background: "white",
-                                        fontSize: "16px",
-                                        fontWeight: "800",
-                                        cursor: coinsToRedeem <= 0 ? "not-allowed" : "pointer",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifybox: "center",
-                                        justifyContent: "center",
-                                        color: coinsToRedeem <= 0 ? "#9ca3af" : "#374151"
-                                    }}
-                                >
-                                    -
-                                </button>
-                                <span style={{ fontSize: "15px", fontWeight: "850", minWidth: "20px", textAlign: "center" }}>
-                                    {coinsToRedeem}
-                                </span>
-                                <button
-                                    onClick={() => handleCoinsChange(coinsToRedeem + 1)}
-                                    disabled={coinsToRedeem >= maxRedeemableCoins}
-                                    style={{
-                                        width: "28px",
-                                        height: "28px",
-                                        borderRadius: "50%",
-                                        border: "1px solid #d1d5db",
-                                        background: "white",
-                                        fontSize: "16px",
-                                        fontWeight: "800",
-                                        cursor: coinsToRedeem >= maxRedeemableCoins ? "not-allowed" : "pointer",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifybox: "center",
-                                        justifyContent: "center",
-                                        color: coinsToRedeem >= maxRedeemableCoins ? "#9ca3af" : "#374151"
-                                    }}
-                                >
-                                    +
-                                </button>
+                        {maxRedeemableCoins === 0 ? (
+                            <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "14px", padding: "12px", color: "#b45309", fontSize: "12px", fontWeight: "600", textAlign: "center" }}>
+                                ⚠️ Add more items to your cart to redeem BuyCoins (max 20% of subtotal).
                             </div>
-                        </div>
+                        ) : (
+                            <div style={{ display: "flex", alignItems: "center", justifyBox: "space-between", background: "#f9fafb", padding: "10px 16px", borderRadius: "14px", border: "1px solid #e5e7eb", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: "13px", fontWeight: "700", color: "#374151" }}>Use Coins:</span>
+                                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                    <button
+                                        onClick={() => handleCoinsChange(coinsToRedeem - 1)}
+                                        disabled={coinsToRedeem <= 0}
+                                        style={{
+                                            width: "28px",
+                                            height: "28px",
+                                            borderRadius: "50%",
+                                            border: "1px solid #d1d5db",
+                                            background: "white",
+                                            fontSize: "16px",
+                                            fontWeight: "800",
+                                            cursor: coinsToRedeem <= 0 ? "not-allowed" : "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifybox: "center",
+                                            justifyContent: "center",
+                                            color: coinsToRedeem <= 0 ? "#9ca3af" : "#374151"
+                                        }}
+                                    >
+                                        -
+                                    </button>
+                                    <span style={{ fontSize: "15px", fontWeight: "850", minWidth: "20px", textAlign: "center" }}>
+                                        {coinsToRedeem}
+                                    </span>
+                                    <button
+                                        onClick={() => handleCoinsChange(coinsToRedeem + 1)}
+                                        disabled={coinsToRedeem >= maxRedeemableCoins}
+                                        style={{
+                                            width: "28px",
+                                            height: "28px",
+                                            borderRadius: "50%",
+                                            border: "1px solid #d1d5db",
+                                            background: "white",
+                                            fontSize: "16px",
+                                            fontWeight: "800",
+                                            cursor: coinsToRedeem >= maxRedeemableCoins ? "not-allowed" : "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifybox: "center",
+                                            justifyContent: "center",
+                                            color: coinsToRedeem >= maxRedeemableCoins ? "#9ca3af" : "#374151"
+                                        }}
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {coinsToRedeem > 0 && (
                             <div style={{ marginTop: "10px", background: "#d1fae5", color: "#065f46", padding: "8px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", textAlign: "center" }}>

@@ -8,14 +8,17 @@ const Product = require("../models/Product");
 const calculateCartSubtotal = async (userId) => {
   const cart = await Cart.findOne({ userId });
   if (!cart || !cart.items || cart.items.length === 0) {
+    console.log("DEBUG: No cart or cart items found for user", userId);
     return 0;
   }
 
   // Extract all product ObjectIds from the cart
   const productIds = cart.items.map(item => item.productId);
+  console.log("DEBUG: productIds mapped from cart:", productIds);
   
   // Load products from DB to get the latest, authoritative prices
   const products = await Product.find({ _id: { $in: productIds } }).lean();
+  console.log("DEBUG: products loaded from DB:", products.map(p => ({ _id: p._id, price: p.price })));
   
   // Create a map for quick price lookup
   const priceMap = new Map();
@@ -26,11 +29,13 @@ const calculateCartSubtotal = async (userId) => {
   let subtotal = 0;
   for (const item of cart.items) {
     const price = priceMap.get(item.productId.toString());
+    console.log(`DEBUG: item.productId=${item.productId}, price found=${price}, quantity=${item.quantity}`);
     if (price !== undefined) {
       subtotal += price * item.quantity;
     }
   }
 
+  console.log("DEBUG: calculated subtotal:", subtotal);
   return subtotal;
 };
 

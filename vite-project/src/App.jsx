@@ -2415,7 +2415,7 @@ function AppContent({ onReady }) {
                         )}
 
                         {fruitProducts.length > 0 && (
-                          <div id="fresh-fruits" style={{ scrollMarginTop: "140px" }}>
+                          <div id="fresh-fruits" style={{ scrollMarginTop: "140px", transition: "all 0.5s ease", borderRadius: "16px" }}>
                             <HorizontalProductSection
                               title="Fresh Fruits"
                               emoji="🍎"
@@ -2603,54 +2603,258 @@ function AppContent({ onReady }) {
                         }
 
                         {recommendedList.length > 0 && (
-                          <HorizontalProductSection
-                            title="Recommended For You"
-                            emoji="✨"
-                            products={recommendedList}
-                            openProduct={openProduct}
-                            setSelectedProduct={setSelectedProduct}
-                            addToCart={addToCart}
-                            removeFromCart={removeFromCart}
-                            cart={cart}
-                            windowWidth={windowWidth}
-                            getCartKey={getCartKey}
-                          />
+                          <div id="recommended-for-you" style={{ scrollMarginTop: "140px", transition: "all 0.5s ease", borderRadius: "16px" }}>
+                            <HorizontalProductSection
+                              title="Recommended For You"
+                              emoji="✨"
+                              products={recommendedList}
+                              openProduct={openProduct}
+                              setSelectedProduct={setSelectedProduct}
+                              addToCart={addToCart}
+                              removeFromCart={removeFromCart}
+                              cart={cart}
+                              windowWidth={windowWidth}
+                              getCartKey={getCartKey}
+                            />
+                          </div>
                         )}
 
                         {trendingList.length > 0 && (
-                          <HorizontalProductSection
-                            title="Trending Near You"
-                            emoji="🔥"
-                            products={trendingList}
-                            openProduct={openProduct}
-                            setSelectedProduct={setSelectedProduct}
-                            addToCart={addToCart}
-                            removeFromCart={removeFromCart}
-                            cart={cart}
-                            windowWidth={windowWidth}
-                            getCartKey={getCartKey}
-                          />
+                          <div id="trending-near-you" style={{ scrollMarginTop: "140px", transition: "all 0.5s ease", borderRadius: "16px" }}>
+                            <HorizontalProductSection
+                              title="Trending Near You"
+                              emoji="🔥"
+                              products={trendingList}
+                              openProduct={openProduct}
+                              setSelectedProduct={setSelectedProduct}
+                              addToCart={addToCart}
+                              removeFromCart={removeFromCart}
+                              cart={cart}
+                              windowWidth={windowWidth}
+                              getCartKey={getCartKey}
+                            />
+                          </div>
                         )}
 
                         {bestDealsList.length > 0 && (
-                          <HorizontalProductSection
-                            title="Best Deals Today"
-                            emoji="💸"
-                            products={bestDealsList}
-                            openProduct={openProduct}
-                            setSelectedProduct={setSelectedProduct}
-                            addToCart={addToCart}
-                            removeFromCart={removeFromCart}
-                            cart={cart}
-                            windowWidth={windowWidth}
-                            getCartKey={getCartKey}
-                          />
+                          <div id="best-deals-today" style={{ scrollMarginTop: "140px", transition: "all 0.5s ease", borderRadius: "16px" }}>
+                            <HorizontalProductSection
+                              title="Best Deals Today"
+                              emoji="💸"
+                              products={bestDealsList}
+                              openProduct={openProduct}
+                              setSelectedProduct={setSelectedProduct}
+                              addToCart={addToCart}
+                              removeFromCart={removeFromCart}
+                              cart={cart}
+                              windowWidth={windowWidth}
+                              getCartKey={getCartKey}
+                            />
+                          </div>
                         )}
 
-                        <div style={{ textAlign: "center", marginTop: "64px", marginBottom: "40px", padding: "24px 0", borderTop: "1px solid rgba(0,0,0,0.06)", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-                          <p style={{ margin: 0, fontSize: "16px", fontWeight: "750", color: "#1b4314" }}>💚 Thank you for choosing Buyto</p>
-                          <p style={{ margin: "4px 0 16px 0", fontSize: "13px", fontWeight: "600", color: "#6b7280" }}>Built by Students, for Students.</p>
-                          <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ background: "transparent", border: "none", color: "#318616", fontWeight: "800", fontSize: "14px", cursor: "pointer" }}>Continue Exploring →</button>
+                        <div style={{
+                          background: "#FFFFFF",
+                          border: "1px solid rgba(49,134,22,.08)",
+                          borderRadius: "32px",
+                          padding: "36px",
+                          boxShadow: "0 12px 40px rgba(49,134,22,.08)",
+                          margin: "64px auto 40px auto",
+                          maxWidth: "800px",
+                          textAlign: "center",
+                          fontFamily: "'Outfit', 'Inter', sans-serif",
+                          boxSizing: "border-box"
+                        }}>
+                          <style>{`
+                            .premium-footer-heading {
+                              font-size: 32px;
+                              font-weight: 800;
+                              color: #1E293B;
+                              margin: 0;
+                            }
+                            .premium-footer-subtitle {
+                              color: #64748B;
+                              font-size: 18px;
+                              margin: 8px 0 28px 0;
+                            }
+                            .premium-action-btn {
+                              background: #F8FFF5;
+                              border: 1px solid rgba(49,134,22,.10);
+                              border-radius: 999px;
+                              padding: 14px 22px;
+                              font-weight: 600;
+                              font-size: 14px;
+                              color: #318616;
+                              cursor: pointer;
+                              transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                              display: inline-flex;
+                              align-items: center;
+                              gap: 8px;
+                              outline: none;
+                              user-select: none;
+                            }
+                            .premium-action-btn:hover {
+                              background: #318616;
+                              color: white;
+                              transform: translateY(-2px);
+                              box-shadow: 0 12px 24px rgba(49,134,22,.18);
+                            }
+                            .premium-action-btn:active {
+                              transform: scale(0.95) translateY(0);
+                            }
+                            @media (max-width: 768px) {
+                              .premium-footer-heading {
+                                font-size: 24px;
+                              }
+                              .premium-footer-subtitle {
+                                font-size: 15px;
+                                margin: 6px 0 20px 0;
+                              }
+                              .premium-action-btn {
+                                padding: 10px 18px;
+                                font-size: 13px;
+                              }
+                            }
+                          `}</style>
+                          <h2 className="premium-footer-heading">💚 Thank you for choosing Buyto</h2>
+                          <p className="premium-footer-subtitle">Built by Students, for Students.</p>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "center" }}>
+                            <button
+                              className="premium-action-btn"
+                              onClick={() => {
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                setTimeout(() => {
+                                  const searchInput = document.getElementById('main-search-input');
+                                  if (searchInput) {
+                                    searchInput.focus();
+                                    searchInput.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+                                    searchInput.style.boxShadow = '0 0 15px rgba(49, 134, 22, 0.6)';
+                                    searchInput.style.borderColor = '#318616';
+                                    setTimeout(() => {
+                                      searchInput.style.boxShadow = '';
+                                      searchInput.style.borderColor = '';
+                                    }, 800);
+                                  }
+                                  const catStrip = document.getElementById('category-strip-container');
+                                  if (catStrip) {
+                                    catStrip.style.transition = 'transform 0.4s ease';
+                                    catStrip.style.transform = 'scale(1.03)';
+                                    setTimeout(() => {
+                                      catStrip.style.transform = 'scale(1)';
+                                    }, 400);
+                                  }
+                                }, 800);
+                              }}
+                            >
+                              <span>🛒</span> Continue Shopping
+                            </button>
+                            
+                            <button
+                              className="premium-action-btn"
+                              onClick={() => {
+                                const el = document.getElementById('best-deals-today');
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth' });
+                                  setTimeout(() => {
+                                    el.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.4)';
+                                    el.style.borderColor = 'rgba(245, 158, 11, 0.6)';
+                                    setTimeout(() => {
+                                      el.style.boxShadow = '';
+                                      el.style.borderColor = '';
+                                    }, 1000);
+                                  }, 800);
+                                }
+                              }}
+                            >
+                              <span>🔥</span> Best Deals
+                            </button>
+
+                            <button
+                              className="premium-action-btn"
+                              onClick={() => {
+                                const el = document.getElementById('fresh-fruits');
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth' });
+                                  setTimeout(() => {
+                                    el.style.boxShadow = '0 0 30px rgba(49, 134, 22, 0.4)';
+                                    el.style.borderColor = 'rgba(49, 134, 22, 0.6)';
+                                    setTimeout(() => {
+                                      el.style.boxShadow = '';
+                                      el.style.borderColor = '';
+                                    }, 1000);
+                                  }, 800);
+                                }
+                              }}
+                            >
+                              <span>🍎</span> Fresh Fruits
+                            </button>
+
+                            <button
+                              className="premium-action-btn"
+                              onClick={() => {
+                                const showSurpriseToast = () => {
+                                  const toast = document.createElement("div");
+                                  toast.innerHTML = "✨ Today's Pick for You";
+                                  toast.style.position = "fixed";
+                                  toast.style.bottom = "100px";
+                                  toast.style.left = "50%";
+                                  toast.style.transform = "translateX(-50%) translateY(20px)";
+                                  toast.style.background = "rgba(17, 24, 39, 0.9)";
+                                  toast.style.color = "white";
+                                  toast.style.padding = "12px 24px";
+                                  toast.style.borderRadius = "50px";
+                                  toast.style.fontSize = "14px";
+                                  toast.style.fontWeight = "600";
+                                  toast.style.boxShadow = "0 10px 25px rgba(0,0,0,0.2)";
+                                  toast.style.zIndex = "9999";
+                                  toast.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
+                                  toast.style.opacity = "0";
+                                  document.body.appendChild(toast);
+                                  
+                                  requestAnimationFrame(() => {
+                                    toast.style.transform = "translateX(-50%) translateY(0)";
+                                    toast.style.opacity = "1";
+                                  });
+                                  
+                                  setTimeout(() => {
+                                    toast.style.transform = "translateX(-50%) translateY(-20px)";
+                                    toast.style.opacity = "0";
+                                    setTimeout(() => {
+                                      toast.remove();
+                                    }, 300);
+                                  }, 2000);
+                                };
+
+                                const targetSections = [
+                                  { id: 'trending-near-you', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
+                                  { id: 'fresh-fruits', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
+                                  { id: 'best-deals-today', color: 'rgba(245, 158, 11, 0.4)', border: 'rgba(245, 158, 11, 0.6)' },
+                                  { id: 'fresh-vegetables', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
+                                  { id: 'dairy-bread-eggs', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
+                                  { id: 'snacks', color: 'rgba(245, 158, 11, 0.4)', border: 'rgba(245, 158, 11, 0.6)' }
+                                ];
+                                const available = targetSections.filter(s => document.getElementById(s.id));
+                                if (available.length > 0) {
+                                  const randomSec = available[Math.floor(Math.random() * available.length)];
+                                  const el = document.getElementById(randomSec.id);
+                                  if (el) {
+                                    el.scrollIntoView({ behavior: 'smooth' });
+                                    showSurpriseToast();
+                                    setTimeout(() => {
+                                      el.style.boxShadow = `0 0 30px ${randomSec.color}`;
+                                      el.style.borderColor = randomSec.border;
+                                      setTimeout(() => {
+                                        el.style.boxShadow = '';
+                                        el.style.borderColor = '';
+                                      }, 1000);
+                                    }, 800);
+                                  }
+                                }
+                              }}
+                            >
+                              <span>🎲</span> Surprise Me
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : (
