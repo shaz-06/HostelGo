@@ -84,6 +84,10 @@ class TrackingService {
    */
   emitStatusUpdated(orderIdStr, order, version) {
     if (!this.io) return;
+    console.log("[SOCKET] Emitting order:statusUpdated", {
+      orderId: orderIdStr,
+      status: order.orderStatus
+    });
     const rider = getSimulatedRider(orderIdStr);
     const tracking = {
       version,

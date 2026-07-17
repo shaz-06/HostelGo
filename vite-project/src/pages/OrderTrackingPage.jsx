@@ -37,12 +37,12 @@ function MapController({ route, scooterPos, followRider }) {
 }
 
 const timelineStages = [
-  { name: "Order Placed", key: "placed" },
-  { name: "Payment Received", key: "payment" },
-  { name: "Store Accepted", key: "storeaccepted" },
-  { name: "Packing", key: "packing" },
-  { name: "Rider Assigned", key: "riderassigned" },
-  { name: "On The Way", key: "ontheway" },
+  { name: "Order Placed", key: "orderPlaced" },
+  { name: "Payment Received", key: "orderPlaced" },
+  { name: "Store Accepted", key: "preparing" },
+  { name: "Packing", key: "packed" },
+  { name: "Rider Assigned", key: "riderAssigned" },
+  { name: "On The Way", key: "outForDelivery" },
   { name: "Delivered", key: "delivered" }
 ];
 
@@ -434,6 +434,11 @@ export default function OrderTrackingPage({ orderId }) {
     const eventVersion = event.version || 0;
     const eventTime = event.updatedAt || "";
 
+    console.log({
+      currentVersion: currentVersion.current,
+      incomingVersion: eventVersion
+    });
+
     if (eventVersion < currentVersion.current) {
       console.warn("Stale event ignored:", event);
       return;
@@ -442,17 +447,29 @@ export default function OrderTrackingPage({ orderId }) {
     currentVersion.current = eventVersion;
     lastUpdatedAt.current = eventTime;
 
+    const STATUS_TIMESTAMP_KEYS = {
+      "Order Placed": "orderPlaced",
+      "Preparing": "preparing",
+      "Packed": "packed",
+      "Rider Assigned": "riderAssigned",
+      "Out for Delivery": "outForDelivery",
+      "Delivered": "delivered",
+      "Cancelled": "cancelled"
+    };
+
     if (event.type === "status") {
       setOrder(prev => {
         if (!prev) return prev;
+        const mappedKey = STATUS_TIMESTAMP_KEYS[event.status] || event.status;
         return {
           ...prev,
           orderStatus: event.status,
           estimatedArrivalMinutes: event.eta,
           trackingVersion: eventVersion,
-          statusTimestamps: event.tracking?.stage
-            ? { ...prev.statusTimestamps, [event.status.toLowerCase().replace(/ /g, "")]: event.updatedAt }
-            : prev.statusTimestamps
+          statusTimestamps: {
+            ...prev.statusTimestamps,
+            [mappedKey]: event.updatedAt
+          }
         };
       });
       if (event.rider) {
@@ -503,7 +520,14 @@ export default function OrderTrackingPage({ orderId }) {
       });
     } 
     else if (event.type === "delivered") {
-      setOrder(prev => prev ? { ...prev, orderStatus: "Delivered" } : prev);
+      setOrder(prev => prev ? {
+        ...prev,
+        orderStatus: "Delivered",
+        statusTimestamps: {
+          ...prev.statusTimestamps,
+          delivered: event.updatedAt
+        }
+      } : prev);
       setTrackingInfo(prev => prev ? { ...prev, progress: 100 } : prev);
       triggerToast("🎉 Your order has been delivered!");
     }

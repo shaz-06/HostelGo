@@ -512,6 +512,7 @@ try {
       socket.join(orderId);
       socket.join(room1);
       socket.join(room2);
+      console.log(`Customer joined room: order_${orderId}`);
       console.log(`🔌 Socket client joined rooms: ${orderId}, ${room1}, and ${room2}`);
 
       // Sync latest order state on join / reconnect
