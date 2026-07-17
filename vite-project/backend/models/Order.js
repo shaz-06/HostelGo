@@ -158,6 +158,10 @@ const orderSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  trackingVersion: {
+    type: Number,
+    default: 0
+  },
   deliveryInstructions: {
     type: String,
     default: ""

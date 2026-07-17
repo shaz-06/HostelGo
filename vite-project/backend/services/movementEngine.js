@@ -1,8 +1,10 @@
 /**
  * Movement Engine Service
- * Calculates route progress, simulated current coordinates, remaining ETA,
- * order stages, and marker rotation (bearing).
+ * Calculates route progress, simulated current coordinates, remaining distance,
+ * distance-based ETA, order stages, and marker rotation (bearing).
  */
+
+const { getDistance } = require("./routeGenerator");
 
 /**
  * Calculates progress fraction based on elapsed time fraction using the speed curve:
@@ -70,6 +72,47 @@ function getStage(progressPercent) {
 }
 
 /**
+ * Returns independent, realistic rider status text based on progress.
+ */
+function getRiderStatusText(progressPercent) {
+  if (progressPercent >= 100) return "Delivered";
+  if (progressPercent >= 90) return "Arriving";
+  if (progressPercent >= 80) return "Almost there";
+  if (progressPercent >= 60) return "Heading towards you";
+  if (progressPercent >= 30) return "Leaving store";
+  if (progressPercent >= 15) return "Waiting at store";
+  return "Picking up your order";
+}
+
+/**
+ * Calculates the remaining route distance from the current index onwards.
+ */
+function getRouteDistanceRemaining(route, routeIndex, progressFraction) {
+  if (!route || route.length === 0) return 0;
+  const N = route.length;
+  const lowerIndex = Math.floor(routeIndex);
+  const fraction = routeIndex - lowerIndex;
+
+  if (lowerIndex >= N - 1) return 0;
+
+  // Current interpolated position coordinates
+  const currentPt = {
+    lat: route[lowerIndex].lat + (route[lowerIndex + 1].lat - route[lowerIndex].lat) * fraction,
+    lng: route[lowerIndex].lng + (route[lowerIndex + 1].lng - route[lowerIndex].lng) * fraction
+  };
+
+  // Distance from current position to next waypoint
+  let dist = getDistance(currentPt.lat, currentPt.lng, route[lowerIndex + 1].lat, route[lowerIndex + 1].lng);
+
+  // Add distances of all subsequent segments
+  for (let i = lowerIndex + 1; i < N - 1; i++) {
+    dist += getDistance(route[i].lat, route[i].lng, route[i + 1].lat, route[i + 1].lng);
+  }
+
+  return dist;
+}
+
+/**
  * Calculates the current state of a tracking session.
  *
  * @param {Date|number} assignedAt Time rider was assigned
@@ -86,11 +129,19 @@ function calculateTrackingState(assignedAt, estimatedDeliveryTime, route, now = 
 
   if (totalMs <= 0 || elapsedMs <= 0) {
     const firstPoint = route[0] || { lat: 0, lng: 0 };
+    // Calculate total route distance for initial state
+    let totalDist = 0;
+    for (let i = 0; i < route.length - 1; i++) {
+      totalDist += getDistance(route[i].lat, route[i].lng, route[i + 1].lat, route[i + 1].lng);
+    }
+
     return {
       progress: 0,
-      etaMinutes: Math.max(0, Math.ceil((end - now) / 60000)),
+      etaMinutes: Math.max(1, Math.round((totalDist / 20) * 60)), // speed: 20 km/h
       estimatedArrival: new Date(end).toISOString(),
       stage: getStage(0),
+      statusText: getRiderStatusText(0),
+      distanceRemaining: totalDist,
       currentLocation: {
         lat: firstPoint.lat,
         lng: firstPoint.lng,
@@ -102,9 +153,9 @@ function calculateTrackingState(assignedAt, estimatedDeliveryTime, route, now = 
   const timeFraction = Math.min(1.0, elapsedMs / totalMs);
   const progressFraction = getProgressFraction(timeFraction);
   const progressPercent = Math.round(progressFraction * 100);
-  const etaMinutes = Math.max(0, Math.ceil((end - now) / 60000));
 
   let currentLocation = { lat: 0, lng: 0, bearing: 0 };
+  let distanceRemaining = 0;
 
   if (route && route.length > 0) {
     const N = route.length;
@@ -128,13 +179,20 @@ function calculateTrackingState(assignedAt, estimatedDeliveryTime, route, now = 
     }
 
     currentLocation = { lat, lng, bearing };
+    distanceRemaining = getRouteDistanceRemaining(route, routeIndex, progressFraction);
   }
+
+  // Recalculate ETA dynamically based on remaining distance and 20 km/h average speed
+  // Speed = 20 km/h => time = distanceRemaining / 20 hours => minutes = (distanceRemaining / 20) * 60
+  const etaMinutes = progressPercent >= 100 ? 0 : Math.max(1, Math.round((distanceRemaining / 20) * 60));
 
   return {
     progress: progressPercent,
     etaMinutes,
-    estimatedArrival: new Date(end).toISOString(),
+    estimatedArrival: new Date(now + etaMinutes * 60 * 1000).toISOString(),
     stage: getStage(progressPercent),
+    statusText: getRiderStatusText(progressPercent),
+    distanceRemaining,
     currentLocation
   };
 }
@@ -143,5 +201,6 @@ module.exports = {
   getProgressFraction,
   calculateBearing,
   getStage,
+  getRiderStatusText,
   calculateTrackingState
 };

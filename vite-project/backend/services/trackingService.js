@@ -6,7 +6,7 @@ const cron = require("node-cron");
 
 class TrackingService {
   constructor() {
-    this.activeSessions = new Map(); // orderId -> { intervalId }
+    this.activeSessions = new Map(); // orderId -> { intervalId, version }
     this.io = null;
   }
 
@@ -34,31 +34,28 @@ class TrackingService {
         return null;
       }
 
-      // Store coordinates loaded from config/env
-      const storeLat = parseFloat(process.env.STORE_LAT) || 13.0835363;
-      const storeLng = parseFloat(process.env.STORE_LNG) || 77.6403678;
+      const storeLat = 13.0835363;
+      const storeLng = 77.6403678;
 
-      // Customer coordinates fallback
       const customerLat = order.deliveryLatitude || (storeLat + 0.0055);
       const customerLng = order.deliveryLongitude || (storeLng + 0.0055);
 
       if (!order.deliveryLatitude || !order.deliveryLongitude) {
-        console.warn(`[TrackingService] Missing customer coordinates for order ${orderIdStr}. Defaulting near store.`);
         order.deliveryLatitude = customerLat;
         order.deliveryLongitude = customerLng;
       }
 
-      // Calculate distance and duration
       const dist = getDistance(storeLat, storeLng, customerLat, customerLng);
       const etaMinutes = Math.round(8 + dist * 2);
-
-      // Generate simulated route once
       const route = generateRoute(storeLat, storeLng, customerLat, customerLng);
 
-      // Save to Database
+      // Increment version
+      const currentVersion = (order.trackingVersion || 0) + 1;
+
       order.simulatedRoute = route;
       order.trackingSessionActive = true;
       order.orderStatus = "Rider Assigned";
+      order.trackingVersion = currentVersion;
       order.statusTimestamps = order.statusTimestamps || {};
       order.statusTimestamps.riderAssigned = new Date();
       order.estimatedArrivalMinutes = etaMinutes;
@@ -66,13 +63,87 @@ class TrackingService {
 
       await order.save();
 
+      // Initialize local session state
+      this.activeSessions.set(orderIdStr, { version: currentVersion, intervalId: null });
+
       // Start the Socket.IO broadcasting loop
-      this._startBroadcastTimer(orderIdStr, order.statusTimestamps.riderAssigned, order.estimatedDeliveryTime, route);
+      this._startBroadcastTimer(orderIdStr, order.statusTimestamps.riderAssigned, order.estimatedDeliveryTime, route, currentVersion);
+
+      // Immediately broadcast statusUpdated & riderAssigned
+      this.emitStatusUpdated(orderIdStr, order, currentVersion);
+      this.emitRiderAssigned(orderIdStr, currentVersion);
 
       console.log(`[TrackingService] Session successfully started for order: ${orderIdStr} (ETA: ${etaMinutes} mins)`);
     } catch (err) {
       console.error(`[TrackingService] Error starting session for order: ${orderIdStr}`, err);
     }
+  }
+
+  /**
+   * Emits the complete status update payload.
+   */
+  emitStatusUpdated(orderIdStr, order, version) {
+    if (!this.io) return;
+    const rider = getSimulatedRider(orderIdStr);
+    const tracking = {
+      version,
+      progress: order.orderStatus === "Delivered" ? 100 : 0,
+      etaMinutes: order.estimatedArrivalMinutes || 0,
+      estimatedArrival: order.estimatedDeliveryTime ? new Date(order.estimatedDeliveryTime).toISOString() : new Date().toISOString(),
+      stage: order.orderStatus,
+      currentLocation: null,
+      bearing: 0,
+      route: order.simulatedRoute || [],
+      lastUpdated: new Date().toISOString(),
+      isSimulated: true
+    };
+
+    const payload = {
+      type: "status",
+      orderId: orderIdStr,
+      status: order.orderStatus,
+      eta: order.estimatedArrivalMinutes,
+      rider: {
+        riderName: rider.name,
+        riderPhoto: rider.profileImage,
+        phone: rider.phone,
+        rating: rider.rating,
+        vehicle: rider.vehicleType,
+        vehicleNumber: rider.plateNumber
+      },
+      tracking,
+      updatedAt: new Date().toISOString(),
+      version
+    };
+
+    // Broadcast to backward compatible and exact room names
+    this.io.to(`order_${orderIdStr}`).emit("order:statusUpdated", payload);
+    this.io.to(`order:${orderIdStr}`).emit("order:statusUpdated", payload);
+    // Legacy support
+    this.io.to(`order:${orderIdStr}`).emit("tracking:update", { orderId: orderIdStr, tracking });
+  }
+
+  /**
+   * Emits rider assignment details.
+   */
+  emitRiderAssigned(orderIdStr, version) {
+    if (!this.io) return;
+    const rider = getSimulatedRider(orderIdStr);
+    const payload = {
+      type: "rider",
+      orderId: orderIdStr,
+      riderName: rider.name,
+      riderPhoto: rider.profileImage,
+      phone: rider.phone,
+      rating: rider.rating,
+      vehicle: rider.vehicleType,
+      vehicleNumber: rider.plateNumber,
+      updatedAt: new Date().toISOString(),
+      version
+    };
+
+    this.io.to(`order_${orderIdStr}`).emit("order:riderAssigned", payload);
+    this.io.to(`order:${orderIdStr}`).emit("order:riderAssigned", payload);
   }
 
   /**
@@ -82,7 +153,9 @@ class TrackingService {
     const orderIdStr = String(orderId);
     const session = this.activeSessions.get(orderIdStr);
     if (session) {
-      clearInterval(session.intervalId);
+      if (session.intervalId) {
+        clearInterval(session.intervalId);
+      }
       this.activeSessions.delete(orderIdStr);
       console.log(`[TrackingService] Session stopped and cleared for order: ${orderIdStr}`);
     }
@@ -109,6 +182,7 @@ class TrackingService {
       orderObj.products = populatedProducts;
 
       const rider = getSimulatedRider(orderId);
+      const version = order.trackingVersion || 1;
 
       if (order.trackingSessionActive && order.simulatedRoute && order.simulatedRoute.length > 0) {
         const state = calculateTrackingState(
@@ -121,7 +195,7 @@ class TrackingService {
           order: orderObj,
           rider,
           tracking: {
-            version: 1,
+            version,
             progress: state.progress,
             etaMinutes: state.etaMinutes,
             estimatedArrival: state.estimatedArrival,
@@ -135,13 +209,12 @@ class TrackingService {
         };
       }
 
-      // Default fallback when tracking is inactive (e.g. Delivered or Placed)
       const minutes = order.orderStatus === "Delivered" ? 0 : Math.max(0, Math.ceil((new Date(order.estimatedDeliveryTime).getTime() - Date.now()) / 60000));
       return {
         order: orderObj,
         rider: order.orderStatus === "Delivered" || order.trackingSessionActive ? rider : null,
         tracking: {
-          version: 1,
+          version,
           progress: order.orderStatus === "Delivered" ? 100 : 0,
           etaMinutes: minutes,
           estimatedArrival: order.estimatedDeliveryTime ? new Date(order.estimatedDeliveryTime).toISOString() : new Date().toISOString(),
@@ -165,8 +238,13 @@ class TrackingService {
   async resumeActiveSessions() {
     console.log("[TrackingService] Resuming active tracking sessions...");
     try {
-      const activeOrders = await Order.find({ trackingSessionActive: true });
-      console.log(`[TrackingService] Found ${activeOrders.length} active sessions to resume.`);
+      const activeOrders = await Order.find({
+        $or: [
+          { trackingSessionActive: true },
+          { orderStatus: { $in: ["Rider Assigned", "Picked Up", "Out for Delivery", "Near You", "On The Way", "Preparing", "Packed"] } }
+        ]
+      });
+      console.log(`[TrackingService] Found ${activeOrders.length} active/pending orders to resume.`);
 
       for (const order of activeOrders) {
         const orderIdStr = String(order._id);
@@ -174,12 +252,18 @@ class TrackingService {
         const end = order.estimatedDeliveryTime;
         const route = order.simulatedRoute;
 
+        const currentVersion = (order.trackingVersion || 0) + 1;
+        order.trackingVersion = currentVersion;
+        order.trackingSessionActive = true;
+        await order.save();
+
         if (Date.now() >= new Date(end).getTime()) {
           console.log(`[TrackingService] Order ${orderIdStr} expired while offline. Marking as Delivered.`);
           await this._completeOrderDelivery(order);
         } else {
-          this._startBroadcastTimer(orderIdStr, start, end, route);
-          console.log(`[TrackingService] Resumed broadcast for order ${orderIdStr}`);
+          this.activeSessions.set(orderIdStr, { version: currentVersion, intervalId: null });
+          this._startBroadcastTimer(orderIdStr, start, end, route, currentVersion);
+          console.log(`[TrackingService] Resumed broadcast timer for order ${orderIdStr} at version ${currentVersion}`);
         }
       }
     } catch (err) {
@@ -214,17 +298,64 @@ class TrackingService {
   /**
    * Internal helper to start the broadcast interval.
    */
-  _startBroadcastTimer(orderIdStr, start, end, route) {
+  _startBroadcastTimer(orderIdStr, start, end, route, initialVersion) {
     this.stopSession(orderIdStr);
+
+    let version = initialVersion;
 
     const intervalId = setInterval(async () => {
       try {
         const state = calculateTrackingState(start, end, route);
+        version += 1;
+
+        // Update session version locally
+        const session = this.activeSessions.get(orderIdStr);
+        if (session) {
+          session.version = version;
+        }
+
+        // Check if status transitioned on the movement engine
+        const order = await Order.findById(orderIdStr);
+        if (order) {
+          let hasChanged = false;
+          if (state.stage !== order.orderStatus) {
+            order.orderStatus = state.stage;
+            order.statusTimestamps = order.statusTimestamps || {};
+            const tsKey = state.stage.toLowerCase().replace(/ /g, "");
+            order.statusTimestamps[tsKey] = new Date();
+            hasChanged = true;
+          }
+          order.trackingVersion = version;
+          order.estimatedArrivalMinutes = state.etaMinutes;
+          await order.save();
+
+          if (hasChanged) {
+            this.emitStatusUpdated(orderIdStr, order, version);
+          }
+        }
+
         if (this.io) {
+          const locPayload = {
+            type: "location",
+            orderId: orderIdStr,
+            latitude: state.currentLocation.lat,
+            longitude: state.currentLocation.lng,
+            progress: state.progress,
+            eta: state.etaMinutes,
+            distanceRemaining: state.distanceRemaining,
+            bearing: state.currentLocation.bearing,
+            updatedAt: new Date().toISOString(),
+            version
+          };
+
+          this.io.to(`order_${orderIdStr}`).emit("order:locationUpdated", locPayload);
+          this.io.to(`order:${orderIdStr}`).emit("order:locationUpdated", locPayload);
+
+          // Backward compatibility tracking:update trigger
           this.io.to(`order:${orderIdStr}`).emit("tracking:update", {
             orderId: orderIdStr,
             tracking: {
-              version: 1,
+              version,
               progress: state.progress,
               etaMinutes: state.etaMinutes,
               estimatedArrival: state.estimatedArrival,
@@ -236,12 +367,20 @@ class TrackingService {
             }
           });
         }
+
+        // Automatic completion when progress reaches 100% or ETA is 0
+        if (state.progress >= 100) {
+          const freshOrder = await Order.findById(orderIdStr);
+          if (freshOrder) {
+            await this._completeOrderDelivery(freshOrder);
+          }
+        }
       } catch (err) {
         console.error(`[TrackingService Timer] Error broadcasting order ${orderIdStr}:`, err);
       }
     }, 2000);
 
-    this.activeSessions.set(orderIdStr, { intervalId });
+    this.activeSessions.set(orderIdStr, { version, intervalId });
   }
 
   /**
@@ -252,13 +391,15 @@ class TrackingService {
     this.stopSession(orderIdStr);
 
     try {
+      const finalVersion = (order.trackingVersion || 0) + 1;
       order.orderStatus = "Delivered";
       order.trackingSessionActive = false;
-      order.deliveredAt = order.deliveredAt || new Date();
+      order.deliveredAt = new Date();
       order.estimatedArrivalMinutes = 0;
       order.estimatedDeliveryTime = new Date();
       order.statusTimestamps = order.statusTimestamps || {};
       order.statusTimestamps.delivered = new Date();
+      order.trackingVersion = finalVersion;
 
       try {
         const { handleOrderCheckoutRewards } = require("../utils/rewards");
@@ -268,26 +409,21 @@ class TrackingService {
       }
 
       await order.save();
-      console.log(`[TrackingService] Order ${orderIdStr} marked as Delivered in database. Session completed.`);
+      console.log(`[TrackingService] Order ${orderIdStr} marked as Delivered. Session completed.`);
 
       if (this.io) {
-        this.io.to(`order:${orderIdStr}`).emit("tracking:update", {
+        const payload = {
+          type: "delivered",
           orderId: orderIdStr,
-          tracking: {
-            version: 1,
-            progress: 100,
-            etaMinutes: 0,
-            estimatedArrival: new Date().toISOString(),
-            stage: "Delivered",
-            currentLocation: order.simulatedRoute && order.simulatedRoute.length > 0 ? {
-              ...order.simulatedRoute[order.simulatedRoute.length - 1],
-              bearing: 0
-            } : null,
-            bearing: 0,
-            lastUpdated: new Date().toISOString(),
-            isSimulated: true
-          }
-        });
+          status: "Delivered",
+          updatedAt: new Date().toISOString(),
+          version: finalVersion
+        };
+        this.io.to(`order_${orderIdStr}`).emit("order:delivered", payload);
+        this.io.to(`order:${orderIdStr}`).emit("order:delivered", payload);
+
+        // Backward compatibility
+        this.emitStatusUpdated(orderIdStr, order, finalVersion);
 
         try {
           const { sendOrderStatusNotification } = require("../services/notificationService");

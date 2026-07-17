@@ -216,8 +216,11 @@ router.put("/orders/:id/status", async (req, res) => {
     console.log("Old Status:", order.orderStatus);
     console.log("New Status:", orderStatus);
 
+    const trackingService = require("../services/trackingService");
+    const currentVersion = (order.trackingVersion || 0) + 1;
+    order.trackingVersion = currentVersion;
+
     if (orderStatus === "Rider Assigned") {
-      const trackingService = require("../services/trackingService");
       await trackingService.startSession(order._id);
       const updatedOrder = await Order.findById(order._id);
       
@@ -231,7 +234,6 @@ router.put("/orders/:id/status", async (req, res) => {
     }
 
     if (["Delivered", "Cancelled", "Delivery Failed"].includes(orderStatus)) {
-      const trackingService = require("../services/trackingService");
       trackingService.stopSession(order._id);
       order.trackingSessionActive = false;
     }
@@ -261,6 +263,9 @@ router.put("/orders/:id/status", async (req, res) => {
     }
     const updatedOrder = await order.save();
     console.log("Order status updated successfully in DB:", updatedOrder._id);
+
+    // Broadcast live event instantly
+    trackingService.emitStatusUpdated(String(updatedOrder._id), updatedOrder, currentVersion);
 
     try {
       const { sendOrderStatusNotification } = require("../services/notificationService");

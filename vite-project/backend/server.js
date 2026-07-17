@@ -506,10 +506,27 @@ try {
   io.on("connection", (socket) => {
     console.log("🔌 Socket.IO client connected:", socket.id);
 
-    socket.on("joinOrderRoom", (orderId) => {
+    socket.on("joinOrderRoom", async (orderId) => {
+      const room1 = `order:${orderId}`;
+      const room2 = `order_${orderId}`;
       socket.join(orderId);
-      socket.join(`order:${orderId}`);
-      console.log(`🔌 Socket client joined room: ${orderId} and order:${orderId}`);
+      socket.join(room1);
+      socket.join(room2);
+      console.log(`🔌 Socket client joined rooms: ${orderId}, ${room1}, and ${room2}`);
+
+      // Sync latest order state on join / reconnect
+      try {
+        const statePayload = await trackingService.getTrackingState(orderId);
+        if (statePayload && statePayload.order) {
+          const currentVersion = statePayload.order.trackingVersion || 1;
+          trackingService.emitStatusUpdated(String(orderId), statePayload.order, currentVersion);
+          if (statePayload.order.orderStatus !== "Order Placed" && statePayload.order.orderStatus !== "Packed") {
+            trackingService.emitRiderAssigned(String(orderId), currentVersion);
+          }
+        }
+      } catch (err) {
+        console.error(`[Socket server] Error sending initial snapshot on joinOrderRoom:`, err);
+      }
     });
 
     socket.on("updateRiderLocation", async (data) => {
