@@ -1,53 +1,86 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { io } from "socket.io-client";
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import L from "leaflet";
+
+// Leaflet style fix
+import "leaflet/dist/leaflet.css";
+
+// Helper components for map interactions
+function MapBoundsEffect({ route }) {
+  const map = useMap();
+  useEffect(() => {
+    if (route && route.length > 0) {
+      const bounds = L.latLngBounds(route.map(pt => [pt.lat, pt.lng]));
+      map.fitBounds(bounds, { padding: [40, 40] });
+    }
+  }, [route, map]);
+  return null;
+}
 
 const statusColors = {
   "Order Placed": "#3b82f6",
-  Preparing: "#f97316",
-  Packed: "#eab308",
+  "Preparing": "#f97316",
+  "Packed": "#eab308",
   "Rider Assigned": "#2563eb",
+  "Picked Up": "#10b981",
   "Out for Delivery": "#8b5cf6",
-  Delivered: "#10b981",
-  Cancelled: "#ef4444"
+  "Near You": "#06b6d4",
+  "Delivered": "#10b981",
+  "Cancelled": "#ef4444"
 };
 
-const stepLabels = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Out for Delivery", "Delivered"];
-const timestampKeys = {
-  "Order Placed": "orderPlaced",
-  Preparing: "preparing",
-  Packed: "packed",
-  "Rider Assigned": "riderAssigned",
-  "Out for Delivery": "outForDelivery",
-  Delivered: "delivered"
-};
+const timelineStages = [
+  "Order Placed",
+  "Payment Received",
+  "Store Accepted",
+  "Packing",
+  "Rider Assigned",
+  "On The Way",
+  "Delivered"
+];
+
+const PRESET_INSTRUCTIONS = [
+  "Leave at Security",
+  "Call on Arrival",
+  "Don't Ring Bell",
+  "Text Instead"
+];
 
 const formatMoney = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
+
+const storeMarkerIcon = L.divIcon({
+  html: `<div style="font-size: 26px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">🏬</div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+  className: "custom-store-icon"
+});
+
+const customerMarkerIcon = L.divIcon({
+  html: `<div style="font-size: 26px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">📍</div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+  className: "custom-customer-icon"
+});
 
 export default function OrderTrackingPage({ orderId }) {
   const navigate = useNavigate();
   const { token, refreshUser } = useContext(AuthContext);
-  const [tracking, setTracking] = useState(null);
+  const [state, setState] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [secondsLeft, setSecondsLeft] = useState(0);
   const [showDeliveredModal, setShowDeliveredModal] = useState(false);
   const [hasTriggeredDelivered, setHasTriggeredDelivered] = useState(false);
+  
+  // Local state for delivery instructions
+  const [instructionsText, setInstructionsText] = useState("");
+  const [isUpdatingInstructions, setIsUpdatingInstructions] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
-  useEffect(() => {
-    if (tracking?.order?.orderStatus === "Delivered" && !hasTriggeredDelivered) {
-      setShowDeliveredModal(true);
-      setHasTriggeredDelivered(true);
-      if (refreshUser) {
-        refreshUser().catch(err => console.error("Failed to refresh user on delivery:", err));
-      }
-    } else if (tracking?.order?.orderStatus !== "Delivered") {
-      setHasTriggeredDelivered(false);
-    }
-  }, [tracking?.order?.orderStatus, hasTriggeredDelivered, refreshUser]);
-
+  // Load initial tracking state via HTTP
   const loadTracking = useCallback(async () => {
     try {
       const res = await fetch(window.API_BASE_URL + `/api/orders/track/${orderId}`, {
@@ -55,10 +88,11 @@ export default function OrderTrackingPage({ orderId }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Unable to load tracking");
-      setTracking(data);
+      setState(data);
+      if (data.order?.deliveryInstructions) {
+        setInstructionsText(data.order.deliveryInstructions);
+      }
       setError("");
-      const etaTime = data.eta?.estimatedDeliveryTime ? new Date(data.eta.estimatedDeliveryTime).getTime() : Date.now();
-      setSecondsLeft(Math.max(0, Math.floor((etaTime - Date.now()) / 1000)));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -68,76 +102,92 @@ export default function OrderTrackingPage({ orderId }) {
 
   useEffect(() => {
     loadTracking();
-    const poller = setInterval(loadTracking, 5000);
-    return () => clearInterval(poller);
   }, [loadTracking]);
 
+  // Connect to Socket.IO and listen for updates
   useEffect(() => {
     if (!orderId) return;
     const socket = io(window.API_BASE_URL);
 
     socket.on("connect", () => {
-      console.log("🔌 OrderTrackingPage connected to Socket.IO. Joining room:", orderId);
+      console.log("🔌 Connected to Socket.IO. Joining tracking room:", orderId);
       socket.emit("joinOrderRoom", orderId);
     });
 
-    socket.on("riderLocationUpdated", (data) => {
-      console.log("=== SOCKET LOCATION EVENT ===");
-      console.log(data);
-      loadTracking();
+    socket.on("tracking:update", (data) => {
+      console.log("⚡ Received tracking update via Socket:", data);
+      if (data && data.orderId === orderId) {
+        setState((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            order: {
+              ...prev.order,
+              orderStatus: data.tracking.stage,
+              estimatedArrivalMinutes: data.tracking.etaMinutes,
+              estimatedDeliveryTime: data.tracking.estimatedArrival
+            },
+            tracking: {
+              ...prev.tracking,
+              ...data.tracking
+            }
+          };
+        });
+      }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [orderId, loadTracking]);
+  }, [orderId]);
+
+  const order = state?.order;
+  const rider = state?.rider;
+  const trackingInfo = state?.tracking;
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const order = tracking?.order;
-  const rider = tracking?.rider;
-
-  useEffect(() => {
-    if (order) {
-      console.log("=== TRACK ORDER DATA ===");
-      console.log(order);
-
-      console.log("=== DELIVERY ADDRESS ===");
-      console.log(order.deliveryAddress);
+    if (order?.orderStatus === "Delivered" && !hasTriggeredDelivered) {
+      setShowDeliveredModal(true);
+      setHasTriggeredDelivered(true);
+      if (refreshUser) {
+        refreshUser().catch(err => console.error("Failed to refresh user on delivery:", err));
+      }
+    } else if (order?.orderStatus !== "Delivered") {
+      setHasTriggeredDelivered(false);
     }
-  }, [order]);
+  }, [order?.orderStatus, hasTriggeredDelivered, refreshUser]);
 
-  const isBorzoOrder = !!order?.borzoOrderId;
-  const borzoStepLabels = ["Order Placed", "Preparing", "Packed", "Rider Assigned", "Picked Up", "Out for Delivery", "Delivered"];
-  const borzoTimestampKeys = {
-    "Order Placed": "orderPlaced",
-    "Preparing": "preparing",
-    "Packed": "packed",
-    "Rider Assigned": "riderAssigned",
-    "Picked Up": "pickedUp",
-    "Out for Delivery": "outForDelivery",
-    "Delivered": "delivered"
-  };
+  const storeLat = 13.0835363;
+  const storeLng = 77.6403678;
 
-  const stepsToUse = isBorzoOrder ? borzoStepLabels : stepLabels;
-  const timestampKeysToUse = isBorzoOrder ? borzoTimestampKeys : timestampKeys;
+  const routeCoords = useMemo(() => {
+    return trackingInfo?.route || [];
+  }, [trackingInfo?.route]);
 
-  const activeIndex = useMemo(() => {
-    return Math.max(0, stepsToUse.indexOf(order?.orderStatus));
-  }, [order?.orderStatus, stepsToUse]);
+  const progressPercent = trackingInfo?.progress || 0;
+  const bearing = trackingInfo?.bearing || 0;
 
-  const progressPercent = useMemo(() => {
-    if (!isBorzoOrder) return tracking?.progress || 0;
-    if (order?.orderStatus === "Cancelled" || order?.orderStatus === "Delivery Failed") return 0;
-    const idx = borzoStepLabels.indexOf(order?.orderStatus);
-    if (idx === -1) return 0;
-    return Math.round(((idx + 1) / borzoStepLabels.length) * 100);
-  }, [isBorzoOrder, order?.orderStatus, tracking?.progress]);
+  // Active stage determination in the 7-step Blinkit style timeline
+  const activeTimelineIndex = useMemo(() => {
+    const status = order?.orderStatus || "Order Placed";
+    if (status === "Order Placed") return 1; // "Payment Received"
+    if (status === "Preparing") return 2; // "Store Accepted"
+    if (status === "Packed") return 3; // "Packing"
+    if (status === "Rider Assigned") return 4; // "Rider Assigned"
+    if (status === "Picked Up" || status === "Out for Delivery" || status === "Near You") return 5; // "On The Way"
+    if (status === "Delivered") return 6; // "Delivered"
+    return 0; // "Order Placed"
+  }, [order?.orderStatus]);
+
+  // Dynamic scooter icon with bearing/rotation applied
+  const scooterMarkerIcon = useMemo(() => {
+    return L.divIcon({
+      html: `<div class="scooter-icon-wrapper" style="transform: rotate(${bearing}deg); transition: transform 0.4s ease-out; font-size: 32px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15)); text-align: center; line-height: 1;">🛵</div>`,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      className: "custom-scooter-icon"
+    });
+  }, [bearing]);
 
   const formattedEtaTime = useMemo(() => {
     if (!order?.estimatedDeliveryTime) return "";
@@ -147,124 +197,70 @@ export default function OrderTrackingPage({ orderId }) {
     });
   }, [order?.estimatedDeliveryTime]);
 
-  const hasRider = !!(rider || order?.borzoRiderName || order?.riderName || order?.riderId || order?.riderAssigned);
-  const status = order?.orderStatus;
+  const formattedPlacedTime = useMemo(() => {
+    if (!order?.createdAt) return "";
+    return new Date(order.createdAt).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }, [order?.createdAt]);
 
-  const getCalculatedEtaMinutes = () => {
-    if (status === "Delivered") {
-      return 0;
+  const etaMinutesVal = useMemo(() => {
+    return trackingInfo?.etaMinutes ?? order?.estimatedArrivalMinutes ?? 0;
+  }, [trackingInfo?.etaMinutes, order?.estimatedArrivalMinutes]);
+
+  const etaLabel = useMemo(() => {
+    const status = order?.orderStatus;
+    if (status === "Delivered") return "Arrived";
+    if (status === "Cancelled") return "Cancelled";
+    if (status === "Delivery Failed") return "Failed";
+    
+    if (etaMinutesVal > 0) {
+      return `${etaMinutesVal} mins`;
     }
+    return "Calculating...";
+  }, [order?.orderStatus, etaMinutesVal]);
 
-    const STORE_LAT = 13.0835363;
-    const STORE_LNG = 77.6403678;
-
-    const customerLat = order?.deliveryLatitude ? Number(order.deliveryLatitude) : null;
-    const customerLng = order?.deliveryLongitude ? Number(order.deliveryLongitude) : null;
-
-    const riderLat = (rider?.currentLocation?.lat || rider?.latitude) ? Number(rider.currentLocation.lat || rider.latitude) : null;
-    const riderLng = (rider?.currentLocation?.lng || rider?.longitude) ? Number(rider.currentLocation.lng || rider.longitude) : null;
-
-    const getDistanceKm = (lat1, lon1, lat2, lon2) => {
-      if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-      const R = 6371; // Radius of the Earth in km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
-
-    const travelTimeStoreToCustomer = (() => {
-      const dist = getDistanceKm(STORE_LAT, STORE_LNG, customerLat, customerLng);
-      return dist !== null ? Math.max(5, Math.round(dist * 3)) : 15; // 15 mins default (~5km)
-    })();
-
-    const travelTimeRiderToStore = (() => {
-      const dist = getDistanceKm(riderLat, riderLng, STORE_LAT, STORE_LNG);
-      return dist !== null ? Math.max(2, Math.round(dist * 3)) : 5; // 5 mins default
-    })();
-
-    const travelTimeRiderToCustomer = (() => {
-      const dist = getDistanceKm(riderLat, riderLng, customerLat, customerLng);
-      return dist !== null ? Math.max(2, Math.round(dist * 3)) : null;
-    })();
-
-    const getBorzoTrackingEta = () => {
-      const webhook = order?.borzoWebhookData;
-      const rawEta = webhook?.order?.eta || webhook?.delivery?.eta;
-      if (rawEta) {
-        const num = Number(rawEta);
-        if (!isNaN(num) && num > 0) return num;
+  // Handle Delivery Instructions update
+  const handleUpdateInstructions = async (newText) => {
+    setIsUpdatingInstructions(true);
+    try {
+      const res = await fetch(window.API_BASE_URL + `/api/orders/${orderId}/instructions`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ instructions: newText })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setInstructionsText(data.deliveryInstructions);
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 3000);
       }
-      if (order?.estimatedDeliveryTime) {
-        const diffMs = new Date(order.estimatedDeliveryTime).getTime() - Date.now();
-        const mins = Math.max(0, Math.ceil(diffMs / 60000));
-        if (mins > 0) return mins;
-      }
-      return null;
-    };
-
-    // 1. Before Rider Assigned
-    const isBeforeRiderAssigned = ["Pending", "Order Placed", "Preparing", "Packed"].includes(status) && !hasRider;
-    if (isBeforeRiderAssigned) {
-      const packingTime = 8;
-      const riderAllocationBuffer = 10;
-      return packingTime + riderAllocationBuffer + travelTimeStoreToCustomer;
+    } catch (err) {
+      console.error("Failed to update delivery instructions:", err);
+    } finally {
+      setIsUpdatingInstructions(false);
     }
-
-    // 2. Rider Assigned
-    if (status === "Rider Assigned") {
-      const borzoEta = getBorzoTrackingEta();
-      if (borzoEta !== null && borzoEta > 0) {
-        return borzoEta;
-      }
-      // Otherwise continue distance-based calculation
-      return travelTimeRiderToStore + travelTimeStoreToCustomer;
-    }
-
-    // 3. Picked Up / Out For Delivery
-    if (status === "Picked Up" || status === "Out for Delivery") {
-      if (riderLat && riderLng) {
-        const eta = travelTimeRiderToCustomer;
-        if (eta !== null && eta > 0) {
-          return eta;
-        }
-      }
-      // Otherwise use Borzo tracking ETA
-      const borzoEta = getBorzoTrackingEta();
-      if (borzoEta !== null && borzoEta > 0) {
-        return borzoEta;
-      }
-    }
-
-    // Default Fallback
-    const borzoEta = getBorzoTrackingEta();
-    if (borzoEta !== null && borzoEta > 0) return borzoEta;
-    return travelTimeStoreToCustomer;
   };
 
-  const calculatedMinutes = getCalculatedEtaMinutes();
-  let etaLabel = "Calculating ETA...";
-
-  if (status === "Delivered") {
-    etaLabel = "Delivered";
-  } else if (status === "Delivery Failed") {
-    etaLabel = "Delivery Failed";
-  } else if (status === "Cancelled") {
-    etaLabel = "Cancelled";
-  } else {
-    if (calculatedMinutes && calculatedMinutes > 0) {
-      etaLabel = `Estimated Arrival: ${calculatedMinutes} mins`;
+  const togglePresetInstruction = (preset) => {
+    let current = instructionsText.trim();
+    if (current.includes(preset)) {
+      current = current.replace(preset, "").replace(/,\s*,/g, ",").trim();
+      if (current.startsWith(",")) current = current.substring(1).trim();
+      if (current.endsWith(",")) current = current.substring(0, current.length - 1).trim();
     } else {
-      etaLabel = "Calculating ETA...";
+      current = current ? `${current}, ${preset}` : preset;
     }
-  }
+    setInstructionsText(current);
+    handleUpdateInstructions(current);
+  };
 
   if (loading) {
-    return <div style={loadingStyle}>Loading live tracking...</div>;
+    return <div style={loadingStyle}>Loading order summary...</div>;
   }
 
   if (error) {
@@ -279,197 +275,357 @@ export default function OrderTrackingPage({ orderId }) {
     );
   }
 
+  const customerLat = order?.deliveryLatitude;
+  const customerLng = order?.deliveryLongitude;
+  const scooterLat = trackingInfo?.currentLocation?.lat;
+  const scooterLng = trackingInfo?.currentLocation?.lng;
+
+  // Items Cost Breakdown calculations
+  const subtotal = order?.products?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
+  const deliveryFee = subtotal > 99 ? 0 : 29;
+  const platformFee = 4;
+  const coinsRedeemed = order?.buyCoins?.applied || order?.buyCoinsRedeemed || 0;
+  const coinsDiscount = order?.buyCoins?.discount || order?.buyCoinsDiscount || 0;
+  const couponDiscount = order?.couponDiscount || 0;
+  const totalDiscount = coinsDiscount + couponDiscount;
+  const totalPaid = Math.max(0, subtotal + deliveryFee + platformFee - totalDiscount);
+
+  // Address parsing
+  const rawAddress = order?.deliveryAddress || order?.user?.location || "";
+  const cleanAddress = rawAddress.replace(/undefined/gi, "").trim();
+  const addressLines = cleanAddress.split(",").map(line => line.trim()).filter(Boolean);
+
   return (
-    <div className="page-with-bottom-nav" style={pageStyle}>
+    <div style={pageStyle}>
       <style>{`
-        @media (max-width: 820px) {
-          .tracking-grid { grid-template-columns: 1fr !important; }
-          .tracking-header { flex-direction: column; align-items: flex-start !important; }
-          .timeline-row { grid-template-columns: 34px 1fr !important; }
-          .timeline-line { left: 16px !important; }
+        @media (max-width: 900px) {
+          .tracking-container-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .desktop-header-row {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 12px;
+          }
         }
-        @keyframes etaPulse {
-          0%, 100% { box-shadow: 0 0 18px rgba(34,197,94,0.22); }
-          50% { box-shadow: 0 0 34px rgba(34,197,94,0.46); }
+        @keyframes toastFade {
+          0% { opacity: 0; transform: translateY(10px); }
+          15%, 85% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-10px); }
+        }
+        .scooter-icon-wrapper {
+          transform-origin: center;
         }
       `}</style>
 
-      <header className="tracking-header" style={headerStyle}>
-        <div>
-          <button style={backBtnStyle} onClick={() => navigate("/profile")}>← My orders</button>
-          <h1 style={titleStyle}>Live Order Tracking</h1>
-          <p style={mutedStyle}>Order #{order?._id?.slice(-8)} • Auto-refreshes every 5 seconds</p>
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "#10b981",
+            color: "white",
+            padding: "12px 24px",
+            borderRadius: "12px",
+            fontWeight: "800",
+            boxShadow: "0 10px 25px rgba(16, 185, 129, 0.3)",
+            zIndex: 999999,
+            animation: "toastFade 3s forwards",
+            fontSize: "14px"
+          }}
+        >
+          ✓ Delivery Instructions Updated
         </div>
-        <motion.div animate={{ scale: [1, 1.03, 1] }} transition={{ duration: 1.8, repeat: Infinity }} style={etaBadgeStyle(order?.orderStatus)}>
-          <span style={etaSmallStyle}>ETA</span>
-          <strong>{etaLabel}</strong>
-        </motion.div>
-      </header>
+      )}
 
-      <main className="tracking-grid" style={layoutStyle}>
-        <section style={mainColumnStyle}>
-          <section style={panelStyle}>
-            <div style={sectionHeaderStyle}>
-              <h2 style={sectionTitleStyle}>Delivery Progress</h2>
-              <span style={statusPillStyle(order?.orderStatus)}>{order?.orderStatus}</span>
+      {/* Header Banner */}
+      <div className="desktop-header-row" style={headerRowStyle}>
+        <div>
+          <button style={backBtnStyle} onClick={() => navigate("/profile")}>← Back to Home</button>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: "#0f172a", margin: "12px 0 4px" }}>
+            Order #{orderId.slice(-8).toUpperCase()}
+          </h1>
+          <p style={mutedStyle}>Placed at {formattedPlacedTime}</p>
+        </div>
+        <div style={headerStatusBadge(order?.orderStatus)}>
+          ✓ Order Confirmed
+        </div>
+      </div>
+
+      {/* Two Column Grid */}
+      <div className="tracking-container-grid" style={gridStyle}>
+        
+        {/* Left Column (65%) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          
+          {/* Confirmed Banner */}
+          <div style={confirmedBannerStyle}>
+            <div style={{ fontSize: 32 }}>🎉</div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#065f46" }}>Order Confirmed!</h3>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#047857", fontWeight: 700 }}>
+                Thank you for shopping with Buyto. Your order is placed and ready.
+              </p>
             </div>
+          </div>
 
-            <div style={progressTrackStyle}>
-              <motion.div
-                style={progressFillStyle(statusColors[order?.orderStatus] || "#22c55e")}
-                initial={false}
-                animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 0.55, ease: "easeOut" }}
-              />
-            </div>
-
-            <div style={timelineStyle}>
-              <div className="timeline-line" style={timelineLineStyle} />
-              {stepsToUse.map((step, index) => {
-                const isCancelledOrFailed = order?.orderStatus === "Cancelled" || order?.orderStatus === "Delivery Failed";
-                const isDone = isCancelledOrFailed ? false : (index < activeIndex || order?.orderStatus === "Delivered");
-                const isActive = isCancelledOrFailed ? false : (index === activeIndex && order?.orderStatus !== "Delivered");
-                const timestamp = tracking?.timestamps?.[timestampKeysToUse[step]];
-
-                return (
-                  <motion.div
-                    className="timeline-row"
-                    key={step}
-                    style={timelineRowStyle}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.06 }}
-                  >
-                    <motion.div
-                      style={stepDotStyle(step, isDone, isActive)}
-                      animate={isActive ? { scale: [1, 1.16, 1] } : { scale: 1 }}
-                      transition={isActive ? { duration: 1.4, repeat: Infinity } : undefined}
-                    >
-                      {isDone ? "✓" : index + 1}
-                    </motion.div>
-                    <div style={stepContentStyle}>
-                      <strong style={{ color: isDone || isActive ? "#0f172a" : "#94a3b8" }}>{step}</strong>
-                      <span style={timeStyle}>{timestamp ? new Date(timestamp).toLocaleString() : isActive ? "In progress" : "Waiting"}</span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section style={panelStyle}>
-            <h2 style={sectionTitleStyle}>Order Summary</h2>
-            <div style={itemsStyle}>
+          {/* Ordered Items */}
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>🛍️ Items Ordered</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {order?.products?.map((item) => (
                 <div key={`${item.productId}-${item.name}`} style={itemRowStyle}>
-                  <span style={itemNameStyle}>{item.name}</span>
-                  <span style={mutedTinyStyle}>{item.weight || "1 unit"}</span>
-                  <span style={qtyStyle}>x{item.quantity}</span>
-                  <strong>{formatMoney(item.price * item.quantity)}</strong>
+                  <img
+                    src={item.image || "https://images.unsplash.com/photo-1542838132-92c53300491e"}
+                    alt={item.name}
+                    style={itemImageStyle}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <h4 style={itemNameStyle}>{item.name}</h4>
+                    <span style={itemWeightStyle}>{item.weight || "1 unit"}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: "#64748b" }}>
+                      {formatMoney(item.price)} × {item.quantity}
+                    </span>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: "#0f172a", marginTop: 2 }}>
+                      {formatMoney(item.price * item.quantity)}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-            <div style={summaryFooterStyle}>
-              <span>{order?.paymentMethod?.toUpperCase()} • {order?.paymentStatus}</span>
-              <strong>{formatMoney(order?.totalAmount)}</strong>
+          </div>
+
+          {/* Payment & Charges Breakdown */}
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>💳 Payment Details</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={breakdownRow}>
+                <span>Subtotal</span>
+                <strong>{formatMoney(subtotal)}</strong>
+              </div>
+              <div style={breakdownRow}>
+                <span>Delivery Fee</span>
+                <span>{deliveryFee > 0 ? formatMoney(deliveryFee) : "FREE"}</span>
+              </div>
+              <div style={breakdownRow}>
+                <span>Platform Fee</span>
+                <span>{formatMoney(platformFee)}</span>
+              </div>
+              {totalDiscount > 0 && (
+                <div style={{ ...breakdownRow, color: "#10b981" }}>
+                  <span>Discounts Unlocked</span>
+                  <strong>-{formatMoney(totalDiscount)}</strong>
+                </div>
+              )}
+              {coinsRedeemed > 0 && (
+                <div style={{ ...breakdownRow, color: "#b45309" }}>
+                  <span>BuyCoins Redeemed ({coinsRedeemed} coins)</span>
+                  <strong>-{formatMoney(coinsDiscount)}</strong>
+                </div>
+              )}
+              <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: "6px 0" }} />
+              <div style={{ ...breakdownRow, fontSize: 16, color: "#0f172a" }}>
+                <span>Total Paid</span>
+                <strong>{formatMoney(totalPaid)}</strong>
+              </div>
             </div>
-          </section>
-        </section>
-
-        <aside style={sideColumnStyle}>
-          <motion.section whileHover={{ y: -3 }} style={panelStyle}>
-            <h2 style={sectionTitleStyle}>Delivery Partner</h2>
-            {rider || (isBorzoOrder && (order?.borzoRiderName || order?.riderName)) ? (
-              <div style={riderCardStyle}>
-                <div style={riderAvatarStyle}>
-                  {rider?.profileImage ? <img src={rider.profileImage} alt={rider.name} style={avatarImgStyle} /> : (rider?.name || order?.borzoRiderName || order?.riderName || "R").slice(0, 2).toUpperCase()}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <strong style={riderNameStyle}>{order?.borzoRiderName || order?.riderName || rider?.name}</strong>
-                  <p style={mutedStyle}>{isBorzoOrder ? "Borzo Delivery Partner" : (rider?.vehicleType || "Delivery Vehicle")}</p>
-                  {!isBorzoOrder && <span style={onlineStyle(rider?.isOnline)}>{rider?.isOnline ? "Online" : "Offline"}</span>}
-                </div>
-                <div style={riderActionsStyle}>
-                  <a href={`tel:${order?.borzoRiderPhone || order?.riderPhone || rider?.phone || ""}`} style={actionBtnStyle}>Call Rider</a>
-                  <button style={ghostBtnStyle}>Message</button>
-                </div>
-              </div>
-            ) : (
-              <div style={emptyRiderStyle}>
-                {isBorzoOrder ? "Searching for courier" : "A rider will be assigned once your order is packed."}
+            <div style={paymentMethodCard}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#475569" }}>
+                Payment Method: <strong style={{ color: "#0f172a" }}>{order?.paymentMethod?.toUpperCase()}</strong>
+              </span>
+              <span style={paidSuccessBadge}>✓ Paid Successfully</span>
+            </div>
+            {/* BuyCoins Message */}
+            {order?.totalAmount && (
+              <div style={buycoinsEarnedBox}>
+                <span style={{ fontSize: 18 }}>🪙</span>
+                <span style={{ color: "#78350f", fontWeight: 800, fontSize: 13 }}>
+                  You earned {Math.floor(order.totalAmount / 100)} BuyCoins with this order
+                </span>
               </div>
             )}
-            {isBorzoOrder && order?.borzoTrackingUrl && (
-              <div style={{ marginTop: 14 }}>
-                <a 
-                  href={order.borzoTrackingUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  style={{
-                    display: "block",
-                    textDecoration: "none",
-                    textAlign: "center",
-                    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                    color: "white",
-                    padding: "12px",
-                    borderRadius: "12px",
-                    fontWeight: "800",
-                    fontSize: "14px",
-                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
-                    transition: "all 0.2s"
-                  }}
-                >
-                  🗺️ Track Rider on Borzo Map
-                </a>
-              </div>
-            )}
-          </motion.section>
+          </div>
 
-          <section style={etaPanelStyle}>
-            <span style={etaSmallStyle}>Estimated arrival</span>
-            <strong style={etaBigStyle}>{etaLabel}</strong>
-            <p style={mutedStyle}>
-              {order?.orderStatus === "Delivered"
-                ? "Your order has reached the delivery address."
-                : isBorzoOrder 
-                  ? "Your delivery is being handled by Borzo."
-                  : "Tracking is polling live. Socket.IO can plug into this same payload later."}
+          {/* Delivery Address */}
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>📍 Delivery Address</h3>
+            <div style={{ marginTop: 12 }}>
+              <strong style={{ color: "#0f172a", fontSize: 15, fontWeight: 900, display: "block" }}>
+                {order?.user?.name || "Customer"}
+              </strong>
+              {addressLines.map((line, idx) => (
+                <span key={idx} style={{ color: "#475569", fontSize: 13, fontWeight: 600, display: "block", marginTop: 4 }}>
+                  {line}
+                </span>
+              ))}
+              {order?.user?.room && (
+                <span style={{ color: "#475569", fontSize: 13, fontWeight: 700, display: "block", marginTop: 4 }}>
+                  Room: {order.user.room}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Delivery Instructions */}
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>🛵 Delivery Instructions</h3>
+            <p style={{ margin: "4px 0 12px", fontSize: 12, color: "#64748b", fontWeight: 700 }}>
+              Let the rider know where or how to drop off your order.
             </p>
-          </section>
+            
+            {/* Preset Option Badges */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+              {PRESET_INSTRUCTIONS.map((preset) => {
+                const isActive = instructionsText.includes(preset);
+                return (
+                  <button
+                    key={preset}
+                    onClick={() => togglePresetInstruction(preset)}
+                    style={presetBadgeStyle(isActive)}
+                  >
+                    {preset}
+                  </button>
+                );
+              })}
+            </div>
 
-          <section style={panelStyle}>
-            <h2 style={sectionTitleStyle}>Delivery Address</h2>
-            {(() => {
-              const rawAddress = order?.deliveryAddress || order?.user?.location || "Central Address";
-              const cleanAddress = rawAddress.replace(/undefined/gi, "").trim();
-              const address = cleanAddress || "Central Address";
-              const addressLines = address.split(",").map(line => line.trim()).filter(Boolean);
+            {/* Custom Input */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                type="text"
+                value={instructionsText}
+                onChange={(e) => setInstructionsText(e.target.value)}
+                placeholder="Write custom instructions or note..."
+                style={customInstructionsInput}
+              />
+              <button
+                disabled={isUpdatingInstructions}
+                onClick={() => handleUpdateInstructions(instructionsText)}
+                style={saveInstructionsBtn}
+              >
+                {isUpdatingInstructions ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
 
-              return (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
-                  {addressLines.length > 0 ? (
-                    <>
-                      <strong style={{ color: "#0f172a", fontSize: 15, fontWeight: 900, display: "flex", alignItems: "center", gap: 6 }}>
-                        📍 {addressLines[0]}
+        </div>
+
+        {/* Right Column (35%) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          
+          {/* ETA Card */}
+          <div style={etaCardStyle}>
+            <span style={{ fontSize: 32 }}>🚴</span>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: "950", color: "#475569", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Estimated Arrival
+              </span>
+              <div style={{ fontSize: 26, fontWeight: 900, color: "#1e40af", marginTop: 2 }}>
+                {etaLabel}
+              </div>
+              {order?.estimatedDeliveryTime && order?.orderStatus !== "Delivered" && (
+                <span style={{ fontSize: 12, color: "#64748b", fontWeight: 700, display: "block", marginTop: 4 }}>
+                  Expected by {formattedEtaTime}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Timeline Stages */}
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>📍 Order Status</h3>
+            <div style={timelineList}>
+              <div style={timelineTrackLine} />
+              {timelineStages.map((stage, idx) => {
+                const isCompleted = idx < activeTimelineIndex;
+                const isCurrent = idx === activeTimelineIndex;
+                return (
+                  <div key={stage} style={timelineRowStyle}>
+                    <div style={timelineDotStyle(isCompleted, isCurrent)}>
+                      {isCompleted ? "✓" : isCurrent ? "●" : "○"}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ color: isCompleted || isCurrent ? "#0f172a" : "#94a3b8", fontSize: 14, fontWeight: 800 }}>
+                        {stage}
                       </strong>
-                      {addressLines.slice(1).map((line, idx) => (
-                        <span key={idx} style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>
-                          {line}
-                        </span>
-                      ))}
-                    </>
-                  ) : (
-                    <span style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>
-                      📍 Central Address
-                    </span>
-                  )}
-                </div>
-              );
-            })()}
-          </section>
-        </aside>
-      </main>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
+          {/* Live Map */}
+          {routeCoords.length > 0 && (
+            <div style={mapPanelStyle}>
+              <MapContainer
+                center={[storeLat, storeLng]}
+                zoom={15}
+                scrollWheelZoom={false}
+                zoomControl={false}
+                style={{ height: "400px", width: "100%" }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Marker position={[storeLat, storeLng]} icon={storeMarkerIcon} />
+                {customerLat && customerLng && (
+                  <Marker position={[customerLat, customerLng]} icon={customerMarkerIcon} />
+                )}
+                {scooterLat && scooterLng && (
+                  <Marker position={[scooterLat, scooterLng]} icon={scooterMarkerIcon} />
+                )}
+                <Polyline positions={routeCoords.map(pt => [pt.lat, pt.lng])} color="#2563eb" weight={5} opacity={0.75} dashArray="5, 8" />
+                <MapBoundsEffect route={routeCoords} />
+              </MapContainer>
+            </div>
+          )}
+
+          {/* Driver Card */}
+          {rider && (order?.orderStatus === "Rider Assigned" || trackingInfo?.progress >= 15) && (
+            <div style={driverCardStyle}>
+              <div style={driverAvatarStyle}>
+                {rider.profileImage ? <img src={rider.profileImage} alt={rider.name} style={avatarImgStyle} /> : rider.name.slice(0, 2).toUpperCase()}
+              </div>
+              <div style={{ flex: 1 }}>
+                <strong style={{ fontSize: 15, fontWeight: 900, color: "#0f172a" }}>{rider.name}</strong>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748b", fontWeight: 700 }}>
+                  ⭐ {rider.rating} • {rider.vehicleType}
+                </p>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", marginTop: 4, display: "block" }}>
+                  {rider.plateNumber}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <a href={`tel:${rider.phone}`} style={driverActionBtn}>Call</a>
+                <button style={driverGhostBtn}>Chat</button>
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Action Buttons */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button onClick={loadTracking} style={primaryActionBtn}>
+              🔄 Refresh Tracking
+            </button>
+            <button onClick={() => navigate("/")} style={secondaryActionBtn}>
+              🛍️ Continue Shopping
+            </button>
+            <button onClick={() => navigate("/help")} style={secondaryActionBtn}>
+              💬 Contact Support
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* Delivered Success Modal */}
       {showDeliveredModal && (
         <div
           style={{
@@ -485,8 +641,7 @@ export default function OrderTrackingPage({ orderId }) {
             justifyContent: "center",
             zIndex: 99999,
             padding: "20px",
-            fontFamily: "'Outfit', 'Inter', sans-serif",
-            animation: "fadeIn 0.3s ease-out"
+            fontFamily: "'Outfit', 'Inter', sans-serif"
           }}
         >
           <div
@@ -497,68 +652,32 @@ export default function OrderTrackingPage({ orderId }) {
               borderRadius: "28px",
               padding: "36px",
               textAlign: "center",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              transform: "scale(1)",
-              animation: "slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)"
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
             }}
           >
-            <div style={{ fontSize: "64px", marginBottom: "16px", animation: "bounce 2s infinite" }}>🎉</div>
+            <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
             <h1 style={{ fontSize: "24px", fontWeight: "900", color: "#0f172a", margin: "0 0 8px 0" }}>
-              Order Delivered Successfully!
+              Order Delivered!
             </h1>
-            <p style={{ color: "#64748b", fontSize: "14px", margin: "0 0 24px 0", fontWeight: "500" }}>
-              Thank you for ordering with Buyto! Your rewards have been added to your account.
+            <p style={{ color: "#64748b", fontSize: "14px", margin: "0 0 24px 0", fontWeight: "600" }}>
+              Your order has reached the destination address.
             </p>
 
-            {/* Rewards Card */}
+            {/* BuyCoins Loyalty Card */}
             <div
               style={{
                 background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
                 borderRadius: "20px",
                 padding: "20px",
                 border: "1.5px solid #fbbf24",
-                marginBottom: "24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px"
+                marginBottom: "24px"
               }}
             >
-              <div>
-                <span style={{ fontSize: "11px", fontWeight: "800", color: "#b45309", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Loyalty Points Added
-                </span>
-                <div style={{ fontSize: "22px", fontWeight: "900", color: "#78350f", marginTop: "2px" }}>
-                  +{Math.floor((order?.totalAmount || 0) / 100)} BuyCoins
-                </div>
-              </div>
-
-              <hr style={{ border: "none", borderTop: "1px dashed #fbbf24", margin: 0 }} />
-
-              <div>
-                <span style={{
-                  display: "inline-block",
-                  background: "linear-gradient(135deg, #FF4D4F 0%, #E03E40 100%)",
-                  color: "white",
-                  fontSize: "10px",
-                  fontWeight: "800",
-                  padding: "2px 6px",
-                  borderRadius: "4px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  marginBottom: "4px"
-                }}>
-                  Next Order Coupon
-                </span>
-                <div style={{ fontSize: "16px", fontWeight: "900", color: "#0f172a" }}>
-                  🎁 AGAIN15 Unlocked
-                </div>
-                <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#64748b", fontWeight: "600" }}>
-                  Get ₹15 OFF on your next order above ₹149
-                </p>
-                <div style={{ fontSize: "11px", color: "#e03e40", fontWeight: "700", marginTop: "4px" }}>
-                  Valid for 48 Hours
-                </div>
+              <span style={{ fontSize: "11px", fontWeight: "800", color: "#b45309", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Loyalty Reward Credited
+              </span>
+              <div style={{ fontSize: "22px", fontWeight: "900", color: "#78350f", marginTop: "2px" }}>
+                +{Math.floor((order?.totalAmount || 0) / 100)} BuyCoins
               </div>
             </div>
 
@@ -573,77 +692,61 @@ export default function OrderTrackingPage({ orderId }) {
                 color: "white",
                 fontSize: "15px",
                 fontWeight: "750",
-                cursor: "pointer",
-                boxShadow: "0 10px 20px rgba(17, 24, 39, 0.15)",
-                transition: "all 0.2s ease"
+                cursor: "pointer"
               }}
-              onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-1px)"}
-              onMouseOut={(e) => e.currentTarget.style.transform = "none"}
             >
               Awesome!
             </button>
           </div>
-
-          <style dangerouslySetInnerHTML={{__html: `
-            @keyframes fadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-            @keyframes slideUp {
-              from { transform: translateY(20px); opacity: 0; }
-              to { transform: translateY(0); opacity: 1; }
-            }
-            @keyframes bounce {
-              0%, 100% { transform: translateY(0); }
-              50% { transform: translateY(-8px); }
-            }
-          `}} />
         </div>
       )}
     </div>
   );
 }
 
-const loadingStyle = { minHeight: "100vh", background: "#ffffff", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit','Inter',sans-serif", fontWeight: 900 };
-const pageStyle = { minHeight: "100vh", background: "#ffffff", color: "#0f172a", padding: "20px", boxSizing: "border-box", fontFamily: "'Outfit','Inter',sans-serif" };
-const headerStyle = { maxWidth: 1180, margin: "0 auto 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 };
-const backBtnStyle = { border: "1px solid #e2e8f0", background: "white", color: "#0f172a", borderRadius: 999, padding: "9px 13px", fontWeight: 850, cursor: "pointer", transition: "all 0.2s" };
+// Styling Object mappings
+const loadingStyle = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit','Inter',sans-serif", fontWeight: 900, color: "#10b981" };
+const pageStyle = { minHeight: "100vh", background: "#f8fafc", padding: "32px 16px", boxSizing: "border-box", fontFamily: "'Outfit','Inter',sans-serif" };
+const headerRowStyle = { maxWidth: 1180, margin: "0 auto 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" };
+const backBtnStyle = { border: "1px solid #e2e8f0", background: "white", color: "#0f172a", borderRadius: 999, padding: "8px 16px", fontWeight: 800, cursor: "pointer", transition: "all 0.2s" };
 const titleStyle = { fontSize: 32, lineHeight: 1.1, margin: "14px 0 6px", color: "#0f172a", letterSpacing: 0 };
-const mutedStyle = { color: "#64748b", margin: 0, fontSize: 13, fontWeight: 750, lineHeight: 1.45 };
-const layoutStyle = { maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.5fr 0.85fr", gap: 18, alignItems: "start" };
-const mainColumnStyle = { display: "flex", flexDirection: "column", gap: 18 };
-const sideColumnStyle = { display: "flex", flexDirection: "column", gap: 18 };
-const panelStyle = { background: "white", border: "1px solid #e2e8f0", borderRadius: 20, padding: 18, boxShadow: "0 8px 30px rgba(0,0,0,0.03)" };
-const errorPanelStyle = { ...panelStyle, maxWidth: 520, margin: "80px auto" };
-const sectionHeaderStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 };
-const sectionTitleStyle = { margin: 0, color: "#0f172a", fontSize: 18, letterSpacing: 0 };
-const statusPillStyle = (status) => ({ color: statusColors[status] || "#cbd5e1", border: `1px solid ${(statusColors[status] || "#cbd5e1")}33`, background: `${statusColors[status] || "#cbd5e1"}0d`, borderRadius: 999, padding: "6px 10px", fontSize: 12, fontWeight: 950 });
-const progressTrackStyle = { height: 9, background: "#f1f5f9", borderRadius: 999, overflow: "hidden", marginBottom: 24 };
-const progressFillStyle = (color) => ({ height: "100%", background: `linear-gradient(90deg, ${color}, #10b981)` });
-const timelineStyle = { position: "relative", display: "flex", flexDirection: "column", gap: 14 };
-const timelineLineStyle = { position: "absolute", left: 19, top: 12, bottom: 12, width: 2, background: "#e2e8f0" };
-const timelineRowStyle = { display: "grid", gridTemplateColumns: "40px 1fr", gap: 12, alignItems: "center", position: "relative" };
-const stepDotStyle = (step, done, active) => ({ width: 38, height: 38, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: done ? "white" : active ? "white" : "#94a3b8", background: done ? "#10b981" : active ? "#3b82f6" : "#ffffff", border: `2px solid ${done ? "#10b981" : active ? "#3b82f6" : "#e2e8f0"}`, fontWeight: 950, boxShadow: active ? `0 0 14px rgba(59, 130, 246, 0.4)` : "none", zIndex: 1 });
-const stepContentStyle = { background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 14, padding: "11px 12px", display: "flex", flexDirection: "column", gap: 4 };
-const timeStyle = { color: "#64748b", fontSize: 12, fontWeight: 750 };
-const itemsStyle = { display: "flex", flexDirection: "column", gap: 10, marginTop: 14 };
-const itemRowStyle = { display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 10, alignItems: "center", color: "#334155", borderBottom: "1px solid #f1f5f9", paddingBottom: 10, fontSize: 13 };
-const itemNameStyle = { fontWeight: 850, color: "#0f172a" };
-const mutedTinyStyle = { color: "#64748b", fontSize: 12, fontWeight: 750 };
-const qtyStyle = { color: "#10b981", fontWeight: 950 };
-const summaryFooterStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", color: "#0f172a", fontSize: 14, fontWeight: 850, paddingTop: 14 };
-const etaBadgeStyle = (status) => ({ minWidth: 190, borderRadius: 18, padding: "14px 16px", background: status === "Delivered" ? "#ecfdf5" : "#eff6ff", border: `1px solid ${status === "Delivered" ? "#a7f3d0" : "#bfdbfe"}`, color: status === "Delivered" ? "#065f46" : "#1e40af", display: "flex", flexDirection: "column", gap: 3, animation: "etaPulse 1.8s infinite" });
-const etaSmallStyle = { color: "#64748b", fontSize: 11, fontWeight: 950, textTransform: "uppercase" };
-const riderCardStyle = { display: "flex", alignItems: "center", gap: 13, marginTop: 15 };
-const riderAvatarStyle = { width: 54, height: 54, borderRadius: "50%", background: "linear-gradient(135deg,#10b981,#06b6d4)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950, overflow: "hidden", flexShrink: 0 };
+const mutedStyle = { color: "#64748b", margin: 0, fontSize: 13, fontWeight: 700 };
+const headerStatusBadge = (status) => ({ background: "#d1fae5", border: "1.5px solid #10b981", color: "#065f46", fontWeight: 900, fontSize: 13, padding: "8px 16px", borderRadius: "12px" });
+const gridStyle = { maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.5fr 0.85fr", gap: "20px", alignItems: "start" };
+
+const confirmedBannerStyle = { display: "flex", gap: 16, alignItems: "center", background: "#e6fbf1", border: "1px solid #a7f3d0", borderRadius: "20px", padding: "16px 20px" };
+const panelStyle = { background: "white", border: "1px solid #e2e8f0", borderRadius: "20px", padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" };
+const panelTitleStyle = { margin: "0 0 16px 0", color: "#0f172a", fontSize: 16, fontWeight: 900 };
+
+const itemRowStyle = { display: "flex", gap: 14, alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: 14 };
+const itemImageStyle = { width: 54, height: 54, borderRadius: 12, objectFit: "cover", background: "#f8fafc", border: "1px solid #f1f5f9" };
+const itemNameStyle = { margin: 0, fontSize: 14, fontWeight: 800, color: "#0f172a" };
+const itemWeightStyle = { fontSize: 12, color: "#64748b", fontWeight: 700 };
+
+const breakdownRow = { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#64748b", fontWeight: 700 };
+const paymentMethodCard = { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", border: "1.5px solid #f1f5f9", padding: "12px 16px", borderRadius: "14px", marginTop: 14 };
+const paidSuccessBadge = { background: "#d1fae5", color: "#065f46", fontSize: 11, fontWeight: 900, padding: "2px 8px", borderRadius: "999px" };
+const buycoinsEarnedBox = { display: "flex", gap: 8, alignItems: "center", background: "#fffbeb", border: "1px solid #fde68a", padding: "12px 16px", borderRadius: "14px", marginTop: 14 };
+
+const presetBadgeStyle = (active) => ({ border: active ? "2px solid #2563eb" : "1.5px solid #e2e8f0", background: active ? "#eff6ff" : "white", color: active ? "#1d4ed8" : "#475569", padding: "6px 12px", borderRadius: "999px", fontWeight: 800, fontSize: 12, cursor: "pointer", transition: "all 0.15s" });
+const customInstructionsInput = { flex: 1, padding: "12px 16px", borderRadius: "14px", border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: "inherit" };
+const saveInstructionsBtn = { background: "#111827", color: "white", border: "none", borderRadius: "14px", padding: "0 20px", fontWeight: 800, cursor: "pointer" };
+
+const etaCardStyle = { display: "flex", gap: 16, alignItems: "center", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "20px", padding: "20px", boxShadow: "0 4px 20px rgba(37, 99, 235, 0.05)" };
+const mapPanelStyle = { background: "white", border: "1px solid #e2e8f0", borderRadius: "20px", overflow: "hidden", padding: 4, boxShadow: "0 4px 20px rgba(0,0,0,0.02)", zIndex: 1 };
+
+const timelineList = { position: "relative", display: "flex", flexDirection: "column", gap: 16 };
+const timelineTrackLine = { position: "absolute", left: 15, top: 10, bottom: 10, width: 2, background: "#e2e8f0" };
+const timelineRowStyle = { display: "flex", gap: 14, alignItems: "center", position: "relative", zIndex: 2 };
+const timelineDotStyle = (completed, current) => ({ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: completed ? 12 : 14, fontWeight: 900, color: completed ? "white" : current ? "white" : "#94a3b8", background: completed ? "#10b981" : current ? "#2563eb" : "#ffffff", border: `2.5px solid ${completed ? "#10b981" : current ? "#2563eb" : "#e2e8f0"}` });
+
+const driverCardStyle = { display: "flex", gap: 14, alignItems: "center", background: "#f8fafc", border: "1.5px solid #e2e8f0", padding: "16px", borderRadius: "20px" };
+const driverAvatarStyle = { width: 50, height: 50, borderRadius: "50%", background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, overflow: "hidden" };
 const avatarImgStyle = { width: "100%", height: "100%", objectFit: "cover" };
-const riderNameStyle = { display: "block", color: "#0f172a", fontSize: 16, fontWeight: 800, marginBottom: 4 };
-const onlineStyle = (online) => ({ display: "inline-flex", marginTop: 8, color: online ? "#065f46" : "#475569", background: online ? "#d1fae5" : "#f1f5f9", borderRadius: 999, padding: "4px 9px", fontSize: 11, fontWeight: 950 });
-const riderActionsStyle = { display: "flex", flexDirection: "column", gap: 8 };
-const actionBtnStyle = { textDecoration: "none", color: "white", background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 10, padding: "9px 11px", fontSize: 12, fontWeight: 950, textAlign: "center", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)" };
-const ghostBtnStyle = { color: "#475569", background: "white", border: "1px solid #cbd5e1", borderRadius: 10, padding: "9px 11px", fontSize: 12, fontWeight: 950, cursor: "pointer" };
-const emptyRiderStyle = { color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: 14, padding: 18, marginTop: 14, fontWeight: 850, textAlign: "center", background: "#f8fafc" };
-const etaPanelStyle = { ...panelStyle, borderColor: "#bfdbfe", background: "#f0f7ff" };
-const etaBigStyle = { display: "block", color: "#1d4ed8", fontSize: 28, fontWeight: 900, margin: "6px 0 8px" };
-const addressStyle = { color: "#334155", margin: "12px 0 8px", lineHeight: 1.5, fontWeight: 800 };
-const secondaryBtnStyle = { border: "none", background: "linear-gradient(135deg, #10b981, #059669)", color: "white", borderRadius: 12, padding: "11px 14px", fontWeight: 900, cursor: "pointer", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)" };
+const driverActionBtn = { textDecoration: "none", background: "#10b981", color: "white", padding: "8px 14px", borderRadius: "10px", fontWeight: 800, fontSize: 12, boxShadow: "0 4px 10px rgba(16, 185, 129, 0.2)" };
+const driverGhostBtn = { background: "white", color: "#475569", border: "1.5px solid #cbd5e1", padding: "8px 14px", borderRadius: "10px", fontWeight: 800, fontSize: 12, cursor: "pointer" };
+
+const primaryActionBtn = { width: "100%", padding: "14px", borderRadius: "14px", border: "none", background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)", color: "white", fontSize: 14, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 14px rgba(17, 24, 39, 0.2)" };
+const secondaryActionBtn = { width: "100%", padding: "14px", borderRadius: "14px", border: "1.5px solid #cbd5e1", background: "white", color: "#334155", fontSize: 14, fontWeight: 800, cursor: "pointer" };
+const errorPanelStyle = { ...panelStyle, maxWidth: 520, margin: "80px auto", textAlign: "center" };
+const secondaryBtnStyle = { border: "none", background: "linear-gradient(135deg, #10b981, #059669)", color: "white", borderRadius: 12, padding: "11px 14px", fontWeight: 900, cursor: "pointer", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)", marginTop: 14 };

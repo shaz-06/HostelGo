@@ -721,15 +721,8 @@ router.get("/orders/track/:id", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "You can only track your own orders" });
     }
 
-    const minutes = getEtaMinutes(order);
-    if (order.estimatedArrivalMinutes !== minutes && order.orderStatus !== "Delivered") {
-      order.estimatedArrivalMinutes = minutes;
-      await order.save();
-      console.log("=== ETA UPDATED ===");
-      console.log({ orderId: order._id, estimatedArrivalMinutes: minutes });
-    }
-
-    const payload = await buildTrackingPayload(order);
+    const trackingService = require("../services/trackingService");
+    const payload = await trackingService.getTrackingState(req.params.id);
     return res.json(payload);
   } catch (error) {
     console.error("❌ Track Order Error:", error);
@@ -1063,6 +1056,37 @@ router.get("/delivery-settings", async (req, res) => {
       lateNightDeliveryEnabled: false,
       rainyDeliveryEnabled: false
     });
+  }
+});
+
+// PUT /api/orders/:id/instructions
+// Updates the delivery instructions of an order
+router.put("/orders/:id/instructions", authMiddleware, async (req, res) => {
+  console.log("=== UPDATE ORDER INSTRUCTIONS ===");
+  try {
+    const { instructions } = req.body;
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    
+    // Check ownership
+    const isOwner = (order.userId && order.userId.toString() === req.user._id.toString()) ||
+      (order.user?.phone === req.user.phone);
+    const isAdmin = req.user.role === "admin";
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ message: "You can only update instructions for your own orders" });
+    }
+
+    order.deliveryInstructions = instructions || "";
+    await order.save();
+    return res.json({ success: true, deliveryInstructions: order.deliveryInstructions });
+  } catch (error) {
+    console.error("❌ Update Instructions Error:", error);
+    return res.status(500).json({ message: "Failed to update instructions", error: error.message });
   }
 });
 

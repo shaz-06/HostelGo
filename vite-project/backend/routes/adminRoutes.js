@@ -210,12 +210,31 @@ router.put("/orders/:id/status", async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) {
-      console.error(`Order not found for status update: ${req.params.id}`);
       return res.status(404).json({ message: "Order not found" });
     }
 
     console.log("Old Status:", order.orderStatus);
     console.log("New Status:", orderStatus);
+
+    if (orderStatus === "Rider Assigned") {
+      const trackingService = require("../services/trackingService");
+      await trackingService.startSession(order._id);
+      const updatedOrder = await Order.findById(order._id);
+      
+      try {
+        const { sendOrderStatusNotification } = require("../services/notificationService");
+        await sendOrderStatusNotification(updatedOrder, orderStatus);
+      } catch (notifErr) {
+        console.error("Failed to send order status notification:", notifErr.message);
+      }
+      return res.json(updatedOrder);
+    }
+
+    if (["Delivered", "Cancelled", "Delivery Failed"].includes(orderStatus)) {
+      const trackingService = require("../services/trackingService");
+      trackingService.stopSession(order._id);
+      order.trackingSessionActive = false;
+    }
 
     order.orderStatus = orderStatus;
     const timestampKey = STATUS_TIMESTAMP_KEYS[orderStatus];

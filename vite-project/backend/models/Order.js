@@ -148,6 +148,20 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  simulatedRoute: [
+    {
+      lat: { type: Number, required: true },
+      lng: { type: Number, required: true }
+    }
+  ],
+  trackingSessionActive: {
+    type: Boolean,
+    default: false
+  },
+  deliveryInstructions: {
+    type: String,
+    default: ""
+  },
   createdAt: {
     type: Date,
     default: Date.now

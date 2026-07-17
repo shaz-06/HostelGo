@@ -500,12 +500,16 @@ try {
     }
   });
 
+  const trackingService = require("./services/trackingService");
+  trackingService.setSocketIO(io);
+
   io.on("connection", (socket) => {
     console.log("🔌 Socket.IO client connected:", socket.id);
 
     socket.on("joinOrderRoom", (orderId) => {
       socket.join(orderId);
-      console.log(`🔌 Socket client joined room: ${orderId}`);
+      socket.join(`order:${orderId}`);
+      console.log(`🔌 Socket client joined room: ${orderId} and order:${orderId}`);
     });
 
     socket.on("updateRiderLocation", async (data) => {
@@ -658,6 +662,15 @@ app.use((err, req, res, next) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server Started and running on port ${PORT} bound to all interfaces`);
+
+  // Start active tracking sessions recovery and completion cron
+  try {
+    const trackingService = require("./services/trackingService");
+    trackingService.resumeActiveSessions();
+    trackingService.initTrackingCron();
+  } catch (err) {
+    console.error("Failed to start tracking service:", err);
+  }
 
   // Start the background outbox reconciler for admin notifications
   try {

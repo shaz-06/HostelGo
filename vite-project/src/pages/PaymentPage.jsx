@@ -123,6 +123,8 @@ export default function PaymentPage({
     room: checkoutUser?.roomNumber || checkoutUser?.room || authUser?.room || ""
   };
 
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+  const [successOrderId, setSuccessOrderId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cod"); // 'cod' or 'razorpay'
 
   // Cart Calculations
@@ -335,8 +337,11 @@ export default function PaymentPage({
           setCart({});
           if (orderId) {
             console.log("=== PAYMENT VERIFIED SUCCESS ===");
-            console.log("=== REDIRECTING TO TRACKING PAGE ===", orderId);
-            navigate(`/track-order/${orderId}`);
+            setSuccessOrderId(orderId);
+            setShowSuccessOverlay(true);
+            setTimeout(() => {
+              navigate(`/orders/${orderId}`);
+            }, 1800);
           } else {
             navigate("/success");
           }
@@ -445,8 +450,11 @@ export default function PaymentPage({
                 setCart({});
                 if (orderId) {
                   console.log("=== PAYMENT VERIFIED SUCCESS ===");
-                  console.log("=== REDIRECTING TO TRACKING PAGE ===", orderId);
-                  navigate(`/track-order/${orderId}`);
+                  setSuccessOrderId(orderId);
+                  setShowSuccessOverlay(true);
+                  setTimeout(() => {
+                    navigate(`/orders/${orderId}`);
+                  }, 1800);
                 } else {
                   navigate("/success");
                 }
@@ -1084,6 +1092,106 @@ export default function PaymentPage({
           </>
         )}
       </div>
+
+      {showSuccessOverlay && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(255, 255, 255, 0.95)",
+            backdropFilter: "blur(12px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+            fontFamily: "'Outfit', 'Inter', sans-serif",
+            animation: "fadeIn 0.3s ease-out"
+          }}
+        >
+          {/* Confetti simulation */}
+          <div className="confetti-container" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "hidden" }}>
+            {[...Array(25)].map((_, i) => {
+              const left = Math.random() * 100;
+              const delay = Math.random() * 2;
+              const duration = 2 + Math.random() * 3;
+              const size = 8 + Math.random() * 12;
+              const colors = ["#22c55e", "#3b82f6", "#eab308", "#ec4899", "#a855f7", "#ff7a00"];
+              const color = colors[Math.floor(Math.random() * colors.length)];
+              return (
+                <div
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    bottom: "100%",
+                    left: `${left}%`,
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    borderRadius: Math.random() > 0.5 ? "50%" : "0%",
+                    backgroundColor: color,
+                    opacity: 0.8,
+                    animation: `fall ${duration}s linear ${delay}s infinite`
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          <motion.div
+            initial={{ scale: 0.3, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "20px",
+              textAlign: "center"
+            }}
+          >
+            <div
+              style={{
+                width: "90px",
+                height: "90px",
+                borderRadius: "50%",
+                background: "#d1fae5",
+                color: "#10b981",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "44px",
+                boxShadow: "0 10px 25px rgba(16, 185, 129, 0.25)"
+              }}
+            >
+              ✓
+            </div>
+            
+            <h2 style={{ fontSize: "28px", fontWeight: 900, color: "#0f172a", margin: 0 }}>
+              Payment Successful!
+            </h2>
+            <p style={{ fontSize: "16px", color: "#64748b", fontWeight: 700, margin: 0 }}>
+              Order Confirmed & Placed Successfully 🎉
+            </p>
+            <p style={{ fontSize: "13px", color: "#94a3b8", fontWeight: 600 }}>
+              Redirecting to your order summary...
+            </p>
+          </motion.div>
+
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes fall {
+              0% { transform: translateY(0) rotate(0deg); top: -5%; }
+              100% { transform: translateY(110vh) rotate(720deg); top: 105%; }
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+          `}} />
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes spin {

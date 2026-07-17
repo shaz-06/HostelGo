@@ -1894,8 +1894,9 @@ function AppContent({ onReady }) {
     return el;
   }
 
-  if (location.pathname.startsWith("/track-order/")) {
-    const orderId = location.pathname.split("/track-order/")[1];
+  if (location.pathname.startsWith("/track-order/") || location.pathname.startsWith("/orders/")) {
+    const prefix = location.pathname.startsWith("/track-order/") ? "/track-order/" : "/orders/";
+    const orderId = location.pathname.split(prefix)[1];
     return (
       <ProtectedRoute>
         <OrderTrackingPage orderId={orderId} />
