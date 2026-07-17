@@ -22,7 +22,8 @@ async function assignFulfillmentStore(latitude, longitude) {
       storeId: String(defaultZone._id),
       storeName: defaultZone.name,
       latitude: defaultZone.latitude,
-      longitude: defaultZone.longitude
+      longitude: defaultZone.longitude,
+      radiusKm: defaultZone.radiusKm
     };
   }
 
@@ -47,7 +48,8 @@ async function assignFulfillmentStore(latitude, longitude) {
     storeId: String(nearest._id),
     storeName: nearest.name,
     latitude: nearest.latitude,
-    longitude: nearest.longitude
+    longitude: nearest.longitude,
+    radiusKm: nearest.radiusKm
   };
 }
 const { createBorzoOrder } = require("../utils/borzo");

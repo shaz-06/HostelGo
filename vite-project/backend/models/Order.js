@@ -162,7 +162,8 @@ const orderSchema = new mongoose.Schema({
     storeId: { type: String },
     storeName: { type: String },
     latitude: { type: Number },
-    longitude: { type: Number }
+    longitude: { type: Number },
+    radiusKm: { type: Number }
   },
   trackingVersion: {
     type: Number,

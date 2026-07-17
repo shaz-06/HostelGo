@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+const getDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
 export default function AdminOrdersPage() {
   const navigate = useNavigate();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -424,6 +436,37 @@ export default function AdminOrdersPage() {
                         </span>
                       )}
                     </div>
+
+                    {order.fulfillmentStore ? (
+                      <div style={detailsBlockStyle}>
+                        <span style={blockTitleStyle}>Fulfillment Store</span>
+                        <span style={{ fontSize: "14px", fontWeight: "900", color: "#2563eb", display: "block" }}>
+                          📍 {order.fulfillmentStore.storeName}
+                        </span>
+                        {order.deliveryLatitude && order.deliveryLongitude && (
+                          <>
+                            <span style={{ fontSize: "12px", color: "#4B5563", fontWeight: "600", marginTop: "4px" }}>
+                              Distance to Customer: {getDistance(
+                                order.fulfillmentStore.latitude,
+                                order.fulfillmentStore.longitude,
+                                order.deliveryLatitude,
+                                order.deliveryLongitude
+                              ).toFixed(1)} km
+                            </span>
+                            <span style={{ fontSize: "12px", color: "#4B5563", fontWeight: "600", marginTop: "2px" }}>
+                              Delivery Zone Radius: {order.fulfillmentStore.radiusKm || 3} km
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={detailsBlockStyle}>
+                        <span style={blockTitleStyle}>Fulfillment Store</span>
+                        <span style={{ fontSize: "13px", color: "#6b7280", fontStyle: "italic" }}>
+                          No Store Assigned
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Products Grid */}
@@ -921,7 +964,7 @@ const selectStyle = (status) => ({
 
 const orderDetailsGridStyle = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr",
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
   gap: "20px",
   background: "#F9FAFB",
   border: "1.5px solid #E5E7EB",
