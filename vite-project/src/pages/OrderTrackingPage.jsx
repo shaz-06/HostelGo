@@ -37,13 +37,13 @@ function MapController({ route, scooterPos, followRider }) {
 }
 
 const timelineStages = [
-  { name: "Order Placed", key: "orderPlaced" },
-  { name: "Payment Received", key: "orderPlaced" },
-  { name: "Store Accepted", key: "preparing" },
-  { name: "Packing", key: "packed" },
-  { name: "Rider Assigned", key: "riderAssigned" },
-  { name: "On The Way", key: "outForDelivery" },
-  { name: "Delivered", key: "delivered" }
+  { name: "Order Placed", statusVal: "ORDER_PLACED", key: "orderPlaced" },
+  { name: "Payment Received", statusVal: "PAYMENT_RECEIVED", key: "orderPlaced" },
+  { name: "Store Accepted", statusVal: "STORE_ACCEPTED", key: "preparing" },
+  { name: "Packing", statusVal: "PACKING", key: "packed" },
+  { name: "Rider Assigned", statusVal: "RIDER_ASSIGNED", key: "riderAssigned" },
+  { name: "On The Way", statusVal: "ON_THE_WAY", key: "outForDelivery" },
+  { name: "Delivered", statusVal: "DELIVERED", key: "delivered" }
 ];
 
 const PRESET_INSTRUCTIONS = [
@@ -263,12 +263,33 @@ const ETASection = React.memo(({ etaMinutesVal, orderStatus, estimatedDeliveryTi
 // Real-time timeline rendering with status history timestamps
 const TimelineSection = React.memo(({ orderStatus, statusTimestamps }) => {
   const activeTimelineIndex = useMemo(() => {
-    if (orderStatus === "Order Placed") return 1; 
-    if (orderStatus === "Preparing") return 2; 
-    if (orderStatus === "Packed") return 3; 
-    if (orderStatus === "Rider Assigned") return 4; 
-    if (orderStatus === "Picked Up" || orderStatus === "Out for Delivery" || orderStatus === "Near You") return 5;
-    if (orderStatus === "Delivered") return 6; 
+    const STATUS_MAP = {
+      "Order Placed": "ORDER_PLACED",
+      "Preparing": "STORE_ACCEPTED",
+      "Packed": "PACKING",
+      "Rider Assigned": "RIDER_ASSIGNED",
+      "Picked Up": "ON_THE_WAY",
+      "Out for Delivery": "ON_THE_WAY",
+      "Near You": "ON_THE_WAY",
+      "Delivered": "DELIVERED",
+      "Cancelled": "CANCELLED",
+      "Pending": "ORDER_PLACED"
+    };
+
+    const currentNormalized = STATUS_MAP[orderStatus] || orderStatus || "ORDER_PLACED";
+    
+    const timelineOrder = [
+      "ORDER_PLACED",
+      "PAYMENT_RECEIVED",
+      "STORE_ACCEPTED",
+      "PACKING",
+      "RIDER_ASSIGNED",
+      "ON_THE_WAY",
+      "DELIVERED"
+    ];
+
+    const idx = timelineOrder.indexOf(currentNormalized);
+    if (idx !== -1) return idx;
     return 0;
   }, [orderStatus]);
 

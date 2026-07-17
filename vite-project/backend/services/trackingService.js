@@ -84,9 +84,12 @@ class TrackingService {
    */
   emitStatusUpdated(orderIdStr, order, version) {
     if (!this.io) return;
+    const { ADMIN_TO_CUSTOMER_STATUS } = require("../utils/statusMapping");
+    const normalizedStatus = ADMIN_TO_CUSTOMER_STATUS[order.orderStatus] || order.orderStatus;
+
     console.log("[SOCKET] Emitting order:statusUpdated", {
       orderId: orderIdStr,
-      status: order.orderStatus
+      status: normalizedStatus
     });
     const rider = getSimulatedRider(orderIdStr);
     const tracking = {
@@ -94,7 +97,7 @@ class TrackingService {
       progress: order.orderStatus === "Delivered" ? 100 : 0,
       etaMinutes: order.estimatedArrivalMinutes || 0,
       estimatedArrival: order.estimatedDeliveryTime ? new Date(order.estimatedDeliveryTime).toISOString() : new Date().toISOString(),
-      stage: order.orderStatus,
+      stage: normalizedStatus,
       currentLocation: null,
       bearing: 0,
       route: order.simulatedRoute || [],
@@ -105,7 +108,7 @@ class TrackingService {
     const payload = {
       type: "status",
       orderId: orderIdStr,
-      status: order.orderStatus,
+      status: normalizedStatus,
       eta: order.estimatedArrivalMinutes,
       rider: {
         riderName: rider.name,
@@ -419,7 +422,7 @@ class TrackingService {
         const payload = {
           type: "delivered",
           orderId: orderIdStr,
-          status: "Delivered",
+          status: "DELIVERED",
           updatedAt: new Date().toISOString(),
           version: finalVersion
         };
