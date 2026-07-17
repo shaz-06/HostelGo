@@ -11,6 +11,45 @@ const User = require("../models/User");
 const Config = require("../models/Config");
 const DeliverySettings = require("../models/DeliverySettings");
 const authMiddleware = require("../middleware/authMiddleware");
+const DeliveryServiceZone = require("../models/DeliveryServiceZone");
+const { getDistance } = require("../services/routeGenerator");
+
+async function assignFulfillmentStore(latitude, longitude) {
+  if (!latitude || !longitude) {
+    const defaultZone = await DeliveryServiceZone.findOne({ active: true });
+    if (!defaultZone) return null;
+    return {
+      storeId: String(defaultZone._id),
+      storeName: defaultZone.name,
+      latitude: defaultZone.latitude,
+      longitude: defaultZone.longitude
+    };
+  }
+
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  const activeZones = await DeliveryServiceZone.find({ active: true }).lean();
+  if (activeZones.length === 0) return null;
+
+  const eligibleZones = activeZones
+    .map(zone => {
+      const dist = getDistance(lat, lng, zone.latitude, zone.longitude);
+      return { zone, dist };
+    })
+    .filter(item => item.dist <= item.zone.radiusKm)
+    .sort((a, b) => a.dist - b.dist);
+
+  if (eligibleZones.length === 0) return null;
+
+  const nearest = eligibleZones[0].zone;
+  return {
+    storeId: String(nearest._id),
+    storeName: nearest.name,
+    latitude: nearest.latitude,
+    longitude: nearest.longitude
+  };
+}
 const { createBorzoOrder } = require("../utils/borzo");
 const { sendOrderStatusNotification } = require("../services/notificationService");
 
@@ -181,6 +220,16 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
     const deliveryLatitude = req.body.deliveryLatitude || null;
     const deliveryLongitude = req.body.deliveryLongitude || null;
 
+    const storeAssignment = await assignFulfillmentStore(deliveryLatitude, deliveryLongitude);
+    if (!storeAssignment) {
+      console.warn(`[payment/create-order] Location outside all service zones: lat=${deliveryLatitude}, lng=${deliveryLongitude}`);
+      return res.status(400).json({
+        success: false,
+        serviceable: false,
+        message: "Sorry! Buyto is not yet delivering to your location."
+      });
+    }
+
     // 3. Save pending order in MongoDB
     const order = new Order({
       user,
@@ -193,6 +242,7 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
       deliveryAddress,
       deliveryLatitude,
       deliveryLongitude,
+      fulfillmentStore: storeAssignment,
       orderStatus: "Order Placed",
       estimatedArrivalMinutes: 30,
       estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000),
@@ -506,6 +556,16 @@ router.post("/orders", authMiddleware, async (req, res) => {
     const deliveryLatitude = req.body.deliveryLatitude || null;
     const deliveryLongitude = req.body.deliveryLongitude || null;
 
+    const storeAssignment = await assignFulfillmentStore(deliveryLatitude, deliveryLongitude);
+    if (!storeAssignment) {
+      console.warn(`[payment/cod] Location outside all service zones: lat=${deliveryLatitude}, lng=${deliveryLongitude}`);
+      return res.status(400).json({
+        success: false,
+        serviceable: false,
+        message: "Sorry! Buyto is not yet delivering to your location."
+      });
+    }
+
     // 1. Create COD Order record
     const order = new Order({
       user,
@@ -517,6 +577,7 @@ router.post("/orders", authMiddleware, async (req, res) => {
       deliveryAddress,
       deliveryLatitude,
       deliveryLongitude,
+      fulfillmentStore: storeAssignment,
       orderStatus: "Order Placed",
       estimatedArrivalMinutes: 30,
       estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000),

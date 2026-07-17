@@ -34,8 +34,8 @@ class TrackingService {
         return null;
       }
 
-      const storeLat = 13.0835363;
-      const storeLng = 77.6403678;
+      const storeLat = order.fulfillmentStore?.latitude || 13.0835363;
+      const storeLng = order.fulfillmentStore?.longitude || 77.6403678;
 
       const customerLat = order.deliveryLatitude || (storeLat + 0.0055);
       const customerLng = order.deliveryLongitude || (storeLng + 0.0055);

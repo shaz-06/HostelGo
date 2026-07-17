@@ -158,6 +158,12 @@ const orderSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  fulfillmentStore: {
+    storeId: { type: String },
+    storeName: { type: String },
+    latitude: { type: Number },
+    longitude: { type: Number }
+  },
   trackingVersion: {
     type: Number,
     default: 0

@@ -632,6 +632,9 @@ export default function OrderTrackingPage({ orderId }) {
   const progressPercent = trackingInfo?.progress || 0;
   const progressFraction = progressPercent / 100;
   
+  const storeLat = order?.fulfillmentStore?.latitude || 13.0835363;
+  const storeLng = order?.fulfillmentStore?.longitude || 77.6403678;
+  
   const completedRoute = useMemo(() => {
     if (route.length === 0) return [];
     const index = Math.floor(progressFraction * (route.length - 1));
@@ -875,7 +878,7 @@ export default function OrderTrackingPage({ orderId }) {
             </div>
 
             <MapContainer
-              center={[13.0835363, 77.6403678]}
+              center={[storeLat, storeLng]}
               zoom={15}
               scrollWheelZoom={false}
               zoomControl={false}
@@ -884,7 +887,7 @@ export default function OrderTrackingPage({ orderId }) {
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <Marker position={[13.0835363, 77.6403678]} icon={storeMarkerIcon} />
+              <Marker position={[storeLat, storeLng]} icon={storeMarkerIcon} />
               {order?.deliveryLatitude && order?.deliveryLongitude && (
                 <Marker position={[order.deliveryLatitude, order.deliveryLongitude]} icon={customerMarkerIcon} />
               )}
@@ -933,7 +936,7 @@ export default function OrderTrackingPage({ orderId }) {
         {/* Live Map Box */}
         <div style={mapPanelStyle}>
           <MapContainer
-            center={[13.0835363, 77.6403678]}
+            center={[storeLat, storeLng]}
             zoom={15}
             scrollWheelZoom={false}
             zoomControl={false}
@@ -942,7 +945,7 @@ export default function OrderTrackingPage({ orderId }) {
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <Marker position={[13.0835363, 77.6403678]} icon={storeMarkerIcon} />
+            <Marker position={[storeLat, storeLng]} icon={storeMarkerIcon} />
             {order?.deliveryLatitude && order?.deliveryLongitude && (
               <Marker position={[order.deliveryLatitude, order.deliveryLongitude]} icon={customerMarkerIcon} />
             )}
