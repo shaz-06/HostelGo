@@ -77,11 +77,21 @@ router.post("/apply-buycoins", authMiddleware, async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Requested coins cannot be negative." });
     }
 
+    const { MIN_BUYCOINS_ORDER, MAX_REDEMPTION_PERCENT } = require("../config/constants");
+
     // Load subtotal and balance authoritatively from DB
     const subtotal = await calculateCartSubtotal(req.user._id);
     const buyCoinsBalance = req.user.buyCoins || 0;
 
-    const maxDiscount = Math.floor(subtotal * 0.20);
+    if (subtotal <= MIN_BUYCOINS_ORDER) {
+      return res.status(400).json({ success: false, message: `BuyCoins can only be redeemed on orders above ₹${MIN_BUYCOINS_ORDER}.` });
+    }
+
+    if (requestedCoins > buyCoinsBalance) {
+      return res.status(400).json({ success: false, message: "Insufficient BuyCoins balance." });
+    }
+
+    const maxDiscount = Math.floor(subtotal * (MAX_REDEMPTION_PERCENT / 100));
     const maxRedeemableCoins = Math.min(buyCoinsBalance, maxDiscount);
     const appliedCoins = Math.min(requestedCoins, maxRedeemableCoins);
     const discount = appliedCoins;

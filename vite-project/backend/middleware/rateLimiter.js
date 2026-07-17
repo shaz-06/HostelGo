@@ -17,6 +17,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
+    if (process.env.NODE_ENV !== "production") return true;
     const url = req.originalUrl;
     return (
       url.startsWith("/api/products") ||

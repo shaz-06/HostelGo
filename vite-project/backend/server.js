@@ -35,6 +35,7 @@ const addressRoutes = require("./routes/addressRoutes");
 const saveForLaterRoutes = require("./routes/saveForLaterRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const checkoutRoutes = require("./routes/checkoutRoutes");
+const configRoutes = require("./routes/configRoutes");
 const cron = require("node-cron");
 const { sendCartReminder } = require("./services/notificationService");
 const userRoutes = require("./routes/userRoutes");
@@ -608,6 +609,7 @@ app.use("/api/rider", riderRoutes);
 app.use("/api/admin", authMiddleware, adminMiddleware, adminRoutes);
 app.use("/api/buycoins", buyCoinRoutes);
 app.use("/api/checkout", checkoutRoutes);
+app.use("/api/config", configRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/save-for-later", saveForLaterRoutes);
 app.use("/api/users", userRoutes);
@@ -664,6 +666,23 @@ server.listen(PORT, "0.0.0.0", () => {
   } catch (err) {
     console.error("Failed to start outbox reconciler:", err);
   }
+
+  // One-time Wallet Recalculation repair migration for all users
+  setTimeout(async () => {
+    try {
+      console.log("🛠️ Running one-time Wallet Recalculation repair migration for all users...");
+      const WalletService = require("./services/WalletService");
+      const users = await User.find({}, "_id email");
+      let count = 0;
+      for (const u of users) {
+        await WalletService.recalculate(u._id, u.email);
+        count++;
+      }
+      console.log(`✅ Completed Wallet Recalculation repair. Patched ${count} users.`);
+    } catch (err) {
+      console.error("❌ Failed to run wallet repair migration:", err);
+    }
+  }, 5000);
 
   // Schedule cart reminder check every 5 minutes
   cron.schedule("*/5 * * * *", async () => {

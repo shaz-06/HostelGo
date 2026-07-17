@@ -164,7 +164,7 @@ const Header = React.memo(({
   const collapsibleRef = useRef(null);
   const promos = [
     { text: "Flat ₹100 OFF", sub: "on first order", icon: "🎁" },
-    { text: "Free Delivery", sub: "above ₹99", icon: "⚡" },
+    { text: "Free Delivery", sub: "above 149", icon: "🛵" },
     { text: "Up to 50% OFF", sub: "on snacks", icon: "🔥" }
   ];
   const [promoIdx, setPromoIdx] = useState(0);
@@ -380,7 +380,7 @@ const Header = React.memo(({
         {/* Row 1: Pills, Greetings, and Actions */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", zIndex: 2 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-start" }}>
-            
+
             {/* Branded Section */}
             <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
               <style dangerouslySetInnerHTML={{

@@ -40,6 +40,25 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [loading, setLoading] = useState(true);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeBonus, setWelcomeBonus] = useState(20);
+  const [appConfig, setAppConfig] = useState(null);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch(window.API_BASE_URL + "/api/config");
+        if (res.ok) {
+          const data = await res.json();
+          setAppConfig(data);
+          console.log("Cached configuration loaded successfully:", data);
+        }
+      } catch (err) {
+        console.error("Failed to load app configuration:", err);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     // Keep user state validated with backend on initial load if token exists
@@ -284,7 +303,7 @@ export const AuthProvider = ({ children }) => {
     setOnLoginSuccessCallback(null);
   };
 
-  const setAuthSession = async (authToken, authUser) => {
+  const setAuthSession = async (authToken, authUser, isNewUser = false, welcomeBonusAmount = 20) => {
     console.log("LOGIN SUCCESS");
     await syncGuestSavedProducts(authToken);
     setToken(authToken);
@@ -294,6 +313,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("buyto_user", JSON.stringify(authUser));
     localStorage.setItem("hostelgoUser", JSON.stringify(authUser));
     console.log("JWT SAVED");
+
+    if (isNewUser) {
+      setWelcomeBonus(welcomeBonusAmount);
+      setShowWelcomeModal(true);
+    }
 
     setTimeout(() => {
       syncTokenWithBackend(authToken);
@@ -334,6 +358,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("buyto_login_token", data.token);
     localStorage.setItem("buyto_user", JSON.stringify(data.user));
     localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
+
+    if (data.isNewUser) {
+      setWelcomeBonus(data.welcomeBonus || 20);
+      setShowWelcomeModal(true);
+    }
 
     setTimeout(() => {
       syncTokenWithBackend(data.token);
@@ -448,7 +477,11 @@ export const AuthProvider = ({ children }) => {
       openOnboarding,
       closeOnboarding,
       updateUserInSession,
-      refreshUser
+      refreshUser,
+      showWelcomeModal,
+      setShowWelcomeModal,
+      welcomeBonus,
+      appConfig
     }}>
       {children}
     </AuthContext.Provider>

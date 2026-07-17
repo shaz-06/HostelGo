@@ -103,6 +103,20 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    buyCoinsStats: {
+      totalEarned: {
+        type: Number,
+        default: 0
+      },
+      totalRedeemed: {
+        type: Number,
+        default: 0
+      },
+      welcomeBonusClaimed: {
+        type: Boolean,
+        default: false
+      }
+    },
     buyCoinsLifetimeEarned: {
       type: Number,
       default: 0

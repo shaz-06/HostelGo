@@ -38,6 +38,8 @@ import { useHeaderTheme } from "./hooks/useHeaderTheme";
 import ProductCard from "./ProductCard";
 import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
 import OnboardingBottomSheet from "./components/common/OnboardingBottomSheet";
+import WelcomeRewardModal from "./components/common/WelcomeRewardModal";
+import ForegroundNotificationBanner from "./components/common/ForegroundNotificationBanner";
 
 // Lazy-loaded components & pages
 const AddressSelectorModal = lazy(() => import("./components/common/AddressSelectorModal"));
@@ -351,6 +353,7 @@ function GlobalLayout({ children }) {
   return (
     <>
       {children}
+      <ForegroundNotificationBanner />
       {shouldShowFloatingCard && (
         <div
           onClick={() => {
@@ -3013,6 +3016,9 @@ function AppContent({ onReady }) {
           onClose={() => setAppliedCouponCelebration(null)}
         />
       )}
+
+      {/* WELCOME REWARD MODAL */}
+      <WelcomeRewardModal />
 
       {/* GLOBAL FOREGROUND PUSH NOTIFICATION TOAST */}
       {pushToast.visible && (

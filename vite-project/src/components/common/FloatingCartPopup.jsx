@@ -12,8 +12,8 @@ const ScooterSVG = ({ isUnlocking }) => (
     fill="none"
     style={{
       transformOrigin: "bottom center",
-      animation: isUnlocking 
-        ? "scooter-accelerate 1.5s cubic-bezier(0.25, 1, 0.5, 1) infinite" 
+      animation: isUnlocking
+        ? "scooter-accelerate 1.5s cubic-bezier(0.25, 1, 0.5, 1) infinite"
         : "scooter-drift 3s ease-in-out infinite",
     }}
   >
@@ -81,7 +81,7 @@ const ScooterSVG = ({ isUnlocking }) => (
 export default function FloatingCartPopup({
   totalItems = 0,
   totalPrice = 0,
-  freeDeliveryThreshold = 99,
+  freeDeliveryThreshold = 149,
   mobileOffset = 80,
   bottomNavVisible = true,
 }) {
@@ -234,10 +234,10 @@ export default function FloatingCartPopup({
             {/* Row 1: Icon, Headline message, and percentage */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "14px" }}>🚚</span>
+                <span style={{ fontSize: "14px" }}>🛵</span>
                 <span style={{ fontSize: isMobile ? "11px" : "13px", fontWeight: "700", color: "#1F2937", letterSpacing: "-0.3px" }}>
                   {isFree ? (
-                    <span>FREE Delivery Unlocked! 🎉</span>
+                    <span>FREE Delivery Unlocked! 🎊</span>
                   ) : (
                     <span><span style={{ color: "#318616", fontWeight: "900" }}>₹{diff}</span> left for FREE Delivery</span>
                   )}
@@ -288,7 +288,7 @@ export default function FloatingCartPopup({
                   }}
                 >
                   {isFree ? (
-                    <span style={{ fontSize: "11px" }}>🏁</span>
+                    <span style={{ fontSize: "11px" }}>🛵</span>
                   ) : (
                     <ScooterSVG isUnlocking={isFree} />
                   )}

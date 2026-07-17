@@ -165,7 +165,7 @@ export default function Footer() {
                         {/* Trust Badges */}
                         <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "5px" }}>
                             {[
-                                { text: "Fast Delivery", icon: "🚚" },
+                                { text: "Fast Delivery", icon: "🛵" },
                                 { text: "Secure Payments", icon: "🔒" },
                                 { text: "Trusted by Students", icon: "⭐" },
                                 { text: "Serving Karnataka", icon: "📍" }
@@ -329,7 +329,7 @@ export default function Footer() {
                         }}
                     >
                         <div>© 2026 Buyto. All Rights Reserved.</div>
-                        <div style={{ color: "rgba(255,255,255,0.4)" }}>Version 1.0.0</div>
+                        <div style={{ color: "rgba(255,255,255,0.4)" }}>Version 1.1.0</div>
                     </div>
                 </div>
             </div>

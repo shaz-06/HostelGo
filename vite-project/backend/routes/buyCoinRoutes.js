@@ -1,11 +1,33 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const authMiddleware = require("../middleware/authMiddleware");
 const adminMiddleware = require("../middleware/adminMiddleware");
 const User = require("../models/User");
 const BuyCoinWallet = require("../models/BuyCoinWallet");
 const BuyCoinTransaction = require("../models/BuyCoinTransaction");
-const { recalculateWallet } = require("../utils/rewards");
+const WalletService = require("../services/WalletService");
+
+// Scope Check Middleware
+function checkScope(requiredScope) {
+  return (req, res, next) => {
+    // Default admin role gets all scopes
+    if (req.user && req.user.role === "admin") {
+      return next();
+    }
+    // Otherwise check for explicit scope arrays
+    if (req.user && req.user.scopes && req.user.scopes.includes(requiredScope)) {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      message: `Forbidden: Missing required scope '${requiredScope}'`
+    });
+  };
+}
+
+// Memory cache for background reconciliation jobs
+const reconciliationJobs = {};
 
 // GET /api/buycoins/wallet - Fetch user's wallet details and transactions
 router.get("/wallet", authMiddleware, async (req, res) => {
@@ -13,8 +35,13 @@ router.get("/wallet", authMiddleware, async (req, res) => {
     const userId = req.user._id;
     const email = req.user.email ? req.user.email.toLowerCase() : "";
 
-    // Recalculate wallet balance on query
-    const wallet = await recalculateWallet(userId, email);
+    // Backfill Welcome Bonus if user hasn't received it yet
+    if (!req.user.welcomeBonusGiven) {
+      await WalletService.grantWelcomeBonus(userId, email);
+    }
+
+    // Recalculate and fetch wallet details
+    const wallet = await WalletService.recalculate(userId, email);
 
     // Get transactions list, sorted newest first
     const transactions = await BuyCoinTransaction.find({ userId })
@@ -33,36 +60,31 @@ router.get("/wallet", authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/buycoins/admin-analytics - Admin dashboard analytics for BuyCoins
-router.get("/admin-analytics", authMiddleware, adminMiddleware, async (req, res) => {
+// GET /api/buycoins/admin-analytics or /admin/analytics - Admin dashboard analytics for BuyCoins
+router.get(["/admin-analytics", "/admin/analytics"], authMiddleware, adminMiddleware, checkScope("buycoins.read"), async (req, res) => {
   try {
-    // 1. Total Coins Issued: sum of amount (or coins) for types earned, earn, bonus, admin, refund
     const issuedResult = await BuyCoinTransaction.aggregate([
-      { $match: { type: { $in: ["earned", "earn", "bonus", "admin", "refund"] } } },
+      { $match: { type: { $in: ["earned", "earn", "bonus", "admin", "refund", "WELCOME_BONUS", "ORDER_REWARD", "CASHBACK", "ADMIN_CREDIT"] } } },
       { $group: { _id: null, total: { $sum: { $ifNull: ["$amount", "$coins"] } } } }
     ]);
     const totalIssued = issuedResult[0]?.total || 0;
 
-    // 2. Total Coins Redeemed: sum of amount (or coins) for types spent, redeem, reversal
     const redeemedResult = await BuyCoinTransaction.aggregate([
-      { $match: { type: { $in: ["spent", "redeem", "reversal"] } } },
+      { $match: { type: { $in: ["spent", "redeem", "reversal", "ADMIN_DEBIT", "REDEMPTION", "REVERSAL", "EXPIRY"] } } },
       { $group: { _id: null, total: { $sum: { $ifNull: ["$amount", "$coins"] } } } }
     ]);
     const totalRedeemed = redeemedResult[0]?.total || 0;
 
-    // 3. Total Outstanding Coins (Sum of available coins across all wallets)
     const outstandingResult = await BuyCoinWallet.aggregate([
       { $group: { _id: null, total: { $sum: "$availableCoins" } } }
     ]);
     const totalOutstanding = outstandingResult[0]?.total || 0;
 
-    // 4. Active Wallets Count
     const activeWalletsCount = await BuyCoinWallet.countDocuments({ availableCoins: { $gt: 0 } });
 
-    // 5. Top Customers by Coins Earned
     const topWallets = await BuyCoinWallet.find()
       .populate("userId", "name email phone")
-      .sort({ lifetimeEarned: -1 })
+      .sort({ availableCoins: -1 })
       .limit(10)
       .lean();
 
@@ -80,18 +102,152 @@ router.get("/admin-analytics", authMiddleware, adminMiddleware, async (req, res)
   }
 });
 
-// POST /api/buycoins/admin-grant - Grant/Deduct coins to/from a user manually (Admin Action)
+// POST /api/buycoins/admin/adjust - Adjust Customer Coins with strict audit logging
+router.post("/admin/adjust", authMiddleware, adminMiddleware, checkScope("buycoins.adjust"), async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const { email, coins, type, reason } = req.body;
+    if (!email || coins === undefined || !type || !reason) {
+      return res.status(400).json({ success: false, message: "Email, coins amount, adjustment type, and reason are required" });
+    }
+
+    const targetUser = await User.findOne({ email: email.toLowerCase() }).session(session);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: "Customer user not found" });
+    }
+
+    const amount = Number(coins);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, message: "Coins amount must be a positive integer" });
+    }
+
+    const auditMetadata = {
+      adminId: req.user._id,
+      adminName: req.user.name || "Admin",
+      source: "ADMIN_DASHBOARD",
+      requestId: req.id || new mongoose.Types.ObjectId().toString(),
+      timestamp: new Date(),
+      userAgent: req.headers["user-agent"] || "",
+      ipAddress: req.ip || ""
+    };
+
+    const idempotencyKey = `admin-adjust:${auditMetadata.requestId}`;
+
+    let tx;
+    await session.withTransaction(async () => {
+      if (type === "redeem" || type === "ADMIN_DEBIT") {
+        tx = await WalletService.debit(
+          targetUser._id,
+          targetUser.email,
+          amount,
+          "ADMIN_DEBIT",
+          reason,
+          auditMetadata,
+          idempotencyKey,
+          session
+        );
+      } else {
+        tx = await WalletService.credit(
+          targetUser._id,
+          targetUser.email,
+          amount,
+          type === "bonus" ? "WELCOME_BONUS" : "ADMIN_CREDIT",
+          reason,
+          auditMetadata,
+          idempotencyKey,
+          session
+        );
+      }
+    });
+
+    const updatedWallet = await WalletService.recalculate(targetUser._id, targetUser.email);
+
+    return res.json({
+      success: true,
+      message: "Coins adjusted successfully",
+      wallet: updatedWallet,
+      transaction: tx
+    });
+  } catch (error) {
+    console.error("❌ Error adjusting coins:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  } finally {
+    await session.endSession();
+  }
+});
+
+// GET /api/buycoins/admin/users - Search and Paginate Customer Wallets
+router.get("/admin/users", authMiddleware, adminMiddleware, checkScope("buycoins.read"), async (req, res) => {
+  try {
+    const { query = "", page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+
+    const findQuery = {};
+    if (query) {
+      if (mongoose.Types.ObjectId.isValid(query)) {
+        findQuery._id = query;
+      } else {
+        const cleanQuery = query.trim();
+        // Index-friendly prefix searches
+        findQuery.$or = [
+          { name: { $regex: new RegExp("^" + cleanQuery, "i") } },
+          { email: { $regex: new RegExp("^" + cleanQuery, "i") } },
+          { phone: { $regex: new RegExp("^" + cleanQuery, "i") } }
+        ];
+      }
+    }
+
+    const totalUsers = await User.countDocuments(findQuery);
+    const users = await User.find(findQuery)
+      .select("name email phone buyCoins welcomeBonusGiven createdAt")
+      .sort({ name: 1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean();
+
+    // Map cached balances
+    const usersWithWallet = await Promise.all(users.map(async (u) => {
+      const wallet = await BuyCoinWallet.findOne({ userId: u._id }).lean();
+      return {
+        _id: u._id,
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
+        welcomeBonusGiven: u.welcomeBonusGiven,
+        buyCoins: wallet ? wallet.availableCoins : (u.buyCoins || 0),
+        lifetimeEarned: wallet ? wallet.lifetimeEarned : 0,
+        lifetimeRedeemed: wallet ? wallet.lifetimeRedeemed : 0
+      };
+    }));
+
+    return res.json({
+      success: true,
+      users: usersWithWallet,
+      pagination: {
+        total: totalUsers,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(totalUsers / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error searching users:", error);
+    return res.status(500).json({ success: false, message: "Failed to search users", error: error.message });
+  }
+});
+
+// POST /api/buycoins/admin-grant - Legacy adjustment handler for backward compatibility
 router.post("/admin-grant", authMiddleware, adminMiddleware, async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const { phone, email, amount, description } = req.body;
-
     if ((!phone && !email) || amount === undefined || !description) {
-      return res.status(400).json({ success: false, message: "Identifier (phone or email), amount, and description are required" });
+      return res.status(400).json({ success: false, message: "Identifier, amount, and description are required" });
     }
 
     const query = {};
     if (phone) {
-      // Find user by phone number
       const cleanPhone = phone.replace(/\D/g, "");
       const searchPhone = cleanPhone.length > 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
       query.phone = { $regex: new RegExp(searchPhone + "$") };
@@ -99,55 +255,65 @@ router.post("/admin-grant", authMiddleware, adminMiddleware, async (req, res) =>
       query.email = email.toLowerCase();
     }
 
-    const user = await User.findOne(query);
+    const user = await User.findOne(query).session(session);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const numCoins = Number(amount);
-    if (isNaN(numCoins)) {
-      return res.status(400).json({ success: false, message: "Amount must be a valid number" });
-    }
+    const numCoins = Math.round(Number(amount));
+    const auditMetadata = {
+      adminId: req.user._id,
+      adminName: req.user.name || "Admin",
+      source: "API",
+      requestId: req.id || new mongoose.Types.ObjectId().toString(),
+      timestamp: new Date()
+    };
+    const idempotencyKey = `legacy-grant:${auditMetadata.requestId}`;
 
-    // Determine type (positive amount is admin grant, negative amount is administrative deduction)
-    const type = numCoins >= 0 ? "admin" : "spent";
-    const absoluteCoins = Math.abs(numCoins);
-
-    // If deduction, verify available balance first
-    if (type === "spent") {
-      const wallet = await recalculateWallet(user._id, user.email || "");
-      if (wallet.availableCoins < absoluteCoins) {
-        return res.status(400).json({ success: false, message: `Insufficient coins. User only has ${wallet.availableCoins} available.` });
+    let tx;
+    await session.withTransaction(async () => {
+      if (numCoins < 0) {
+        tx = await WalletService.debit(
+          user._id,
+          user.email,
+          Math.abs(numCoins),
+          "ADMIN_DEBIT",
+          description,
+          auditMetadata,
+          idempotencyKey,
+          session
+        );
+      } else {
+        tx = await WalletService.credit(
+          user._id,
+          user.email,
+          numCoins,
+          "ADMIN_CREDIT",
+          description,
+          auditMetadata,
+          idempotencyKey,
+          session
+        );
       }
-    }
-
-    // Create grant/deduction transaction
-    const grantTx = new BuyCoinTransaction({
-      userId: user._id,
-      email: user.email || "",
-      type,
-      amount: absoluteCoins,
-      coins: absoluteCoins,
-      description: description
     });
-    await grantTx.save();
 
-    // Recalculate wallet
-    const updatedWallet = await recalculateWallet(user._id, user.email || "");
+    const updatedWallet = await WalletService.recalculate(user._id, user.email);
 
     return res.json({
       success: true,
-      message: `Successfully adjusted ${numCoins} coins for user ${user.phone || user.email}`,
+      message: `Successfully adjusted ${numCoins} coins`,
       wallet: updatedWallet
     });
   } catch (error) {
     console.error("❌ Error adjusting coins:", error);
-    return res.status(500).json({ success: false, message: "Failed to adjust coins", error: error.message });
+    return res.status(500).json({ success: false, message: error.message });
+  } finally {
+    await session.endSession();
   }
 });
 
 // GET /api/buycoins/admin/transactions - Get all transactions log (Admin Action)
-router.get("/admin/transactions", authMiddleware, adminMiddleware, async (req, res) => {
+router.get("/admin/transactions", authMiddleware, adminMiddleware, checkScope("buycoins.audit"), async (req, res) => {
   try {
     const transactions = await BuyCoinTransaction.find()
       .populate("userId", "name email phone")
@@ -166,101 +332,63 @@ router.get("/admin/transactions", authMiddleware, adminMiddleware, async (req, r
 });
 
 // GET /api/buycoins/transactions - Get logged in user's transactions
-router.get("/transactions", authMiddleware, async (req, res, next) => {
-  const { logErrorEvent } = require("../utils/auditLogger");
-
-  console.log(`[INFO] [SHUTDOWN] Entered GET /buycoins/transactions (Request ID: ${req.id || "none"})`);
-  
-  // Verify authenticated user context
-  if (!req.user || (!req.user.id && !req.user._id)) {
-    console.warn(`[WARN] GET /buycoins/transactions: Unauthenticated request (Request ID: ${req.id || "none"})`);
-    return res.status(401).json({
-      success: false,
-      message: "Authentication failed."
-    });
-  }
-
-  const userId = req.user._id || req.user.id;
-  console.log(`[INFO] User authenticated. User ID: ${userId} (Request ID: ${req.id || "none"})`);
-
+router.get("/transactions", authMiddleware, async (req, res) => {
+  const userId = req.user._id;
   try {
-    console.log(`[INFO] Loading BuyCoinTransaction model...`);
-    // Check if the model is registered and exported properly
-    if (!BuyCoinTransaction) {
-      throw new Error("BuyCoinTransaction model is not loaded or undefined.");
-    }
-    
-    // Log diagnostics before query
-    console.log({
-      requestId: req.id,
-      user: req.user.email,
-      userId: userId,
-      modelLoaded: !!BuyCoinTransaction
-    });
-
-    console.log(`[INFO] Querying BuyCoinTransaction collection...`);
     const transactions = await BuyCoinTransaction.find({ userId })
       .sort({ createdAt: -1 })
       .lean();
-
-    console.log(`[INFO] Query completed. Found ${transactions ? transactions.length : 0} transactions.`);
-    console.log({
-      transactionCount: transactions ? transactions.length : 0
-    });
 
     return res.json({
       success: true,
       transactions: transactions || []
     });
   } catch (error) {
-    console.error(`[ERROR] GET /buycoins/transactions failed:`, error);
-    
-    // Log unexpected errors securely in the observability system
-    const crypto = require("crypto");
-    const errorId = "ERR-" + crypto.randomBytes(3).toString("hex").toUpperCase();
-    
-    logErrorEvent(error, req, errorId, 500);
-
-    return res.status(500).json({
-      success: false,
-      message: "Something went wrong. Please try again later.",
-      requestId: req.id,
-      errorId
-    });
+    console.error("❌ GET /buycoins/transactions failed:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch transactions" });
   }
 });
 
 // POST /api/buycoins/redeem - Redeem a reward from catalog
 router.post("/redeem", authMiddleware, async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const userId = req.user._id;
     const { rewardName, cost } = req.body;
-    
+
     if (!rewardName || !cost) {
       return res.status(400).json({ success: false, message: "Reward name and cost are required" });
     }
-    
-    const email = req.user.email ? req.user.email.toLowerCase() : "";
-    const wallet = await recalculateWallet(userId, email);
-    
-    if (wallet.availableCoins < cost) {
-      return res.status(400).json({ success: false, message: "Insufficient BuyCoins" });
+
+    const amount = Number(cost);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, message: "Cost must be a positive integer" });
     }
-    
-    // Create redeemed transaction
-    const tx = new BuyCoinTransaction({
-      userId,
-      email,
-      type: "redeemed",
-      amount: Number(cost),
-      coins: Number(cost),
-      description: `Redeemed ${rewardName}`
+
+    const email = req.user.email ? req.user.email.toLowerCase() : "";
+    const requestId = req.id || new mongoose.Types.ObjectId().toString();
+    const idempotencyKey = `redeem:${requestId}`;
+
+    let tx;
+    await session.withTransaction(async () => {
+      tx = await WalletService.debit(
+        userId,
+        email,
+        amount,
+        "REDEMPTION",
+        `Redeemed ${rewardName}`,
+        {
+          source: "API",
+          requestId,
+          timestamp: new Date()
+        },
+        idempotencyKey,
+        session
+      );
     });
-    await tx.save();
-    
-    // Recalculate wallet
-    const updatedWallet = await recalculateWallet(userId, email);
-    
+
+    const updatedWallet = await WalletService.recalculate(userId, email);
+
     return res.json({
       success: true,
       message: `Successfully redeemed ${rewardName}`,
@@ -268,7 +396,9 @@ router.post("/redeem", authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error redeeming reward:", error);
-    return res.status(500).json({ success: false, message: "Failed to redeem reward", error: error.message });
+    return res.status(500).json({ success: false, message: error.message });
+  } finally {
+    await session.endSession();
   }
 });
 
@@ -285,17 +415,6 @@ router.post("/calculate-redemption", authMiddleware, async (req, res, next) => {
     const maxDiscount = Math.floor(numericSubtotal * 0.20);
     const maxRedeemableCoins = Math.min(buyCoinsBalance, maxDiscount);
 
-    // Development-only logs
-    if (process.env.NODE_ENV !== "production") {
-      console.log("=== [REDEMPTION CALCULATION DEBUG] ===");
-      console.log({
-        subtotal: numericSubtotal,
-        twentyPercentDiscountValue: maxDiscount,
-        userBuyCoinsBalance: buyCoinsBalance,
-        maxRedeemableCoins
-      });
-    }
-
     return res.json({
       success: true,
       subtotal: numericSubtotal,
@@ -305,6 +424,92 @@ router.post("/calculate-redemption", authMiddleware, async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+// POST /api/buycoins/admin/reconcile - Background/Synchronous Reconciliation
+router.post("/admin/reconcile", authMiddleware, adminMiddleware, checkScope("buycoins.adjust"), async (req, res) => {
+  try {
+    const { userId, userIds, mode = "DRY_RUN", async: runAsync } = req.body;
+
+    if (runAsync) {
+      const jobId = "job-" + Date.now();
+      reconciliationJobs[jobId] = { status: "processing", progress: 0, result: null };
+
+      // Background process
+      WalletService.reconcile({ userId, userIds, mode })
+        .then((report) => {
+          reconciliationJobs[jobId] = { status: "completed", progress: 100, result: report };
+        })
+        .catch((err) => {
+          reconciliationJobs[jobId] = { status: "failed", progress: 100, error: err.message };
+        });
+
+      return res.json({ success: true, jobId, status: "processing" });
+    } else {
+      const report = await WalletService.reconcile({ userId, userIds, mode });
+      return res.json({ success: true, result: report });
+    }
+  } catch (error) {
+    console.error("❌ Reconciliation failed:", error);
+    return res.status(500).json({ success: false, message: "Reconciliation failed", error: error.message });
+  }
+});
+
+// GET /api/buycoins/admin/reconcile/status/:jobId - Check background job status
+router.get("/admin/reconcile/status/:jobId", authMiddleware, adminMiddleware, checkScope("buycoins.read"), (req, res) => {
+  const { jobId } = req.params;
+  const job = reconciliationJobs[jobId];
+  if (!job) {
+    return res.status(404).json({ success: false, message: "Reconciliation job not found" });
+  }
+  return res.json({ success: true, job });
+});
+
+// POST /api/buycoins/dev-grant - Dev-only test BuyCoins grant with feature flag check
+router.post("/dev-grant", authMiddleware, async (req, res) => {
+  if (process.env.NODE_ENV === "production" || process.env.ENABLE_DEV_BUYCOINS !== "true") {
+    return res.status(403).json({ success: false, message: "Forbidden: Developer features are disabled in this environment." });
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    const userId = req.user._id;
+    const email = req.user.email || "";
+    const requestId = req.id || new mongoose.Types.ObjectId().toString();
+    const idempotencyKey = `dev-grant:${userId}:${requestId}`;
+
+    let tx;
+    await session.withTransaction(async () => {
+      tx = await WalletService.credit(
+        userId,
+        email,
+        50,
+        "ADMIN_CREDIT",
+        "Dev Mode Test Coins",
+        {
+          source: "DEV_TOOL",
+          requestId,
+          timestamp: new Date()
+        },
+        idempotencyKey,
+        session
+      );
+    });
+
+    const updatedWallet = await WalletService.recalculate(userId, email);
+
+    return res.json({
+      success: true,
+      message: "Granted 50 test BuyCoins successfully!",
+      wallet: updatedWallet,
+      transaction: tx
+    });
+  } catch (error) {
+    console.error("❌ Error in dev-grant:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  } finally {
+    await session.endSession();
   }
 });
 

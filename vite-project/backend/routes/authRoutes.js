@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
+const { WELCOME_BONUS } = require("../config/constants");
 const authMiddleware = require("../middleware/authMiddleware");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -115,12 +116,23 @@ router.post("/signup", [
       console.error("❌ Error generating FIRST20 coupon on signup:", couponErr.message);
     }
 
+    // Grant welcome bonus using WalletService
+    try {
+      const WalletService = require("../services/WalletService");
+      await WalletService.grantWelcomeBonus(savedUser._id, savedUser.email);
+    } catch (welcomeErr) {
+      console.error("❌ Error granting welcome bonus on signup:", welcomeErr.message);
+    }
+
+    // Fetch the updated user document to get populated buyCoins and buyCoinsStats
+    const updatedUser = await User.findById(savedUser._id);
+
     // Generate token
-    const token = generateToken(savedUser._id, savedUser.email, savedUser.role);
+    const token = generateToken(updatedUser._id, updatedUser.email, updatedUser.role);
 
     logAuditEvent({
       eventType: "USER_REGISTRATION",
-      userId: savedUser._id,
+      userId: updatedUser._id,
       ip: req.ip,
       userAgent: req.headers["user-agent"],
       status: "SUCCESS"
@@ -128,14 +140,19 @@ router.post("/signup", [
 
     return res.status(201).json({
       success: true,
+      isNewUser: true,
+      welcomeBonus: WELCOME_BONUS,
+      message: "Welcome bonus credited successfully.",
       token,
       user: {
-        _id: savedUser._id,
-        name: savedUser.name,
-        email: savedUser.email,
-        phone: savedUser.phone,
-        role: savedUser.role,
-        addresses: savedUser.addresses
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        addresses: updatedUser.addresses,
+        buyCoins: updatedUser.buyCoins,
+        buyCoinsStats: updatedUser.buyCoinsStats
       }
     });
 
@@ -237,6 +254,7 @@ router.post("/login", loginLimiter, [
 
     return res.status(200).json({
       success: true,
+      isNewUser: false,
       token,
       user: {
         _id: user._id,
@@ -244,7 +262,9 @@ router.post("/login", loginLimiter, [
         email: user.email,
         phone: user.phone,
         role: user.role,
-        addresses: user.addresses
+        addresses: user.addresses,
+        buyCoins: user.buyCoins,
+        buyCoinsStats: user.buyCoinsStats
       }
     });
 
@@ -284,7 +304,8 @@ router.get("/me", authMiddleware, async (req, res) => {
       gender: userObj.gender || "",
       profileCompleted: !!userObj.profileCompleted,
       addresses: userObj.addresses || [],
-      buyCoins: userObj.buyCoins || 0
+      buyCoins: userObj.buyCoins || 0,
+      buyCoinsStats: userObj.buyCoinsStats
     }
   });
 });
@@ -569,6 +590,7 @@ router.post("/msg91-login", async (req, res) => {
       phone: { $regex: new RegExp(normalizedPhone + "$") }
     });
 
+    let isNewUser = false;
     if (!user) {
       console.log(`Creating new account for verified phone: ${normalizedPhone}`);
       user = new User({
@@ -577,6 +599,16 @@ router.post("/msg91-login", async (req, res) => {
         role: "customer"
       });
       await user.save();
+      isNewUser = true;
+
+      // Atomically grant welcome bonus ONLY for newly created accounts
+      console.log(`Crediting welcome bonus for new user ${user._id}`);
+      try {
+        const WalletService = require("../services/WalletService");
+        await WalletService.grantWelcomeBonus(user._id, user.email || "");
+      } catch (welcomeErr) {
+        console.error("❌ Error granting welcome bonus on OTP verification:", welcomeErr.message);
+      }
     }
 
     if (phone === "6363849864") {
@@ -591,35 +623,11 @@ router.post("/msg91-login", async (req, res) => {
     console.log("FOUNDER:", !!user.isFounder);
     console.log("REDIRECT TARGET:", (user.role === "admin" && user.isFounder) ? "/admin-verify" : "/");
 
-    // Welcome bonus crediting if not already given
-    if (!user.welcomeBonusGiven) {
-      console.log(`Crediting welcome bonus for user ${user._id}`);
-      user.welcomeBonusGiven = true;
-      user.buyCoins = (user.buyCoins || 0) + 20;
-      user.totalBuyCoinsEarned = (user.totalBuyCoinsEarned || 0) + 20;
-      await user.save();
-
-      const BuyCoinTransaction = require("../models/BuyCoinTransaction");
-      const bonusTx = new BuyCoinTransaction({
-        userId: user._id,
-        email: user.email || "",
-        type: "bonus",
-        amount: 20,
-        coins: 20,
-        description: "Welcome Bonus"
-      });
-      await bonusTx.save();
-
-      try {
-        const { recalculateWallet } = require("../utils/rewards");
-        await recalculateWallet(user._id, user.email || "");
-      } catch (err) {
-        console.error("❌ Error recalculating wallet for welcome bonus:", err.message);
-      }
-    }
+    // Fetch the updated user document to get populated buyCoins and buyCoinsStats
+    const updatedUser = await User.findById(user._id);
 
     // Generate JWT token
-    const token = generateToken(user._id, user.email || "", user.role);
+    const token = generateToken(updatedUser._id, updatedUser.email || "", updatedUser.role);
 
     console.log("=== [MSG91 LOGIN SUCCESS] ===");
     console.log("Token generated:", token);
@@ -627,18 +635,22 @@ router.post("/msg91-login", async (req, res) => {
     const responsePayload = {
       success: true,
       token,
-      profileCompleted: !!user.profileCompleted,
+      profileCompleted: !!updatedUser.profileCompleted,
+      isNewUser: isNewUser,
+      ...(isNewUser ? { welcomeBonus: WELCOME_BONUS, message: "Welcome bonus credited successfully." } : {}),
       user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email || "",
-        phone: user.phone,
-        role: user.role,
-        isFounder: !!user.isFounder,
-        hasAdminPin: !!user.adminPin,
-        gender: user.gender || "",
-        profileCompleted: !!user.profileCompleted,
-        addresses: user.addresses
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email || "",
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        isFounder: !!updatedUser.isFounder,
+        hasAdminPin: !!updatedUser.adminPin,
+        gender: updatedUser.gender || "",
+        profileCompleted: !!updatedUser.profileCompleted,
+        addresses: updatedUser.addresses,
+        buyCoins: updatedUser.buyCoins,
+        buyCoinsStats: updatedUser.buyCoinsStats
       }
     };
 

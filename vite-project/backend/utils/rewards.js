@@ -3,88 +3,12 @@ const Coupon = require("../models/Coupon");
 const BuyCoinWallet = require("../models/BuyCoinWallet");
 const BuyCoinTransaction = require("../models/BuyCoinTransaction");
 
+const WalletService = require("../services/WalletService");
+
 // Helper function to recalculate wallet available balance and lifetime stats
 async function recalculateWallet(userId, email) {
   try {
-    const transactions = await BuyCoinTransaction.find({ userId }).sort({ createdAt: 1 }).lean();
-    
-    let lifetimeEarned = 0;
-    let lifetimeRedeemed = 0;
-    
-    // Calculate total redeemed and earned based on new and legacy types
-    // Credits: earned, earn, bonus, admin, refund
-    // Debits: spent, redeem, reversal
-    for (const tx of transactions) {
-      const val = tx.amount !== undefined ? tx.amount : (tx.coins !== undefined ? tx.coins : 0);
-      if (["spent", "redeem", "reversal"].includes(tx.type)) {
-        lifetimeRedeemed += val;
-      } else if (["earned", "earn", "bonus", "admin", "refund"].includes(tx.type)) {
-        lifetimeEarned += val;
-      }
-    }
-    
-    // Calculate available balance accounting for FIFO consumption and 90-day expiry
-    let remainingRedeemed = lifetimeRedeemed;
-    let availableCoins = 0;
-    const now = new Date();
-    
-    for (const tx of transactions) {
-      if (["earned", "earn", "bonus", "admin", "refund"].includes(tx.type)) {
-        const val = tx.amount !== undefined ? tx.amount : (tx.coins !== undefined ? tx.coins : 0);
-        let unredeemedCoins = val;
-        
-        if (remainingRedeemed > 0) {
-          if (remainingRedeemed >= val) {
-            remainingRedeemed -= val;
-            unredeemedCoins = 0;
-          } else {
-            unredeemedCoins -= remainingRedeemed;
-            remainingRedeemed = 0;
-          }
-        }
-        
-        // If there are unredeemed coins from this transaction, check if they are expired
-        if (unredeemedCoins > 0) {
-          // Prepare expiry: 90 days from transaction creation (for earned/earn/bonus)
-          const expiry = tx.buyCoinExpiryDate || tx.expiresAt || new Date(tx.createdAt.getTime() + 90 * 24 * 60 * 60 * 1000);
-          if (expiry > now) {
-            availableCoins += unredeemedCoins;
-          }
-        }
-      }
-    }
-    
-    // Update or Create Wallet
-    let wallet = await BuyCoinWallet.findOne({ userId });
-    if (!wallet) {
-      wallet = new BuyCoinWallet({
-        userId,
-        email: email ? email.toLowerCase() : ""
-      });
-    }
-    wallet.availableCoins = availableCoins;
-    wallet.lifetimeEarned = lifetimeEarned;
-    wallet.lifetimeRedeemed = lifetimeRedeemed;
-    await wallet.save();
-    
-    // Sync to User model
-    const user = await User.findById(userId);
-    if (user) {
-      user.buyCoins = availableCoins;
-      user.buyCoinsLifetimeEarned = lifetimeEarned;
-      user.buyCoinsRedeemed = lifetimeRedeemed;
-      user.totalBuyCoinsEarned = lifetimeEarned;
-      user.totalBuyCoinsSpent = lifetimeRedeemed;
-      await user.save();
-      console.log(
-        "Coins credited:",
-        lifetimeEarned,
-        "Total:",
-        user.buyCoins
-      );
-    }
-    
-    return wallet;
+    return await WalletService.recalculate(userId, email);
   } catch (error) {
     console.error("Error recalculating wallet:", error);
     throw error;
@@ -92,78 +16,18 @@ async function recalculateWallet(userId, email) {
 }
 
 async function handleOrderCheckoutRewards(order) {
-  if (!order) return;
-  if (order.orderStatus !== "Delivered") {
-    console.log(`=== Order ${order._id} status is ${order.orderStatus}. Rewards are only credited upon delivery. Skipping. ===`);
-    return;
-  }
-
-  // Double crediting safeguard
-  if (order.buyCoinsCredited) {
-    console.log(`=== BuyCoins already credited for order ${order._id}. Skipping. ===`);
-    return;
-  }
-
-  const userId = order.userId;
-  if (!userId) return;
-
-  console.log(`=== PROCESSING CHECKOUT REWARDS FOR USER ${userId} (ORDER ${order._id}) ===`);
-
   try {
-    const user = await User.findById(userId);
-    if (!user) {
-      console.warn(`User ${userId} not found for order rewards.`);
-      return;
-    }
+    await WalletService.rewardOrder(order);
 
+    // After rewarding, we need to handle generation of AGAIN15 Coupon for the first successfully placed/paid order
+    const userId = order.userId;
+    if (!userId) return;
+
+    const user = await User.findById(userId);
+    if (!user) return;
     const email = user.email ? user.email.toLowerCase() : "";
 
-    // 1. Award BuyCoins
-    // Rule: Math.floor(finalProductTotal / 100)
-    // product subtotal = sum of product price * quantity
-    const productSubtotal = order.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-    const finalProductTotal = Math.max(0, productSubtotal - (order.couponDiscount || 0) - (order.buyCoinsDiscount || 0));
-    const coinsEarned = Math.floor(finalProductTotal / 100);
-
-    if (coinsEarned > 0) {
-      // Create transaction
-      const earnTx = new BuyCoinTransaction({
-        userId,
-        email,
-        type: "earned",
-        amount: coinsEarned,
-        coins: coinsEarned,
-        orderId: order._id,
-        description: `Earned from Order #${order._id.toString().substring(0, 8)}`
-      });
-      await earnTx.save();
-      console.log(`Created earned transaction for +${coinsEarned} coins (Order ID: ${order._id})`);
-      order.buyCoinsEarned = coinsEarned;
-    }
-
-    // 1.5 Award +2 BuyCoins for Green Initiative (No Bag Pledge)
-    if (order.noBagPledge) {
-      const greenTx = new BuyCoinTransaction({
-        userId,
-        email,
-        type: "bonus",
-        amount: 2,
-        coins: 2,
-        orderId: order._id,
-        description: "Green Initiative (No Bag Pledge)"
-      });
-      await greenTx.save();
-      console.log(`Awarded +2 BuyCoins for No Bag Pledge (Order ID: ${order._id})`);
-    }
-
-    // Mark order as credited
-    order.buyCoinsCredited = true;
-    await order.save();
-
-    // 2. First Order Bonus Check
     const Order = require("../models/Order");
-    
-    // Count how many orders have been successfully placed/paid for this user/phone
     const orderCount = await Order.countDocuments({
       $or: [
         { userId },
@@ -175,40 +39,13 @@ async function handleOrderCheckoutRewards(order) {
       ]
     });
 
-    if (orderCount === 1) {
-      // Check if they already have a first order bonus transaction to be safe
-      const existingBonus = await BuyCoinTransaction.findOne({
-        userId,
-        type: "bonus",
-        description: /First Order Bonus/i
-      });
-
-      if (!existingBonus) {
-        const bonusTx = new BuyCoinTransaction({
-          userId,
-          email,
-          type: "bonus",
-          amount: 10,
-          coins: 10,
-          orderId: order._id,
-          description: "First Order Bonus"
-        });
-        await bonusTx.save();
-        console.log(`Created first order bonus transaction for +10 coins`);
-      }
-    }
-
-    // Recalculate wallet balance and sync
-    await recalculateWallet(userId, email);
-
-    // 3. Generate AGAIN15 Coupon for the first successfully placed/paid order (only if email is available)
-    if (email) {
+    if (email && orderCount === 1) {
       const existingAgainCoupon = await Coupon.findOne({
         email,
         source: "AGAIN15"
       });
 
-      if (orderCount === 1 && !existingAgainCoupon) {
+      if (!existingAgainCoupon) {
         const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 Hours
         const coupon = new Coupon({
           userId,
@@ -228,7 +65,6 @@ async function handleOrderCheckoutRewards(order) {
         console.log(`Generated AGAIN15 coupon for user ${user.name} (${email}) expiring at ${expiresAt}`);
       }
     }
-
   } catch (error) {
     console.error("Error handling order rewards:", error);
   }

@@ -155,7 +155,7 @@ export default function BuyCoinsTransactionsPage() {
         ) : (
           <div style={txListStyle}>
             {transactions.map((tx) => {
-              const isPositive = ["earn", "earned", "bonus", "admin", "refund"].includes(tx.type) || (tx.type === "redeemed" && (tx.amount || tx.coins) < 0);
+              const isPositive = ["earn", "earned", "bonus", "admin", "refund", "WELCOME_BONUS"].includes(tx.type) || (tx.type === "redeemed" && (tx.amount || tx.coins) < 0);
               const isRedemption = tx.type === "redeemed" || ["spent", "redeem"].includes(tx.type);
               
               const val = tx.amount !== undefined ? tx.amount : (tx.coins !== undefined ? tx.coins : 0);
@@ -165,6 +165,11 @@ export default function BuyCoinsTransactionsPage() {
                 year: "numeric"
               }) : "Unknown Date";
 
+              let descriptionText = tx.description || (isRedemption ? "Redeemed Reward" : "Earned Coins");
+              if (tx.type === "WELCOME_BONUS") {
+                descriptionText = `🎁 Welcome Bonus (+${val} BuyCoins)`;
+              }
+
               return (
                 <div key={tx._id} style={txItemStyle}>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -172,7 +177,7 @@ export default function BuyCoinsTransactionsPage() {
                       {isPositive ? "📈" : "📉"}
                     </div>
                     <div>
-                      <div style={txDescStyle}>{tx.description || (isRedemption ? "Redeemed Reward" : "Earned Coins")}</div>
+                      <div style={txDescStyle}>{descriptionText}</div>
                       <div style={txDateStyle}>{txDate}</div>
                     </div>
                   </div>

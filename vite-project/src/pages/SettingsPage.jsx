@@ -18,7 +18,7 @@ export default function SettingsPage() {
   const [isExpandingAddresses, setIsExpandingAddresses] = useState(false);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
-  
+
   // Address Form State
   const [addressForm, setAddressForm] = useState({
     fullName: user?.name || "",
@@ -42,7 +42,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const savedOrderPref = localStorage.getItem("buyto_pref_order_updates");
     if (savedOrderPref !== null) setOrderUpdates(savedOrderPref === "true");
-    
+
     const savedOffersPref = localStorage.getItem("buyto_pref_offers_rewards");
     if (savedOffersPref !== null) setOffersRewards(savedOffersPref === "true");
 
@@ -110,14 +110,14 @@ export default function SettingsPage() {
       alert("Please fill name, phone, and address line.");
       return;
     }
-    
+
     try {
-      const url = editingAddressId 
+      const url = editingAddressId
         ? `${window.API_BASE_URL}/api/addresses/${editingAddressId}`
         : `${window.API_BASE_URL}/api/addresses`;
-        
+
       const method = editingAddressId ? "PUT" : "POST";
-      
+
       const res = await fetch(url, {
         method: method,
         headers: {
@@ -288,10 +288,10 @@ export default function SettingsPage() {
         <div style={{ marginBottom: "8px" }}>
           <h3 style={sectionTitleStyle}>Account</h3>
           <div className="settings-card">
-            
+
             {/* Edit Profile Item */}
-            <button 
-              onClick={() => setIsEditingProfile(!isEditingProfile)} 
+            <button
+              onClick={() => setIsEditingProfile(!isEditingProfile)}
               className="settings-row-btn"
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -307,19 +307,19 @@ export default function SettingsPage() {
               <form onSubmit={handleProfileSave} style={formBoxStyle}>
                 <div style={{ marginBottom: "12px" }}>
                   <label style={labelStyle}>Full Name</label>
-                  <input 
-                    type="text" 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)} 
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     style={inputStyle}
                     placeholder="Enter name"
                   />
                 </div>
                 <div style={{ marginBottom: "16px" }}>
                   <label style={labelStyle}>Gender</label>
-                  <select 
-                    value={gender} 
-                    onChange={(e) => setGender(e.target.value)} 
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
                     style={selectStyle}
                   >
                     <option value="">Select Gender</option>
@@ -329,15 +329,15 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsEditingProfile(false)} 
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(false)}
                     style={cancelBtnStyle}
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={profileSaving}
                     style={saveBtnStyle}
                   >
@@ -348,11 +348,11 @@ export default function SettingsPage() {
             )}
 
             {/* Saved Addresses Item */}
-            <button 
+            <button
               onClick={() => {
                 setIsExpandingAddresses(!isExpandingAddresses);
                 if (!isExpandingAddresses) fetchAddresses();
-              }} 
+              }}
               className="settings-row-btn"
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -373,8 +373,8 @@ export default function SettingsPage() {
                     <p style={{ margin: "0 0 10px 0", fontSize: "12px", color: "#6b7280" }}>
                       No saved addresses yet.
                     </p>
-                    <button 
-                      onClick={() => setIsAddingAddress(true)} 
+                    <button
+                      onClick={() => setIsAddingAddress(true)}
                       style={addAddressBtnStyle}
                     >
                       + Add Address
@@ -399,7 +399,7 @@ export default function SettingsPage() {
                               </p>
                             </div>
                             <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                              <button 
+                              <button
                                 onClick={() => {
                                   setEditingAddressId(addr._id);
                                   setAddressForm({
@@ -411,13 +411,13 @@ export default function SettingsPage() {
                                     addressType: addr.addressType || "Hostel"
                                   });
                                   setIsAddingAddress(true);
-                                }} 
+                                }}
                                 style={textLinkStyle("#318616")}
                               >
                                 Edit
                               </button>
-                              <button 
-                                onClick={() => deleteAddress(addr._id)} 
+                              <button
+                                onClick={() => deleteAddress(addr._id)}
                                 style={textLinkStyle("#ef4444")}
                               >
                                 Delete
@@ -425,7 +425,7 @@ export default function SettingsPage() {
                             </div>
                           </div>
                         ))}
-                        <button 
+                        <button
                           onClick={() => {
                             setEditingAddressId(null);
                             setAddressForm({
@@ -437,7 +437,7 @@ export default function SettingsPage() {
                               addressType: "Hostel"
                             });
                             setIsAddingAddress(true);
-                          }} 
+                          }}
                           style={addAddressBtnStyle}
                         >
                           + Add New Address
@@ -452,31 +452,31 @@ export default function SettingsPage() {
                         </h4>
                         <div style={{ marginBottom: "10px" }}>
                           <label style={labelStyle}>Full Name *</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             required
-                            value={addressForm.fullName} 
-                            onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })} 
+                            value={addressForm.fullName}
+                            onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })}
                             style={inputStyle}
                           />
                         </div>
                         <div style={{ marginBottom: "10px" }}>
                           <label style={labelStyle}>Phone Number *</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             required
-                            value={addressForm.phone} 
-                            onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })} 
+                            value={addressForm.phone}
+                            onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
                             style={inputStyle}
                           />
                         </div>
                         <div style={{ marginBottom: "10px" }}>
                           <label style={labelStyle}>Hostel / Apartment *</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             required
-                            value={addressForm.addressLine} 
-                            onChange={(e) => setAddressForm({ ...addressForm, addressLine: e.target.value })} 
+                            value={addressForm.addressLine}
+                            onChange={(e) => setAddressForm({ ...addressForm, addressLine: e.target.value })}
                             style={inputStyle}
                             placeholder="e.g. Block B, Tech PG"
                           />
@@ -484,28 +484,28 @@ export default function SettingsPage() {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
                           <div>
                             <label style={labelStyle}>Room Number</label>
-                            <input 
-                              type="text" 
-                              value={addressForm.roomNumber} 
-                              onChange={(e) => setAddressForm({ ...addressForm, roomNumber: e.target.value })} 
+                            <input
+                              type="text"
+                              value={addressForm.roomNumber}
+                              onChange={(e) => setAddressForm({ ...addressForm, roomNumber: e.target.value })}
                               style={inputStyle}
                             />
                           </div>
                           <div>
                             <label style={labelStyle}>Landmark</label>
-                            <input 
-                              type="text" 
-                              value={addressForm.landmark} 
-                              onChange={(e) => setAddressForm({ ...addressForm, landmark: e.target.value })} 
+                            <input
+                              type="text"
+                              value={addressForm.landmark}
+                              onChange={(e) => setAddressForm({ ...addressForm, landmark: e.target.value })}
                               style={inputStyle}
                             />
                           </div>
                         </div>
                         <div style={{ marginBottom: "14px" }}>
                           <label style={labelStyle}>Type</label>
-                          <select 
-                            value={addressForm.addressType} 
-                            onChange={(e) => setAddressForm({ ...addressForm, addressType: e.target.value })} 
+                          <select
+                            value={addressForm.addressType}
+                            onChange={(e) => setAddressForm({ ...addressForm, addressType: e.target.value })}
                             style={selectStyle}
                           >
                             <option value="Hostel">Hostel</option>
@@ -515,15 +515,15 @@ export default function SettingsPage() {
                           </select>
                         </div>
                         <div style={{ display: "flex", gap: "8px" }}>
-                          <button 
-                            type="button" 
-                            onClick={() => setIsAddingAddress(false)} 
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingAddress(false)}
                             style={cancelBtnStyle}
                           >
                             Back
                           </button>
-                          <button 
-                            type="submit" 
+                          <button
+                            type="submit"
                             style={saveBtnStyle}
                           >
                             Save Address
@@ -543,7 +543,7 @@ export default function SettingsPage() {
         <div style={{ marginBottom: "8px" }}>
           <h3 style={sectionTitleStyle}>Notifications</h3>
           <div className="settings-card">
-            
+
             {/* Order Updates */}
             <div style={flexRowStyle}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -551,8 +551,8 @@ export default function SettingsPage() {
                 <span style={rowLabelStyle}>Order Updates</span>
               </div>
               <label className="toggle-switch">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={orderUpdates}
                   onChange={(e) => handleToggleChange("buyto_pref_order_updates", e.target.checked)}
                 />
@@ -567,8 +567,8 @@ export default function SettingsPage() {
                 <span style={rowLabelStyle}>Offers & Rewards</span>
               </div>
               <label className="toggle-switch">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={offersRewards}
                   onChange={(e) => handleToggleChange("buyto_pref_offers_rewards", e.target.checked)}
                 />
@@ -583,16 +583,16 @@ export default function SettingsPage() {
         <div style={{ marginBottom: "8px" }}>
           <h3 style={sectionTitleStyle}>Preferences</h3>
           <div className="settings-card">
-            
+
             {/* Language */}
             <div style={flexRowStyle}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span>🌐</span>
                 <span style={rowLabelStyle}>Language</span>
               </div>
-              <select 
-                value={language} 
-                onChange={(e) => handleLanguageChange(e.target.value)} 
+              <select
+                value={language}
+                onChange={(e) => handleLanguageChange(e.target.value)}
                 style={inlineSelectStyle}
               >
                 <option value="English">English</option>
@@ -619,7 +619,7 @@ export default function SettingsPage() {
         <div style={{ marginBottom: "8px" }}>
           <h3 style={sectionTitleStyle}>Privacy & Legal</h3>
           <div className="settings-card">
-            
+
             <button onClick={() => navigate("/privacy-policy")} className="settings-row-btn">
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span>🔒</span>
@@ -651,7 +651,7 @@ export default function SettingsPage() {
         <div style={{ marginBottom: "8px" }}>
           <h3 style={sectionTitleStyle}>About Buyto</h3>
           <div className="settings-card">
-            
+
             <button onClick={() => navigate("/about")} className="settings-row-btn">
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span>ℹ️</span>
@@ -660,8 +660,8 @@ export default function SettingsPage() {
               <span>→</span>
             </button>
 
-            <button 
-              onClick={() => alert("Coming Soon on Play Store!")} 
+            <button
+              onClick={() => alert("Coming Soon on Play Store!")}
               className="settings-row-btn"
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -685,7 +685,7 @@ export default function SettingsPage() {
                 <span style={rowLabelStyle}>App Version</span>
               </div>
               <span style={{ fontSize: "13px", fontWeight: "750", color: "#6b7280" }}>
-                Version 1.0.0
+                Version 1.1.0
               </span>
             </div>
 
@@ -710,8 +710,8 @@ export default function SettingsPage() {
 
         {/* SECTION 6: ACCOUNT ACTIONS */}
         <div style={{ marginBottom: "40px" }}>
-          <button 
-            onClick={() => setShowLogoutModal(true)} 
+          <button
+            onClick={() => setShowLogoutModal(true)}
             style={logoutCardBtnStyle}
             className="menu-row-hover"
           >
@@ -746,14 +746,14 @@ export default function SettingsPage() {
               This action cannot be undone. All your saved addresses, active orders, and BuyCoins balance will be deleted permanently.
             </p>
             <div style={{ display: "flex", gap: "12px" }}>
-              <button 
-                onClick={() => setShowDeleteModal(false)} 
+              <button
+                onClick={() => setShowDeleteModal(false)}
                 style={modalCancelBtnStyle}
               >
                 Cancel
               </button>
-              <button 
-                onClick={handleDeleteAccount} 
+              <button
+                onClick={handleDeleteAccount}
                 style={modalDangerBtnStyle}
               >
                 Delete Account
@@ -774,18 +774,18 @@ export default function SettingsPage() {
               Are you sure you want to end your session?
             </p>
             <div style={{ display: "flex", gap: "12px" }}>
-              <button 
-                onClick={() => setShowLogoutModal(false)} 
+              <button
+                onClick={() => setShowLogoutModal(false)}
                 style={modalCancelBtnStyle}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setShowLogoutModal(false);
                   logout();
                   navigate("/");
-                }} 
+                }}
                 style={modalConfirmBtnStyle}
               >
                 Logout

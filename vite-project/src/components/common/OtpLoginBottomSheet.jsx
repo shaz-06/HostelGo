@@ -62,7 +62,7 @@ export default function OtpLoginBottomSheet() {
           // Log user in using access token validation route
           const loginData = await msg91Login(accessToken);
           
-          await setAuthSession(loginData.token, loginData.user);
+          await setAuthSession(loginData.token, loginData.user, loginData.isNewUser, loginData.welcomeBonus);
           
           if (loginData.user && loginData.user.role === "admin" && loginData.user.isFounder) {
             console.log("PHONE:", loginData.user.phone);

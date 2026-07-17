@@ -33,7 +33,7 @@ export default function PaymentPage({
   setSelectedCoupon = () => {}
 }) {
   const navigate = useNavigate();
-  const { token, user: contextUser, refreshUser } = useContext(AuthContext);
+  const { token, user: contextUser, refreshUser, appConfig } = useContext(AuthContext);
   const [isProcessing, setIsProcessing] = useState(false);
   const [gpsCoords, setGpsCoords] = useState(null);
   const [coinsToRedeem, setCoinsToRedeem] = useState(() => Number(localStorage.getItem("buyto_coins_redeem") || 0));
@@ -240,7 +240,18 @@ export default function PaymentPage({
     0
   );
 
-  const billBreakdown = calculateBill(subtotal, originalSubtotal, config, deliverySettings, selectedCoupon, coinsToRedeem);
+  const billBreakdown = calculateBill(
+    subtotal,
+    originalSubtotal,
+    {
+      ...config,
+      minBuyCoinsOrder: appConfig?.buyCoins?.minBuyCoinsOrder,
+      maxRedemptionPercent: appConfig?.buyCoins?.maxRedemptionPercent
+    },
+    deliverySettings,
+    selectedCoupon,
+    coinsToRedeem
+  );
   const { total } = billBreakdown;
 
   const handlePlaceOrder = async () => {

@@ -94,6 +94,15 @@ export default function AdminDashboard() {
   const [adjustReason, setAdjustReason] = useState("");
   const [isAdjusting, setIsAdjusting] = useState(false);
 
+  // BuyCoins User Search and Reconciliation states
+  const [bcSearchQuery, setBcSearchQuery] = useState("");
+  const [bcSearchResults, setBcSearchResults] = useState([]);
+  const [bcIsSearching, setBcIsSearching] = useState(false);
+  const [reconcileMode, setReconcileMode] = useState("DRY_RUN");
+  const [isReconciling, setIsReconciling] = useState(false);
+  const [reconcileResult, setReconcileResult] = useState(null);
+  const [reconcileJobId, setReconcileJobId] = useState(null);
+
   // Notification Center states
   const [notifStats, setNotifStats] = useState(null);
   const [notifHistory, setNotifHistory] = useState([]);
@@ -461,6 +470,94 @@ export default function AdminDashboard() {
       alert("Error adjusting coins");
     } finally {
       setIsAdjusting(false);
+    }
+  };
+
+  const handleSearchUsers = async (e) => {
+    if (e) e.preventDefault();
+    if (!bcSearchQuery.trim()) return;
+
+    try {
+      setBcIsSearching(true);
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(window.API_BASE_URL + `/api/buycoins/admin/users?query=${encodeURIComponent(bcSearchQuery)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.users) {
+          setBcSearchResults(data.users);
+        }
+      }
+    } catch (err) {
+      console.error("Error searching users:", err);
+    } finally {
+      setBcIsSearching(false);
+    }
+  };
+
+  const pollReconcileJob = (jobId) => {
+    const token = localStorage.getItem("buyto_token");
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(window.API_BASE_URL + `/api/buycoins/admin/reconcile/status/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.job) {
+            if (data.job.status === "completed") {
+              clearInterval(interval);
+              setIsReconciling(false);
+              setReconcileResult(data.job.result);
+              setReconcileJobId(null);
+              alert("Reconciliation completed!");
+              fetchBuyCoinsData();
+            } else if (data.job.status === "failed") {
+              clearInterval(interval);
+              setIsReconciling(false);
+              setReconcileJobId(null);
+              alert("Reconciliation job failed: " + data.job.error);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error polling job status:", err);
+      }
+    }, 2000);
+  };
+
+  const handleReconcile = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setIsReconciling(true);
+      setReconcileResult(null);
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(window.API_BASE_URL + "/api/buycoins/admin/reconcile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ mode: reconcileMode, async: true })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.jobId) {
+          setReconcileJobId(data.jobId);
+          pollReconcileJob(data.jobId);
+        } else {
+          setIsReconciling(false);
+          alert("Failed to start reconciliation job");
+        }
+      } else {
+        setIsReconciling(false);
+        alert("Failed to start reconciliation");
+      }
+    } catch (err) {
+      console.error("Reconciliation error:", err);
+      setIsReconciling(false);
+      alert("Error starting reconciliation");
     }
   };
 
@@ -1326,6 +1423,181 @@ export default function AdminDashboard() {
                     </table>
                   </div>
                 </div>
+              </div>
+
+              {/* User Search Section */}
+              <div style={cardLayoutStyle}>
+                <h3 style={cardTitleStyle}>🔍 Search Customer Wallets</h3>
+                <form onSubmit={handleSearchUsers} style={{ display: "flex", gap: "10px", marginTop: "12px", marginBottom: "16px" }}>
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, phone, or User ID..."
+                    value={bcSearchQuery}
+                    onChange={(e) => setBcSearchQuery(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: "1.5px solid #cbd5e1",
+                      fontSize: "14px",
+                      fontWeight: "600"
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={bcIsSearching}
+                    style={{
+                      background: "#3b82f6",
+                      color: "white",
+                      border: "none",
+                      padding: "10px 20px",
+                      borderRadius: "10px",
+                      fontWeight: "750",
+                      cursor: bcIsSearching ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    {bcIsSearching ? "Searching..." : "Search"}
+                  </button>
+                </form>
+
+                {bcSearchResults.length > 0 && (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Name & Email</th>
+                          <th style={thStyle}>Phone</th>
+                          <th style={thStyle}>Balance</th>
+                          <th style={thStyle}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bcSearchResults.map((u) => (
+                          <tr key={u._id} style={trStyle}>
+                            <td style={{ fontWeight: "700" }}>
+                              {u.name}
+                              <div style={{ fontSize: "11px", color: "#6b7280" }}>{u.email}</div>
+                            </td>
+                            <td style={{ fontWeight: "600" }}>{u.phone}</td>
+                            <td style={{ fontWeight: "800", color: "#318616" }}>{u.buyCoins} 🪙</td>
+                            <td>
+                              <button
+                                onClick={() => {
+                                  setAdjustEmail(u.email);
+                                  alert(`Selected user: ${u.email}`);
+                                }}
+                                style={{
+                                  background: "#f3f4f6",
+                                  border: "1px solid #d1d5db",
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Select for Adjustment
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Reconciliation Panel */}
+              <div style={cardLayoutStyle}>
+                <h3 style={cardTitleStyle}>🛠️ Wallet Cache Reconciliation</h3>
+                <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
+                  Audits and repairs cached wallet balances by comparing them to the ledger source of truth.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "16px" }}>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <label style={{ fontSize: "13px", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="reconcileMode"
+                        value="DRY_RUN"
+                        checked={reconcileMode === "DRY_RUN"}
+                        onChange={() => setReconcileMode("DRY_RUN")}
+                      />
+                      Dry Run (Audit Only)
+                    </label>
+                    <label style={{ fontSize: "13px", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#ef4444" }}>
+                      <input
+                        type="radio"
+                        name="reconcileMode"
+                        value="REPAIR"
+                        checked={reconcileMode === "REPAIR"}
+                        onChange={() => setReconcileMode("REPAIR")}
+                      />
+                      Repair Mode (Fix Cache Mismatches)
+                    </label>
+                  </div>
+                  <button
+                    onClick={handleReconcile}
+                    disabled={isReconciling}
+                    style={{
+                      background: "linear-gradient(135deg, #1f2937 0%, #111827 100%)",
+                      color: "white",
+                      border: "none",
+                      padding: "8px 16px",
+                      borderRadius: "10px",
+                      fontWeight: "750",
+                      cursor: isReconciling ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    {isReconciling ? "Reconciling..." : "Run Reconciliation"}
+                  </button>
+                </div>
+
+                {reconcileResult && (
+                  <div style={{ marginTop: "16px", background: "#f8fafc", padding: "14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                    <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", fontWeight: "800", color: "#1e293b" }}>Reconciliation Report Outcome</h4>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                      <div>
+                        <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Checked</div>
+                        <div style={{ fontSize: "16px", fontWeight: "800" }}>{reconcileResult.totalChecked}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "11px", color: "#ef4444", fontWeight: "600" }}>Mismatches</div>
+                        <div style={{ fontSize: "16px", fontWeight: "800", color: reconcileResult.mismatchesCount > 0 ? "#ef4444" : "#1e293b" }}>
+                          {reconcileResult.mismatchesCount}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "11px", color: "#10b981", fontWeight: "600" }}>Repaired</div>
+                        <div style={{ fontSize: "16px", fontWeight: "800", color: "#10b981" }}>{reconcileResult.repairedCount}</div>
+                      </div>
+                    </div>
+                    {reconcileResult.mismatches.length > 0 && (
+                      <div style={{ overflowX: "auto", borderTop: "1px dashed #cbd5e1", paddingTop: "10px" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                          <thead>
+                            <tr style={{ textAlign: "left", color: "#64748b" }}>
+                              <th style={{ padding: "6px" }}>User ID</th>
+                              <th style={{ padding: "6px" }}>Email</th>
+                              <th style={{ padding: "6px" }}>Cached</th>
+                              <th style={{ padding: "6px" }}>Ledger</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reconcileResult.mismatches.map((m, idx) => (
+                              <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                <td style={{ padding: "6px", fontFamily: "monospace" }}>{m.userId}</td>
+                                <td style={{ padding: "6px", fontWeight: "600" }}>{m.email}</td>
+                                <td style={{ padding: "6px", color: "#ef4444", fontWeight: "700" }}>{m.cachedBalance}</td>
+                                <td style={{ padding: "6px", color: "#10b981", fontWeight: "700" }}>{m.calculatedBalance}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Transactions Log Section */}

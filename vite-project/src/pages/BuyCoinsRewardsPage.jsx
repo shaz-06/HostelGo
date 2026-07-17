@@ -12,8 +12,8 @@ export default function BuyCoinsRewardsPage() {
 
   const rewards = [
     { id: "coffee", name: "☕ Free Coffee Coupon", cost: 50, desc: "Get a free fresh brewed hot coffee at any partner cafe." },
-    { id: "fifty_off", name: "🍕 ₹50 Off Coupon", cost: 100, desc: "Get flat ₹50 off on your next purchase (min order ₹149)." },
-    { id: "free_deliv", name: "🚚 Free Delivery Pass", cost: 150, desc: "Unlock 3 free deliveries with no minimum purchase requirement." },
+    { id: "fifty_off", name: "🍕 ₹50 Off Coupon", cost: 100, desc: "Get flat ₹50 off on your next purchase (min order ₹150)." },
+    { id: "free_deliv", name: "🛵 Free Delivery Pass", cost: 150, desc: "Unlock 3 free deliveries with no minimum purchase requirement." },
     { id: "merch", name: "🎁 Buyto Merchandise", cost: 500, desc: "Get an exclusive Buyto branded t-shirt or hoodie." }
   ];
 

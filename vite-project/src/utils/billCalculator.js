@@ -51,9 +51,11 @@ export function calculateBill(subtotal, originalSubtotal, config = {}, deliveryS
     appliedCouponId = couponApplied._id;
   }
 
-  // BuyCoins discount (1 coin = ₹1 discount, capped at 20% of product subtotal, must not reduce order value below platform minimum of ₹1)
+  // BuyCoins discount (1 coin = ₹1 discount, capped at maxRedemptionPercent of product subtotal, must not reduce order value below platform minimum of ₹1)
   const remaining = Math.max(0, preDiscountTotal - couponDiscount);
-  const maxRedemption = Math.floor(itemTotal * 0.20);
+  const minOrder = typeof config.minBuyCoinsOrder === "number" ? config.minBuyCoinsOrder : 99;
+  const maxPercent = typeof config.maxRedemptionPercent === "number" ? config.maxRedemptionPercent : 20;
+  const maxRedemption = itemTotal <= minOrder ? 0 : Math.floor(itemTotal * (maxPercent / 100));
   const coinsRedeemed = Math.min(buyCoinsToRedeem, maxRedemption, Math.max(0, remaining - 1));
   const buyCoinsDiscount = coinsRedeemed;
 

@@ -98,6 +98,8 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
 
     // 1. Validation
     if (buyCoinsRedeemed && Number(buyCoinsRedeemed) > 0) {
+      const { MIN_BUYCOINS_ORDER, MAX_REDEMPTION_PERCENT } = require("../config/constants");
+
       const cart = await Cart.findOne({ userId: req.user._id });
       if (!cart || !cart.items || cart.items.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
@@ -115,7 +117,15 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
         }
       }
 
-      const maxDiscount = Math.floor(subtotal * 0.20);
+      if (subtotal <= MIN_BUYCOINS_ORDER) {
+        return res.status(400).json({ message: `BuyCoins can only be redeemed on orders above ₹${MIN_BUYCOINS_ORDER}.` });
+      }
+
+      if (Number(buyCoinsRedeemed) > (req.user.buyCoins || 0)) {
+        return res.status(400).json({ message: "Insufficient BuyCoins balance." });
+      }
+
+      const maxDiscount = Math.floor(subtotal * (MAX_REDEMPTION_PERCENT / 100));
       const maxRedeemableCoins = Math.min(req.user.buyCoins || 0, maxDiscount);
 
       // Debug Logging (development only)
@@ -443,6 +453,8 @@ router.post("/orders", authMiddleware, async (req, res) => {
 
     // Verify BuyCoins redemption limit
     if (buyCoinsRedeemed && Number(buyCoinsRedeemed) > 0) {
+      const { MIN_BUYCOINS_ORDER, MAX_REDEMPTION_PERCENT } = require("../config/constants");
+
       const cart = await Cart.findOne({ userId: req.user._id });
       if (!cart || !cart.items || cart.items.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
@@ -460,7 +472,15 @@ router.post("/orders", authMiddleware, async (req, res) => {
         }
       }
 
-      const maxDiscount = Math.floor(subtotal * 0.20);
+      if (subtotal <= MIN_BUYCOINS_ORDER) {
+        return res.status(400).json({ message: `BuyCoins can only be redeemed on orders above ₹${MIN_BUYCOINS_ORDER}.` });
+      }
+
+      if (Number(buyCoinsRedeemed) > (req.user.buyCoins || 0)) {
+        return res.status(400).json({ message: "Insufficient BuyCoins balance." });
+      }
+
+      const maxDiscount = Math.floor(subtotal * (MAX_REDEMPTION_PERCENT / 100));
       const maxRedeemableCoins = Math.min(req.user.buyCoins || 0, maxDiscount);
 
       // Debug Logging (development only)
