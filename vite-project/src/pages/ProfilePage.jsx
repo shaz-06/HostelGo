@@ -4,7 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import AddressSelectorModal from "../components/common/AddressSelectorModal";
 import BuyCoin from "../components/common/BuyCoin";
 
-export default function ProfilePage() {
+export default function ProfilePage({ defaultTab = "" }) {
   const navigate = useNavigate();
   const { user, isLoggedIn, token, logout, openLogin, refreshUser } = useContext(AuthContext);
 
@@ -22,7 +22,7 @@ export default function ProfilePage() {
   const [liveUser, setLiveUser] = useState(user);
 
   // UI state triggers
-  const [activeSection, setActiveSection] = useState(""); // "orders" | "addresses" | "wallet" | "coupons" | ""
+  const [activeSection, setActiveSection] = useState(defaultTab); // "orders" | "addresses" | "wallet" | "coupons" | ""
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [activeAddress, setActiveAddress] = useState(null);
 
@@ -299,7 +299,7 @@ export default function ProfilePage() {
 
         {/* 4. BUYTO STATS ROW */}
         <div style={statsRowStyle}>
-          <div style={statItemStyle}>
+          <div style={{ ...statItemStyle, cursor: "pointer" }} onClick={() => navigate("/orders")}>
             <span style={{ fontSize: "18px", marginBottom: "4px" }}>📦</span>
             <span style={statValStyle}>{orders.length}</span>
             <span style={statLabelStyle}>Orders</span>
@@ -384,7 +384,7 @@ export default function ProfilePage() {
         <h3 style={groupHeaderStyle}>Orders</h3>
         <div style={groupContainerStyle}>
           <div
-            onClick={() => setActiveSection(activeSection === "orders" ? "" : "orders")}
+            onClick={() => navigate("/orders")}
             style={groupRowStyle}
             className="menu-row-hover"
           >
@@ -392,7 +392,7 @@ export default function ProfilePage() {
               <span style={{ fontSize: "18px", color: "#318616" }}>📦</span>
               <span style={menuItemLabelStyle}>My Orders</span>
             </div>
-            <span style={rowArrowStyle(activeSection === "orders")}>▶</span>
+            <span style={rowArrowStyle(false)}>▶</span>
           </div>
 
           {/* Expanded orders */}
@@ -420,6 +420,12 @@ export default function ProfilePage() {
                             <span>₹{prod.price * prod.quantity}</span>
                           </div>
                         ))}
+                        {order.codConvenienceFee > 0 && (
+                          <div style={orderProductRowStyle}>
+                            <span style={{ fontWeight: "600", color: "#6b7280" }}>Cash on Delivery Fee</span>
+                            <span>₹{order.codConvenienceFee}</span>
+                          </div>
+                        )}
                       </div>
                       <div style={orderFooterStyle}>
                         <span>Total Paid: ₹{order.totalAmount}</span>

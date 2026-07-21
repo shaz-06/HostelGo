@@ -7,6 +7,7 @@ import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import AdminNotificationQueue from "./AdminNotificationQueue";
+import PricingRulesAdminPanel from "../components/admin/PricingRulesAdminPanel";
 
 // Resolve default marker icon bug
 delete L.Icon.Default.prototype._getIconUrl;
@@ -82,6 +83,10 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [deliverySettings, setDeliverySettings] = useState(null);
+  const [feesConfig, setFeesConfig] = useState({
+    codConvenienceFee: 14,
+    codConvenienceFeeEnabled: true
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeView, setActiveView] = useState("overview"); // "overview", "rewards", "buycoins", "delivery" or "categories"
@@ -324,6 +329,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const updateFeesConfig = async (updatedFields) => {
+    try {
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(window.API_BASE_URL + "/api/admin/config/fees", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedFields)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setFeesConfig(data.config);
+        }
+      } else {
+        alert("Failed to update payment settings");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating payment settings");
+    }
+  };
+
+
   useEffect(() => {
     console.log("DASHBOARD OPENED");
     const fetchData = async () => {
@@ -384,6 +415,13 @@ export default function AdminDashboard() {
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json();
           setDeliverySettings(settingsData);
+        }
+
+        // Fetch fees config
+        const feesRes = await fetch(window.API_BASE_URL + "/api/config/fees");
+        if (feesRes.ok) {
+          const feesData = await feesRes.json();
+          setFeesConfig(feesData);
         }
 
         setLoading(false);
@@ -732,6 +770,95 @@ export default function AdminDashboard() {
             ))}
           </div>
         </div>
+
+        {/* Payments Settings Card */}
+        <div style={cardLayoutStyle}>
+          <h3 style={cardTitleStyle}>💳 Payments Configuration</h3>
+          <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
+            Configure fees and convenience charges for different payment methods.
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "24px" }}>
+            {/* Enable/Disable Toggle */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", borderRadius: "12px", border: "1.5px solid #F3F4F6", background: "#FAFBFD" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ fontSize: "14px", fontWeight: "800", color: "#1F2937" }}>Enable COD Convenience Fee</span>
+                <span style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>Charge an additional convenience fee for Cash on Delivery orders</span>
+              </div>
+              <div
+                onClick={() => updateFeesConfig({ codConvenienceFeeEnabled: !feesConfig?.codConvenienceFeeEnabled })}
+                style={{
+                  width: "50px",
+                  height: "26px",
+                  borderRadius: "13px",
+                  background: feesConfig?.codConvenienceFeeEnabled ? "#318616" : "#E5E7EB",
+                  position: "relative",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s"
+                }}
+              >
+                <div style={{
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  background: "white",
+                  position: "absolute",
+                  top: "3px",
+                  left: feesConfig?.codConvenienceFeeEnabled ? "27px" : "3px",
+                  transition: "left 0.2s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                }} />
+              </div>
+            </div>
+
+            {/* Fee Amount Input */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "16px", borderRadius: "12px", border: "1.5px solid #F3F4F6", background: "#FAFBFD" }}>
+              <label style={{ fontSize: "14px", fontWeight: "800", color: "#1F2937" }}>Cash on Delivery Fee (₹)</label>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <input
+                  type="number"
+                  min="0"
+                  max="999"
+                  value={feesConfig?.codConvenienceFee ?? 14}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val >= 0 && val <= 999) {
+                      setFeesConfig(prev => ({ ...prev, codConvenienceFee: val }));
+                    }
+                  }}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1.5px solid #E5E7EB",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    width: "100px",
+                    fontFamily: "inherit"
+                  }}
+                />
+                <button
+                  onClick={() => updateFeesConfig({ codConvenienceFee: feesConfig?.codConvenienceFee })}
+                  style={{
+                    background: "#318616",
+                    color: "white",
+                    border: "none",
+                    padding: "10px 18px",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    fontWeight: "750",
+                    cursor: "pointer",
+                    transition: "opacity 0.2s"
+                  }}
+                  onMouseOver={(e) => e.target.style.opacity = "0.9"}
+                  onMouseOut={(e) => e.target.style.opacity = "1"}
+                >
+                  Save Fee
+                </button>
+              </div>
+              <span style={{ fontSize: "11px", color: "#9CA3AF", fontWeight: "500" }}>Allows values between ₹0 and ₹999</span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -782,6 +909,12 @@ export default function AdminDashboard() {
             </button>
             <button onClick={() => setActiveView("buycoins")} style={activeView === "buycoins" ? activeNavLinkStyle : navLinkStyle}>
               💰 BuyCoins Management
+            </button>
+            <button onClick={() => setActiveView("pricingRules")} style={activeView === "pricingRules" ? activeNavLinkStyle : navLinkStyle}>
+              🏷️ Pricing Rules & Festival
+            </button>
+            <button onClick={() => setActiveView("coupons")} style={activeView === "coupons" ? activeNavLinkStyle : navLinkStyle}>
+              🎟️ Coupon Management
             </button>
             <button onClick={() => setActiveView("notifications")} style={activeView === "notifications" ? activeNavLinkStyle : navLinkStyle}>
               🔔 Notification Center
@@ -1669,9 +1802,11 @@ export default function AdminDashboard() {
           )}
 
           {activeView === "delivery" && <DeliveryServicesPanel isMobile={isMobile} />}
+          {activeView === "pricingRules" && <PricingRulesAdminPanel isMobile={isMobile} />}
           {activeView === "categories" && <CategoriesPanel isMobile={isMobile} />}
           {activeView === "notifications" && renderNotificationsView()}
           {activeView === "notificationQueue" && <AdminNotificationQueue />}
+          {activeView === "coupons" && <CouponsPanel isMobile={isMobile} />}
           {activeView === "settings" && renderSettingsView()}
         </main>
       </div>
@@ -2880,3 +3015,887 @@ const quickBtnStyle = {
   textAlign: "left",
   boxShadow: "0 2px 4px rgba(0, 0, 0, 0.02)",
 };
+
+
+const couponStatCardStyle = {
+  background: "#FFFFFF",
+  border: "1.5px solid #E5E7EB",
+  borderRadius: "16px",
+  padding: "16px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px",
+  boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
+};
+
+const couponStatLabelStyle = {
+  fontSize: "13px",
+  fontWeight: "700",
+  color: "#6B7280"
+};
+
+const couponStatValStyle = {
+  fontSize: "24px",
+  fontWeight: "800",
+  color: "#111827"
+};
+
+const couponInputStyle = {
+  padding: "8px 14px",
+  borderRadius: "10px",
+  border: "1.5px solid #E5E7EB",
+  fontSize: "14px",
+  fontWeight: "600",
+  minWidth: "220px",
+  outline: "none"
+};
+
+const couponSelectStyle = {
+  padding: "8px 12px",
+  borderRadius: "10px",
+  border: "1.5px solid #E5E7EB",
+  fontSize: "14px",
+  fontWeight: "600",
+  background: "#FFFFFF",
+  outline: "none"
+};
+
+const couponPrimaryBtnStyle = {
+  background: "#10B981",
+  color: "#FFFFFF",
+  border: "none",
+  borderRadius: "10px",
+  padding: "8px 16px",
+  fontSize: "14px",
+  fontWeight: "700",
+  cursor: "pointer",
+  boxShadow: "0 2px 4px rgba(16,185,129,0.2)"
+};
+
+const couponSecondaryBtnStyle = {
+  background: "#F3F4F6",
+  color: "#374151",
+  border: "1.5px solid #E5E7EB",
+  borderRadius: "10px",
+  padding: "8px 16px",
+  fontSize: "14px",
+  fontWeight: "700",
+  cursor: "pointer"
+};
+
+const couponTableContainerStyle = {
+  background: "#FFFFFF",
+  border: "1.5px solid #E5E7EB",
+  borderRadius: "16px",
+  overflow: "hidden"
+};
+
+const couponThStyle = {
+  padding: "12px 16px",
+  fontSize: "12px",
+  fontWeight: "800",
+  color: "#4B5563",
+  textTransform: "uppercase"
+};
+
+const couponTdStyle = {
+  padding: "14px 16px",
+  fontSize: "14px",
+  verticalAlign: "middle"
+};
+
+const couponTypePercentageBadge = {
+  background: "#EEF2FF",
+  color: "#4F46E5",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  fontWeight: "700",
+  fontSize: "12px"
+};
+
+const couponTypeFlatBadge = {
+  background: "#F0FDF4",
+  color: "#16A34A",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  fontWeight: "700",
+  fontSize: "12px"
+};
+
+const couponActiveBadge = {
+  background: "#ECFDF5",
+  color: "#059669",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  fontWeight: "800",
+  fontSize: "11px",
+  textTransform: "uppercase"
+};
+
+const couponScheduledBadge = {
+  background: "#EFF6FF",
+  color: "#2563EB",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  fontWeight: "800",
+  fontSize: "11px",
+  textTransform: "uppercase"
+};
+
+const couponInactiveBadge = {
+  background: "#FEF2F2",
+  color: "#DC2626",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  fontWeight: "800",
+  fontSize: "11px",
+  textTransform: "uppercase"
+};
+
+const couponActionBtnStyle = {
+  background: "#F3F4F6",
+  border: "none",
+  borderRadius: "8px",
+  padding: "6px 8px",
+  cursor: "pointer",
+  fontSize: "14px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center"
+};
+
+const couponDeleteBtnStyle = {
+  background: "#FEF2F2",
+  border: "none",
+  borderRadius: "8px",
+  padding: "6px 8px",
+  cursor: "pointer",
+  fontSize: "14px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center"
+};
+
+const couponModalOverlayStyle = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: "rgba(0,0,0,0.4)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 10000,
+  backdropFilter: "blur(4px)"
+};
+
+const couponModalContentStyle = {
+  background: "#FFFFFF",
+  borderRadius: "20px",
+  padding: "24px",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+  maxHeight: "90vh"
+};
+
+const couponFormRowStyle = {
+  display: "flex",
+  gap: "12px"
+};
+
+const couponLabelStyle = {
+  fontSize: "12px",
+  fontWeight: "800",
+  color: "#4B5563",
+  display: "block",
+  marginBottom: "4px"
+};
+
+const couponFormInputStyle = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: "10px",
+  border: "1.5px solid #E5E7EB",
+  fontSize: "14px",
+  fontWeight: "600",
+  boxSizing: "border-box",
+  outline: "none"
+};
+
+const couponFormSelectStyle = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: "10px",
+  border: "1.5px solid #E5E7EB",
+  fontSize: "14px",
+  fontWeight: "600",
+  background: "#FFFFFF",
+  boxSizing: "border-box",
+  outline: "none"
+};
+
+const couponCloseBtnStyle = {
+  background: "none",
+  border: "none",
+  fontSize: "18px",
+  fontWeight: "700",
+  color: "#6B7280",
+  cursor: "pointer"
+};
+
+const couponPreviewCardContainer = {
+  background: "#FFFFFF",
+  border: "2px solid #10B981",
+  borderRadius: "16px",
+  padding: "16px",
+  boxShadow: "0 4px 12px rgba(16,185,129,0.08)",
+  display: "flex",
+  flexDirection: "column",
+  position: "relative",
+  overflow: "hidden"
+};
+
+const couponPreviewCardHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center"
+};
+
+const couponPreviewCardCode = {
+  fontSize: "16px",
+  fontWeight: "900",
+  color: "#111827",
+  letterSpacing: "0.5px"
+};
+
+const couponPreviewCardTag = {
+  background: "#10B981",
+  color: "#FFFFFF",
+  fontSize: "11px",
+  fontWeight: "850",
+  padding: "4px 8px",
+  borderRadius: "8px"
+};
+
+const couponPreviewCardTitle = {
+  fontSize: "14px",
+  fontWeight: "800",
+  color: "#111827",
+  marginTop: "4px"
+};
+
+const couponPreviewCardDesc = {
+  fontSize: "11px",
+  color: "#6B7280",
+  fontWeight: "600",
+  marginTop: "2px"
+};
+
+const couponPreviewDetailRow = {
+  display: "flex",
+  justifyContent: "space-between",
+  fontSize: "11px",
+  color: "#6B7280",
+  fontWeight: "600"
+};
+
+const couponPreviewCardFooter = {
+  marginTop: "12px",
+  paddingTop: "10px",
+  borderTop: "1px solid #F3F4F6",
+  fontSize: "10px",
+  fontWeight: "850",
+  color: "#374151"
+};
+
+const couponLogCardStyle = {
+  background: "#F9FAFB",
+  border: "1.5px solid #E5E7EB",
+  borderRadius: "12px",
+  padding: "12px"
+};
+
+const couponLogDetailsStyle = {
+  margin: "8px 0 0 0",
+  background: "#1F2937",
+  color: "#F9FAFB",
+  padding: "8px",
+  borderRadius: "8px",
+  fontSize: "11px",
+  overflowX: "auto",
+  maxHeight: "150px",
+  fontFamily: "monospace"
+};
+
+
+export function CouponsPanel({ isMobile }) {
+  const [coupons, setCoupons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+
+  const [selectedCoupon, setSelectedCoupon] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [showLogsModal, setShowLogsModal] = useState(false);
+
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+
+  const initialFormValues = {
+    code: "",
+    title: "",
+    description: "",
+    couponType: "flat",
+    discountValue: 0,
+    minimumOrderValue: 0,
+    maximumDiscount: 0,
+    usageLimit: 0,
+    usagePerUser: 1,
+    validFrom: new Date().toISOString().substring(0, 16),
+    validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().substring(0, 16),
+    priority: 0,
+    isActive: true
+  };
+
+  const [formValues, setFormValues] = useState(initialFormValues);
+
+  const fetchCoupons = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch((window.API_BASE_URL || "") + "/api/admin/coupons", {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCoupons(data.coupons || []);
+      }
+    } catch (err) {
+      console.error("Error fetching coupons:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCoupons();
+  }, []);
+
+  const handleStatusToggle = async (coupon) => {
+    try {
+      const res = await fetch((window.API_BASE_URL || "") + `/api/admin/coupons/${coupon._id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
+        },
+        body: JSON.stringify({ isActive: !coupon.isActive })
+      });
+      if (res.ok) {
+        fetchCoupons();
+      }
+    } catch (err) {
+      console.error("Failed to toggle coupon status:", err);
+    }
+  };
+
+  const handleArchive = async (id) => {
+    if (!window.confirm("Are you sure you want to archive this coupon? Ancient orders will retain their discount records but this coupon cannot be applied anymore.")) return;
+    try {
+      const res = await fetch((window.API_BASE_URL || "") + `/api/admin/coupons/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
+        }
+      });
+      if (res.ok) {
+        fetchCoupons();
+      }
+    } catch (err) {
+      console.error("Failed to archive coupon:", err);
+    }
+  };
+
+  const handleOpenAdd = () => {
+    setFormValues(initialFormValues);
+    setIsEdit(false);
+    setShowFormModal(true);
+  };
+
+  const handleOpenEdit = (coupon) => {
+    setFormValues({
+      ...coupon,
+      validFrom: new Date(coupon.validFrom).toISOString().substring(0, 16),
+      validUntil: new Date(coupon.validUntil).toISOString().substring(0, 16)
+    });
+    setIsEdit(true);
+    setShowFormModal(true);
+  };
+
+  const handleDuplicate = (coupon) => {
+    setFormValues({
+      ...coupon,
+      _id: undefined,
+      code: `${coupon.code}_COPY`,
+      validFrom: new Date().toISOString().substring(0, 16),
+      validUntil: new Date(coupon.validUntil).toISOString().substring(0, 16)
+    });
+    setIsEdit(false);
+    setShowFormModal(true);
+  };
+
+  const handleShowLogs = async (coupon) => {
+    setSelectedCoupon(coupon);
+    try {
+      const res = await fetch((window.API_BASE_URL || "") + `/api/admin/coupons/audit-logs/${coupon._id}`, {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAuditLogs(data.logs || []);
+        setShowLogsModal(true);
+      }
+    } catch (err) {
+      console.error("Error fetching audit logs:", err);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
+    console.log("Admin: Creating/updating coupon... Payload:", formValues);
+    const url = (window.API_BASE_URL || "") + (isEdit ? `/api/admin/coupons/${formValues._id}` : "/api/admin/coupons");
+    const method = isEdit ? "PUT" : "POST";
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
+        },
+        body: JSON.stringify(formValues)
+      });
+      const data = await res.json();
+      console.log("Admin: Coupon response:", data);
+      if (data.success) {
+        alert(isEdit ? "Coupon updated successfully." : "Coupon created successfully.");
+        setShowFormModal(false);
+        fetchCoupons();
+      } else {
+        alert(data.message || "Failed to save coupon");
+      }
+    } catch (err) {
+      console.error("Admin: Coupon save exception:", err);
+      alert("Connection error: Failed to save coupon. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const now = new Date();
+  const filteredCoupons = coupons.filter(c => {
+    const matchesSearch = (c.code || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (c.title || "").toLowerCase().includes(searchQuery.toLowerCase());
+    
+    let matchesStatus = true;
+    if (filterStatus === "active") {
+      matchesStatus = c.isActive && new Date(c.validFrom) <= now && new Date(c.validUntil) > now;
+    } else if (filterStatus === "expired") {
+      matchesStatus = new Date(c.validUntil) <= now;
+    } else if (filterStatus === "scheduled") {
+      matchesStatus = c.isActive && new Date(c.validFrom) > now;
+    } else if (filterStatus === "disabled") {
+      matchesStatus = !c.isActive;
+    }
+
+    let matchesType = true;
+    if (filterType !== "all") {
+      matchesType = c.couponType === filterType;
+    }
+
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const totalUses = coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0);
+  const totalDiscount = coupons.reduce((sum, c) => sum + (c.totalDiscountGiven || 0), 0);
+  const totalRevenue = coupons.reduce((sum, c) => sum + (c.revenueGenerated || 0), 0);
+
+  return (
+    <div style={{ fontFamily: "'Outfit', sans-serif", padding: "16px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+        <div style={couponStatCardStyle}>
+          <span style={couponStatLabelStyle}>Total Coupons</span>
+          <span style={couponStatValStyle}>{coupons.length}</span>
+        </div>
+        <div style={couponStatCardStyle}>
+          <span style={couponStatLabelStyle}>Total Redemptions</span>
+          <span style={couponStatValStyle}>{totalUses}</span>
+        </div>
+        <div style={couponStatCardStyle}>
+          <span style={couponStatLabelStyle}>Total Discount Given</span>
+          <span style={couponStatValStyle}>₹{Math.round(totalDiscount)}</span>
+        </div>
+        <div style={couponStatCardStyle}>
+          <span style={couponStatLabelStyle}>Revenue Generated</span>
+          <span style={couponStatValStyle}>₹{Math.round(totalRevenue)}</span>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", flex: 1 }}>
+          <input
+            type="text"
+            placeholder="Search by Code or Title..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={couponInputStyle}
+          />
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={couponSelectStyle}>
+            <option value="all">All Statuses</option>
+            <option value="active">Active Now</option>
+            <option value="expired">Expired</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={couponSelectStyle}>
+            <option value="all">All Types</option>
+            <option value="flat">Flat Discount</option>
+            <option value="percentage">Percentage Discount</option>
+            <option value="free_delivery">Free Delivery</option>
+          </select>
+        </div>
+        <button onClick={handleOpenAdd} style={couponPrimaryBtnStyle}>
+          ➕ Add Coupon
+        </button>
+      </div>
+
+      <div style={couponTableContainerStyle}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "40px", color: "#6B7280" }}>Loading coupons...</div>
+        ) : filteredCoupons.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px", color: "#6B7280" }}>No coupons found.</div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+            <thead>
+              <tr style={{ background: "#F9FAFB", borderBottom: "1.5px solid #E5E7EB" }}>
+                <th style={couponThStyle}>Code / Title</th>
+                <th style={couponThStyle}>Discount Type/Value</th>
+                <th style={couponThStyle}>Min Order</th>
+                <th style={couponThStyle}>Expires</th>
+                <th style={couponThStyle}>Status</th>
+                <th style={couponThStyle}>Performance</th>
+                <th style={couponThStyle}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCoupons.map((c) => {
+                const isExpired = new Date(c.validUntil) <= now;
+                const statusText = isExpired ? "Expired" : !c.isActive ? "Disabled" : new Date(c.validFrom) > now ? "Scheduled" : "Active";
+                
+                return (
+                  <tr key={c._id} style={{ borderBottom: "1.5px solid #F3F4F6", transition: "all 0.1s ease" }}>
+                    <td style={couponTdStyle}>
+                      <div style={{ fontWeight: "700", color: "#111827" }}>{c.code}</div>
+                      <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "2px" }}>{c.title}</div>
+                    </td>
+                    <td style={couponTdStyle}>
+                      <span style={c.couponType === "percentage" ? couponTypePercentageBadge : couponTypeFlatBadge}>
+                        {c.couponType === "percentage" ? `${c.discountValue}%` : `₹${c.discountValue}`} {c.couponType === "free_delivery" ? "Free Delivery" : ""}
+                      </span>
+                    </td>
+                    <td style={couponTdStyle}>₹{c.minimumOrderValue || 0}</td>
+                    <td style={couponTdStyle}>{new Date(c.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
+                    <td style={couponTdStyle}>
+                      <span style={statusText === "Active" ? couponActiveBadge : statusText === "Expired" || statusText === "Disabled" ? couponInactiveBadge : couponScheduledBadge}>
+                        {statusText}
+                      </span>
+                    </td>
+                    <td style={couponTdStyle}>
+                      <div style={{ fontSize: "13px", fontWeight: "700" }}>{c.usedCount || 0} Uses</div>
+                      <div style={{ fontSize: "11px", color: "#10B981", fontWeight: "600", marginTop: "2px" }}>₹{Math.round(c.totalDiscountGiven || 0)} Given</div>
+                    </td>
+                    <td style={couponTdStyle}>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button onClick={() => handleOpenEdit(c)} style={couponActionBtnStyle} title="Edit Coupon">✏️</button>
+                        <button onClick={() => handleStatusToggle(c)} style={couponActionBtnStyle} title={c.isActive ? "Deactivate" : "Activate"}>
+                          {c.isActive ? "⏸️" : "▶️"}
+                        </button>
+                        <button onClick={() => handleDuplicate(c)} style={couponActionBtnStyle} title="Duplicate Coupon">📋</button>
+                        <button onClick={() => handleShowLogs(c)} style={couponActionBtnStyle} title="Audit Logs">📜</button>
+                        <button onClick={() => handleArchive(c._id)} style={couponDeleteBtnStyle} title="Archive Coupon">🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {showFormModal && (
+        <div style={couponModalOverlayStyle}>
+          <div style={{ ...couponModalContentStyle, width: "850px", display: "flex", flexDirection: "row", gap: "24px" }}>
+            
+            <div style={{ flex: 1, maxHeight: "80vh", overflowY: "auto", paddingRight: "8px" }}>
+              <h3 style={{ margin: "0 0 16px 0", fontSize: "18px", color: "#111827", fontWeight: "800" }}>
+                {isEdit ? "✏️ Edit Coupon" : "➕ Add New Coupon"}
+              </h3>
+              
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={couponFormRowStyle}>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Coupon Code *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formValues.code}
+                      onChange={(e) => setFormValues({ ...formValues, code: e.target.value.toUpperCase() })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Coupon Name/Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formValues.title}
+                      onChange={(e) => setFormValues({ ...formValues, title: e.target.value })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={couponLabelStyle}>Description</label>
+                  <textarea
+                    rows={2}
+                    value={formValues.description}
+                    onChange={(e) => setFormValues({ ...formValues, description: e.target.value })}
+                    style={couponFormInputStyle}
+                  />
+                </div>
+
+                <div style={couponFormRowStyle}>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Discount Type</label>
+                    <select
+                      value={formValues.couponType}
+                      onChange={(e) => setFormValues({ ...formValues, couponType: e.target.value })}
+                      style={couponFormSelectStyle}
+                    >
+                      <option value="flat">Flat Amount</option>
+                      <option value="percentage">Percentage</option>
+                      <option value="free_delivery">Free Delivery</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Discount Value *</label>
+                    <input
+                      type="number"
+                      required
+                      value={formValues.discountValue}
+                      onChange={(e) => setFormValues({ ...formValues, discountValue: Number(e.target.value) })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={couponFormRowStyle}>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Minimum Order (₹)</label>
+                    <input
+                      type="number"
+                      value={formValues.minimumOrderValue}
+                      onChange={(e) => setFormValues({ ...formValues, minimumOrderValue: Number(e.target.value) })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Maximum Discount Cap (₹)</label>
+                    <input
+                      type="number"
+                      placeholder="0 for unlimited"
+                      value={formValues.maximumDiscount}
+                      onChange={(e) => setFormValues({ ...formValues, maximumDiscount: Number(e.target.value) })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={couponFormRowStyle}>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Total Usage Limit</label>
+                    <input
+                      type="number"
+                      placeholder="0 for unlimited"
+                      value={formValues.usageLimit}
+                      onChange={(e) => setFormValues({ ...formValues, usageLimit: Number(e.target.value) })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Usage Per Customer</label>
+                    <input
+                      type="number"
+                      value={formValues.usagePerUser}
+                      onChange={(e) => setFormValues({ ...formValues, usagePerUser: Number(e.target.value) })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={couponFormRowStyle}>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Valid From</label>
+                    <input
+                      type="datetime-local"
+                      value={formValues.validFrom}
+                      onChange={(e) => setFormValues({ ...formValues, validFrom: e.target.value })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Valid Until</label>
+                    <input
+                      type="datetime-local"
+                      value={formValues.validUntil}
+                      onChange={(e) => setFormValues({ ...formValues, validUntil: e.target.value })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={couponFormRowStyle}>
+                  <div style={{ flex: 1 }}>
+                    <label style={couponLabelStyle}>Priority Weight</label>
+                    <input
+                      type="number"
+                      value={formValues.priority}
+                      onChange={(e) => setFormValues({ ...formValues, priority: Number(e.target.value) })}
+                      style={couponFormInputStyle}
+                    />
+                  </div>
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px", marginTop: "20px" }}>
+                    <input
+                      type="checkbox"
+                      id="isActiveCheck"
+                      checked={formValues.isActive}
+                      onChange={(e) => setFormValues({ ...formValues, isActive: e.target.checked })}
+                      style={{ cursor: "pointer", width: "18px", height: "18px" }}
+                    />
+                    <label htmlFor="isActiveCheck" style={{ fontWeight: "700", cursor: "pointer", color: "#374151" }}>Is Active</label>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", marginTop: "16px", justifyContent: "flex-end" }}>
+                  <button type="button" disabled={isSaving} onClick={() => setShowFormModal(false)} style={couponSecondaryBtnStyle}>Cancel</button>
+                  <button type="submit" disabled={isSaving} style={{ ...couponPrimaryBtnStyle, opacity: isSaving ? 0.7 : 1 }}>
+                    {isSaving ? "Saving..." : "Save Coupon"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div style={{ width: "260px", borderLeft: "1px solid #E5E7EB", paddingLeft: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+              <h4 style={{ margin: "0", fontSize: "12px", fontWeight: "800", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                🎟️ Visual Live Preview
+              </h4>
+              
+              <div style={couponPreviewCardContainer}>
+                <div style={couponPreviewCardHeader}>
+                  <span style={couponPreviewCardCode}>{formValues.code || "WELCOME50"}</span>
+                  <span style={couponPreviewCardTag}>
+                    {formValues.couponType === "percentage" ? `${formValues.discountValue || 50}% OFF` : `₹${formValues.discountValue || 50} OFF`}
+                  </span>
+                </div>
+                
+                <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={couponPreviewCardTitle}>{formValues.title || "Welcome Discount Offer"}</div>
+                  {formValues.description && <div style={couponPreviewCardDesc}>{formValues.description}</div>}
+                  
+                  <div style={{ borderTop: "1.5px dashed #E5E7EB", margin: "8px 0" }}></div>
+
+                  <div style={couponPreviewDetailRow}>
+                    <span>Min Order Value</span>
+                    <span style={{ fontWeight: "800", color: "#111827" }}>₹{formValues.minimumOrderValue || 0}</span>
+                  </div>
+
+                  {formValues.couponType === "percentage" && formValues.maximumDiscount > 0 && (
+                    <div style={couponPreviewDetailRow}>
+                      <span>Max Discount Cap</span>
+                      <span style={{ fontWeight: "800", color: "#111827" }}>₹{formValues.maximumDiscount}</span>
+                    </div>
+                  )}
+
+                  <div style={couponPreviewDetailRow}>
+                    <span>Per User Limit</span>
+                    <span style={{ fontWeight: "800", color: "#111827" }}>{formValues.usagePerUser} time(s)</span>
+                  </div>
+
+                  <div style={couponPreviewDetailRow}>
+                    <span>Expires On</span>
+                    <span style={{ fontWeight: "800", color: "#10B981" }}>
+                      {new Date(formValues.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={couponPreviewCardFooter}>
+                  <span>STATUS: {formValues.isActive ? "🟢 ACTIVE" : "🔴 INACTIVE"}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {showLogsModal && selectedCoupon && (
+        <div style={couponModalOverlayStyle}>
+          <div style={{ ...couponModalContentStyle, width: "600px", maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: "0", fontSize: "17px", color: "#111827", fontWeight: "800" }}>
+                📜 Audit History: {selectedCoupon.code}
+              </h3>
+              <button onClick={() => setShowLogsModal(false)} style={couponCloseBtnStyle}>✕</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto", paddingRight: "8px" }}>
+              {auditLogs.length === 0 ? (
+                <div style={{ color: "#6B7280", textAlign: "center", padding: "20px" }}>No audit entries recorded for this coupon.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {auditLogs.map((log) => (
+                    <div key={log._id} style={couponLogCardStyle}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "700", fontSize: "13px" }}>
+                        <span style={{ color: log.action === "CREATE" ? "#10B981" : log.action === "ARCHIVE" ? "#EF4444" : "#3B82F6" }}>
+                          {log.action}
+                        </span>
+                        <span style={{ color: "#6B7280" }}>{new Date(log.timestamp).toLocaleString("en-IN")}</span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#374151", marginTop: "4px" }}>
+                        <strong>Admin:</strong> {log.adminName}
+                      </div>
+                      {log.details && (
+                        <pre style={couponLogDetailsStyle}>
+                          {log.details.startsWith("{") ? JSON.stringify(JSON.parse(log.details), null, 2) : log.details}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

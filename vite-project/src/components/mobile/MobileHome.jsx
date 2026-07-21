@@ -8,6 +8,7 @@ import CategoryDiscovery from "../CategoryDiscovery";
 import TrendingThisWeek from "../TrendingThisWeek";
 import DynamicNewBanners from "../DynamicNewBanners";
 import PromoBannerCarousel from "../PromoBannerCarousel";
+import SearchResultsView from "../SearchResultsView";
 
 function MobileHome({
   products,
@@ -358,37 +359,17 @@ function MobileHome({
               </div>
             </div>
           ) : (
-            /* Search Results product grid */
-            <div>
-              <h4 style={{ fontSize: "14px", fontWeight: "800", color: "#1f2937", marginBottom: "12px" }}>
-                Search Results ({filteredProducts.length})
-              </h4>
-              {filteredProducts.length === 0 ? (
-                <p style={{ color: "#6b7280", fontSize: "13px", textAlign: "center", marginTop: "40px" }}>
-                  No matches found for "{searchQuery}"
-                </p>
-              ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)", // Compact 3 column grid to fit well
-                    gap: "10px",
-                    justifyItems: "center",
-                  }}
-                >
-                  {filteredProducts.map((prod) => (
-                    <MobileProductCard
-                      key={prod._id || prod.id}
-                      product={prod}
-                      addToCart={addToCart}
-                      removeFromCart={removeFromCart}
-                      cartItems={cartItems}
-                      setSelectedProduct={setSelectedProduct}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <SearchResultsView
+              searchQuery={searchQuery}
+              filteredProducts={filteredProducts}
+              allProducts={products}
+              isMobile={true}
+              addToCart={addToCart}
+              removeFromCart={removeFromCart}
+              cartItems={cartItems}
+              setSelectedProduct={setSelectedProduct}
+              setSearchQuery={setSearchQuery}
+            />
           )}
         </div>
       ) : (

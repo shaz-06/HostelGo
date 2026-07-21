@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, ArrowRight } from "lucide-react";
+import { AuthContext } from "../../context/AuthContext";
 
 const ScooterSVG = ({ isUnlocking }) => (
   <svg
@@ -87,6 +88,8 @@ export default function FloatingCartPopup({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isLoginOpen, isOnboardingOpen } = useContext(AuthContext);
+  const isAuthModalOpen = isLoginOpen || isOnboardingOpen;
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [justUnlocked, setJustUnlocked] = useState(false);
 
@@ -140,14 +143,16 @@ export default function FloatingCartPopup({
             position: "fixed",
             bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
             left: "50%",
-            transform: `translate3d(-50%, ${hasBottomNav && bottomNavVisible ? -56 : 0}px, 0)`,
-            transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transform: `translate3d(-50%, ${(hasBottomNav && bottomNavVisible ? -56 : 0) + (isAuthModalOpen ? 24 : 0)}px, 0)`,
+            transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease, visibility 300ms ease",
+            opacity: isAuthModalOpen ? 0 : 1,
+            visibility: isAuthModalOpen ? "hidden" : "visible",
+            pointerEvents: isAuthModalOpen ? "none" : "auto",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "12px",
             zIndex: 9999, // Ensure it stays above bottom navigation, product cards, sticky headers, banners
-            pointerEvents: "none",
             width: "max-content",
             maxWidth: isMobile ? "98vw" : "540px",
           }}
@@ -211,7 +216,7 @@ export default function FloatingCartPopup({
               flexDirection: "column",
               padding: "10px 20px",
               cursor: "pointer",
-              pointerEvents: "auto",
+              pointerEvents: isAuthModalOpen ? "none" : "auto",
               overflow: "hidden",
               position: "relative",
               boxSizing: "border-box",
@@ -345,7 +350,7 @@ export default function FloatingCartPopup({
               justifyContent: "space-between",
               padding: "0 14px",
               cursor: "pointer",
-              pointerEvents: "auto",
+              pointerEvents: isAuthModalOpen ? "none" : "auto",
               overflow: "hidden",
               whiteSpace: "nowrap",
               gap: "8px",

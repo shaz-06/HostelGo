@@ -1,28 +1,40 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+import { motion } from "framer-motion";
 import { AuthContext } from "../context/AuthContext";
+import { apiFetch } from "../utils/apiClient";
 import BuyCoin from "../components/common/BuyCoin";
 import { calculateBill } from "../utils/billCalculator";
 import CartBillDetails from "../components/CartBillDetails";
+import { Capacitor } from "@capacitor/core";
 
-const loadRazorpayScript = () => {
-  return new Promise((resolve) => {
-    if (window.Razorpay) {
-      resolve(true);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => {
-      console.log("=== RAZORPAY SDK LOADED ===");
-      resolve(true);
-    };
-    script.onerror = () => {
-      resolve(false);
-    };
-    document.body.appendChild(script);
-  });
+let razorpayPromise;
+
+export const loadRazorpay = () => {
+    if (window.Razorpay) return Promise.resolve(true);
+
+    if (razorpayPromise) return razorpayPromise;
+
+    razorpayPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.async = true;
+
+        script.onload = () => {
+            console.log("SDK loaded");
+            resolve(true);
+        };
+
+        script.onerror = () => {
+            razorpayPromise = null;
+            reject(new Error("Failed to load Razorpay SDK"));
+        };
+
+        document.body.appendChild(script);
+    });
+
+    return razorpayPromise;
 };
 
 export default function PaymentPage({ 
@@ -35,10 +47,57 @@ export default function PaymentPage({
   const navigate = useNavigate();
   const { token, user: contextUser, refreshUser, appConfig } = useContext(AuthContext);
   const [isProcessing, setIsProcessing] = useState(false);
+  const isProcessingRef = useRef(false);
+  const rzpInstanceRef = useRef(null);
   const [gpsCoords, setGpsCoords] = useState(null);
   const [coinsToRedeem, setCoinsToRedeem] = useState(() => Number(localStorage.getItem("buyto_coins_redeem") || 0));
   const [maxRedeemableCoins, setMaxRedeemableCoins] = useState(0);
   const [availableCoins, setAvailableCoins] = useState(0);
+
+  const [appliedCouponCode, setAppliedCouponCode] = useState(() => {
+    return sessionStorage.getItem("buyto_applied_coupon_code") || "";
+  });
+  const [couponDiscount, setCouponDiscount] = useState(0);
+
+  useEffect(() => {
+    if (!appliedCouponCode) {
+      setCouponDiscount(0);
+      return;
+    }
+    const validateCouponOnPayment = async () => {
+      try {
+        console.log("Customer (Payment): Validating coupon:", appliedCouponCode, "subtotal:", subtotal);
+        const res = await fetch((window.API_BASE_URL || "") + "/api/auth/coupons/validate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            couponCode: appliedCouponCode,
+            cartValue: subtotal
+          })
+        });
+        const data = await res.json();
+        console.log("Customer (Payment): Validation result:", data);
+        if (data.success && data.coupon) {
+          setCouponDiscount(data.coupon.discountAmount);
+        } else {
+          sessionStorage.removeItem("buyto_applied_coupon_code");
+          setAppliedCouponCode("");
+          setCouponDiscount(0);
+          alert(data.message || "Applied coupon is no longer eligible. Redirecting to Cart...");
+          navigate("/cart");
+        }
+      } catch (err) {
+        console.error("Customer (Payment): Failed to validate coupon:", err);
+      }
+    };
+
+    if (token && subtotal > 0) {
+      validateCouponOnPayment();
+    }
+  }, [appliedCouponCode, subtotal, token, navigate]);
 
   const [isAddressServiceable, setIsAddressServiceable] = useState(true);
   const [checkingServiceability, setCheckingServiceability] = useState(true);
@@ -126,12 +185,29 @@ export default function PaymentPage({
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cod"); // 'cod' or 'razorpay'
+  const prevPaymentMethodRef = useRef(paymentMethod);
+
+  useEffect(() => {
+    if (paymentMethod !== prevPaymentMethodRef.current) {
+      if (paymentMethod === "cod") {
+        console.log("Analytics: cod_selected");
+      } else if (paymentMethod === "razorpay") {
+        console.log("Analytics: online_payment_selected");
+        if (prevPaymentMethodRef.current === "cod") {
+          console.log("Analytics: cod_to_online_switch");
+        }
+      }
+      prevPaymentMethodRef.current = paymentMethod;
+    }
+  }, [paymentMethod]);
 
   // Cart Calculations
   const [config, setConfig] = useState({
     handlingFee: 0,
     gstPercentage: 5,
-    gstFixedCharges: 2
+    gstFixedCharges: 2,
+    codConvenienceFee: 14,
+    codConvenienceFeeEnabled: true
   });
   const [deliverySettings, setDeliverySettings] = useState({
     lateNightDeliveryEnabled: false,
@@ -184,6 +260,16 @@ export default function PaymentPage({
     };
   }, []);
 
+  const subtotal = Object.values(cart || {}).reduce(
+    (acc, item) => acc + item.product.price * item.quantity,
+    0
+  );
+  const originalSubtotal = Object.values(cart || {}).reduce(
+    (acc, item) => acc + (item.product.originalPrice || item.product.price) * item.quantity,
+    0
+  );
+  const cartSize = Object.keys(cart || {}).length;
+
   // Synchronize cart and calculate redemption limit on checkout
   useEffect(() => {
     const syncAndCalculate = async () => {
@@ -196,6 +282,14 @@ export default function PaymentPage({
 
         if (cartArray.length === 0) return;
 
+        console.log("[BUYCOINS TRACE]", {
+          reason: "syncAndCalculate invocation",
+          subtotal,
+          coinsToRedeem,
+          cartSize,
+          timestamp: Date.now()
+        });
+
         // 1. Sync cart to DB
         await fetch(window.API_BASE_URL + "/api/checkout/cart", {
           method: "POST",
@@ -205,6 +299,17 @@ export default function PaymentPage({
           },
           body: JSON.stringify({ items: cartArray })
         });
+
+        // Guard: BuyCoins can only be redeemed on orders above ₹99 (subtotal < 99)
+        if (subtotal < 99) {
+          console.log(`[BUYCOINS INFO] Subtotal (${subtotal}) is < 99. Skipping apply-buycoins request.`);
+          setMaxRedeemableCoins(0);
+          if (coinsToRedeem !== 0) {
+            setCoinsToRedeem(0);
+            localStorage.setItem("buyto_coins_redeem", "0");
+          }
+          return;
+        }
 
         // 2. Apply BuyCoins
         const res = await fetch(window.API_BASE_URL + "/api/checkout/apply-buycoins", {
@@ -231,16 +336,7 @@ export default function PaymentPage({
     };
 
     syncAndCalculate();
-  }, [token, cart, coinsToRedeem]);
-
-  const subtotal = Object.values(cart || {}).reduce(
-    (acc, item) => acc + item.product.price * item.quantity,
-    0
-  );
-  const originalSubtotal = Object.values(cart || {}).reduce(
-    (acc, item) => acc + (item.product.originalPrice || item.product.price) * item.quantity,
-    0
-  );
+  }, [token, cartSize, subtotal, coinsToRedeem]);
 
   const billBreakdown = calculateBill(
     subtotal,
@@ -252,20 +348,32 @@ export default function PaymentPage({
     },
     deliverySettings,
     selectedCoupon,
-    coinsToRedeem
+    coinsToRedeem,
+    paymentMethod
   );
   const { total } = billBreakdown;
 
   const handlePlaceOrder = async () => {
+    if (isProcessingRef.current) {
+      console.log("=== PAYMENT BLOCKED: ALREADY PROCESSING ===");
+      return;
+    }
+    isProcessingRef.current = true;
+    setIsProcessing(true);
+
     console.log("=== PAYMENT START ===");
     console.log("=== USER DATA ===", user);
 
     if (subtotal === 0) {
       alert("Your cart is empty");
+      isProcessingRef.current = false;
+      setIsProcessing(false);
       return;
     }
     if (!user) {
       alert("No delivery details found. Please go back and fill checkout details.");
+      isProcessingRef.current = false;
+      setIsProcessing(false);
       return;
     }
 
@@ -281,18 +389,17 @@ export default function PaymentPage({
     const actualRoom = user.room || user.roomNumber || "";
     const deliveryAddress = `${actualLocation}${actualRoom ? `, Room: ${actualRoom}` : ""}`;
 
-    setIsProcessing(true);
-
     try {
       if (paymentMethod === "cod") {
         // 1. Cash on Delivery placement
         console.log("=== CREATE ORDER REQUEST ===");
-        const response = await fetch(window.API_BASE_URL + "/api/orders", {
+        const response = await apiFetch(window.API_BASE_URL + "/api/orders", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`
           },
+          blocking: true,
           body: JSON.stringify({
             user: {
               name: user.name || "Customer",
@@ -317,7 +424,7 @@ export default function PaymentPage({
 
         const data = await response.json();
 
-        if (response.ok && data.success) {
+        if (response.ok && data.success && data.trackingReady) {
           console.log("=== CREATE ORDER RESPONSE ===", data);
           // Store latest order details for tracking dashboard
           localStorage.setItem(
@@ -329,10 +436,14 @@ export default function PaymentPage({
               weight: p.weight
             })))
           );
-          const orderId = data.order?._id;
+          const orderId = data.orderId || data.order?._id;
           localStorage.setItem("latestOrderId", orderId || "");
           localStorage.setItem("activeOrder", "true");
           localStorage.removeItem("hideTrackingCard");
+
+          if (billBreakdown.codConvenienceFee > 0) {
+            console.log("Analytics: cod_fee_collected", billBreakdown.codConvenienceFee);
+          }
 
           setCart({});
           if (orderId) {
@@ -352,9 +463,27 @@ export default function PaymentPage({
       } else {
         // 2. Online Payment via Razorpay
         console.log("=== RAZORPAY INIT ===");
-        const loaded = await loadRazorpayScript();
-        if (!loaded || !window.Razorpay) {
-          alert("Razorpay payment gateway failed to load! Please check your network connection and reload the page.");
+        if (rzpInstanceRef.current) {
+          console.warn("Razorpay instance already exists, preventing duplicate open");
+          return;
+        }
+
+        try {
+          await loadRazorpay();
+        } catch (sdkError) {
+          console.error("=== Razorpay loader error ===", sdkError);
+          alert("Unable to load secure payment gateway.\nPlease check your internet connection and try again.");
+          rzpInstanceRef.current = null;
+          isProcessingRef.current = false;
+          setIsProcessing(false);
+          return;
+        }
+
+        if (!window.Razorpay) {
+          console.error("=== Razorpay SDK unavailable ===");
+          alert("Unable to load secure payment gateway.\nPlease check your internet connection and try again.");
+          rzpInstanceRef.current = null;
+          isProcessingRef.current = false;
           setIsProcessing(false);
           return;
         }
@@ -396,12 +525,15 @@ export default function PaymentPage({
           console.error("Response JSON Data:", data);
           console.log("=== PAYMENT ERROR ===", data);
           alert(`Failed to initiate online transaction: ${data.message || "Unknown error"}${data.error ? ` (${data.error})` : ""}`);
+          isProcessingRef.current = false;
           setIsProcessing(false);
           return;
         }
 
-        console.log("=== CREATE ORDER RESPONSE ===", data);
+        console.log("create-order response", data);
         const { keyId, orderId, amount } = data;
+
+        let checkoutOpened = false;
 
         const options = {
           key: keyId,
@@ -410,7 +542,11 @@ export default function PaymentPage({
           name: "Buyto Instant Delivery ⚡",
           description: "Instant Cart Order Purchase",
           order_id: orderId,
+          webview_intent: true,
           handler: async function (response) {
+            console.log("payment.success", response);
+            checkoutOpened = true;
+            rzpInstanceRef.current = null;
             try {
               setIsProcessing(true);
               console.log("=== RAZORPAY PAYMENT SUCCESS ===");
@@ -430,7 +566,7 @@ export default function PaymentPage({
               const verifyData = await verifyRes.json();
               console.log("=== PAYMENT VERIFY RESPONSE ===", verifyData);
 
-              if (verifyRes.ok && verifyData.success) {
+              if (verifyRes.ok && verifyData.success && verifyData.trackingReady) {
                 console.log("=== VERIFY SUCCESS ===");
                 // Store latest order details for tracking dashboard
                 localStorage.setItem(
@@ -442,7 +578,7 @@ export default function PaymentPage({
                     weight: p.weight
                   })))
                 );
-                const orderId = verifyData.order?._id;
+                const orderId = verifyData.orderId || verifyData.order?._id;
                 localStorage.setItem("latestOrderId", orderId || "");
                 localStorage.setItem("activeOrder", "true");
                 localStorage.removeItem("hideTrackingCard");
@@ -470,6 +606,8 @@ export default function PaymentPage({
               console.log("=== PAYMENT ERROR ===", err);
               alert(`Error verifying checkout signature: ${err.message}`);
             } finally {
+              rzpInstanceRef.current = null;
+              isProcessingRef.current = false;
               setIsProcessing(false);
             }
           },
@@ -481,32 +619,101 @@ export default function PaymentPage({
             color: "#318616",
           },
           modal: {
+            escape: false,
+            backdropclose: false,
+            confirm_close: true,
             ondismiss: function () {
+              console.log("Razorpay dismissed");
+              console.log("modal dismiss");
+              checkoutOpened = true;
+              rzpInstanceRef.current = null;
+              isProcessingRef.current = false;
               setIsProcessing(false);
             }
           }
         };
 
-        console.log("=== RAZORPAY OPEN ===");
+        console.log("Razorpay options", options);
+
+        console.log("Platform:", Capacitor.getPlatform());
+        console.log("Is Native:", Capacitor.isNativePlatform());
+        console.log("window.Razorpay:", window.Razorpay);
+
+        console.log("before new Razorpay");
         const rzp = new window.Razorpay(options);
+        rzpInstanceRef.current = rzp;
+        console.log("after new Razorpay");
+
         rzp.on("payment.failed", function (response) {
-          console.error("=== [FRONTEND] Razorpay checkout popup reported payment failure ===");
-          console.error("Error Details:", response.error);
-          console.log("=== PAYMENT ERROR ===", response.error);
+          console.log("payment.failed", response.error);
           alert(`Order Payment Failed: ${response.error.description}`);
+          checkoutOpened = true;
+          rzpInstanceRef.current = null;
+          isProcessingRef.current = false;
           setIsProcessing(false);
         });
-        rzp.open();
+
+        // Setup watchdog timer
+        setTimeout(() => {
+          const iframe = document.querySelector('iframe[src*="razorpay"]');
+          if (iframe) {
+            checkoutOpened = true;
+          }
+          if (!checkoutOpened) {
+            console.warn("Razorpay checkout did not appear.");
+          }
+        }, 2000);
+
+        console.log("before rzp.open()");
+        if (Capacitor.isNativePlatform()) {
+          let opened = false;
+          try {
+            rzp.open();
+            opened = true;
+            console.log("after rzp.open() (immediate)");
+          } catch (err) {
+            console.warn("Immediate rzp.open() failed, falling back to setTimeout:", err);
+          }
+          if (!opened) {
+            setTimeout(() => {
+              try {
+                rzp.open();
+                console.log("after rzp.open() (deferred)");
+              } catch (retryErr) {
+                console.error("rzp.open() failed in setTimeout:", retryErr.stack || retryErr);
+                alert("Unable to load secure payment gateway. Please try again.");
+                rzpInstanceRef.current = null;
+                isProcessingRef.current = false;
+                setIsProcessing(false);
+              }
+            }, 50);
+          }
+        } else {
+          try {
+            rzp.open();
+            console.log("after rzp.open()");
+          } catch (err) {
+            console.error("rzp.open() failed:", err.stack || err);
+            alert("Unable to load secure payment gateway. Please try again.");
+            rzpInstanceRef.current = null;
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+          }
+        }
       }
     } catch (error) {
       console.log("=== PAYMENT ERROR ===", error);
+      rzpInstanceRef.current = null;
       const isNetworkError = error.message.includes("Load failed") || error.message.includes("Failed to fetch");
       const errorMessage = isNetworkError 
         ? "Network connection to server failed. Please ensure the backend is running and online."
         : error.message;
       alert(`Something went wrong during checkout: ${errorMessage}`);
+      isProcessingRef.current = false;
+      setIsProcessing(false);
     } finally {
       if (paymentMethod === "cod") {
+        isProcessingRef.current = false;
         setIsProcessing(false);
       }
     }
@@ -738,18 +945,55 @@ export default function PaymentPage({
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {/* COD */}
-            <div
-              onClick={() => !isProcessing && setPaymentMethod("cod")}
-              style={optionStyle(paymentMethod === "cod")}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ fontSize: "20px" }}>💵</span>
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <span style={{ fontWeight: "700", fontSize: "15px", color: "#1f2937" }}>Cash on Delivery</span>
-                  <span style={{ fontSize: "12px", color: "#6b7280" }}>Pay when your delivery arrives</span>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div
+                onClick={() => !isProcessing && setPaymentMethod("cod")}
+                style={optionStyle(paymentMethod === "cod")}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "20px" }}>💵</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <span style={{ fontWeight: "700", fontSize: "15px", color: "#1f2937" }}>Cash on Delivery</span>
+                    <span style={{ fontSize: "12px", color: "#6b7280" }}>Pay when your delivery arrives</span>
+                  </div>
                 </div>
+                <input type="radio" checked={paymentMethod === "cod"} readOnly style={radioStyle} />
               </div>
-              <input type="radio" checked={paymentMethod === "cod"} readOnly style={radioStyle} />
+              
+              {paymentMethod === "cod" && config.codConvenienceFeeEnabled !== false && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  style={{
+                    background: "#FFF8E6",
+                    borderLeft: "4px solid #F59E0B",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    marginTop: "8px",
+                    color: "#78350F",
+                    fontFamily: "'Outfit', 'Inter', sans-serif",
+                    textAlign: "left"
+                  }}
+                >
+                  <div style={{ fontWeight: "750", fontSize: "14px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>ⓘ</span> Cash on Delivery Convenience Fee
+                  </div>
+                  <div style={{ margin: "0 0 8px 0", fontSize: "13px", lineHeight: "1.5" }}>
+                    A ₹{config.codConvenienceFee || 14} convenience fee will be charged for Cash on Delivery orders.
+                  </div>
+                  <div style={{ margin: "0 0 12px 0", fontSize: "13px", lineHeight: "1.5", fontWeight: "500" }}>
+                    This fee helps cover:<br />
+                    • Cash handling<br />
+                    • Delivery verification<br />
+                    • Additional operational costs
+                  </div>
+                  <div style={{ fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>💳</span> Pay Online instead and save ₹{config.codConvenienceFee || 14}.
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Online Payment via Razorpay */}

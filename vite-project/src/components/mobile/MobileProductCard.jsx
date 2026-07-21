@@ -8,6 +8,7 @@ function MobileProductCard({
   removeFromCart,
   cartItems,
   setSelectedProduct,
+  searchQuery = "",
 }) {
   const navigate = useNavigate();
 
@@ -223,7 +224,19 @@ function MobileProductCard({
             lineHeight: "14px",
           }}
         >
-          {product.name}
+          {searchQuery && searchQuery.trim() !== "" ? (
+            product.name.split(new RegExp(`(${searchQuery.trim()})`, "gi")).map((part, pIdx) =>
+              part.toLowerCase() === searchQuery.trim().toLowerCase() ? (
+                <span key={pIdx} style={{ background: "#fef08a", color: "#15803d", padding: "0 2px", borderRadius: "3px", fontWeight: "900" }}>
+                  {part}
+                </span>
+              ) : (
+                part
+              )
+            )
+          ) : (
+            product.name
+          )}
         </span>
 
         {/* Weight selector */}

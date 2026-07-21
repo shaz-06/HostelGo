@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import ProductCard from "../ProductCard";
 import MobileProductCard from "../components/mobile/MobileProductCard";
 import { cachedFetch } from "../utils/apiCache";
-import { usePerfLogger } from "../utils/perfLogger";
+import { usePerfLogger, measureLoadingOperation } from "../utils/perfLogger";
 import { AuthContext } from "../context/AuthContext";
 import { getOptimizedImageUrl } from "../utils/imageOptimizer";
 import {
@@ -239,6 +239,7 @@ export default function ProductDetailsPage({
 
   // Fetch Product Data
   useEffect(() => {
+    const fetchStart = performance.now();
     let found = null;
     if (products && products.length > 0) {
       found = products.find((p) => String(p._id || p.id) === String(id));
@@ -248,37 +249,40 @@ export default function ProductDetailsPage({
       setActiveProduct(enriched);
       setSelectedImage(enriched.image);
       setLoading(false);
+      measureLoadingOperation(`ProductDetailsPage (${id})`, fetchStart);
 
       // PERSIST RECENTLY VIEWED (Keep last 10)
       try {
         const viewedStr = localStorage.getItem("buyto_recently_viewed");
         let viewed = viewedStr ? JSON.parse(viewedStr) : [];
-        // Remove duplicate if exists
         viewed = viewed.filter((item) => String(item._id || item.id) !== String(found._id || found.id));
         viewed.unshift(found);
         if (viewed.length > 10) {
           viewed = viewed.slice(0, 10);
         }
         localStorage.setItem("buyto_recently_viewed", JSON.stringify(viewed));
-      } catch (err) {
-        console.error("Error saving recently viewed", err);
+      } catch (e) {
+        console.error("Failed to save recently viewed:", e);
       }
     } else {
+      // Fetch product by ID from backend
       setLoading(true);
-      cachedFetch(window.API_BASE_URL + "/api/products")
+      cachedFetch((window.API_BASE_URL || "") + `/api/products/${id}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load product details");
+          return res.json();
+        })
         .then((data) => {
-          setAllProducts(data);
-          const item = data.find((p) => String(p._id || p.id) === String(id));
-          if (item) {
-            const enriched = enrichProduct(item);
-            setActiveProduct(enriched);
-            setSelectedImage(enriched.image);
-          }
-          setApiError(null);
+          const raw = data.product || data;
+          const enriched = enrichProduct(raw);
+          setActiveProduct(enriched);
+          setSelectedImage(enriched.image);
           setLoading(false);
+          measureLoadingOperation(`ProductDetailsPage API (${id})`, fetchStart);
         })
         .catch((err) => {
-          setApiError(`Failed to load product details: ${err.message}`);
+          console.error("PDP Fetch Error:", err);
+          setApiError("Failed to load product. Please try again.");
           setLoading(false);
         });
     }
@@ -287,7 +291,7 @@ export default function ProductDetailsPage({
   // SEO Update
   useEffect(() => {
     if (activeProduct) {
-      document.title = `${activeProduct.name} - Buyto`;
+      document.title = `${activeProduct.name} • Buyto`;
       let metaDesc = document.querySelector('meta[name="description"]');
       if (!metaDesc) {
         metaDesc = document.createElement('meta');
@@ -549,9 +553,32 @@ export default function ProductDetailsPage({
 
               {/* Strikethrough Price block */}
               <div style={{ borderTop: "1px solid #f3f4f6", borderBottom: "1px solid #f3f4f6", padding: "16px 0", marginBottom: "16px" }}>
+                {activeProduct.isFestivalPrice && (
+                  <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", padding: "10px 14px", borderRadius: "12px", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: "900", color: "#d97706" }}>
+                      {activeProduct.pricingBadge || "🎉 Festival Price Active"}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "6px", fontSize: "12px", color: "#475569" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>Original Base Price:</span>
+                        <strong>₹{activeProduct.originalPrice || currentOriginalPrice}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>Pricing Rule Adjustment:</span>
+                        <strong style={{ color: activeProduct.adjustmentAmount >= 0 ? "#dc2626" : "#16a34a" }}>
+                          {activeProduct.adjustmentAmount >= 0 ? `+₹${activeProduct.adjustmentAmount}` : `-₹${Math.abs(activeProduct.adjustmentAmount)}`}
+                        </strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #cbd5e1", paddingTop: "4px" }}>
+                        <span>Festival Selling Price:</span>
+                        <strong style={{ color: "#d97706" }}>₹{currentPrice}</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                  <span style={{ fontSize: "28px", fontWeight: "900", color: "#111827" }}>₹{currentPrice}</span>
-                  {hasDiscount && (
+                  <span style={{ fontSize: "28px", fontWeight: "900", color: activeProduct.isFestivalPrice ? "#d97706" : "#111827" }}>₹{currentPrice}</span>
+                  {(hasDiscount || activeProduct.isFestivalPrice) && (
                     <span style={{ fontSize: "18px", textDecoration: "line-through", color: "#9ca3af", fontWeight: "600" }}>
                       MRP: ₹{currentOriginalPrice}
                     </span>

@@ -266,7 +266,9 @@ if (process.env.MONGODB_URI) {
             rainFee: 0,
             lateNightFee: 0,
             gstPercentage: 5,
-            gstFixedCharges: 2
+            gstFixedCharges: 2,
+            codConvenienceFee: 14,
+            codConvenienceFeeEnabled: true
           });
           await feeConfig.save();
           console.log("=== FEE CONFIG SEED SUCCESS ===");
@@ -419,22 +421,106 @@ app.get("/debug-ping", (req, res) => {
   });
 });
 
+const { applyPricingRulesToProducts, calculateSellingPrice } = require("./services/pricingEngine");
+const pricingRuleRoutes = require("./routes/pricingRuleRoutes");
+
+app.use("/api/pricing-rules", pricingRuleRoutes);
+app.use("/api", paymentRoutes);
+const userRoutes = require("./routes/userRoutes");
+app.use("/api/users", userRoutes);
+app.put("/api/profile", require("./middleware/authMiddleware"), async (req, res) => {
+  const updateProfileHandler = userRoutes; // router contains PUT /profile handler
+  req.url = "/profile";
+  userRoutes(req, res);
+});
+
 app.get("/api/products", async (req, res) => {
   try {
+    const searchQuery = (req.query.search || req.query.q || req.query.query || "").toString().trim();
+    const categoryQuery = (req.query.category || "").toString().trim();
+
+    let products = [];
     if (isConnected) {
-      const products = await Product.find().lean();
-      const productIds = new Set(products.map((product) => product.id || String(product._id)));
-      const missingFallbackProducts = mockProducts.filter((product) => !productIds.has(product.id));
-      res.json([...products, ...missingFallbackProducts]);
+      const filter = {};
+
+      if (searchQuery) {
+        const regex = new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
+        filter.$or = [
+          { name: regex },
+          { brand: regex },
+          { category: regex },
+          { subCategory: regex },
+          { subcategory: regex },
+          { tags: regex }
+        ];
+      }
+
+      if (categoryQuery && categoryQuery !== "All") {
+        filter.category = new RegExp(categoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
+      }
+
+      products = await Product.find(filter, "name category subCategory brand price originalPrice weight image stock eta rating isAd variants tags").lean();
+      
+      // Merge fallback mock products only if searching/fetching returned no results or in offline dev fallback
+      if (!searchQuery && !categoryQuery) {
+        const productIds = new Set(products.map((product) => product.id || String(product._id)));
+        const missingFallbackProducts = mockProducts.filter((product) => !productIds.has(product.id));
+        products = [...products, ...missingFallbackProducts];
+      }
     } else {
       console.log("ℹ️ Serving local in-memory products (database offline/unreachable)");
-      res.json(mockProducts);
+      products = mockProducts;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        products = products.filter(p =>
+          (p.name && p.name.toLowerCase().includes(q)) ||
+          (p.brand && p.brand.toLowerCase().includes(q)) ||
+          (p.category && p.category.toLowerCase().includes(q)) ||
+          (p.subCategory && p.subCategory.toLowerCase().includes(q)) ||
+          (p.subcategory && p.subcategory.toLowerCase().includes(q)) ||
+          (Array.isArray(p.tags) && p.tags.some(t => t && t.toLowerCase().includes(q)))
+        );
+      }
     }
+    
+    // Calculate dynamic selling price using active pricing rules
+    const dynamicallyPriced = await applyPricingRulesToProducts(products);
+    res.json(dynamicallyPriced);
   } catch (error) {
     console.error(error);
     res.status(500).json({
       message: "Server Error"
     });
+  }
+});
+
+app.get("/api/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let product = null;
+    if (isConnected) {
+      product = await Product.findById(id).lean() || await Product.findOne({ id }).lean();
+    }
+    if (!product) {
+      product = mockProducts.find(p => String(p._id || p.id) === String(id));
+    }
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const priceCalc = await calculateSellingPrice(product);
+    if (priceCalc.isFestivalPrice) {
+      product.originalPrice = priceCalc.originalBasePrice;
+      product.price = priceCalc.finalPrice;
+      product.isFestivalPrice = true;
+      product.pricingBadge = priceCalc.badgeText;
+      product.pricingRule = priceCalc.activeRule;
+      product.adjustmentAmount = priceCalc.adjustmentAmount;
+    }
+    res.json({ success: true, product });
+  } catch (error) {
+    console.error("Error fetching single product:", error);
+    res.status(500).json({ message: "Server error fetching product" });
   }
 });
 

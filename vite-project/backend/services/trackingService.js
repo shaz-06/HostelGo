@@ -91,7 +91,29 @@ class TrackingService {
       orderId: orderIdStr,
       status: normalizedStatus
     });
-    const rider = getSimulatedRider(orderIdStr);
+
+    let riderData = null;
+    if (order && order.assignedRider && order.assignedRider.riderId) {
+      riderData = {
+        riderName: order.assignedRider.name,
+        riderPhoto: order.assignedRider.profilePhoto,
+        phone: order.assignedRider.phone,
+        rating: order.assignedRider.rating,
+        vehicle: order.assignedRider.vehicleType,
+        vehicleNumber: order.assignedRider.vehicleNumber
+      };
+    } else {
+      const rider = getSimulatedRider(orderIdStr);
+      riderData = {
+        riderName: rider.name,
+        riderPhoto: rider.profileImage,
+        phone: rider.phone,
+        rating: rider.rating,
+        vehicle: rider.vehicleType,
+        vehicleNumber: rider.plateNumber
+      };
+    }
+
     const tracking = {
       version,
       progress: order.orderStatus === "Delivered" ? 100 : 0,
@@ -110,14 +132,7 @@ class TrackingService {
       orderId: orderIdStr,
       status: normalizedStatus,
       eta: order.estimatedArrivalMinutes,
-      rider: {
-        riderName: rider.name,
-        riderPhoto: rider.profileImage,
-        phone: rider.phone,
-        rating: rider.rating,
-        vehicle: rider.vehicleType,
-        vehicleNumber: rider.plateNumber
-      },
+      rider: riderData,
       tracking,
       updatedAt: new Date().toISOString(),
       version
@@ -133,18 +148,56 @@ class TrackingService {
   /**
    * Emits rider assignment details.
    */
-  emitRiderAssigned(orderIdStr, version) {
+  async emitRiderAssigned(orderIdStr, version) {
     if (!this.io) return;
-    const rider = getSimulatedRider(orderIdStr);
+    const Order = require("../models/Order");
+    let order = null;
+    try {
+      order = await Order.findById(orderIdStr);
+    } catch (err) {
+      console.error("[TrackingService] Error finding order in emitRiderAssigned:", err);
+    }
+
+    let riderData = null;
+    if (order && order.assignedRider && order.assignedRider.riderId) {
+      riderData = {
+        riderId: order.assignedRider.riderId,
+        name: order.assignedRider.name,
+        riderName: order.assignedRider.name,
+        phone: order.assignedRider.phone,
+        riderPhoto: order.assignedRider.profilePhoto,
+        profilePhoto: order.assignedRider.profilePhoto,
+        rating: order.assignedRider.rating,
+        vehicle: order.assignedRider.vehicleType,
+        vehicleType: order.assignedRider.vehicleType,
+        vehicleNumber: order.assignedRider.vehicleNumber
+      };
+    } else {
+      const rider = getSimulatedRider(orderIdStr);
+      riderData = {
+        riderId: null,
+        name: rider.name,
+        riderName: rider.name,
+        phone: rider.phone,
+        riderPhoto: rider.profileImage,
+        profilePhoto: rider.profileImage,
+        rating: rider.rating,
+        vehicle: rider.vehicleType,
+        vehicleType: rider.vehicleType,
+        vehicleNumber: rider.plateNumber
+      };
+    }
+
     const payload = {
       type: "rider",
       orderId: orderIdStr,
-      riderName: rider.name,
-      riderPhoto: rider.profileImage,
-      phone: rider.phone,
-      rating: rider.rating,
-      vehicle: rider.vehicleType,
-      vehicleNumber: rider.plateNumber,
+      riderName: riderData.name,
+      riderPhoto: riderData.profilePhoto,
+      phone: riderData.phone,
+      rating: riderData.rating,
+      vehicle: riderData.vehicleType,
+      vehicleNumber: riderData.vehicleNumber,
+      rider: riderData,
       updatedAt: new Date().toISOString(),
       version
     };
@@ -188,7 +241,14 @@ class TrackingService {
       const orderObj = order.toObject ? order.toObject() : order;
       orderObj.products = populatedProducts;
 
-      const rider = getSimulatedRider(orderId);
+      const rider = order.assignedRider && order.assignedRider.riderId ? {
+        name: order.assignedRider.name,
+        profileImage: order.assignedRider.profilePhoto,
+        phone: order.assignedRider.phone,
+        rating: order.assignedRider.rating,
+        vehicleType: order.assignedRider.vehicleType,
+        plateNumber: order.assignedRider.vehicleNumber
+      } : null;
       const version = order.trackingVersion || 1;
 
       if (order.trackingSessionActive && order.simulatedRoute && order.simulatedRoute.length > 0) {
@@ -219,7 +279,7 @@ class TrackingService {
       const minutes = order.orderStatus === "Delivered" ? 0 : Math.max(0, Math.ceil((new Date(order.estimatedDeliveryTime).getTime() - Date.now()) / 60000));
       return {
         order: orderObj,
-        rider: order.orderStatus === "Delivered" || order.trackingSessionActive ? rider : null,
+        rider,
         tracking: {
           version,
           progress: order.orderStatus === "Delivered" ? 100 : 0,
@@ -408,14 +468,27 @@ class TrackingService {
       order.statusTimestamps.delivered = new Date();
       order.trackingVersion = finalVersion;
 
-      try {
-        const { handleOrderCheckoutRewards } = require("../utils/rewards");
-        await handleOrderCheckoutRewards(order);
-      } catch (rewardErr) {
-        console.error(`[TrackingService] Failed to credit BuyCoins for order ${orderIdStr}:`, rewardErr);
+      if (order.assignedRider && order.assignedRider.riderId) {
+        try {
+          const User = require("../models/User");
+          const assignedUser = await User.findById(order.assignedRider.riderId);
+          if (assignedUser) {
+            assignedUser.riderStatus = "Available";
+            await assignedUser.save();
+            console.log(`[Rider Status] Released rider ${assignedUser.name} to Available on delivered.`);
+          }
+        } catch (riderErr) {
+          console.error("Failed to release rider on delivered:", riderErr.message);
+        }
       }
 
       await order.save();
+      try {
+        const { clearCustomerCart } = require("./cartCleanupService");
+        await clearCustomerCart(order.userId);
+      } catch (cartErr) {
+        console.error("[TrackingService] Failed to clear customer cart on Delivered status:", cartErr);
+      }
       console.log(`[TrackingService] Order ${orderIdStr} marked as Delivered. Session completed.`);
 
       if (this.io) {

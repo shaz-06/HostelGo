@@ -18,7 +18,14 @@ const orderSchema = new mongoose.Schema({
       name: { type: String, required: true },
       quantity: { type: Number, required: true },
       weight: { type: String },
-      price: { type: Number, required: true }
+      image: { type: String, default: "" },
+      imageUrl: { type: String, default: "" },
+      variant: { type: String, default: "" },
+      price: { type: Number, required: true },
+      basePrice: { type: Number },
+      pricingRuleId: { type: mongoose.Schema.Types.ObjectId, ref: "PricingRule", default: null },
+      pricingRuleName: { type: String, default: "" },
+      pricingAdjustment: { type: Number, default: 0 }
     }
   ],
   totalAmount: { type: Number, required: true },
@@ -34,6 +41,7 @@ const orderSchema = new mongoose.Schema({
   razorpayOrderId: { type: String },
   razorpayPaymentId: { type: String },
   razorpaySignature: { type: String },
+  codConvenienceFee: { type: Number, default: 0 },
   deliveryAddress: { type: String, required: true },
   deliveryLatitude: { type: Number, default: null },
   deliveryLongitude: { type: Number, default: null },
@@ -79,6 +87,26 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: ""
   },
+  assignedRider: {
+    riderId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    name: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    profilePhoto: { type: String, default: "" },
+    vehicleType: { type: String, default: "" },
+    vehicleNumber: { type: String, default: "" },
+    rating: { type: Number, default: 5.0 }
+  },
+  assignmentHistory: [
+    {
+      action: { type: String, default: "Assigned" },
+      riderId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      previousRiderId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+      assignedAt: { type: Date, default: Date.now },
+      assignedBy: { type: String, default: "Admin" },
+      unassignedAt: { type: Date, default: null },
+      reason: { type: String, default: "" }
+    }
+  ],
   acceptedAt: {
     type: Date,
     default: null
@@ -118,6 +146,14 @@ const orderSchema = new mongoose.Schema({
   couponId: { type: mongoose.Schema.Types.ObjectId, ref: "Coupon", default: null },
   couponCode: { type: String, default: "" },
   couponDiscount: { type: Number, default: 0 },
+  couponDetails: {
+    couponId: { type: mongoose.Schema.Types.ObjectId, ref: "PromotionCoupon", default: null },
+    code: { type: String, default: "" },
+    title: { type: String, default: "" },
+    discountType: { type: String, default: "" },
+    discountValue: { type: Number, default: 0 },
+    actualDiscountApplied: { type: Number, default: 0 }
+  },
   buyCoinsRedeemed: { type: Number, default: 0 },
   buyCoinsDiscount: { type: Number, default: 0 },
   buyCoins: {

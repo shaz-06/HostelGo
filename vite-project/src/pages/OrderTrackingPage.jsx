@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { io } from "socket.io-client";
+import BuytoRiderAvatar from "../components/common/BuytoRiderAvatar";
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 
@@ -261,7 +262,7 @@ const ETASection = React.memo(({ etaMinutesVal, orderStatus, estimatedDeliveryTi
 });
 
 // Real-time timeline rendering with status history timestamps
-const TimelineSection = React.memo(({ orderStatus, statusTimestamps }) => {
+const TimelineSection = React.memo(({ orderStatus, statusTimestamps, assignedRiderId, rider }) => {
   const activeTimelineIndex = useMemo(() => {
     const STATUS_MAP = {
       "Order Placed": "ORDER_PLACED",
@@ -276,7 +277,13 @@ const TimelineSection = React.memo(({ orderStatus, statusTimestamps }) => {
       "Pending": "ORDER_PLACED"
     };
 
-    const currentNormalized = STATUS_MAP[orderStatus] || orderStatus || "ORDER_PLACED";
+    let currentNormalized = STATUS_MAP[orderStatus] || orderStatus || "ORDER_PLACED";
+    
+    // Fallback: If rider status is Rider Assigned but rider details are missing, demote to Packing stage
+    const isAssigned = Boolean(assignedRiderId || rider);
+    if (currentNormalized === "RIDER_ASSIGNED" && !isAssigned) {
+      currentNormalized = "PACKING";
+    }
     
     const timelineOrder = [
       "ORDER_PLACED",
@@ -291,7 +298,7 @@ const TimelineSection = React.memo(({ orderStatus, statusTimestamps }) => {
     const idx = timelineOrder.indexOf(currentNormalized);
     if (idx !== -1) return idx;
     return 0;
-  }, [orderStatus]);
+  }, [orderStatus, assignedRiderId, rider]);
 
   return (
     <div style={panelStyle}>
@@ -329,20 +336,67 @@ const TimelineSection = React.memo(({ orderStatus, statusTimestamps }) => {
   );
 });
 
-// Rider details skeleton and details card
-const RiderSection = React.memo(({ rider, orderStatus, progress }) => {
-  const isAssigned = rider && (orderStatus === "Rider Assigned" || progress >= 15);
+// Premium Waiting Card
+const RiderWaitingCard = () => {
+  return (
+    <div style={{
+      display: "flex", 
+      gap: 14, 
+      alignItems: "center", 
+      background: "#f0fdf4", // soft green background
+      border: "1.5px solid #bbf7d0", // soft green border
+      padding: "16px", 
+      borderRadius: "20px",
+      fontFamily: "'Outfit', 'Inter', sans-serif"
+    }}>
+      <BuytoRiderAvatar isWaiting={true} size={50} />
+      <div style={{ flex: 1 }}>
+        <strong style={{ fontSize: 15, fontWeight: 900, color: "#166534" }}>
+          🚚 Finding Your Delivery Partner
+        </strong>
+        <p style={{ margin: "2px 0 0", fontSize: 12, color: "#15803d", fontWeight: 700, lineHeight: "1.4" }}>
+          We're assigning the best available rider. We'll notify you as soon as your rider is assigned.
+        </p>
+        <span style={{ display: "inline-block", fontSize: 11, color: "#166534", fontWeight: 800, marginTop: 6, background: "#dcfce7", padding: "3px 8px", borderRadius: "10px" }}>
+          ⏳ Waiting for Rider Assignment
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
+        <button disabled style={{
+          padding: "8px 12px",
+          borderRadius: "10px",
+          border: "1px dashed #cbd5e1",
+          background: "#f8fafc",
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          cursor: "not-allowed"
+        }}>
+          Call
+        </button>
+        <button disabled style={{
+          padding: "8px 12px",
+          borderRadius: "10px",
+          border: "1px dashed #cbd5e1",
+          background: "#f8fafc",
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          cursor: "not-allowed"
+        }}>
+          Chat
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Rider details details card
+const RiderSection = React.memo(({ rider, orderStatus, progress, assignedRiderId }) => {
+  const isAssigned = Boolean(assignedRiderId || rider);
 
   if (!isAssigned) {
-    return (
-      <div style={riderSkeletonStyle}>
-        <div style={avatarSkeleton} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={skeletonLineShort} />
-          <div style={skeletonLineLong} />
-        </div>
-      </div>
-    );
+    return <RiderWaitingCard />;
   }
 
   // Realistic rider updates message
@@ -356,23 +410,25 @@ const RiderSection = React.memo(({ rider, orderStatus, progress }) => {
 
   return (
     <div style={driverCardStyle}>
-      <div style={driverAvatarStyle}>
-        {rider.profileImage ? <img src={rider.profileImage} alt={rider.name} style={avatarImgStyle} /> : rider.name.slice(0, 2).toUpperCase()}
-      </div>
+      <BuytoRiderAvatar isWaiting={false} size={50} />
       <div style={{ flex: 1 }}>
-        <strong style={{ fontSize: 15, fontWeight: 900, color: "#0f172a" }}>{rider.name}</strong>
+        <strong style={{ fontSize: 15, fontWeight: 900, color: "#0f172a" }}>{rider?.name || "Delivery Partner"}</strong>
         <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748b", fontWeight: 700 }}>
-          ⭐ {rider.rating} • {rider.vehicleType || "TVS Jupiter"}
+          ⭐ {rider?.rating || "5.0"} • {rider?.vehicleType || "TVS Jupiter"}
         </p>
         <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", marginTop: 4, display: "block" }}>
-          {rider.plateNumber || "KA 03 JM 1234"}
+          {rider?.plateNumber || "KA 03 JM 1234"}
         </span>
         <span style={{ display: "block", fontSize: 12, color: "#10b981", fontWeight: 800, marginTop: 4 }}>
           {riderMessage}
         </span>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <a href={`tel:${rider.phone}`} style={driverActionBtn}>Call</a>
+        {rider?.phone ? (
+          <a href={`tel:${rider.phone}`} style={driverActionBtn}>Call</a>
+        ) : (
+          <button disabled style={{ ...driverGhostBtn, cursor: "not-allowed", opacity: 0.5 }}>Call</button>
+        )}
         <button style={driverGhostBtn}>Chat</button>
       </div>
     </div>
@@ -389,6 +445,7 @@ export default function OrderTrackingPage({ orderId }) {
   const [trackingInfo, setTrackingInfo] = useState(null);
   
   const [loading, setLoading] = useState(true);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState("");
   const [connectionStatus, setConnectionStatus] = useState("connecting"); // 'connecting', 'connected', 'reconnecting', 'polling'
   const [followRider, setFollowRider] = useState(true);
@@ -399,37 +456,65 @@ export default function OrderTrackingPage({ orderId }) {
   const [isUpdatingInstructions, setIsUpdatingInstructions] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
+  useEffect(() => {
+    if (order?.orderStatus === "Delivered") {
+      if (typeof window.clearCartAfterDelivery === "function") {
+        window.clearCartAfterDelivery();
+      }
+    }
+  }, [order?.orderStatus]);
+
   // Keep references to version and values to filter stale events
   const currentVersion = useRef(0);
   const lastUpdatedAt = useRef("");
   const pollingInterval = useRef(null);
   const socketRef = useRef(null);
 
-  // Fetch initial tracking payload once
+  // Fetch initial tracking payload with retry mechanism
   const loadInitialTracking = useCallback(async () => {
-    try {
-      const res = await fetch(window.API_BASE_URL + `/api/orders/track/${orderId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Unable to load tracking details");
+    let retries = 0;
+    const maxRetries = 5;
+    const delay = 500;
 
-      const ver = data.order?.trackingVersion || 0;
-      if (ver >= currentVersion.current) {
-        currentVersion.current = ver;
-        setOrder(data.order);
-        setRider(data.rider);
-        setTrackingInfo(data.tracking);
-        if (data.order?.deliveryInstructions) {
-          setInstructionsText(data.order.deliveryInstructions);
+    while (retries < maxRetries) {
+      try {
+        console.log(`[Tracking Load] Fetching order track data. Attempt ${retries + 1}/${maxRetries}`);
+        const res = await fetch(window.API_BASE_URL + `/api/orders/track/${orderId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(data.message || "Order tracking not ready yet");
+        }
+
+        const ver = data.order?.trackingVersion || 0;
+        if (ver >= currentVersion.current) {
+          currentVersion.current = ver;
+          setOrder(data.order);
+          setRider(data.rider);
+          setTrackingInfo(data.tracking);
+          if (data.order?.deliveryInstructions) {
+            setInstructionsText(data.order.deliveryInstructions);
+          }
+        }
+        setError("");
+        setLoading(false);
+        return true;
+      } catch (err) {
+        retries++;
+        console.warn(`[Tracking Load] Attempt ${retries} failed: ${err.message}`);
+        if (retries < maxRetries) {
+          setLoadingStep(retries);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          setError(err.message || "Something Went Wrong. Please try again.");
+          setLoading(false);
+          return false;
         }
       }
-      setError("");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
     }
+    return false;
   }, [orderId, token]);
 
   // Fallback Polling Handler
@@ -495,12 +580,12 @@ export default function OrderTrackingPage({ orderId }) {
       });
       if (event.rider) {
         setRider({
-          name: event.rider.riderName,
+          name: event.rider.riderName || event.rider.name,
           rating: event.rider.rating,
-          vehicleType: event.rider.vehicle,
-          plateNumber: event.rider.vehicleNumber,
+          vehicleType: event.rider.vehicle || event.rider.vehicleType,
+          plateNumber: event.rider.vehicleNumber || event.rider.plateNumber,
           phone: event.rider.phone,
-          profileImage: event.rider.riderPhoto
+          profileImage: event.rider.riderPhoto || event.rider.profilePhoto || event.rider.profileImage
         });
       }
       if (event.tracking) {
@@ -512,14 +597,40 @@ export default function OrderTrackingPage({ orderId }) {
       triggerToast(`📦 Status Update: ${event.status}`);
     } 
     else if (event.type === "rider") {
+      const riderObj = event.rider || event;
+      const assignedRiderId = riderObj.riderId || "assigned-placeholder";
+      
       setRider({
-        name: event.riderName,
-        rating: event.rating,
-        vehicleType: event.vehicle,
-        plateNumber: event.vehicleNumber,
-        phone: event.phone,
-        profileImage: event.riderPhoto
+        name: riderObj.riderName || riderObj.name,
+        rating: riderObj.rating,
+        vehicleType: riderObj.vehicle || riderObj.vehicleType,
+        plateNumber: riderObj.vehicleNumber || riderObj.plateNumber,
+        phone: riderObj.phone,
+        profileImage: riderObj.riderPhoto || riderObj.profilePhoto || riderObj.profileImage
       });
+
+      setOrder(prev => {
+        if (!prev) return prev;
+        const mappedKey = STATUS_TIMESTAMP_KEYS["Rider Assigned"] || "riderAssigned";
+        return {
+          ...prev,
+          orderStatus: "Rider Assigned",
+          riderId: assignedRiderId,
+          riderAssigned: true,
+          statusTimestamps: {
+            ...prev.statusTimestamps,
+            [mappedKey]: event.updatedAt || new Date().toISOString()
+          }
+        };
+      });
+
+      if (riderObj.tracking) {
+        setTrackingInfo(prev => ({
+          ...prev,
+          ...riderObj.tracking
+        }));
+      }
+
       triggerToast(`🛵 Rider assigned to your order!`);
     } 
     else if (event.type === "location") {
@@ -561,7 +672,10 @@ export default function OrderTrackingPage({ orderId }) {
 
   // Socket setup
   useEffect(() => {
-    loadInitialTracking().then(() => {
+    let active = true;
+    loadInitialTracking().then((success) => {
+      if (!success || !active) return;
+      
       // Connect to Socket.IO immediately after initial load
       const socket = io(window.API_BASE_URL, {
         reconnectionDelayMax: 10000,
@@ -626,6 +740,7 @@ export default function OrderTrackingPage({ orderId }) {
 
     // Cleanup resources
     return () => {
+      active = false;
       stopFallbackPolling();
       if (socketRef.current) {
         socketRef.current.emit("leaveOrderRoom", orderId);
@@ -720,17 +835,55 @@ export default function OrderTrackingPage({ orderId }) {
   const cleanAddress = rawAddress.replace(/undefined/gi, "").trim();
   const addressLines = cleanAddress.split(",").map(line => line.trim()).filter(Boolean);
 
-  if (loading) {
-    return <div style={loadingStyle}>Loading order summary...</div>;
-  }
+  const loadingStepsText = [
+    "🛒 Preparing your order...",
+    "Assigning fulfillment store...",
+    "Initializing live tracking...",
+    "Almost ready...",
+    "Almost there..."
+  ];
 
-  if (error) {
+  if (loading || !order) {
+    if (error) {
+      return (
+        <div style={pageStyle}>
+          <div style={errorPanelStyle}>
+            <h1 style={titleStyle}>Tracking unavailable</h1>
+            <p style={mutedStyle}>{error}</p>
+            <button style={secondaryBtnStyle} onClick={() => navigate("/")}>Back to Shopping</button>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div style={pageStyle}>
-        <div style={errorPanelStyle}>
-          <h1 style={titleStyle}>Tracking unavailable</h1>
-          <p style={mutedStyle}>{error}</p>
-          <button style={secondaryBtnStyle} onClick={() => navigate("/")}>Back to Shopping</button>
+      <div style={{
+        ...loadingStyle,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: "16px",
+        minHeight: "100vh",
+        background: "#ffffff",
+        fontFamily: "'Outfit', 'Inter', sans-serif"
+      }}>
+        <div style={{
+          width: "48px",
+          height: "48px",
+          border: "4px solid rgba(49, 134, 22, 0.1)",
+          borderTop: "4px solid #318616",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite"
+        }}></div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={{ fontSize: "18px", fontWeight: "700", color: "#1f2937" }}>
+          {loadingStepsText[loadingStep] || "🛒 Preparing your order..."}
         </div>
       </div>
     );
@@ -886,6 +1039,8 @@ export default function OrderTrackingPage({ orderId }) {
         <TimelineSection
           orderStatus={order?.orderStatus}
           statusTimestamps={order?.statusTimestamps}
+          assignedRiderId={order?.riderId || order?.assignedRider?.riderId}
+          rider={rider}
         />
 
         {/* RIGHT COLUMN: ETA, Live Map, Rider Details, Shopping Actions */}
@@ -956,6 +1111,7 @@ export default function OrderTrackingPage({ orderId }) {
             rider={rider}
             orderStatus={order?.orderStatus}
             progress={progressPercent}
+            assignedRiderId={order?.riderId || order?.assignedRider?.riderId}
           />
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1011,11 +1167,14 @@ export default function OrderTrackingPage({ orderId }) {
           rider={rider}
           orderStatus={order?.orderStatus}
           progress={progressPercent}
+          assignedRiderId={order?.riderId || order?.assignedRider?.riderId}
         />
 
         <TimelineSection
           orderStatus={order?.orderStatus}
           statusTimestamps={order?.statusTimestamps}
+          assignedRiderId={order?.riderId || order?.assignedRider?.riderId}
+          rider={rider}
         />
 
         <OrderDetailsLeftColumn

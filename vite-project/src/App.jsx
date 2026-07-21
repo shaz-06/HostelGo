@@ -40,6 +40,10 @@ import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
 import OnboardingBottomSheet from "./components/common/OnboardingBottomSheet";
 import WelcomeRewardModal from "./components/common/WelcomeRewardModal";
 import ForegroundNotificationBanner from "./components/common/ForegroundNotificationBanner";
+import { LoaderProvider } from "./context/LoaderContext";
+import BuytoLoader from "./components/common/BuytoLoader";
+import SearchResultsView from "./components/SearchResultsView";
+import SEOHeadManager from "./components/common/SEOHeadManager";
 
 // Lazy-loaded components & pages
 const AddressSelectorModal = lazy(() => import("./components/common/AddressSelectorModal"));
@@ -49,6 +53,8 @@ const UserDetails = lazy(() => import("./pages/UserDetails"));
 const PaymentPage = lazy(() => import("./pages/PaymentPage"));
 const SuccessPage = lazy(() => import("./pages/SuccessPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const EditProfilePage = lazy(() => import("./pages/EditProfilePage"));
+const MyOrdersPage = lazy(() => import("./pages/MyOrdersPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const WalletPage = lazy(() => import("./pages/WalletPage"));
 const BuyCoinsTransactionsPage = lazy(() => import("./pages/BuyCoinsTransactionsPage"));
@@ -490,38 +496,36 @@ function App() {
   }, [appReady]);
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <GTMRouteTracker />
-        <ScrollToTop />
-        <GlobalLayout>
-          <Suspense fallback={
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: "'Outfit', sans-serif" }}>
-              <div style={{ textAlign: "center" }}>
+    <LoaderProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <GTMRouteTracker />
+          <ScrollToTop />
+          <GlobalLayout>
+            <Suspense fallback={
+              <div style={{ width: "100%", height: "3px", background: "#e5e7eb", position: "fixed", top: 0, left: 0, zIndex: 99999 }}>
                 <div style={{
-                  width: "40px",
-                  height: "40px",
-                  border: "3px solid #f3f4f6",
-                  borderTop: "3px solid #318616",
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite",
-                  margin: "0 auto 12px auto"
+                  height: "100%",
+                  background: "#318616",
+                  width: "40%",
+                  animation: "routeProgress 0.8s ease-in-out infinite"
                 }} />
-                <p style={{ color: "#6b7280", fontSize: "14px", fontWeight: "600" }}>Loading...</p>
                 <style>{`
-                  @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
+                  @keyframes routeProgress {
+                    0% { margin-left: 0%; width: 20%; }
+                    50% { margin-left: 40%; width: 50%; }
+                    100% { margin-left: 100%; width: 10%; }
                   }
                 `}</style>
               </div>
-            </div>
-          }>
-            <AppContent onReady={() => setAppReady(true)} />
-          </Suspense>
-        </GlobalLayout>
-      </BrowserRouter>
-    </AuthProvider>
+            }>
+              <AppContent onReady={() => setAppReady(true)} />
+            </Suspense>
+          </GlobalLayout>
+          <BuytoLoader />
+        </BrowserRouter>
+      </AuthProvider>
+    </LoaderProvider>
   );
 }
 
@@ -741,13 +745,15 @@ function AppContent({ onReady }) {
     }
     return [];
   });
-  const cart = cartItems.reduce((acc, item) => {
-    const key = item._id || item.id;
-    const suffix = item.selectedWeight ? `_${item.selectedWeight}` : "";
-    const cartKey = `${key}${suffix}`;
-    acc[cartKey] = { product: item, quantity: item.quantity };
-    return acc;
-  }, {});
+  const cart = useMemo(() => {
+    return cartItems.reduce((acc, item) => {
+      const key = item._id || item.id;
+      const suffix = item.selectedWeight ? `_${item.selectedWeight}` : "";
+      const cartKey = `${key}${suffix}`;
+      acc[cartKey] = { product: item, quantity: item.quantity };
+      return acc;
+    }, {});
+  }, [cartItems]);
 
   const [pushToast, setPushToast] = useState({ title: "", body: "", deepLink: null, visible: false });
 
@@ -1247,6 +1253,25 @@ function AppContent({ onReady }) {
     }
   };
 
+  const clearCartAfterDelivery = () => {
+    setCartItems([]);
+    localStorage.removeItem("buyto_cart");
+    localStorage.removeItem("cart");
+    sessionStorage.removeItem("buyto_cart");
+    sessionStorage.removeItem("buyto_applied_coupon_code");
+    localStorage.removeItem("buyto_coins_redeem");
+    localStorage.removeItem("buyto_checkout_summary");
+    localStorage.removeItem("buyto_selected_address_id");
+    console.log("[CartCleanup] Frontend cart and checkout storage cleared successfully.");
+  };
+
+  useEffect(() => {
+    window.clearCartAfterDelivery = clearCartAfterDelivery;
+    return () => {
+      delete window.clearCartAfterDelivery;
+    };
+  }, []);
+
   // Helper calculations for cart summary
   const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = Object.values(cart).reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -1432,7 +1457,9 @@ function AppContent({ onReady }) {
     const wellness = [];
     const trending = [];
 
-    products.forEach(p => {
+    const sourceList = searchQuery.trim() !== "" ? filteredProducts : products;
+
+    sourceList.forEach(p => {
       if (p.isTrending) trending.push(p);
       const canon = p._classifiedCategory || canonicalCategory(classifyProduct(p));
       if (canon === "Exclusive Deals") exclusive.push(p);
@@ -1625,6 +1652,7 @@ function AppContent({ onReady }) {
         position: "relative",
         boxSizing: "border-box"
       }}>
+        <SEOHeadManager cartItemsCount={totalItems} />
         {showHeader && (
           <Header
             userLocation={userLocation}
@@ -1920,7 +1948,15 @@ function AppContent({ onReady }) {
     return el;
   }
 
-  if (location.pathname === "/profile" || location.pathname === "/my-orders") {
+  if (location.pathname === "/profile/edit") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <EditProfilePage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (location.pathname === "/profile") {
     return wrapCustomerLayout(
       <ProtectedRoute>
         <ProfilePage />
@@ -1928,7 +1964,38 @@ function AppContent({ onReady }) {
     );
   }
 
-  if (location.pathname === "/wallet") {
+  if (location.pathname === "/orders" || location.pathname === "/my-orders") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <MyOrdersPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (location.pathname === "/address") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <ProfilePage defaultTab="addresses" />
+      </ProtectedRoute>
+    );
+  }
+
+  if (location.pathname === "/wishlist") {
+    return wrapCustomerLayout(
+      <SaveForLaterPage
+        products={products}
+        addToCart={addToCart}
+        removeFromCart={removeFromCart}
+        cart={cart}
+        cartItems={cartItems}
+        windowWidth={windowWidth}
+        getCartKey={getCartKey}
+        setSelectedProduct={setSelectedProduct}
+      />
+    );
+  }
+
+  if (location.pathname === "/buycoins" || location.pathname === "/wallet") {
     return wrapCustomerLayout(
       <ProtectedRoute>
         <WalletPage />
@@ -2279,31 +2346,21 @@ function AppContent({ onReady }) {
           <Route
             path="/search"
             element={
-              <div>
-                <h2 style={{ fontSize: "22px", fontWeight: "700", marginBottom: "16px", color: "#1f2937" }}>
-                  Search Results for "{searchQuery}"
-                </h2>
-                {filteredProducts.length === 0 ? (
-                  <p style={{ color: "#6b7280", fontSize: "16px", marginTop: "20px" }}>
-                    No products found.
-                  </p>
-                ) : (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        windowWidth < 768
-                          ? "repeat(2, 1fr)"
-                          : windowWidth < 1024
-                            ? "repeat(4, 1fr)"
-                            : "repeat(6, 1fr)",
-                      gap: windowWidth < 768 ? "12px" : "20px",
-                    }}
-                  >
-                    {filteredProducts.map(renderProductCard)}
-                  </div>
-                )}
-              </div>
+              <SearchResultsView
+                searchQuery={searchQuery}
+                filteredProducts={filteredProducts}
+                allProducts={products}
+                isMobile={false}
+                windowWidth={windowWidth}
+                renderProductCard={renderProductCard}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cartItems={cartItems}
+                setSelectedProduct={setSelectedProduct}
+                setSearchQuery={setSearchQuery}
+                openProduct={openProduct}
+                getCartKey={getCartKey}
+              />
             }
           />
           <Route
@@ -2862,31 +2919,21 @@ function AppContent({ onReady }) {
                         </div>
                       </div>
                     ) : (
-                      <div>
-                        <h2 style={{ fontSize: "22px", fontWeight: "700", marginBottom: "16px", color: "#1f2937" }}>
-                          {searchQuery ? `Search Results for "${searchQuery}"` : selectedCategory}
-                        </h2>
-                        {filteredProducts.length === 0 ? (
-                          <p style={{ color: "#6b7280", fontSize: "16px", marginTop: "20px" }}>
-                            No products found.
-                          </p>
-                        ) : (
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns:
-                                windowWidth < 768
-                                  ? "repeat(2, 1fr)"
-                                  : windowWidth < 1024
-                                    ? "repeat(4, 1fr)"
-                                    : "repeat(6, 1fr)",
-                              gap: windowWidth < 768 ? "12px" : "20px",
-                            }}
-                          >
-                            {filteredProducts.map(renderProductCard)}
-                          </div>
-                        )}
-                      </div>
+                      <SearchResultsView
+                        searchQuery={searchQuery}
+                        filteredProducts={filteredProducts}
+                        allProducts={products}
+                        isMobile={false}
+                        windowWidth={windowWidth}
+                        renderProductCard={renderProductCard}
+                        addToCart={addToCart}
+                        removeFromCart={removeFromCart}
+                        cartItems={cartItems}
+                        setSelectedProduct={setSelectedProduct}
+                        setSearchQuery={setSearchQuery}
+                        openProduct={openProduct}
+                        getCartKey={getCartKey}
+                      />
                     )}
                   </div>
                 )}

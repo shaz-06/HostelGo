@@ -1,4 +1,4 @@
-export function calculateBill(subtotal, originalSubtotal, config = {}, deliverySettings = {}, couponApplied = null, buyCoinsToRedeem = 0) {
+export function calculateBill(subtotal, originalSubtotal, config = {}, deliverySettings = {}, couponApplied = null, buyCoinsToRedeem = 0, paymentMethod = "online") {
   const cfg = {
     handlingFee: typeof config.handlingFee === "number" ? config.handlingFee : 0, // Default handling fee: ₹0
     gstPercentage: typeof config.gstPercentage === "number" ? config.gstPercentage : 5,
@@ -46,8 +46,15 @@ export function calculateBill(subtotal, originalSubtotal, config = {}, deliveryS
   let appliedCouponCode = "";
   let appliedCouponId = null;
   if (couponApplied && itemTotal >= (couponApplied.minimumOrderValue || couponApplied.minOrderValue || 149)) {
-    couponDiscount = Math.min(couponApplied.discountAmount || 20, preDiscountTotal);
-    appliedCouponCode = couponApplied.couponCode;
+    let discount = couponApplied.discountAmount || 0;
+    if (couponApplied.couponType === "percentage" && couponApplied.discountValue) {
+      discount = Math.round((itemTotal * couponApplied.discountValue) / 100);
+      if (couponApplied.maximumDiscount > 0) {
+        discount = Math.min(discount, couponApplied.maximumDiscount);
+      }
+    }
+    couponDiscount = Math.min(discount, preDiscountTotal);
+    appliedCouponCode = couponApplied.couponCode || couponApplied.code;
     appliedCouponId = couponApplied._id;
   }
 
@@ -59,14 +66,26 @@ export function calculateBill(subtotal, originalSubtotal, config = {}, deliveryS
   const coinsRedeemed = Math.min(buyCoinsToRedeem, maxRedemption, Math.max(0, remaining - 1));
   const buyCoinsDiscount = coinsRedeemed;
 
-  const total = itemTotal > 0 ? Math.max(1, remaining - buyCoinsDiscount) : 0;
+  let total = itemTotal > 0 ? Math.max(1, remaining - buyCoinsDiscount) : 0;
+
+  // COD Convenience Fee
+  const codFee = (paymentMethod === "cod" && config.codConvenienceFeeEnabled !== false)
+    ? (typeof config.codConvenienceFee === "number" ? config.codConvenienceFee : 14)
+    : 0;
+
+  if (total > 0) {
+    total += codFee;
+  }
 
   // Original total calculation (for visual styling/crossed-out comparisons)
   const originalSmallCart = (originalItemTotal > 0 && originalItemTotal < 149) ? 20 : 0;
   const originalDelivery = originalItemTotal > 0 ? (originalItemTotal < 200 ? 28 : 20) : 0;
-  const originalTotal = originalItemTotal > 0
+  let originalTotal = originalItemTotal > 0
     ? originalItemTotal + handling + originalSmallCart + originalDelivery + rain + lateNight + gst
     : 0;
+  if (originalTotal > 0) {
+    originalTotal += codFee;
+  }
 
   return {
     itemTotal,
@@ -84,6 +103,7 @@ export function calculateBill(subtotal, originalSubtotal, config = {}, deliveryS
     couponId: appliedCouponId,
     buyCoinsRedeemed: coinsRedeemed,
     buyCoinsDiscount,
+    codConvenienceFee: codFee,
     total,
     originalTotal,
   };

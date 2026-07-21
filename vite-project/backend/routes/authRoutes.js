@@ -330,17 +330,65 @@ router.get("/coupons", authMiddleware, async (req, res) => {
 router.get("/coupons/active", authMiddleware, async (req, res) => {
   try {
     const Coupon = require("../models/Coupon");
+    const PromotionCoupon = require("../models/PromotionCoupon");
     const now = new Date();
-    const coupons = await Coupon.find({
+
+    // 1. User-specific active coupons
+    const userCoupons = await Coupon.find({
       $or: [
         { userId: req.user._id },
         { email: req.user.email.toLowerCase() }
       ],
       isRedeemed: false,
       expiresAt: { $gt: now }
-    }).sort({ issuedAt: -1 });
-    return res.status(200).json({ success: true, coupons });
+    }).sort({ issuedAt: -1 }).lean();
+
+    const formattedUserCoupons = userCoupons.map(c => ({
+      _id: c._id,
+      code: c.couponCode,
+      couponCode: c.couponCode,
+      title: c.source === "FIRST20" ? "First Order Offer" : "Special Discount",
+      description: `Get ₹${c.discountAmount} off on your order`,
+      couponType: "flat",
+      discountValue: c.discountAmount,
+      minimumOrderValue: c.minimumOrderValue || 0,
+      maximumDiscount: c.discountAmount,
+      validUntil: c.expiresAt,
+      isGlobal: false
+    }));
+
+    // 2. Global promotional active coupons
+    const globalCoupons = await PromotionCoupon.find({
+      isActive: true,
+      isArchived: false,
+      validFrom: { $lte: now },
+      validUntil: { $gt: now },
+      $or: [
+        { usageLimit: { $exists: false } },
+        { usageLimit: 0 },
+        { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
+      ]
+    }).sort({ priority: -1, createdAt: -1 }).lean();
+
+    const formattedGlobalCoupons = globalCoupons.map(c => ({
+      _id: c._id,
+      code: c.code,
+      couponCode: c.code,
+      title: c.title,
+      description: c.description,
+      couponType: c.couponType,
+      discountValue: c.discountValue,
+      minimumOrderValue: c.minimumOrderValue,
+      maximumDiscount: c.maximumDiscount,
+      validUntil: c.validUntil,
+      isGlobal: true
+    }));
+
+    const allCoupons = [...formattedUserCoupons, ...formattedGlobalCoupons];
+
+    return res.status(200).json({ success: true, coupons: allCoupons });
   } catch (error) {
+    console.error("Failed to fetch active coupons:", error);
     return res.status(500).json({ message: "Failed to fetch active coupons", error: error.message });
   }
 });
@@ -350,6 +398,7 @@ router.post("/coupons/validate", authMiddleware, async (req, res) => {
   console.log("=== [COUPON VALIDATION] ===");
   try {
     const { couponCode, cartValue } = req.body;
+    console.log("Customer: Validating coupon:", couponCode, "Cart value:", cartValue, "User email:", req.user?.email);
     const email = req.user.email.toLowerCase();
 
     if (!couponCode) {
@@ -357,40 +406,120 @@ router.post("/coupons/validate", authMiddleware, async (req, res) => {
     }
 
     const Coupon = require("../models/Coupon");
-    const coupon = await Coupon.findOne({
-      couponCode: couponCode.toUpperCase().trim(),
+    const PromotionCoupon = require("../models/PromotionCoupon");
+    const Order = require("../models/Order");
+    const now = new Date();
+    const cleanCode = couponCode.toUpperCase().trim();
+
+    // 1. Try checking for user-specific coupon
+    let coupon = await Coupon.findOne({
+      couponCode: cleanCode,
       email
     });
 
-    if (!coupon) {
-      return res.status(404).json({ success: false, message: "Coupon not found or does not belong to you" });
+    if (coupon) {
+      if (coupon.isRedeemed) {
+        return res.status(400).json({ success: false, message: "Coupon has already been redeemed" });
+      }
+
+      if (coupon.expiresAt && coupon.expiresAt < now) {
+        return res.status(400).json({ success: false, message: "Coupon has expired" });
+      }
+
+      const numericCartValue = Number(cartValue || 0);
+      if (numericCartValue < coupon.minimumOrderValue) {
+        return res.status(400).json({
+          success: false,
+          message: `Minimum order value of ₹${coupon.minimumOrderValue} required for this coupon`
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Coupon is valid",
+        coupon: {
+          _id: coupon._id,
+          couponCode: coupon.couponCode,
+          discountAmount: coupon.discountAmount,
+          minimumOrderValue: coupon.minimumOrderValue,
+          isGlobal: false
+        }
+      });
     }
 
-    if (coupon.isRedeemed) {
-      return res.status(400).json({ success: false, message: "Coupon has already been redeemed" });
+    // 2. Try checking for global promotional coupon
+    const promoCoupon = await PromotionCoupon.findOne({
+      code: cleanCode,
+      isArchived: false
+    });
+
+    if (!promoCoupon) {
+      return res.status(404).json({ success: false, message: "Coupon not found or invalid" });
     }
 
-    const now = new Date();
-    if (coupon.expiresAt && coupon.expiresAt < now) {
-      return res.status(400).json({ success: false, message: "Coupon has expired" });
+    if (!promoCoupon.isActive) {
+      return res.status(400).json({ success: false, message: "This coupon is currently inactive" });
+    }
+
+    if (promoCoupon.validFrom > now) {
+      return res.status(400).json({ success: false, message: "This coupon has not started yet" });
+    }
+
+    if (promoCoupon.validUntil < now) {
+      return res.status(400).json({ success: false, message: "This coupon has expired" });
     }
 
     const numericCartValue = Number(cartValue || 0);
-    if (numericCartValue < coupon.minimumOrderValue) {
+    if (numericCartValue < promoCoupon.minimumOrderValue) {
       return res.status(400).json({
         success: false,
-        message: `Minimum order value of ₹${coupon.minimumOrderValue} required for this coupon`
+        message: `Minimum order value of ₹${promoCoupon.minimumOrderValue} required for this coupon`
       });
     }
+
+    if (promoCoupon.usageLimit > 0 && promoCoupon.usedCount >= promoCoupon.usageLimit) {
+      return res.status(400).json({ success: false, message: "This coupon's total usage limit has been reached" });
+    }
+
+    // Check per-user limit
+    const userUsedCount = await Order.countDocuments({
+      $or: [{ userId: req.user._id }, { "user.phone": req.user.phone }],
+      couponCode: cleanCode,
+      paymentStatus: "Paid"
+    });
+
+    if (promoCoupon.usagePerUser > 0 && userUsedCount >= promoCoupon.usagePerUser) {
+      return res.status(400).json({ success: false, message: `You have already used this coupon the maximum allowed times (${promoCoupon.usagePerUser})` });
+    }
+
+    // Calculate discount amount
+    let discountAmount = 0;
+    if (promoCoupon.couponType === "flat") {
+      discountAmount = promoCoupon.discountValue;
+    } else if (promoCoupon.couponType === "percentage") {
+      discountAmount = Math.round((numericCartValue * promoCoupon.discountValue) / 100);
+      if (promoCoupon.maximumDiscount > 0) {
+        discountAmount = Math.min(discountAmount, promoCoupon.maximumDiscount);
+      }
+    } else if (promoCoupon.couponType === "free_delivery") {
+      // Handled during checkout/bill calculations, but we can set 0 or default delivery fee (e.g. 29)
+      discountAmount = 29; // default delivery fee
+    }
+
+    // Ensure discount doesn't exceed cart value
+    discountAmount = Math.min(discountAmount, numericCartValue);
+
+    console.log(`Customer: Coupon validated successfully: ${cleanCode}. Calculated discount: ₹${discountAmount}`);
 
     return res.status(200).json({
       success: true,
       message: "Coupon is valid",
       coupon: {
-        _id: coupon._id,
-        couponCode: coupon.couponCode,
-        discountAmount: coupon.discountAmount,
-        minimumOrderValue: coupon.minimumOrderValue
+        _id: promoCoupon._id,
+        couponCode: promoCoupon.code,
+        discountAmount,
+        minimumOrderValue: promoCoupon.minimumOrderValue,
+        isGlobal: true
       }
     });
   } catch (error) {
@@ -398,6 +527,28 @@ router.post("/coupons/validate", authMiddleware, async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error during coupon validation", error: error.message });
   }
 });
+
+// Coordinates helper to extract latitude and longitude robustly
+function extractCoordinates(obj) {
+  if (!obj) return null;
+  // Check location field (GeoJSON)
+  if (obj.location && obj.location.type === "Point" && Array.isArray(obj.location.coordinates)) {
+    const [lon, lat] = obj.location.coordinates;
+    return { latitude: Number(lat), longitude: Number(lon) };
+  }
+  // Check raw coordinates field (GeoJSON style array)
+  if (Array.isArray(obj.coordinates)) {
+    const [lon, lat] = obj.coordinates;
+    return { latitude: Number(lat), longitude: Number(lon) };
+  }
+  // Plain fields
+  const lat = obj.latitude !== undefined ? obj.latitude : obj.lat;
+  const lng = obj.longitude !== undefined ? obj.longitude : (obj.lng !== undefined ? obj.lng : obj.lon);
+  if (lat !== undefined && lng !== undefined) {
+    return { latitude: Number(lat), longitude: Number(lng) };
+  }
+  return null;
+}
 
 // Haversine helper
 function haversineDistance(lat1, lon1, lat2, lon2) {
@@ -416,37 +567,118 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 router.post("/verify-serviceability", async (req, res) => {
   try {
     const { latitude, longitude } = req.body;
-    if (latitude === undefined || longitude === undefined) {
+
+    console.log("=== CHECKOUT SERVICEABILITY CHECK ===");
+    console.log("Customer Address/Payload:", JSON.stringify(req.body));
+    
+    const customerCoords = extractCoordinates(req.body) || (latitude !== undefined && longitude !== undefined ? { latitude, longitude } : null);
+    if (!customerCoords) {
+      console.error("❌ Customer Coordinates missing or invalid:", req.body);
       return res.status(400).json({ success: false, message: "Latitude and longitude are required" });
     }
 
-    const lat = Number(latitude);
-    const lng = Number(longitude);
+    const { latitude: custLat, longitude: custLng } = customerCoords;
+    console.log("Customer Latitude:", custLat);
+    console.log("Customer Longitude:", custLng);
+
+    if (isNaN(custLat) || isNaN(custLng) || custLat === null || custLng === null || custLat === 0 || custLng === 0) {
+      console.error("❌ Invalid Customer Coordinates (null, NaN, 0, or empty string):", { custLat, custLng });
+      return res.json({ success: true, serviceable: false, message: "Invalid customer coordinates" });
+    }
+
+    console.log("Customer Coordinates", { latitude: custLat, longitude: custLng });
 
     const activeZones = await DeliveryServiceZone.find({ active: true }).lean();
+    console.log("Delivery Zones", activeZones);
+
     if (activeZones.length === 0) {
+      console.log("Checkout Decision -> 0 Active Zones -> Service Unavailable");
       return res.json({ success: true, serviceable: false, message: "No active delivery zones configured" });
     }
 
-    const matchedZone = activeZones.find(zone => {
-      const dist = haversineDistance(lat, lng, zone.latitude, zone.longitude);
-      return dist <= zone.radiusKm;
-    });
+    const eligibleStores = [];
 
-    if (matchedZone) {
+    for (const zone of activeZones) {
+      const zoneCoords = extractCoordinates(zone);
+      if (!zoneCoords) {
+        console.warn(`⚠️ Skipping zone "${zone.name}" because it has invalid or missing coordinates.`);
+        continue;
+      }
+
+      const { latitude: storeLat, longitude: storeLng } = zoneCoords;
+      if (isNaN(storeLat) || isNaN(storeLng) || storeLat === null || storeLng === null || storeLat === 0 || storeLng === 0) {
+        console.warn(`⚠️ Skipping zone "${zone.name}" due to invalid coordinate values:`, { storeLat, storeLng });
+        continue;
+      }
+
+      // Radius validation
+      if (zone.radiusKm === undefined || zone.radiusKm === null) {
+        console.warn(`⚠️ Skipping zone "${zone.name}" due to missing radiusKm.`);
+        continue;
+      }
+      const radiusKm = Number(zone.radiusKm);
+      if (isNaN(radiusKm) || radiusKm <= 0) {
+        console.warn(`⚠️ Skipping zone "${zone.name}" due to invalid radiusKm:`, zone.radiusKm);
+        continue;
+      }
+
+      // Exact Distance calculation
+      const distanceKm = haversineDistance(custLat, custLng, storeLat, storeLng);
+      const inside = distanceKm <= radiusKm;
+
+      console.log("-------------------");
+      console.log(`Store: ${zone.name}`);
+      console.log(`Customer:\n${custLat}, ${custLng}`);
+      console.log(`Store:\n${storeLat}, ${storeLng}`);
+      console.log(`Distance:\n${distanceKm.toFixed(4)} km`);
+      console.log(`Radius:\n${radiusKm} km`);
+      console.log(`Radius Type:\n${typeof zone.radiusKm}`);
+      console.log(`Eligible:\n${inside ? "YES" : "NO"}`);
+
+      if (inside) {
+        eligibleStores.push({
+          storeId: String(zone._id),
+          storeName: zone.name,
+          latitude: storeLat,
+          longitude: storeLng,
+          distanceKm: distanceKm
+        });
+      } else {
+        console.log(`Store "${zone.name}" failed because distance ${distanceKm.toFixed(2)} km is greater than radius ${radiusKm} km`);
+      }
+    }
+
+    console.log("Eligible Stores:", eligibleStores);
+
+    if (eligibleStores.length === 0) {
+      console.log("Checkout Decision -> 0 Eligible Stores -> Service Unavailable");
       return res.json({
         success: true,
-        serviceable: true,
-        zone: matchedZone
+        serviceable: false,
+        message: "Location falls outside all active delivery service zones"
       });
     }
 
+    // Sort by distance and pick the nearest
+    eligibleStores.sort((a, b) => a.distanceKm - b.distanceKm);
+    const selectedStore = eligibleStores[0];
+
+    console.log("Checkout Decision");
+    console.log("Customer Location");
+    console.log(`↓\n${activeZones.length} Active Stores`);
+    console.log(`↓\n${eligibleStores.length} Eligible`);
+    console.log(`↓\nNearest: ${selectedStore.storeName}`);
+    console.log("↓\nProceed");
+
     return res.json({
       success: true,
-      serviceable: false,
-      message: "Location falls outside all active delivery service zones"
+      serviceable: true,
+      zone: activeZones.find(z => String(z._id) === selectedStore.storeId), // Backwards compatibility
+      fulfillmentStore: selectedStore
     });
+
   } catch (error) {
+    console.error("Server error during serviceability check:", error);
     return res.status(500).json({ success: false, message: "Server error during serviceability check", error: error.message });
   }
 });

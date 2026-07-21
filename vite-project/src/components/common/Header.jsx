@@ -692,6 +692,65 @@ const Header = React.memo(({
                 <line x1="8" y1="23" x2="16" y2="23"></line>
               </svg>
             </button>
+            {/* Instant Autocomplete Suggestions Popup */}
+            {isFocused && localQuery.trim().length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  left: 0,
+                  right: 0,
+                  background: "white",
+                  borderRadius: "16px",
+                  boxShadow: "0 12px 32px rgba(0, 0, 0, 0.15)",
+                  border: "1px solid #e2e8f0",
+                  zIndex: 9999,
+                  overflow: "hidden",
+                  padding: "8px 0"
+                }}
+              >
+                {searchSuggestions
+                  .filter(s => s.toLowerCase().includes(localQuery.toLowerCase().trim()))
+                  .slice(0, 5)
+                  .map((sug, idx) => (
+                    <div
+                      key={idx}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setLocalQuery(sug);
+                        setSearchQuery(sug);
+                        setIsFocused(false);
+                      }}
+                      style={{
+                        padding: "10px 16px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1e293b",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        cursor: "pointer",
+                        transition: "background 0.15s"
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span style={{ color: "#94a3b8" }}>🔍</span>
+                      <span>
+                        {sug.split(new RegExp(`(${localQuery})`, "gi")).map((part, pIdx) =>
+                          part.toLowerCase() === localQuery.toLowerCase() ? (
+                            <strong key={pIdx} style={{ color: "#318616", fontWeight: "800" }}>
+                              {part}
+                            </strong>
+                          ) : (
+                            part
+                          )
+                        )}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons: Orders | Wishlist */}

@@ -100,6 +100,8 @@ const logRequestPerformance = (req, res, durationMs) => {
   const userId = req.user ? req.user.id || req.user._id || req.user : "Guest";
   const userRole = req.user ? req.user.role : "none";
   const statusCode = res.statusCode;
+  const contentLength = res.getHeader("content-length") || "0";
+  const payloadKb = (Number(contentLength) / 1024).toFixed(2);
 
   // Determine appropriate log level based on HTTP status
   let level = "INFO";
@@ -109,12 +111,13 @@ const logRequestPerformance = (req, res, durationMs) => {
     level = "ERROR";
   }
 
-  writeLog(level, `${req.method} ${url} completed in ${durationMs}ms`, {
+  writeLog(level, `${req.method} ${url} - ${durationMs}ms | Status: ${statusCode} | Payload: ${payloadKb}KB`, {
     requestId: req.id || "none",
     method: req.method,
     url,
     status: statusCode,
     durationMs,
+    payloadKb: `${payloadKb}KB`,
     userId,
     userRole,
     ip: req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress

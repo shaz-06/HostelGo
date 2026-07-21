@@ -121,7 +121,7 @@ async function sendPushNotification(fcmTokens, title, body, data = {}, image = n
 /**
  * Sends order-related status notifications.
  */
-async function sendOrderNotification(order, status) {
+async function sendOrderNotification(order, status, customBody = null) {
   if (!order || !order.userId) return;
 
   try {
@@ -143,28 +143,33 @@ async function sendOrderNotification(order, status) {
       case "Order Placed":
       case "Confirmed":
         title = "🛒 Order Confirmed";
-        body = `Your order #${orderIdStr} has been confirmed.`;
+        body = customBody || `Your order #${orderIdStr} has been confirmed.`;
         break;
       case "Preparing":
       case "Packed":
         title = "📦 Order Packed";
-        body = "Your order is packed and ready for pickup.";
+        body = customBody || "Your order is packed and ready for pickup.";
         break;
       case "Rider Assigned":
         title = "🛵 Rider Assigned";
-        body = `${order.riderName || "A rider"} has been assigned to your order.`;
+        body = customBody || `${order.riderName || "A rider"} has been assigned to your order.`;
         break;
       case "Out for Delivery":
       case "Out For Delivery":
         title = "🛵 Order Out for Delivery";
-        body = "Your order is on the way and will arrive soon.";
+        body = customBody || "Your order is on the way and will arrive soon.";
         break;
       case "Delivered":
         title = "✅ Order Delivered";
-        body = "Your Buyto order has been delivered successfully.";
+        body = customBody || "Your Buyto order has been delivered successfully.";
         break;
       default:
-        return; // Skip other untracked statuses
+        if (customBody) {
+          title = "📋 Order Update";
+          body = customBody;
+        } else {
+          return; // Skip other untracked statuses
+        }
     }
 
     const deepLink = `/orders/${orderIdStr}`;
@@ -220,8 +225,8 @@ async function sendCartReminder(user) {
       return;
     }
 
-    const title = "🛒 Complete Your Order";
-    const body = "You left items in your cart. Complete your order now.";
+    const title = "🛍️ Your Cart is Waiting!";
+    const body = "Complete your checkout now and get your order delivered in minutes ⏳.";
     const deepLink = "/cart";
 
     const data = {

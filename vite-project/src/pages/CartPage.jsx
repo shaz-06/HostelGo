@@ -4,6 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import { io } from "socket.io-client";
 import { calculateBill } from "../utils/billCalculator";
 import CartBillDetails from "../components/CartBillDetails";
+import LoginRequiredPrompt from "../components/common/LoginRequiredPrompt";
 import { getOptimizedImageUrl } from "../utils/imageOptimizer";
 import { MOBILE_NAV_TOTAL_OFFSET } from "../constants/layoutConstants";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
@@ -92,12 +93,87 @@ export default function CartPage({
 
     // Shopping List Checkout Summary State
     const [checkoutSummary, setCheckoutSummary] = useState(null);
+    const [localActiveCoupons, setLocalActiveCoupons] = useState([]);
+
     useEffect(() => {
         const savedSummary = localStorage.getItem("buyto_checkout_summary");
         if (savedSummary) {
             setCheckoutSummary(JSON.parse(savedSummary));
         }
     }, []);
+
+    useEffect(() => {
+        if (!token) {
+            setLocalActiveCoupons([]);
+            return;
+        }
+        const fetchFreshCoupons = async () => {
+            try {
+                console.log("Customer: Fetching fresh active coupons...");
+                const res = await fetch((window.API_BASE_URL || "") + "/api/auth/coupons/active", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log(`Customer: Fetched ${data.coupons?.length || 0} active coupons:`, data.coupons);
+                    if (data.success && data.coupons) {
+                        setLocalActiveCoupons(data.coupons);
+                    }
+                }
+            } catch (err) {
+                console.error("Customer: Failed to fetch fresh coupons:", err);
+            }
+        };
+        fetchFreshCoupons();
+    }, [token]);
+
+    const [appliedCouponCode, setAppliedCouponCode] = useState(() => {
+        return sessionStorage.getItem("buyto_applied_coupon_code") || "";
+    });
+    const [couponDiscount, setCouponDiscount] = useState(0);
+
+    // Revalidate coupon whenever cart subtotal or appliedCouponCode changes
+    useEffect(() => {
+        if (!appliedCouponCode) {
+            setCouponDiscount(0);
+            return;
+        }
+
+        const validateCouponOnServer = async () => {
+            try {
+                console.log("Customer: Revalidating applied coupon:", appliedCouponCode, "subtotal:", subtotal);
+                const res = await fetch((window.API_BASE_URL || "") + "/api/auth/coupons/validate", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        couponCode: appliedCouponCode,
+                        cartValue: subtotal
+                    })
+                });
+                const data = await res.json();
+                console.log("Customer: Coupon validation result:", data);
+                if (data.success && data.coupon) {
+                    setCouponDiscount(data.coupon.discountAmount);
+                } else {
+                    // Automatically remove the coupon if it becomes invalid
+                    sessionStorage.removeItem("buyto_applied_coupon_code");
+                    setAppliedCouponCode("");
+                    setCouponDiscount(0);
+                    alert(data.message || "This coupon was removed because your cart no longer meets the requirements.");
+                }
+            } catch (err) {
+                console.error("Customer: Failed to validate coupon on cart change:", err);
+            }
+        };
+
+        if (token && subtotal > 0) {
+            validateCouponOnServer();
+        }
+    }, [appliedCouponCode, subtotal, token]);
+
     const [lazyLoaded, setLazyLoaded] = useState(false);
     const [activeTab, setActiveTab] = useState("Snacks");
     const [availableCoins, setAvailableCoins] = useState(0);
@@ -125,6 +201,7 @@ export default function CartPage({
         return localStorage.getItem("buyto_selected_address_id") || "";
     });
     const [showAddressModal, setShowAddressModal] = useState(false);
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [addressForm, setAddressForm] = useState({
         id: "", // present if editing
         label: "Hostel",
@@ -342,6 +419,15 @@ export default function CartPage({
             fetchWalletData();
             // Fetch saved addresses list
             fetchAddresses();
+
+            // Check for pending actions after login
+            const pendingAction = sessionStorage.getItem("postLoginAction");
+            if (pendingAction === "openAddAddress") {
+                sessionStorage.removeItem("postLoginAction");
+                setTimeout(() => {
+                    openAddModal();
+                }, 300);
+            }
         }
 
         // Lazy-loading trigger
@@ -368,6 +454,14 @@ export default function CartPage({
 
                 if (cartArray.length === 0) return;
 
+                console.log("[BUYCOINS TRACE CartPage]", {
+                    reason: "syncAndCalculate invocation",
+                    subtotal,
+                    coinsToRedeem,
+                    cartSize: cartItems.length,
+                    timestamp: Date.now()
+                });
+
                 // 1. Sync cart to DB
                 await fetch(window.API_BASE_URL + "/api/checkout/cart", {
                     method: "POST",
@@ -377,6 +471,19 @@ export default function CartPage({
                     },
                     body: JSON.stringify({ items: cartArray })
                 });
+
+                // Guard: BuyCoins can only be redeemed on orders above ₹99 (subtotal < 99)
+                if (subtotal < 99) {
+                    console.log(`[BUYCOINS INFO] Subtotal (${subtotal}) is < 99. Skipping apply-buycoins request.`);
+                    setMaxRedeemableCoins(0);
+                    setAppliedCoinsState(0);
+                    setBuyCoinsDiscountState(0);
+                    if (coinsToRedeem !== 0) {
+                        setCoinsToRedeem(0);
+                        localStorage.setItem("buyto_coins_redeem", "0");
+                    }
+                    return;
+                }
 
                 // 2. Apply BuyCoins
                 const res = await fetch(window.API_BASE_URL + "/api/checkout/apply-buycoins", {
@@ -426,7 +533,7 @@ export default function CartPage({
         };
 
         syncAndCalculate();
-    }, [isLoggedIn, token, JSON.stringify(cartItems), coinsToRedeem, appConfig]);
+    }, [isLoggedIn, token, cartItems.length, subtotal, coinsToRedeem, appConfig]);
 
     // Save noBagPledge to localStorage
     const handleNoBagToggle = () => {
@@ -521,6 +628,10 @@ export default function CartPage({
 
     // Open Add address modal
     const openAddModal = () => {
+        if (!isLoggedIn) {
+            setShowLoginPrompt(true);
+            return;
+        }
         setAddressForm({
             id: "",
             label: "Hostel",
@@ -698,6 +809,15 @@ export default function CartPage({
 
 
 
+    // Construct a simulated coupon object for billCalculator
+    const simulatedCoupon = appliedCouponCode ? {
+      _id: "simulated_coupon_id",
+      couponCode: appliedCouponCode,
+      code: appliedCouponCode,
+      discountAmount: couponDiscount,
+      minimumOrderValue: 0 // already validated
+    } : null;
+
     // Apply calculated coins to bill
     const billBreakdown = calculateBill(
         subtotal,
@@ -708,7 +828,7 @@ export default function CartPage({
             maxRedemptionPercent: appConfig?.buyCoins?.maxRedemptionPercent
         },
         deliverySettings,
-        selectedCoupon,
+        simulatedCoupon,
         coinsToRedeem
     );
     const { total, originalTotal } = billBreakdown;
@@ -967,7 +1087,7 @@ export default function CartPage({
             <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
                 <span style={{ fontSize: "50px" }}>😢</span>
                 <h2 style={{ fontSize: "20px", marginTop: "14px", color: "#374151" }}>Your cart is empty</h2>
-                <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>Add items from our catalog to get started</p>
+                <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>Add items from our catalog to get started.</p>
                 <button onClick={() => navigate("/")} style={{ background: "#318616", color: "white", border: "none", padding: "12px 24px", borderRadius: "14px", fontWeight: "700", cursor: "pointer" }}>Shop Now</button>
             </div>
         ) : (
@@ -1286,73 +1406,138 @@ export default function CartPage({
 
     const renderCoupons = () => (
         <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", marginBottom: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937" }}>🎁 Coupons</h3>
-                {activeCoupons.length > 0 && (
+                {localActiveCoupons.length > 0 && (
                     <span style={{ fontSize: "11px", background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)", color: "#d97706", padding: "2px 8px", borderRadius: "6px", fontWeight: "800" }}>
-                        {activeCoupons.length} Available
+                        {localActiveCoupons.length} Available
                     </span>
                 )}
             </div>
 
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
-                {activeCoupons.length === 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
+                {localActiveCoupons.length === 0 ? (
                     <span style={{ fontSize: "12px", color: "#9ca3af" }}>No coupons currently available</span>
                 ) : (
-                    activeCoupons.map((coupon) => {
-                        const isEligible = subtotal >= (coupon.minimumOrderValue || coupon.minOrderValue || 149);
-                        const isApplied = selectedCoupon?._id === coupon._id;
+                    localActiveCoupons.map((coupon) => {
+                        const minVal = coupon.minimumOrderValue || coupon.minOrderValue || 0;
+                        const isEligible = subtotal >= minVal;
+                        const code = coupon.couponCode || coupon.code;
+                        const isApplied = appliedCouponCode === code;
+                        
+                        let discountText = "";
+                        if (coupon.couponType === "percentage") {
+                          discountText = `${coupon.discountValue}% OFF`;
+                        } else if (coupon.couponType === "free_delivery") {
+                          discountText = "Free Delivery";
+                        } else {
+                          discountText = `₹${coupon.discountValue || coupon.discountAmount} OFF`;
+                        }
+
                         return (
-                            <button
+                            <div
                                 key={coupon._id}
-                                disabled={!isEligible}
-                                onClick={() => {
-                                    if (isApplied) {
-                                        setSelectedCoupon(null, "cart");
-                                    } else {
-                                        setSelectedCoupon(coupon, "cart");
-                                        setToast(coupon);
-                                        setTimeout(() => setToast(null), 2500);
-                                        console.log("Analytics Event: coupon_applied", { couponCode: coupon.couponCode });
-                                    }
-                                }}
                                 style={{
-                                    background: isApplied ? "#318616" : "white",
-                                    color: isApplied ? "white" : isEligible ? "#318616" : "#9ca3af",
-                                    border: `1.5px solid ${isApplied ? "#318616" : isEligible ? "#318616" : "#e5e7eb"}`,
-                                    borderRadius: "10px",
-                                    padding: "6px 12px",
-                                    fontWeight: "800",
-                                    fontSize: "12px",
-                                    cursor: isEligible ? "pointer" : "not-allowed",
-                                    transition: "all 0.15s ease"
+                                    border: isApplied ? "2px solid #10b981" : "1.5px solid #e5e7eb",
+                                    borderRadius: "16px",
+                                    padding: "14px",
+                                    background: isEligible ? "#ffffff" : "#f9fafb",
+                                    opacity: isEligible ? 1 : 0.85,
+                                    position: "relative",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "8px",
+                                    transition: "all 0.2s ease"
                                 }}
                             >
-                                {coupon.couponCode} {isApplied && "✓"}
-                            </button>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                    <div>
+                                        <span style={{
+                                            background: isApplied ? "#d1fae5" : isEligible ? "#e8f5e9" : "#f3f4f6",
+                                            color: isApplied ? "#065f46" : isEligible ? "#2e7d32" : "#4b5563",
+                                            padding: "4px 8px",
+                                            borderRadius: "8px",
+                                            fontWeight: "950",
+                                            fontSize: "12px",
+                                            letterSpacing: "0.5px"
+                                        }}>
+                                            {code} {isApplied && "✓ Applied"}
+                                        </span>
+                                        <div style={{ fontSize: "14px", fontWeight: "800", color: "#1f2937", marginTop: "6px" }}>
+                                            {discountText}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            if (isEligible) {
+                                                if (isApplied) {
+                                                    sessionStorage.removeItem("buyto_applied_coupon_code");
+                                                    setAppliedCouponCode("");
+                                                } else {
+                                                    sessionStorage.setItem("buyto_applied_coupon_code", code);
+                                                    setAppliedCouponCode(code);
+                                                    setToast(coupon);
+                                                    setTimeout(() => setToast(null), 2500);
+                                                    console.log("Analytics Event: coupon_applied", { couponCode: code });
+                                                }
+                                            }
+                                        }}
+                                        disabled={!isEligible || (appliedCouponCode && !isApplied)}
+                                        style={{
+                                            background: isApplied ? "#ef4444" : isEligible && !appliedCouponCode ? "#10b981" : "#d1d5db",
+                                            color: "white",
+                                            border: "none",
+                                            borderRadius: "8px",
+                                            padding: "6px 12px",
+                                            fontSize: "12px",
+                                            fontWeight: "800",
+                                            cursor: isEligible && (!appliedCouponCode || isApplied) ? "pointer" : "not-allowed",
+                                            boxShadow: isEligible && (!appliedCouponCode || isApplied) ? "0 2px 4px rgba(16,185,129,0.15)" : "none",
+                                            transition: "all 0.15s ease"
+                                        }}
+                                    >
+                                        {isApplied ? "Remove" : "Apply"}
+                                    </button>
+                                </div>
+
+                                <div style={{ fontSize: "11px", color: "#6b7280", fontWeight: "600" }}>
+                                    {coupon.title || coupon.description || `Get ${discountText} on this order.`}
+                                </div>
+
+                                <div style={{ borderTop: "1px dashed #e5e7eb", margin: "4px 0" }}></div>
+
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
+                                    <span style={{ color: "#6b7280", fontWeight: "600" }}>
+                                        Min Order: ₹{minVal}
+                                    </span>
+                                    {coupon.validUntil && (
+                                        <span style={{ color: "#10b981", fontWeight: "700" }}>
+                                            Expires: {new Date(coupon.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {!isEligible && (
+                                    <div style={{
+                                        background: "#fffbeb",
+                                        color: "#b45309",
+                                        fontSize: "11px",
+                                        fontWeight: "700",
+                                        padding: "6px 10px",
+                                        borderRadius: "8px",
+                                        marginTop: "4px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "4px"
+                                    }}>
+                                        ⚠️ Add items worth ₹{minVal - subtotal} more to apply
+                                    </div>
+                                )}
+                            </div>
                         );
                     })
                 )}
             </div>
-            {activeCoupons.length > 0 && (
-                <button
-                    onClick={() => navigate("/profile?tab=coupons")}
-                    style={{
-                        width: "100%",
-                        padding: "10px",
-                        background: "#f3f4f6",
-                        color: "#374151",
-                        border: "none",
-                        borderRadius: "12px",
-                        fontWeight: "750",
-                        fontSize: "12px",
-                        cursor: "pointer",
-                        marginTop: "8px"
-                    }}
-                >
-                    Apply Coupon Code &gt;
-                </button>
-            )}
         </div>
     );
 
@@ -1520,9 +1705,10 @@ export default function CartPage({
             {/* Proceed Button rendered in flow */}
             {cartItems.length > 0 && (
                 <button
-                    disabled={!selectedAddressId || !isAddressServiceable}
+                    disabled={isLoggedIn && (!selectedAddressId || !isAddressServiceable)}
                     onClick={() => {
                         if (!isLoggedIn) {
+                            sessionStorage.setItem("redirectAfterLogin", "/payment");
                             openLogin(() => navigate("/payment"));
                         } else {
                             navigate("/payment");
@@ -1530,16 +1716,16 @@ export default function CartPage({
                     }}
                     style={{
                         width: "100%",
-                        background: (selectedAddressId && isAddressServiceable) ? "#318616" : "#9ca3af",
+                        background: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "#318616" : "#9ca3af",
                         color: "white",
                         border: "none",
                         padding: "16px",
                         borderRadius: "16px",
                         fontSize: "16px",
                         fontWeight: "800",
-                        cursor: (selectedAddressId && isAddressServiceable) ? "pointer" : "not-allowed",
+                        cursor: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "pointer" : "not-allowed",
                         marginTop: "16px",
-                        boxShadow: (selectedAddressId && isAddressServiceable) ? "0 4px 12px rgba(49,134,22,0.25)" : "none",
+                        boxShadow: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "0 4px 12px rgba(49,134,22,0.25)" : "none",
                         transition: "all 0.2s"
                     }}
                 >
@@ -1684,24 +1870,25 @@ export default function CartPage({
                     </div>
 
                     <button
-                        disabled={!selectedAddressId || !isAddressServiceable}
+                        disabled={isLoggedIn && (!selectedAddressId || !isAddressServiceable)}
                         onClick={() => {
                             if (!isLoggedIn) {
+                                sessionStorage.setItem("redirectAfterLogin", "/payment");
                                 openLogin(() => navigate("/payment"));
                             } else {
                                 navigate("/payment");
                             }
                         }}
                         style={{
-                            background: (selectedAddressId && isAddressServiceable) ? "#318616" : "#9ca3af",
+                            background: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "#318616" : "#9ca3af",
                             color: "white",
                             border: "none",
                             padding: "12px 24px",
                             borderRadius: "14px",
                             fontSize: "14px",
                             fontWeight: "800",
-                            cursor: (selectedAddressId && isAddressServiceable) ? "pointer" : "not-allowed",
-                            boxShadow: (selectedAddressId && isAddressServiceable) ? "0 4px 12px rgba(49,134,22,0.2)" : "none"
+                            cursor: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "pointer" : "not-allowed",
+                            boxShadow: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "0 4px 12px rgba(49,134,22,0.2)" : "none"
                         }}
                     >
                         {!isLoggedIn ? "Continue with Phone Number →" : !selectedAddressId ? "Select Address" : !isAddressServiceable ? "Unserviceable" : "Proceed to Pay"}
@@ -2017,6 +2204,20 @@ export default function CartPage({
                                 `✅ ${toast.couponCode} Applied! Saving ₹${toast.discountAmount}`}
                 </div>
             )}
+
+            {/* LOGIN REQUIRED PROMPT DIALOG */}
+            <LoginRequiredPrompt
+                isOpen={showLoginPrompt}
+                onClose={() => setShowLoginPrompt(false)}
+                onConfirm={() => {
+                    sessionStorage.setItem("redirectAfterLogin", window.location.pathname + window.location.search);
+                    sessionStorage.setItem("postLoginAction", "openAddAddress");
+                    setShowLoginPrompt(false);
+                    openLogin();
+                }}
+                title="📍 Save Your Delivery Address"
+                message={"Log in to save your delivery address and enjoy a faster checkout experience.\n\nYour cart is safe, and you'll continue exactly where you left off."}
+            />
 
             {/* PHONE MODAL FOR GUEST CHECKOUT */}
             {showPhoneModal && (

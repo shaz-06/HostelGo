@@ -58,6 +58,20 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: ""
     },
+    vehicleNumber: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    riderStatus: {
+      type: String,
+      enum: ["Available", "Assigned", "Busy", "Delivered"],
+      default: "Available"
+    },
+    rating: {
+      type: Number,
+      default: 5.0
+    },
     isOnline: {
       type: Boolean,
       default: false
@@ -65,6 +79,62 @@ const userSchema = new mongoose.Schema(
     isSuspended: {
       type: Boolean,
       default: false
+    },
+    fulfillmentStoreId: {
+      type: String,
+      default: ""
+    },
+    fulfillmentStoreName: {
+      type: String,
+      default: ""
+    },
+    riderCode: {
+      type: String,
+      default: ""
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    deletedAt: {
+      type: Date,
+      default: null
+    },
+    deletedBy: {
+      type: String,
+      default: ""
+    },
+    driversLicense: {
+      type: String,
+      default: ""
+    },
+    emergencyContact: {
+      type: String,
+      default: ""
+    },
+    joiningDate: {
+      type: Date,
+      default: null
+    },
+    notes: {
+      type: String,
+      default: ""
+    },
+    suspensionReason: {
+      type: String,
+      default: ""
+    },
+    suspendedBy: {
+      type: String,
+      default: ""
+    },
+    suspendedAt: {
+      type: Date,
+      default: null
+    },
+    suspensionNotes: {
+      type: String,
+      default: ""
     },
     currentLocation: {
       lat: { type: Number, default: null },

@@ -111,20 +111,26 @@ router.get("/riders", async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const activeDeliveries = await Order.aggregate([
-      { $match: { orderStatus: "Out for Delivery", riderAssigned: true } },
-      { $group: { _id: "$riderId", activeOrders: { $sum: 1 } } }
-    ]);
+    const activeOrdersForRiders = await Order.find({
+      riderId: { $in: riders.map(r => r._id) },
+      orderStatus: { $nin: ["Delivered", "Cancelled", "Delivery Failed"] }
+    }).lean();
 
-    const activeMap = activeDeliveries.reduce((acc, row) => {
-      acc[String(row._id)] = row.activeOrders;
+    const activeOrderMap = activeOrdersForRiders.reduce((acc, order) => {
+      acc[String(order.riderId)] = order._id.toString();
+      return acc;
+    }, {});
+
+    const activeMap = activeOrdersForRiders.reduce((acc, order) => {
+      acc[String(order.riderId)] = (acc[String(order.riderId)] || 0) + 1;
       return acc;
     }, {});
 
     return res.json(
       riders.map((rider) => ({
         ...rider,
-        activeOrders: activeMap[String(rider._id)] || 0
+        activeOrders: activeMap[String(rider._id)] || 0,
+        assignedOrder: activeOrderMap[String(rider._id)] || null
       }))
     );
   } catch (error) {
@@ -134,12 +140,12 @@ router.get("/riders", async (req, res) => {
 });
 
 // PUT /api/admin/riders/:id/suspend
-// Toggles rider suspension and forces offline when suspended
+// Toggles rider suspension with audit reason and forces offline when suspended
 router.put("/riders/:id/suspend", async (req, res) => {
   console.log("=== [ADMIN RIDER SUSPEND TOGGLE] ===");
   console.log("Rider ID:", req.params.id);
   try {
-    const { isSuspended } = req.body;
+    const { isSuspended, reason, notes } = req.body;
     const rider = await User.findOne({ _id: req.params.id, role: "rider" });
     if (!rider) {
       return res.status(404).json({ message: "Rider not found" });
@@ -148,6 +154,15 @@ router.put("/riders/:id/suspend", async (req, res) => {
     rider.isSuspended = Boolean(isSuspended);
     if (rider.isSuspended) {
       rider.isOnline = false;
+      rider.suspensionReason = reason || "Other";
+      rider.suspensionNotes = notes || "";
+      rider.suspendedAt = new Date();
+      rider.suspendedBy = "Admin";
+    } else {
+      rider.suspensionReason = "";
+      rider.suspensionNotes = "";
+      rider.suspendedAt = null;
+      rider.suspendedBy = "";
     }
     await rider.save();
 
@@ -157,7 +172,189 @@ router.put("/riders/:id/suspend", async (req, res) => {
     return res.json(sanitized);
   } catch (error) {
     console.error("❌ Admin Rider Suspend Error:", error);
-    return res.status(500).json({ message: "Failed to update rider suspension", error: error.message });
+    return res.status(500).json({ message: "Failed to toggle suspend", error: error.message });
+  }
+});
+
+// POST /api/admin/riders
+// Onboards a new rider with sequence-based rider code generation
+router.post("/riders", async (req, res) => {
+  const { 
+    name, phone, email, vehicleType, vehicleNumber, 
+    fulfillmentStoreId, fulfillmentStoreName, profileImage, 
+    driversLicense, emergencyContact, notes 
+  } = req.body;
+
+  if (!name || !phone || !vehicleNumber || !fulfillmentStoreId) {
+    return res.status(400).json({ message: "Name, Phone, Vehicle Number, and Fulfillment Store are required" });
+  }
+
+  // Normalize vehicle number
+  const normalizedVehicleNumber = vehicleNumber.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
+  try {
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      return res.status(400).json({ message: "Phone number is already registered." });
+    }
+
+    const allRiders = await User.find({ role: "rider" }).lean();
+    const dupVehicle = allRiders.find(r => (r.vehicleNumber || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase() === normalizedVehicleNumber);
+    if (dupVehicle) {
+      return res.status(400).json({ message: "Vehicle number is already registered to another rider." });
+    }
+
+    // Safely increment counter sequence
+    const Counter = require("../models/Counter");
+    let counterDoc = await Counter.findOneAndUpdate(
+      { id: "riderCode" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    
+    const seqNum = String(counterDoc.seq).padStart(4, "0");
+    const riderCode = `BUY-R${seqNum}`;
+
+    const defaultPassword = `BuytoRider123!`;
+
+    const rider = new User({
+      name,
+      phone,
+      email: email || `${phone}@buyto.com`,
+      role: "rider",
+      password: defaultPassword,
+      vehicleType: vehicleType || "Bike",
+      vehicleNumber: normalizedVehicleNumber,
+      fulfillmentStoreId,
+      fulfillmentStoreName,
+      profileImage: profileImage || "",
+      riderStatus: "Available",
+      isOnline: true,
+      rating: 5.0,
+      totalDeliveries: 0,
+      totalEarnings: 0,
+      riderCode,
+      isActive: true,
+      driversLicense: driversLicense || "",
+      emergencyContact: emergencyContact || "",
+      notes: notes || "",
+      joiningDate: new Date()
+    });
+
+    await rider.save();
+    return res.status(201).json(rider);
+  } catch (error) {
+    console.error("❌ Admin Rider Creation Error:", error);
+    return res.status(500).json({ message: "Failed to onboard rider", error: error.message });
+  }
+});
+
+// PUT /api/admin/riders/:id
+// Edits a rider's personal/vehicle/additional details
+router.put("/riders/:id", async (req, res) => {
+  const { name, phone, email, vehicleType, vehicleNumber, driversLicense, emergencyContact, notes } = req.body;
+  try {
+    const rider = await User.findOne({ _id: req.params.id, role: "rider" });
+    if (!rider) return res.status(404).json({ message: "Rider not found" });
+
+    if (phone && phone !== rider.phone) {
+      const dupPhone = await User.findOne({ phone, _id: { $ne: rider._id } });
+      if (dupPhone) return res.status(400).json({ message: "Phone number is already in use." });
+      rider.phone = phone;
+    }
+
+    if (vehicleNumber) {
+      const normalized = vehicleNumber.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+      const allRiders = await User.find({ role: "rider", _id: { $ne: rider._id } }).lean();
+      const dupVehicle = allRiders.find(r => (r.vehicleNumber || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase() === normalized);
+      if (dupVehicle) return res.status(400).json({ message: "Vehicle number is already in use." });
+      rider.vehicleNumber = normalized;
+    }
+
+    if (name) rider.name = name;
+    if (email !== undefined) rider.email = email;
+    if (vehicleType) rider.vehicleType = vehicleType;
+    if (driversLicense !== undefined) rider.driversLicense = driversLicense;
+    if (emergencyContact !== undefined) rider.emergencyContact = emergencyContact;
+    if (notes !== undefined) rider.notes = notes;
+
+    await rider.save();
+    return res.json(rider);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update rider details", error: error.message });
+  }
+});
+
+// PUT /api/admin/riders/:id/status
+// Updates riderStatus or online status
+router.put("/riders/:id/status", async (req, res) => {
+  const { riderStatus, isOnline } = req.body;
+  try {
+    const rider = await User.findOne({ _id: req.params.id, role: "rider" });
+    if (!rider) return res.status(404).json({ message: "Rider not found" });
+
+    if (riderStatus) rider.riderStatus = riderStatus;
+    if (isOnline !== undefined) rider.isOnline = isOnline;
+
+    await rider.save();
+    return res.json(rider);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update status", error: error.message });
+  }
+});
+
+// PUT /api/admin/riders/:id/store
+// Changes the assigned store (restricted if rider is Busy)
+router.put("/riders/:id/store", async (req, res) => {
+  const { fulfillmentStoreId, fulfillmentStoreName } = req.body;
+  try {
+    const rider = await User.findOne({ _id: req.params.id, role: "rider" });
+    if (!rider) return res.status(404).json({ message: "Rider not found" });
+
+    if (rider.riderStatus === "Busy") {
+      return res.status(400).json({
+        message: "This rider has an active delivery. Complete or reassign the order before changing the fulfillment store."
+      });
+    }
+
+    if (fulfillmentStoreId) rider.fulfillmentStoreId = fulfillmentStoreId;
+    if (fulfillmentStoreName) rider.fulfillmentStoreName = fulfillmentStoreName;
+
+    await rider.save();
+    return res.json(rider);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to change store", error: error.message });
+  }
+});
+
+// DELETE /api/admin/riders/:id
+// Soft deletes a rider, validating no active assignments exist
+router.delete("/riders/:id", async (req, res) => {
+  try {
+    const rider = await User.findOne({ _id: req.params.id, role: "rider" });
+    if (!rider) return res.status(404).json({ message: "Rider not found" });
+
+    // Check active order assignment
+    const activeOrder = await Order.findOne({
+      riderId: rider._id,
+      orderStatus: { $nin: ["Delivered", "Cancelled", "Delivery Failed"] }
+    }).lean();
+
+    if (activeOrder) {
+      const shortId = activeOrder._id.toString().substring(activeOrder._id.toString().length - 8).toUpperCase();
+      return res.status(400).json({
+        message: `This rider is currently assigned to Order #${shortId}. Complete or reassign the order before deleting this rider.`
+      });
+    }
+
+    rider.isActive = false;
+    rider.deletedAt = new Date();
+    rider.deletedBy = "Admin";
+    await rider.save();
+
+    return res.json({ success: true, message: "Rider archived successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete rider", error: error.message });
   }
 });
 
@@ -236,6 +433,18 @@ router.put("/orders/:id/status", async (req, res) => {
     if (["Delivered", "Cancelled", "Delivery Failed"].includes(orderStatus)) {
       trackingService.stopSession(order._id);
       order.trackingSessionActive = false;
+      if (order.assignedRider && order.assignedRider.riderId) {
+        try {
+          const assignedUser = await User.findById(order.assignedRider.riderId);
+          if (assignedUser) {
+            assignedUser.riderStatus = "Available";
+            await assignedUser.save();
+            console.log(`[Rider Status] Released rider ${assignedUser.name} to Available on order status update: ${orderStatus}`);
+          }
+        } catch (riderErr) {
+          console.error("Failed to release rider on order status update:", riderErr.message);
+        }
+      }
     }
 
     order.orderStatus = orderStatus;
@@ -260,6 +469,12 @@ router.put("/orders/:id/status", async (req, res) => {
       } catch (rewardErr) {
         console.error("Failed to credit BuyCoins on Delivered:", rewardErr);
       }
+      try {
+        const { clearCustomerCart } = require("../services/cartCleanupService");
+        await clearCustomerCart(order.userId);
+      } catch (cartErr) {
+        console.error("Failed to clear customer cart on Delivered status:", cartErr);
+      }
     }
     const updatedOrder = await order.save();
     console.log("Order status updated successfully in DB:", updatedOrder._id);
@@ -283,6 +498,376 @@ router.put("/orders/:id/status", async (req, res) => {
   } catch (error) {
     console.error("❌ Admin Status Update Error:", error);
     return res.status(500).json({ message: "Failed to update order status", error: error.message });
+  }
+});
+
+// PUT /api/admin/orders/:id/assign-rider
+// Manually assigns a rider to an order
+router.put("/orders/:id/assign-rider", async (req, res) => {
+  console.log("=== [ADMIN RIDER ASSIGNMENT] ===");
+  console.log("Order ID:", req.params.id);
+  console.log("Rider ID to assign:", req.body.riderId);
+
+  const { riderId } = req.body;
+  if (!riderId) {
+    return res.status(400).json({ message: "riderId is required" });
+  }
+
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const rider = await User.findOne({ _id: riderId, role: "rider" });
+    if (!rider) {
+      return res.status(404).json({ message: "Rider not found" });
+    }
+
+    // 2. Prevent Assigning Riders to Multiple Orders
+    if (String(order.assignedRider?.riderId) !== String(rider._id)) {
+      if (rider.riderStatus && rider.riderStatus !== "Available") {
+        return res.status(400).json({
+          message: "This rider is already assigned to another active order."
+        });
+      }
+    }
+
+    let isReassignment = false;
+
+    // If order already has a rider, unassign them first
+    if (order.assignedRider && order.assignedRider.riderId && String(order.assignedRider.riderId) !== String(rider._id)) {
+      isReassignment = true;
+      const prevRiderId = order.assignedRider.riderId;
+      try {
+        const prevRider = await User.findById(prevRiderId);
+        if (prevRider) {
+          prevRider.riderStatus = "Available";
+          await prevRider.save();
+          console.log(`[Rider Status] Released previous rider ${prevRider.name} back to Available`);
+        }
+      } catch (err) {
+        console.error("Failed to release previous rider:", err.message);
+      }
+
+      // Record in assignmentHistory that the previous rider was unassigned
+      if (order.assignmentHistory && order.assignmentHistory.length > 0) {
+        const lastIndex = order.assignmentHistory.length - 1;
+        if (!order.assignmentHistory[lastIndex].unassignedAt) {
+          order.assignmentHistory[lastIndex].unassignedAt = new Date();
+          order.assignmentHistory[lastIndex].reason = "Reassigned";
+        }
+      }
+    }
+
+    // Update new rider status to Busy
+    rider.riderStatus = "Busy";
+    await rider.save();
+
+    // Snapshot the rider inside order
+    order.assignedRider = {
+      riderId: rider._id,
+      name: rider.name,
+      phone: rider.phone,
+      profilePhoto: rider.profileImage || "",
+      vehicleType: rider.vehicleType || "",
+      vehicleNumber: rider.vehicleNumber || "",
+      rating: rider.rating || 5.0
+    };
+
+    // Keep legacy order fields in sync
+    order.riderId = rider._id;
+    order.riderName = rider.name;
+    order.riderPhone = rider.phone;
+    order.riderAssigned = true;
+
+    // Record the new assignment in history
+    order.assignmentHistory.push({
+      riderId: rider._id,
+      assignedAt: new Date(),
+      assignedBy: "Admin"
+    });
+
+    order.orderStatus = "Rider Assigned";
+    order.statusTimestamps = order.statusTimestamps || {};
+    order.statusTimestamps.riderAssigned = new Date();
+
+    const currentVersion = (order.trackingVersion || 0) + 1;
+    order.trackingVersion = currentVersion;
+
+    updatedOrder.assignmentHistory.push({
+      action: isReassignment ? "Reassigned" : "Assigned",
+      riderId: rider._id,
+      previousRiderId: expectedPrevRiderId,
+      assignedAt: new Date(),
+      assignedBy: "Admin",
+      reason: "Status update manual dispatch"
+    });
+
+    await updatedOrder.save();
+
+    // Start live tracking session if store config is correct
+    if (updatedOrder.fulfillmentStore?.latitude && updatedOrder.fulfillmentStore?.longitude) {
+      const trackingService = require("../services/trackingService");
+      await trackingService.startSession(updatedOrder._id);
+    }
+
+    // Fetch fresh order
+    const finalOrder = await Order.findById(updatedOrder._id);
+
+    // Send notifications
+    try {
+      const { sendOrderNotification } = require("../services/notificationService");
+      if (isReassignment) {
+        await sendOrderNotification(finalOrder, "Rider Assigned", `🔄 Your delivery partner has changed. New Rider: ${rider.name}`);
+      } else {
+        await sendOrderNotification(finalOrder, "Rider Assigned", `🛵 ${rider.name} has been assigned to your order.`);
+      }
+    } catch (notifErr) {
+      console.error("Failed to send order assignment notification:", notifErr.message);
+    }
+
+    return res.json(finalOrder);
+  } catch (error) {
+    console.error("❌ Admin Rider Assignment Error:", error);
+    return res.status(500).json({ message: "Failed to assign rider", error: error.message });
+  }
+});
+
+// GET /api/admin/orders/search-suggestions
+// Finds active orders ready for rider assignment matching query
+router.get("/orders/search-suggestions", async (req, res) => {
+  const { query } = req.query;
+  if (!query) {
+    return res.json([]);
+  }
+
+  try {
+    const q = query.trim().toLowerCase();
+    
+    // Find active orders ready for rider assignment
+    // Allowed statuses: "Preparing" (Store Accepted), "Packed" (Packing)
+    const activeOrders = await Order.find({
+      orderStatus: { $in: ["Preparing", "Packed"] }
+    }).sort({ createdAt: 1 }).lean();
+
+    const { getDistance } = require("../services/routeGenerator");
+
+    const matched = activeOrders.filter(order => {
+      const orderIdStr = order._id.toString().toLowerCase();
+      const customerName = (order.user?.name || "").toLowerCase();
+      const customerPhone = (order.user?.phone || "").toLowerCase();
+      
+      return orderIdStr.includes(q) || 
+             customerName.includes(q) || 
+             customerPhone.includes(q);
+    });
+
+    const suggestions = matched.slice(0, 20).map(order => {
+      // Calculate ETA using the exact same tracking service distance-based logic
+      const storeLat = order.fulfillmentStore?.latitude || 13.0835363;
+      const storeLng = order.fulfillmentStore?.longitude || 77.6403678;
+      const customerLat = order.deliveryLatitude || (storeLat + 0.0055);
+      const customerLng = order.deliveryLongitude || (storeLng + 0.0055);
+      const dist = getDistance(storeLat, storeLng, customerLat, customerLng);
+      const etaMinutes = Math.round(8 + dist * 2);
+      
+      const timeSinceOrderedMs = Date.now() - new Date(order.createdAt).getTime();
+      const waitingMinutes = Math.round(timeSinceOrderedMs / 60000);
+
+      // Determine priority: if waiting > 10 min, it is High Priority
+      const priority = waitingMinutes > 10 ? "High Priority" : "Standard";
+
+      return {
+        _id: order._id,
+        orderId: order._id.toString(),
+        shortId: order._id.toString().substring(order._id.toString().length - 8).toUpperCase(),
+        customerName: order.user?.name || "Customer",
+        customerPhone: order.user?.phone || "",
+        deliveryAddress: order.deliveryAddress || "",
+        fulfillmentStoreName: order.fulfillmentStore?.storeName || "HQ",
+        fulfillmentStoreId: order.fulfillmentStore?.storeId || "",
+        orderStatus: order.orderStatus,
+        waitingMinutes,
+        eta: `${etaMinutes - 2}–${etaMinutes + 2} min`,
+        priority
+      };
+    });
+
+    return res.json(suggestions);
+  } catch (err) {
+    console.error("Error fetching search suggestions:", err);
+    return res.status(500).json({ message: "Failed to load suggestions" });
+  }
+});
+
+// PUT /api/admin/riders/:riderId/assign-order
+// Assigns a rider to an order by order ID/number
+router.put("/riders/:riderId/assign-order", async (req, res) => {
+  const { riderId } = req.params;
+  const { orderNumber, reason } = req.body;
+
+  if (!orderNumber) {
+    return res.status(400).json({ message: "Order Number is required" });
+  }
+
+  try {
+    const rider = await User.findOne({ _id: riderId, role: "rider" });
+    if (!rider) {
+      return res.status(404).json({ message: "Rider not found" });
+    }
+
+    if (rider.isSuspended) {
+      return res.status(400).json({ message: "This rider is suspended." });
+    }
+
+    let order = null;
+    if (mongoose.isValidObjectId(orderNumber)) {
+      order = await Order.findById(orderNumber);
+    } else {
+      const suffix = orderNumber.trim();
+      const allOrders = await Order.find({});
+      order = allOrders.find(o => o._id.toString().toLowerCase().endsWith(suffix.toLowerCase()));
+    }
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // 1. Prevent Assignment Before Store Acceptance / Eligibility check
+    const allowedStatuses = ["Preparing", "Packed"];
+    if (["Out for Delivery", "Delivered", "Cancelled", "Delivery Failed"].includes(order.orderStatus)) {
+      return res.status(400).json({ message: "This order has already left the store and cannot be reassigned." });
+    }
+    if (!allowedStatuses.includes(order.orderStatus)) {
+      return res.status(400).json({ message: "This order is not ready for rider assignment." });
+    }
+
+    // 2. Verify Rider Belongs to the Same Fulfillment Store
+    if (order.fulfillmentStore?.storeId && rider.fulfillmentStoreId) {
+      if (order.fulfillmentStore.storeId !== rider.fulfillmentStoreId) {
+        return res.status(400).json({
+          message: "This rider is assigned to a different fulfillment center."
+        });
+      }
+    }
+
+    const expectedPrevRiderId = order.assignedRider?.riderId || null;
+    let isReassignment = !!expectedPrevRiderId;
+
+    // Release previous rider if applicable
+    if (isReassignment && String(expectedPrevRiderId) !== String(rider._id)) {
+      try {
+        const prevRider = await User.findById(expectedPrevRiderId);
+        if (prevRider) {
+          prevRider.riderStatus = "Available";
+          await prevRider.save();
+        }
+      } catch (err) {
+        console.error("Failed to release previous rider:", err.message);
+      }
+    }
+
+    // Release any previous order assigned to this new rider
+    const activeOrdersForRider = await Order.find({
+      riderId: rider._id,
+      _id: { $ne: order._id },
+      orderStatus: { $nin: ["Delivered", "Cancelled", "Delivery Failed"] }
+    });
+
+    for (const activeOrder of activeOrdersForRider) {
+      activeOrder.assignedRider = null;
+      activeOrder.riderId = null;
+      activeOrder.riderName = "";
+      activeOrder.riderPhone = "";
+      activeOrder.riderAssigned = false;
+      activeOrder.orderStatus = "Preparing";
+      
+      activeOrder.assignmentHistory.push({
+        action: "Unassigned",
+        riderId: rider._id,
+        assignedBy: "Admin",
+        reason: "Rider reassigned to another order"
+      });
+      await activeOrder.save();
+
+      const trackingService = require("../services/trackingService");
+      trackingService.stopSession(activeOrder._id);
+      trackingService.emitStatusUpdated(String(activeOrder._id), activeOrder, (activeOrder.trackingVersion || 0) + 1);
+    }
+
+    // Update new rider status to Busy
+    rider.riderStatus = "Busy";
+    await rider.save();
+
+    // Perform atomic/concurrency-safe order update
+    const updatedOrder = await Order.findOneAndUpdate(
+      {
+        _id: order._id,
+        orderStatus: order.orderStatus,
+        "assignedRider.riderId": expectedPrevRiderId
+      },
+      {
+        $set: {
+          assignedRider: {
+            riderId: rider._id,
+            name: rider.name,
+            phone: rider.phone,
+            profilePhoto: rider.profileImage || "",
+            vehicleType: rider.vehicleType || "",
+            vehicleNumber: rider.vehicleNumber || "",
+            rating: rider.rating || 5.0
+          },
+          riderId: rider._id,
+          riderName: rider.name,
+          riderPhone: rider.phone,
+          riderAssigned: true,
+          orderStatus: "Rider Assigned",
+          "statusTimestamps.riderAssigned": new Date()
+        },
+        $inc: { trackingVersion: 1 },
+        $push: {
+          assignmentHistory: {
+            action: isReassignment ? "Reassigned" : "Assigned",
+            riderId: rider._id,
+            previousRiderId: expectedPrevRiderId,
+            assignedAt: new Date(),
+            assignedBy: "Admin",
+            reason: reason || "Standard assignment"
+          }
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return res.status(409).json({
+        message: "This order is no longer eligible for rider assignment. Please refresh the list."
+      });
+    }
+
+    // 7. Tracking Session Safety: Only start tracking if store exists
+    if (updatedOrder.fulfillmentStore?.latitude && updatedOrder.fulfillmentStore?.longitude) {
+      const trackingService = require("../services/trackingService");
+      await trackingService.startSession(updatedOrder._id);
+    }
+
+    // Send notifications
+    try {
+      const { sendOrderNotification } = require("../services/notificationService");
+      if (isReassignment) {
+        await sendOrderNotification(updatedOrder, "Rider Assigned", `🔄 Your delivery partner has changed. New Rider: ${rider.name}`);
+      } else {
+        await sendOrderNotification(updatedOrder, "Rider Assigned", `🛵 ${rider.name} has been assigned to your order. Vehicle: ${rider.vehicleNumber || "KA 03 JM 1234"}`);
+      }
+    } catch (notifErr) {
+      console.error("Failed to send order assignment notification:", notifErr.message);
+    }
+
+    return res.json({ success: true, order: updatedOrder });
+  } catch (error) {
+    console.error("❌ Assign Order by Rider Error:", error);
+    return res.status(500).json({ message: "Failed to assign order", error: error.message });
   }
 });
 
@@ -434,7 +1019,9 @@ router.put("/config/fees", async (req, res) => {
       rainFee,
       lateNightFee,
       gstPercentage,
-      gstFixedCharges
+      gstFixedCharges,
+      codConvenienceFee,
+      codConvenienceFeeEnabled
     } = req.body;
 
     let feeConfig = await Config.findOne({ key: "fees_config" });
@@ -451,6 +1038,8 @@ router.put("/config/fees", async (req, res) => {
     if (lateNightFee !== undefined) feeConfig.lateNightFee = Number(lateNightFee);
     if (gstPercentage !== undefined) feeConfig.gstPercentage = Number(gstPercentage);
     if (gstFixedCharges !== undefined) feeConfig.gstFixedCharges = Number(gstFixedCharges);
+    if (codConvenienceFee !== undefined) feeConfig.codConvenienceFee = Number(codConvenienceFee);
+    if (codConvenienceFeeEnabled !== undefined) feeConfig.codConvenienceFeeEnabled = Boolean(codConvenienceFeeEnabled);
 
     const savedConfig = await feeConfig.save();
     console.log("Fee configuration updated successfully by admin:", savedConfig);
@@ -1050,6 +1639,204 @@ router.post("/notifications/queue/retry/:orderId", async (req, res) => {
   } catch (error) {
     console.error("Error retrying notification:", error);
     return res.status(500).json({ success: false, message: "Failed to retry notification", error: error.message });
+  }
+});
+
+// GET /api/admin/coupons
+router.get("/coupons", async (req, res) => {
+  try {
+    const PromotionCoupon = require("../models/PromotionCoupon");
+    const coupons = await PromotionCoupon.find({ isArchived: false }).sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, coupons });
+  } catch (error) {
+    console.error("Error fetching promotional coupons:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch coupons", error: error.message });
+  }
+});
+
+// GET /api/admin/coupons/audit-logs/:couponId
+router.get("/coupons/audit-logs/:couponId", async (req, res) => {
+  try {
+    const CouponAuditLog = require("../models/CouponAuditLog");
+    const logs = await CouponAuditLog.find({ couponId: req.params.couponId }).sort({ timestamp: -1 });
+    return res.status(200).json({ success: true, logs });
+  } catch (error) {
+    console.error("Error fetching coupon audit logs:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch logs", error: error.message });
+  }
+});
+
+// POST /api/admin/coupons
+router.post("/coupons", async (req, res) => {
+  console.log("=== [ADMIN CREATE COUPON] ===");
+  try {
+    const PromotionCoupon = require("../models/PromotionCoupon");
+    const CouponAuditLog = require("../models/CouponAuditLog");
+    const { code, title, description, couponType, discountValue, minimumOrderValue, maximumDiscount, usageLimit, usagePerUser, validFrom, validUntil, priority, isActive } = req.body;
+    console.log("Backend: Coupon received. Payload:", req.body);
+    console.log("Backend: Admin user:", req.user?.email || "Unknown");
+
+    if (!code || !title || discountValue === undefined || !validUntil) {
+      return res.status(400).json({ success: false, message: "Required fields missing (code, title, discountValue, validUntil)" });
+    }
+
+    const existing = await PromotionCoupon.findOne({ code: code.toUpperCase().trim(), isArchived: false });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "A coupon with this code already exists" });
+    }
+
+    const coupon = new PromotionCoupon({
+      code: code.toUpperCase().trim(),
+      title,
+      description,
+      couponType,
+      discountValue,
+      minimumOrderValue,
+      maximumDiscount,
+      usageLimit,
+      usagePerUser,
+      validFrom: validFrom || new Date(),
+      validUntil,
+      priority: priority || 0,
+      isActive: isActive !== undefined ? isActive : true
+    });
+
+    await coupon.save();
+    console.log("Backend: Coupon saved successfully. ID:", coupon._id);
+
+    // Audit Log
+    const audit = new CouponAuditLog({
+      couponId: coupon._id,
+      couponCode: coupon.code,
+      adminId: req.user._id || req.user.id,
+      adminName: req.user.name || "Admin",
+      action: "CREATE",
+      details: JSON.stringify(coupon)
+    });
+    await audit.save();
+
+    return res.status(201).json({ success: true, coupon });
+  } catch (error) {
+    console.error("Error creating coupon:", error);
+    return res.status(500).json({ success: false, message: "Failed to create coupon", error: error.message });
+  }
+});
+
+// PUT /api/admin/coupons/:id
+router.put("/coupons/:id", async (req, res) => {
+  try {
+    const PromotionCoupon = require("../models/PromotionCoupon");
+    const CouponAuditLog = require("../models/CouponAuditLog");
+    const { code, title, description, couponType, discountValue, minimumOrderValue, maximumDiscount, usageLimit, usagePerUser, validFrom, validUntil, priority, isActive } = req.body;
+
+    const coupon = await PromotionCoupon.findById(req.params.id);
+    if (!coupon || coupon.isArchived) {
+      return res.status(404).json({ success: false, message: "Coupon not found" });
+    }
+
+    if (code && code.toUpperCase().trim() !== coupon.code) {
+      const existing = await PromotionCoupon.findOne({ code: code.toUpperCase().trim(), isArchived: false });
+      if (existing) {
+        return res.status(400).json({ success: false, message: "A coupon with this code already exists" });
+      }
+      coupon.code = code.toUpperCase().trim();
+    }
+
+    if (title !== undefined) coupon.title = title;
+    if (description !== undefined) coupon.description = description;
+    if (couponType !== undefined) coupon.couponType = couponType;
+    if (discountValue !== undefined) coupon.discountValue = discountValue;
+    if (minimumOrderValue !== undefined) coupon.minimumOrderValue = minimumOrderValue;
+    if (maximumDiscount !== undefined) coupon.maximumDiscount = maximumDiscount;
+    if (usageLimit !== undefined) coupon.usageLimit = usageLimit;
+    if (usagePerUser !== undefined) coupon.usagePerUser = usagePerUser;
+    if (validFrom !== undefined) coupon.validFrom = validFrom;
+    if (validUntil !== undefined) coupon.validUntil = validUntil;
+    if (priority !== undefined) coupon.priority = priority;
+    if (isActive !== undefined) coupon.isActive = isActive;
+
+    await coupon.save();
+
+    // Audit Log
+    const audit = new CouponAuditLog({
+      couponId: coupon._id,
+      couponCode: coupon.code,
+      adminId: req.user._id || req.user.id,
+      adminName: req.user.name || "Admin",
+      action: "UPDATE",
+      details: JSON.stringify(req.body)
+    });
+    await audit.save();
+
+    return res.status(200).json({ success: true, coupon });
+  } catch (error) {
+    console.error("Error updating coupon:", error);
+    return res.status(500).json({ success: false, message: "Failed to update coupon", error: error.message });
+  }
+});
+
+// DELETE /api/admin/coupons/:id
+router.delete("/coupons/:id", async (req, res) => {
+  try {
+    const PromotionCoupon = require("../models/PromotionCoupon");
+    const CouponAuditLog = require("../models/CouponAuditLog");
+
+    const coupon = await PromotionCoupon.findById(req.params.id);
+    if (!coupon) {
+      return res.status(404).json({ success: false, message: "Coupon not found" });
+    }
+
+    coupon.isArchived = true;
+    await coupon.save();
+
+    // Audit Log
+    const audit = new CouponAuditLog({
+      couponId: coupon._id,
+      couponCode: coupon.code,
+      adminId: req.user._id || req.user.id,
+      adminName: req.user.name || "Admin",
+      action: "ARCHIVE",
+      details: "Soft deleted/archived coupon"
+    });
+    await audit.save();
+
+    return res.status(200).json({ success: true, message: "Coupon archived successfully" });
+  } catch (error) {
+    console.error("Error archiving coupon:", error);
+    return res.status(500).json({ success: false, message: "Failed to archive coupon", error: error.message });
+  }
+});
+
+// PATCH /api/admin/coupons/:id/status
+router.patch("/coupons/:id/status", async (req, res) => {
+  try {
+    const PromotionCoupon = require("../models/PromotionCoupon");
+    const CouponAuditLog = require("../models/CouponAuditLog");
+    const { isActive } = req.body;
+
+    const coupon = await PromotionCoupon.findById(req.params.id);
+    if (!coupon || coupon.isArchived) {
+      return res.status(404).json({ success: false, message: "Coupon not found" });
+    }
+
+    coupon.isActive = isActive;
+    await coupon.save();
+
+    // Audit Log
+    const audit = new CouponAuditLog({
+      couponId: coupon._id,
+      couponCode: coupon.code,
+      adminId: req.user._id || req.user.id,
+      adminName: req.user.name || "Admin",
+      action: "STATUS_TOGGLE",
+      details: `Status toggled to ${isActive ? "Active" : "Inactive"}`
+    });
+    await audit.save();
+
+    return res.status(200).json({ success: true, coupon });
+  } catch (error) {
+    console.error("Error toggling status:", error);
+    return res.status(500).json({ success: false, message: "Failed to toggle coupon status", error: error.message });
   }
 });
 

@@ -291,7 +291,7 @@ export default function SettingsPage() {
 
             {/* Edit Profile Item */}
             <button
-              onClick={() => setIsEditingProfile(!isEditingProfile)}
+              onClick={() => navigate("/profile/edit")}
               className="settings-row-btn"
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -299,7 +299,7 @@ export default function SettingsPage() {
                 <span>Edit Profile</span>
               </div>
               <span style={{ fontSize: "12px", color: "#9ca3af" }}>
-                {isEditingProfile ? "▼" : "▶"}
+                ▶
               </span>
             </button>
 

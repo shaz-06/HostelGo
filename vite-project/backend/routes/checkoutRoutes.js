@@ -41,29 +41,53 @@ const calculateCartSubtotal = async (userId) => {
 
 // POST /api/checkout/cart - Sync frontend cart to database
 router.post("/cart", authMiddleware, async (req, res, next) => {
-  try {
-    const { items } = req.body;
-    if (!items || !Array.isArray(items)) {
-      return res.status(400).json({ success: false, message: "Cart items must be provided as an array." });
+  const requestId = req.id || "none";
+  const routeName = "POST /api/checkout/cart";
+  let attempts = 0;
+  const maxAttempts = 2;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    try {
+      const { items } = req.body;
+      if (!items || !Array.isArray(items)) {
+        return res.status(400).json({ success: false, message: "Cart items must be provided as an array." });
+      }
+
+      // Quick projection check to find the pre-update version for tracing logs
+      const existingCart = await Cart.findOne({ userId: req.user._id }, { _id: 1, __v: 1 }).lean();
+      const prevVersion = existingCart ? existingCart.__v : 0;
+      const cartId = existingCart ? existingCart._id : "new";
+
+      console.log(`[CONCURRENCY INFO] Route: ${routeName}, ReqId: ${requestId}, CartId: ${cartId}, PrevVersion: ${prevVersion}, Attempt: ${attempts}/${maxAttempts}`);
+
+      const cartItems = items.map(item => ({
+        productId: item.productId || item._id, // Support both formats
+        quantity: Number(item.quantity) || 1
+      }));
+
+      // Atomic overwrite to avoid Mongoose VersionError conflicts
+      const cart = await Cart.findOneAndUpdate(
+        { userId: req.user._id },
+        {
+          $set: {
+            items: cartItems,
+            updatedAt: new Date()
+          }
+        },
+        { upsert: true, new: true, runValidators: true }
+      );
+
+      return res.json({ success: true, message: "Cart synchronized successfully.", cartId: cart._id });
+    } catch (error) {
+      if (error.name === "VersionError" && attempts < maxAttempts) {
+        console.warn(`[CONCURRENCY WARNING] VersionError caught on cart sync. Retrying... Route: ${routeName}, ReqId: ${requestId}, Attempt: ${attempts}/${maxAttempts}, Error: ${error.message}`);
+        await new Promise(resolve => setTimeout(resolve, 50 * attempts));
+        continue;
+      }
+      console.error(`[CONCURRENCY ERROR] Failed to sync cart. Route: ${routeName}, ReqId: ${requestId}, Attempt: ${attempts}/${maxAttempts}, Error: ${error.message}`);
+      return next(error);
     }
-
-    // Save or update user cart in DB
-    let cart = await Cart.findOne({ userId: req.user._id });
-    if (!cart) {
-      cart = new Cart({ userId: req.user._id });
-    }
-
-    cart.items = items.map(item => ({
-      productId: item.productId || item._id, // Support both formats
-      quantity: Number(item.quantity) || 1
-    }));
-    cart.updatedAt = new Date();
-
-    await cart.save();
-
-    return res.json({ success: true, message: "Cart synchronized successfully." });
-  } catch (error) {
-    next(error);
   }
 });
 

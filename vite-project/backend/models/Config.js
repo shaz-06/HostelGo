@@ -15,7 +15,9 @@ const ConfigSchema = new mongoose.Schema({
   rainFee: { type: Number, default: 0 },
   lateNightFee: { type: Number, default: 0 },
   gstPercentage: { type: Number, default: 5 },
-  gstFixedCharges: { type: Number, default: 2 }
+  gstFixedCharges: { type: Number, default: 2 },
+  codConvenienceFee: { type: Number, default: 14 },
+  codConvenienceFeeEnabled: { type: Boolean, default: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Config", ConfigSchema);

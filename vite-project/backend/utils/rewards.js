@@ -94,6 +94,17 @@ async function consumeOrderDiscounts(order) {
         coupon.isUsed = true;
         await coupon.save();
         console.log(`Coupon ${coupon.couponCode} marked as redeemed/used.`);
+      } else {
+        const PromotionCoupon = require("../models/PromotionCoupon");
+        const promoCoupon = await PromotionCoupon.findById(order.couponId);
+        if (promoCoupon) {
+          promoCoupon.usedCount += 1;
+          promoCoupon.ordersCount += 1;
+          promoCoupon.totalDiscountGiven += Number(order.couponDiscount || 0);
+          promoCoupon.revenueGenerated += Number(order.totalAmount || 0);
+          await promoCoupon.save();
+          console.log(`Promo coupon ${promoCoupon.code} usage metrics updated.`);
+        }
       }
     }
 

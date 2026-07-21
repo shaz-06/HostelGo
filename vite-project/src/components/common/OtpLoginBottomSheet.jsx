@@ -64,7 +64,13 @@ export default function OtpLoginBottomSheet() {
           
           await setAuthSession(loginData.token, loginData.user, loginData.isNewUser, loginData.welcomeBonus);
           
-          if (loginData.user && loginData.user.role === "admin" && loginData.user.isFounder) {
+          const redirectTarget = sessionStorage.getItem("redirectAfterLogin");
+          sessionStorage.removeItem("redirectAfterLogin");
+
+          if (redirectTarget && redirectTarget.startsWith("/")) {
+            console.log("REDIRECT TARGET (sessionStorage):", redirectTarget);
+            navigate(redirectTarget);
+          } else if (loginData.user && loginData.user.role === "admin" && loginData.user.isFounder) {
             console.log("PHONE:", loginData.user.phone);
             console.log("ROLE:", loginData.user.role);
             console.log("FOUNDER:", loginData.user.isFounder);
@@ -138,6 +144,8 @@ export default function OtpLoginBottomSheet() {
 
   if (!loginBottomSheetOpen) return null;
 
+  const isCheckoutRedirect = sessionStorage.getItem("redirectAfterLogin") !== null;
+
   return (
     <div style={backdropStyle} onClick={closeLogin}>
       <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
@@ -146,11 +154,11 @@ export default function OtpLoginBottomSheet() {
 
         <div style={contentWrapperStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h2 style={titleStyle}>Login / Sign Up</h2>
+            <h2 style={titleStyle}>{isCheckoutRedirect ? "Login to Continue Checkout" : "Login / Sign Up"}</h2>
             <button onClick={closeLogin} style={closeButtonStyle}>×</button>
           </div>
 
-          <p style={subtitleStyle}>Verify your mobile number to sign up or log in</p>
+          <p style={subtitleStyle}>{isCheckoutRedirect ? "Verify your phone to complete your order" : "Verify your mobile number to sign up or log in"}</p>
 
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
           {successMsg && <div style={successBannerStyle}>✨ {successMsg}</div>}

@@ -405,6 +405,12 @@ router.put("/orders/:id/delivered", async (req, res) => {
     } catch (rewardErr) {
       console.error("Failed to credit BuyCoins on Delivered (Rider):", rewardErr);
     }
+    try {
+      const { clearCustomerCart } = require("../services/cartCleanupService");
+      await clearCustomerCart(order.userId);
+    } catch (cartErr) {
+      console.error("Failed to clear customer cart on Delivered status (Rider):", cartErr);
+    }
     await order.save();
 
     try {

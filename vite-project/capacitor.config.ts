@@ -23,10 +23,13 @@ const config: CapacitorConfig = {
   appName: 'Buyto',
   webDir: 'dist',
   backgroundColor: '#ffffff',
-  server: isLiveReload ? {
-    url: `http://${getLocalIPAddress()}:5175`,
-    cleartext: true
-  } : undefined,
+  server: {
+    allowNavigation: ["checkout.razorpay.com", "*.razorpay.com", "api.razorpay.com"],
+    ...(isLiveReload ? {
+      url: `http://${getLocalIPAddress()}:5175`,
+      cleartext: true
+    } : {})
+  },
   plugins: {
     SplashScreen: {
       launchAutoHide: false,

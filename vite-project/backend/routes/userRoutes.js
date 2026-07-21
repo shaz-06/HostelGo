@@ -222,6 +222,130 @@ router.put("/preferences", authMiddleware, async (req, res) => {
   }
 });
 
+// In-memory store for phone update OTP verification
+const phoneOtpStore = new Map();
+
+// PUT /api/profile (also mounted at /api/users/profile)
+const updateProfileHandler = async (req, res) => {
+  try {
+    const { name, email, dateOfBirth, gender, avatar } = req.body;
+
+    if (name !== undefined) {
+      const trimmedName = String(name).trim();
+      if (trimmedName.length < 2 || trimmedName.length > 50) {
+        return res.status(400).json({ success: false, message: "Name must be between 2 and 50 characters" });
+      }
+      req.user.name = trimmedName;
+    }
+
+    if (email !== undefined) {
+      const trimmedEmail = String(email).trim().toLowerCase();
+      if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        return res.status(400).json({ success: false, message: "Invalid email format" });
+      }
+      // Check email uniqueness if changed
+      if (trimmedEmail && trimmedEmail !== req.user.email) {
+        const existing = await User.findOne({ email: trimmedEmail, _id: { $ne: req.user._id } });
+        if (existing) {
+          return res.status(400).json({ success: false, message: "Email is already in use by another account" });
+        }
+      }
+      req.user.email = trimmedEmail || undefined;
+    }
+
+    if (dateOfBirth !== undefined) {
+      req.user.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+    }
+
+    if (gender !== undefined) {
+      req.user.gender = String(gender).trim();
+    }
+
+    if (avatar !== undefined) {
+      req.user.avatar = String(avatar).trim();
+    }
+
+    await req.user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        _id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        phone: req.user.phone,
+        avatar: req.user.avatar,
+        dateOfBirth: req.user.dateOfBirth,
+        gender: req.user.gender,
+        role: req.user.role
+      }
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    return res.status(500).json({ success: false, message: "Server error updating profile", error: error.message });
+  }
+};
+
+router.put("/profile", authMiddleware, updateProfileHandler);
+
+// POST /api/users/request-phone-otp
+router.post("/request-phone-otp", authMiddleware, async (req, res) => {
+  try {
+    const { newPhone } = req.body;
+    if (!newPhone || !/^\d{10}$/.test(String(newPhone).trim())) {
+      return res.status(400).json({ success: false, message: "Please provide a valid 10-digit phone number" });
+    }
+    const cleanPhone = String(newPhone).trim();
+    const existing = await User.findOne({ phone: cleanPhone, _id: { $ne: req.user._id } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "Phone number is already linked to another account" });
+    }
+
+    const otp = "123456"; // Default OTP for development / demo
+    phoneOtpStore.set(String(req.user._id), { newPhone: cleanPhone, otp, expiresAt: Date.now() + 10 * 60 * 1000 });
+
+    console.log(`📱 [PHONE UPDATE OTP] Generated OTP for user ${req.user._id} to update phone to ${cleanPhone}: ${otp}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent to new phone number (Default OTP: 123456)"
+    });
+  } catch (error) {
+    console.error("Error requesting phone OTP:", error);
+    return res.status(500).json({ success: false, message: "Server error sending OTP" });
+  }
+});
+
+// POST /api/users/verify-phone-otp
+router.post("/verify-phone-otp", authMiddleware, async (req, res) => {
+  try {
+    const { otp } = req.body;
+    const record = phoneOtpStore.get(String(req.user._id));
+
+    if (!record || record.expiresAt < Date.now()) {
+      return res.status(400).json({ success: false, message: "OTP expired or not requested. Please request a new OTP." });
+    }
+
+    if (String(otp).trim() !== record.otp) {
+      return res.status(400).json({ success: false, message: "Invalid OTP code" });
+    }
+
+    req.user.phone = record.newPhone;
+    await req.user.save();
+    phoneOtpStore.delete(String(req.user._id));
+
+    return res.status(200).json({
+      success: true,
+      message: "Phone number verified and updated successfully",
+      phone: req.user.phone
+    });
+  } catch (error) {
+    console.error("Error verifying phone OTP:", error);
+    return res.status(500).json({ success: false, message: "Server error verifying phone OTP" });
+  }
+});
+
 // POST /api/notifications/register-token
 router.post("/register-token", async (req, res) => {
   try {
@@ -253,3 +377,4 @@ router.post("/register-token", async (req, res) => {
 });
 
 module.exports = router;
+

@@ -27,9 +27,20 @@ export async function cachedFetch(url, options = {}, ttlMs = 120000) {
     return inFlightRequests.get(cacheKey);
   }
 
-  // 3. Initiate the request
+  // 3. Initiate the request with timing instrumentation
+  const reqStart = performance.now();
   const requestPromise = fetch(url, options)
     .then(async (res) => {
+      const durationMs = (performance.now() - reqStart).toFixed(2);
+      const contentLength = res.headers.get("content-length") || "0";
+      const payloadKb = (Number(contentLength) / 1024).toFixed(2);
+
+      if (durationMs > 500) {
+        console.warn(`⚠️ [SLOW API] ${method} ${url} - ${durationMs}ms | Status: ${res.status} | Size: ${payloadKb}KB`);
+      } else {
+        console.log(`⚡ [API PERF] ${method} ${url} - ${durationMs}ms | Status: ${res.status} | Size: ${payloadKb}KB`);
+      }
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
@@ -48,4 +59,24 @@ export async function cachedFetch(url, options = {}, ttlMs = 120000) {
 
   inFlightRequests.set(cacheKey, requestPromise);
   return requestPromise;
+}
+
+/**
+ * Manually invalidate cached responses by URL prefix or purge entire cache.
+ * @param {string} [urlPrefix] - Optional URL prefix to match for invalidation.
+ */
+export function invalidateApiCache(urlPrefix) {
+  if (!urlPrefix) {
+    cache.clear();
+    console.log("🧹 [API CACHE] Cleared all cached endpoints.");
+    return;
+  }
+  let count = 0;
+  for (const key of cache.keys()) {
+    if (key.includes(urlPrefix)) {
+      cache.delete(key);
+      count++;
+    }
+  }
+  console.log(`🧹 [API CACHE] Invalidated ${count} cache entries for prefix: "${urlPrefix}"`);
 }

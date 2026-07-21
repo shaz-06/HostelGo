@@ -49,6 +49,7 @@ function ProductCard({
   onAddToCart,
   navigate: propNavigate,
   cartItems,
+  searchQuery = "",
 }) {
   const navigate = useNavigate();
   const { saveForLaterIds, toggleSaveForLater } = useContext(AuthContext);
@@ -304,15 +305,20 @@ function ProductCard({
       {/* Card Details Body */}
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, marginTop: "8px", justifyContent: "space-between" }}>
         <div>
-          {/* Discount Badge & Price */}
+          {/* Discount Badge & Festival Price Tag */}
           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            {hasDiscount && (
+            {product.isFestivalPrice && (
+              <span style={{ color: "#d97706", background: "#fef3c7", padding: "2px 6px", borderRadius: "6px", fontWeight: "900", fontSize: "10px", width: "fit-content", marginBottom: "2px" }}>
+                {product.pricingBadge || "🎉 Festival Price"}
+              </span>
+            )}
+            {hasDiscount && !product.isFestivalPrice && (
               <span style={{ color: "#318616", fontWeight: "800", fontSize: "10px", textTransform: "uppercase" }}>
                 {discountPercentage}% OFF
               </span>
             )}
             <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-              <span style={{ fontWeight: "900", fontSize: "16px", color: "#1f2937" }}>
+              <span style={{ fontWeight: "900", fontSize: "16px", color: product.isFestivalPrice ? "#d97706" : "#1f2937" }}>
                 ₹{price}
               </span>
               {originalPrice > price && (
@@ -343,7 +349,19 @@ function ProductCard({
               margin: "2px 0 6px 0",
             }}
           >
-            {product.name}
+            {searchQuery && searchQuery.trim() !== "" ? (
+              product.name.split(new RegExp(`(${searchQuery.trim()})`, "gi")).map((part, pIdx) =>
+                part.toLowerCase() === searchQuery.trim().toLowerCase() ? (
+                  <span key={pIdx} style={{ background: "#fef08a", color: "#15803d", padding: "0 2px", borderRadius: "3px", fontWeight: "900" }}>
+                    {part}
+                  </span>
+                ) : (
+                  part
+                )
+              )
+            ) : (
+              product.name
+            )}
           </h2>
 
           {/* Weight Display */}

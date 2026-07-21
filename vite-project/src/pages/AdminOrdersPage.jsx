@@ -75,6 +75,55 @@ export default function AdminOrdersPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [error, setError] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("All");
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedOrderForRider, setSelectedOrderForRider] = useState(null);
+  const [riders, setRiders] = useState([]);
+  const [loadingRiders, setLoadingRiders] = useState(false);
+  const [modalError, setModalError] = useState("");
+
+  const openAssignModal = async (order) => {
+    setSelectedOrderForRider(order);
+    setShowAssignModal(true);
+    setModalError("");
+    try {
+      setLoadingRiders(true);
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(window.API_BASE_URL + "/api/admin/riders", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Failed to load riders list");
+      const data = await res.json();
+      setRiders(data);
+    } catch (err) {
+      setModalError(err.message);
+    } finally {
+      setLoadingRiders(false);
+    }
+  };
+
+  const handleAssignRiderSubmit = async (riderId) => {
+    if (!selectedOrderForRider) return;
+    try {
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(window.API_BASE_URL + `/api/admin/orders/${selectedOrderForRider._id}/assign-rider`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ riderId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to assign rider");
+
+      setToastMessage("Rider assigned successfully!");
+      setShowAssignModal(false);
+      setSelectedOrderForRider(null);
+      fetchOrders();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -467,6 +516,87 @@ export default function AdminOrdersPage() {
                         </span>
                       </div>
                     )}
+
+                    {/* Assigned Rider details */}
+                    <div style={detailsBlockStyle}>
+                      <span style={blockTitleStyle}>Assigned Rider</span>
+                      {order.assignedRider && order.assignedRider.riderId ? (
+                        <div style={{ marginTop: "4px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            {order.assignedRider.profilePhoto ? (
+                              <img src={order.assignedRider.profilePhoto} alt={order.assignedRider.name} style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover" }} />
+                            ) : (
+                              <span style={{ fontSize: "16px" }}>👤</span>
+                            )}
+                            <span style={{ fontSize: "14px", fontWeight: "800", color: "#111827" }}>
+                              {order.assignedRider.name}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: "12px", color: "#4B5563", fontWeight: "600", display: "block", marginTop: "2px" }}>
+                            🛵 {order.assignedRider.vehicleNumber || "No Plate"} ({order.assignedRider.vehicleType})
+                          </span>
+                          <span style={{ fontSize: "12px", color: "#4B5563", fontWeight: "600", display: "block" }}>
+                            📞 {order.assignedRider.phone}
+                          </span>
+                          <span style={{ 
+                            fontSize: "11px", 
+                            fontWeight: "850", 
+                            color: "#1e3a8a", 
+                            background: "#dbeafe", 
+                            padding: "2px 6px", 
+                            borderRadius: "4px", 
+                            display: "inline-block", 
+                            marginTop: "4px" 
+                          }}>
+                            🟢 Busy
+                          </span>
+                          {!["Delivered", "Cancelled", "Delivery Failed"].includes(order.orderStatus) && (
+                            <button 
+                              onClick={() => openAssignModal(order)}
+                              style={{ 
+                                display: "block", 
+                                marginTop: "8px", 
+                                background: "#2563eb", 
+                                color: "white", 
+                                border: "none", 
+                                borderRadius: "6px", 
+                                padding: "4px 8px", 
+                                fontSize: "12px", 
+                                fontWeight: "800", 
+                                cursor: "pointer" 
+                              }}
+                            >
+                              Reassign
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <span style={{ fontSize: "13px", color: "#6b7280", fontStyle: "italic", display: "block", marginTop: "4px" }}>
+                            👤 No rider assigned
+                          </span>
+                          {!["Delivered", "Cancelled", "Delivery Failed"].includes(order.orderStatus) && (
+                            <button 
+                              onClick={() => openAssignModal(order)}
+                              style={{ 
+                                display: "block", 
+                                marginTop: "8px", 
+                                background: "#10b981", 
+                                color: "white", 
+                                border: "none", 
+                                borderRadius: "6px", 
+                                padding: "6px 10px", 
+                                fontSize: "12px", 
+                                fontWeight: "800", 
+                                cursor: "pointer" 
+                              }}
+                            >
+                              Assign Rider
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Products Grid */}
@@ -514,6 +644,14 @@ export default function AdminOrdersPage() {
                           ₹{order.paymentStatus === "Paid" ? order.amount || order.totalAmount : 0}
                         </span>
                       </div>
+                      {order.codConvenienceFee > 0 && (
+                        <div style={detailsBlockStyle}>
+                          <span style={paymentLabelStyle}>COD Convenience Fee</span>
+                          <span style={{ ...paymentValueStyle, fontWeight: "800", color: "#b45309" }}>
+                            ₹{order.codConvenienceFee}
+                          </span>
+                        </div>
+                      )}
                       <div style={detailsBlockStyle}>
                         <span style={paymentLabelStyle}>Payment Time</span>
                         <span style={paymentValueStyle}>
@@ -672,6 +810,120 @@ export default function AdminOrdersPage() {
           )}
         </main>
       </div>
+
+      {showAssignModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0, 0, 0, 0.4)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 100000,
+          padding: "20px"
+        }}>
+          <div style={{
+            background: "white",
+            borderRadius: "20px",
+            width: "100%",
+            maxWidth: "500px",
+            padding: "24px",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            display: "flex",
+            flexDirection: "column",
+            maxHeight: "85vh"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "900", color: "#111827" }}>Assign Rider</h3>
+              <button 
+                onClick={() => { setShowAssignModal(false); setSelectedOrderForRider(null); }}
+                style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer", color: "#6B7280" }}
+              >
+                ×
+              </button>
+            </div>
+
+            {modalError && (
+              <div style={{ background: "#FEE2E2", color: "#B91C1C", padding: "10px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", marginBottom: "12px" }}>
+                ⚠️ {modalError}
+              </div>
+            )}
+
+            <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+              {loadingRiders ? (
+                <div style={{ textAlign: "center", color: "#6B7280", padding: "20px", fontWeight: "700" }}>Loading fleet...</div>
+              ) : riders.filter(r => !r.isSuspended).length === 0 ? (
+                <div style={{ textAlign: "center", color: "#6B7280", padding: "20px" }}>No riders registered.</div>
+              ) : (
+                riders.filter(r => !r.isSuspended).map(rider => {
+                  const isAvailable = rider.riderStatus === "Available" || !rider.riderStatus;
+                  return (
+                    <div 
+                      key={rider._id}
+                      style={{
+                        border: "1.5px solid #F1F5F9",
+                        borderRadius: "16px",
+                        padding: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px"
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        {rider.profileImage ? (
+                          <img src={rider.profileImage} alt={rider.name} style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover" }} />
+                        ) : (
+                          <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>👤</div>
+                        )}
+                        <div>
+                          <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>{rider.name}</strong>
+                          <span style={{ fontSize: "12px", color: "#6B7280", display: "block" }}>{rider.phone}</span>
+                          <span style={{ fontSize: "11px", color: "#9CA3AF", display: "block" }}>
+                            {rider.vehicleType || "Scooter"} {rider.vehicleNumber ? `• ${rider.vehicleNumber}` : ""}
+                          </span>
+                          <span style={{ 
+                            fontSize: "10px", 
+                            fontWeight: "850", 
+                            color: isAvailable ? "#15803D" : rider.riderStatus === "Busy" ? "#1E40AF" : "#B91C1C",
+                            background: isAvailable ? "#DCFCE7" : rider.riderStatus === "Busy" ? "#DBEAFE" : "#FEE2E2",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            display: "inline-block",
+                            marginTop: "4px"
+                          }}>
+                            {isAvailable ? "Available" : rider.riderStatus}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleAssignRiderSubmit(rider._id)}
+                        disabled={!isAvailable}
+                        style={{
+                          background: isAvailable ? "#10B981" : "#E5E7EB",
+                          color: isAvailable ? "white" : "#9CA3AF",
+                          border: "none",
+                          borderRadius: "10px",
+                          padding: "8px 16px",
+                          fontWeight: "800",
+                          fontSize: "12px",
+                          cursor: isAvailable ? "pointer" : "not-allowed"
+                        }}
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

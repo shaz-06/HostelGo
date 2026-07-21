@@ -19,6 +19,7 @@ export default function CartBillDetails({ billBreakdown }) {
     couponDiscount,
     couponCode,
     buyCoinsDiscount,
+    codConvenienceFee,
     total,
     originalTotal,
   } = billBreakdown;
@@ -171,6 +172,14 @@ export default function CartBillDetails({ billBreakdown }) {
         <div style={rowStyle}>
           <span style={{ ...labelStyle, color: "#10b981", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}><BuyCoin size={14} /> BuyCoins Redeemed</span>
           <span style={{ ...valueStyle, color: "#10b981" }}>-₹{buyCoinsDiscount}</span>
+        </div>
+      )}
+
+      {/* 9.5 Cash on Delivery Fee */}
+      {codConvenienceFee > 0 && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>Cash on Delivery Fee</span>
+          <span style={valueStyle}>₹{codConvenienceFee}</span>
         </div>
       )}
 

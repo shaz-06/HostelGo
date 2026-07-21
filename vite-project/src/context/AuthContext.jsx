@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import { syncTokenWithBackend } from "../services/pushNotifications";
+import { apiFetch } from "../utils/apiClient";
 
 export const AuthContext = createContext();
 
@@ -70,10 +71,11 @@ export const AuthProvider = ({ children }) => {
         console.log("Authorization Header Present:", !!token);
         
         try {
-          const res = await fetch(url, {
+          const res = await apiFetch(url, {
             headers: {
               Authorization: `Bearer ${token}`
-            }
+            },
+            blocking: false
           });
           
           console.log("Response status:", res.status);
@@ -222,10 +224,11 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     console.log("=== [FRONTEND AUTH LOGIN] ===");
-    const res = await fetch(window.API_BASE_URL + "/api/auth/login", {
+    const res = await apiFetch(window.API_BASE_URL + "/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
+      blocking: false
     });
 
     const data = await res.json();
@@ -336,10 +339,11 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (name, email, phone, password) => {
     console.log("=== [FRONTEND AUTH SIGNUP] ===");
-    const res = await fetch(window.API_BASE_URL + "/api/auth/signup", {
+    const res = await apiFetch(window.API_BASE_URL + "/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, phone, password })
+      body: JSON.stringify({ name, email, phone, password }),
+      blocking: false
     });
 
     const data = await res.json();
