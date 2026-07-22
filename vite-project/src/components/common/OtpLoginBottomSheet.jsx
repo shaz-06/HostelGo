@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { msg91Login } from "../../services/otpService";
-import phoneIllustration from "../../assets/illustrations/phone-verification.svg";
+import phoneIllustration from "../../assets/illustrations/phone-verification.png";
 
 export default function OtpLoginBottomSheet() {
   const { isLoginOpen, closeLogin, setAuthSession, openOnboarding } = useContext(AuthContext);
