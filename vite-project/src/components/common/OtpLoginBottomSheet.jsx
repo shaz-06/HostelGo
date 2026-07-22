@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { msg91Login } from "../../services/otpService";
+import phoneIllustration from "../../assets/illustrations/phone-verification.svg";
 
 export default function OtpLoginBottomSheet() {
   const { isLoginOpen, closeLogin, setAuthSession, openOnboarding } = useContext(AuthContext);
@@ -10,6 +11,7 @@ export default function OtpLoginBottomSheet() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [infoMsg, setInfoMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
   
   const verifyingTokenRef = useRef(null);
@@ -19,6 +21,7 @@ export default function OtpLoginBottomSheet() {
   useEffect(() => {
     if (!loginBottomSheetOpen) {
       setError("");
+      setInfoMsg(null);
       setSuccessMsg("");
       setLoading(false);
       verifyingTokenRef.current = null;
@@ -56,6 +59,7 @@ export default function OtpLoginBottomSheet() {
 
         setLoading(true);
         setError("");
+        setInfoMsg(null);
         setSuccessMsg("SMS verified successfully! Creating session...");
 
         try {
@@ -97,7 +101,17 @@ export default function OtpLoginBottomSheet() {
       },
       failure: (err) => {
         console.error("OTP Widget Failure:", err);
-        setError("Verification Error: " + (err.message || JSON.stringify(err)));
+        const errMsg = err.message || (typeof err === "string" ? err : JSON.stringify(err)) || "";
+        if (errMsg.toLowerCase().includes("cancelled") || errMsg.toLowerCase().includes("canceled")) {
+          setInfoMsg({
+            heading: "Phone verification was cancelled",
+            body: "Please verify your mobile number to continue with checkout."
+          });
+          setError("");
+        } else {
+          setError("Verification Error: " + errMsg);
+          setInfoMsg(null);
+        }
       }
     };
 
@@ -161,7 +175,15 @@ export default function OtpLoginBottomSheet() {
           <p style={subtitleStyle}>{isCheckoutRedirect ? "Verify your phone to complete your order" : "Verify your mobile number to sign up or log in"}</p>
 
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
+          {infoMsg && (
+            <div style={infoBannerStyle}>
+              <div style={{ fontWeight: "750", marginBottom: "4px" }}>ℹ️ {infoMsg.heading}</div>
+              <div style={{ fontSize: "12px", opacity: 0.95, fontWeight: "550" }}>{infoMsg.body}</div>
+            </div>
+          )}
           {successMsg && <div style={successBannerStyle}>✨ {successMsg}</div>}
+
+          <img src={phoneIllustration} alt="Phone Verification" style={illustrationStyle} />
 
           {/* MSG91 Widget Mount Target */}
           <div id="msg91-otp-widget-container" style={{ minHeight: "220px", marginTop: "16px" }}>
@@ -259,6 +281,16 @@ const errorBannerStyle = {
   border: "1px solid #fee2e2"
 };
 
+const infoBannerStyle = {
+  backgroundColor: "#fef3c7",
+  color: "#b45309",
+  padding: "12px 16px",
+  borderRadius: "14px",
+  fontSize: "13px",
+  marginTop: "16px",
+  border: "1px solid #fde68a"
+};
+
 const successBannerStyle = {
   backgroundColor: "#f0fdf4",
   color: "#166534",
@@ -268,6 +300,15 @@ const successBannerStyle = {
   fontWeight: "750",
   marginTop: "16px",
   border: "1px solid #dcfce7"
+};
+
+const illustrationStyle = {
+  width: "200px",
+  height: "auto",
+  display: "block",
+  margin: "24px auto",
+  maxWidth: "100%",
+  objectFit: "contain"
 };
 
 const footerDisclaimerStyle = {
