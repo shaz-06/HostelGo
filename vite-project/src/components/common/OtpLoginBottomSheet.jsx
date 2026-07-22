@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { msg91Login } from "../../services/otpService";
 import phoneIllustration from "../../assets/illustrations/phone-verification.png";
+import { RotateCw } from "lucide-react";
 
 export default function OtpLoginBottomSheet() {
   const { isLoginOpen, closeLogin, setAuthSession, openOnboarding } = useContext(AuthContext);
@@ -13,6 +14,9 @@ export default function OtpLoginBottomSheet() {
   const [error, setError] = useState("");
   const [infoMsg, setInfoMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
+  const [retrying, setRetrying] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isActive, setIsActive] = useState(false);
   
   const verifyingTokenRef = useRef(null);
   const hasVerifiedRef = useRef(false);
@@ -24,6 +28,9 @@ export default function OtpLoginBottomSheet() {
       setInfoMsg(null);
       setSuccessMsg("");
       setLoading(false);
+      setRetrying(false);
+      setIsHovered(false);
+      setIsActive(false);
       verifyingTokenRef.current = null;
       hasVerifiedRef.current = false;
     }
@@ -156,9 +163,41 @@ export default function OtpLoginBottomSheet() {
     };
   }, [loginBottomSheetOpen]);
 
+  const handleRetry = () => {
+    setRetrying(true);
+    setError("");
+    setInfoMsg(null);
+    setSuccessMsg("");
+    setLoading(false);
+    hasVerifiedRef.current = false;
+
+    // Reset container HTML
+    const container = document.getElementById("msg91-otp-widget-container");
+    if (container) {
+      container.innerHTML = "";
+    }
+
+    // Re-initialize MSG91 widget
+    if (typeof window.initSendOTP === "function" && window.configuration) {
+      window.initSendOTP(window.configuration);
+    }
+
+    setTimeout(() => {
+      setRetrying(false);
+    }, 800);
+  };
+
   if (!loginBottomSheetOpen) return null;
 
   const isCheckoutRedirect = sessionStorage.getItem("redirectAfterLogin") !== null;
+
+  const activeRetryButtonStyle = {
+    ...retryButtonStyle,
+    backgroundColor: isHovered ? "#256510" : "#318616",
+    transform: isActive ? "scale(0.98)" : "scale(1)",
+    opacity: retrying ? 0.7 : 1,
+    pointerEvents: retrying ? "none" : "auto",
+  };
 
   return (
     <div style={backdropStyle} onClick={closeLogin}>
@@ -185,14 +224,29 @@ export default function OtpLoginBottomSheet() {
 
           <img src={phoneIllustration} alt="Phone Verification" style={illustrationStyle} />
 
-          {/* MSG91 Widget Mount Target */}
-          <div id="msg91-otp-widget-container" style={{ minHeight: "220px", marginTop: "16px" }}>
-            {loading && (
-              <div style={{ display: "flex", justifyContent: "center", padding: "20px", fontSize: "14px", fontWeight: "600", color: "#6b7280" }}>
-                Verifying session with backend server...
-              </div>
-            )}
-          </div>
+          {infoMsg ? (
+            <button
+              onClick={handleRetry}
+              disabled={retrying}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onMouseDown={() => setIsActive(true)}
+              onMouseUp={() => setIsActive(false)}
+              style={activeRetryButtonStyle}
+            >
+              <RotateCw size={18} className={retrying ? "animate-spin" : ""} style={{ marginRight: "8px" }} />
+              {retrying ? "Retrying..." : "Retry Login"}
+            </button>
+          ) : (
+            /* MSG91 Widget Mount Target */
+            <div id="msg91-otp-widget-container" style={{ minHeight: "220px", marginTop: "16px" }}>
+              {loading && (
+                <div style={{ display: "flex", justifyContent: "center", padding: "20px", fontSize: "14px", fontWeight: "600", color: "#6b7280" }}>
+                  Verifying session with backend server...
+                </div>
+              )}
+            </div>
+          )}
 
           <p style={footerDisclaimerStyle}>
             By continuing, you agree to our Terms & Conditions and Privacy Policy.
@@ -309,6 +363,24 @@ const illustrationStyle = {
   margin: "24px auto",
   maxWidth: "100%",
   objectFit: "contain"
+};
+
+const retryButtonStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "100%",
+  height: "48px",
+  borderRadius: "14px",
+  backgroundColor: "#318616",
+  color: "#ffffff",
+  fontSize: "16px",
+  fontWeight: "600",
+  border: "none",
+  cursor: "pointer",
+  boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)",
+  transition: "all 0.2s ease",
+  margin: "24px 0",
 };
 
 const footerDisclaimerStyle = {
