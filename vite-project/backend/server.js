@@ -103,7 +103,7 @@ app.use((req, res, next) => {
 // 301 Redirect from non-www to www, and enforce HTTPS in production
 app.use((req, res, next) => {
   const canonicalHost = "www.buyto.co.in";
-  
+
   // Use Express proxy-aware request APIs
   const hostname = req.hostname.toLowerCase();
   const protocol = req.protocol.toLowerCase();
@@ -117,7 +117,7 @@ app.use((req, res, next) => {
 
     if (needsWww || needsHttps) {
       const redirectUrl = `https://${canonicalHost}${req.originalUrl}`;
-      
+
       // Temporary debug logging around redirect decisions
       if (process.env.DEBUG_REDIRECTS === "true" || process.env.NODE_ENV !== "production") {
         console.log(`[Redirect Debug] Incoming: ${protocol}://${req.get("host")}${req.originalUrl} | Hostname: ${hostname} | protocol: ${protocol} | redirecting to -> ${redirectUrl} | Reason: needsWww=${needsWww}, needsHttps=${needsHttps}`);
@@ -426,7 +426,6 @@ const pricingRuleRoutes = require("./routes/pricingRuleRoutes");
 
 app.use("/api/pricing-rules", pricingRuleRoutes);
 app.use("/api", paymentRoutes);
-const userRoutes = require("./routes/userRoutes");
 app.use("/api/users", userRoutes);
 app.put("/api/profile", require("./middleware/authMiddleware"), async (req, res) => {
   const updateProfileHandler = userRoutes; // router contains PUT /profile handler
@@ -460,7 +459,7 @@ app.get("/api/products", async (req, res) => {
       }
 
       products = await Product.find(filter, "name category subCategory brand price originalPrice weight image stock eta rating isAd variants tags").lean();
-      
+
       // Merge fallback mock products only if searching/fetching returned no results or in offline dev fallback
       if (!searchQuery && !categoryQuery) {
         const productIds = new Set(products.map((product) => product.id || String(product._id)));
@@ -482,7 +481,7 @@ app.get("/api/products", async (req, res) => {
         );
       }
     }
-    
+
     // Calculate dynamic selling price using active pricing rules
     const dynamicallyPriced = await applyPricingRulesToProducts(products);
     res.json(dynamicallyPriced);
@@ -918,10 +917,10 @@ process.on("SIGTERM", () => shutdown("SIGTERM", 0));
 process.on("uncaughtException", (err) => {
   const crypto = require("crypto");
   const errorId = "ERR-" + crypto.randomBytes(3).toString("hex").toUpperCase();
-  
+
   // Log fatal unhandled exception
   logFatalProcessError(err, errorId);
-  
+
   // Begin graceful shutdown and exit with code 1
   shutdown(`uncaughtException (${errorId})`, 1);
 });
