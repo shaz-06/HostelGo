@@ -172,13 +172,13 @@ export const LoaderProvider = ({ children }) => {
     registerLoaderFetch(customFetchHandler);
   }, []);
 
-  const handleRetry = () => {
+  const handleRetry = React.useCallback(() => {
     if (errorState && errorState.retryFn) {
       errorState.retryFn();
     }
-  };
+  }, [errorState]);
 
-  const handleGoHome = () => {
+  const handleGoHome = React.useCallback(() => {
     if (errorState && errorState.rejectFn) {
       errorState.rejectFn();
     }
@@ -186,19 +186,19 @@ export const LoaderProvider = ({ children }) => {
     setShowLoader(false);
     setBlockingCount(0);
     window.location.href = "/";
-  };
+  }, [errorState]);
+
+  const loaderContextValue = React.useMemo(() => ({
+    showLoader,
+    isOffline,
+    errorState,
+    loaderTimeStage,
+    handleRetry,
+    handleGoHome,
+  }), [showLoader, isOffline, errorState, loaderTimeStage, handleRetry, handleGoHome]);
 
   return (
-    <LoaderContext.Provider
-      value={{
-        showLoader,
-        isOffline,
-        errorState,
-        loaderTimeStage,
-        handleRetry,
-        handleGoHome,
-      }}
-    >
+    <LoaderContext.Provider value={loaderContextValue}>
       {children}
     </LoaderContext.Provider>
   );

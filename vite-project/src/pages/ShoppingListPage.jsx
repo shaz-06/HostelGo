@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import ProductCard from "../ProductCard";
 import { MOBILE_NAV_TOTAL_OFFSET } from "../constants/layoutConstants";
+import SEO from "../components/common/SEO";
 
 const QUICK_TEMPLATES = [
   {
@@ -561,6 +562,7 @@ export default function ShoppingListPage({
 
   return (
     <div style={containerStyle}>
+      <SEO title="Shopping List" description="Create, manage and save your shopping lists on Buyto." />
       {toastMessage && (
         <div style={toastStyle}>
           {toastMessage}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import SEO from "../components/common/SEO";
 
 export default function NotificationsPage() {
   const { token, user } = useContext(AuthContext);
@@ -128,8 +129,11 @@ export default function NotificationsPage() {
     return "linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)"; // Slate
   };
 
+  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.read).length : 0;
+
   return (
     <div style={{ maxWidth: "600px", margin: "0 auto", padding: "16px", fontFamily: "'Outfit', sans-serif" }}>
+      <SEO title={unreadCount > 0 ? `(${unreadCount}) Notifications` : "Notifications"} description="View your order alerts, delivery notifications, and special offers on Buyto." />
       {/* Header Panel */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
         <div>

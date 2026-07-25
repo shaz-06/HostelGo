@@ -4,6 +4,7 @@ import ProductCard from "../ProductCard";
 import { classifyProduct, canonicalCategory } from "../utils/productClassifier";
 import { cachedFetch } from "../utils/apiCache";
 import { usePerfLogger } from "../utils/perfLogger";
+import SEO from "../components/common/SEO";
 
 const generateSlug = (name) => {
   if (!name) return "";
@@ -612,12 +613,7 @@ export default function CategoryProductsPage({
     return list;
   }, [localProducts, matchedCategory, activeSubcategory, searchQuery, selectedFilters]);
 
-  // SEO Dynamic Page Title
-  useEffect(() => {
-    if (matchedCategory) {
-      document.title = `${matchedCategory.name} | Buyto`;
-    }
-  }, [matchedCategory]);
+
 
   const handleCheckboxChange = (section, option) => {
     setSelectedFilters((prev) => {
@@ -691,6 +687,7 @@ export default function CategoryProductsPage({
         boxSizing: "border-box"
       }}
     >
+      <SEO title={matchedCategory ? matchedCategory.name : "Products"} description={matchedCategory ? `Shop top quality ${matchedCategory.name} online with fast 10-minute delivery on Buyto.` : "Browse categories on Buyto."} />
       {/* Category header block */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>

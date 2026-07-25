@@ -6,6 +6,7 @@ import { cachedFetch } from "../utils/apiCache";
 import { usePerfLogger, measureLoadingOperation } from "../utils/perfLogger";
 import { AuthContext } from "../context/AuthContext";
 import { getOptimizedImageUrl } from "../utils/imageOptimizer";
+import SEO from "../components/common/SEO";
 import {
   ShoppingBag,
   Heart,
@@ -288,19 +289,7 @@ export default function ProductDetailsPage({
     }
   }, [id, products]);
 
-  // SEO Update
-  useEffect(() => {
-    if (activeProduct) {
-      document.title = `${activeProduct.name} • Buyto`;
-      let metaDesc = document.querySelector('meta[name="description"]');
-      if (!metaDesc) {
-        metaDesc = document.createElement('meta');
-        metaDesc.name = 'description';
-        document.head.appendChild(metaDesc);
-      }
-      metaDesc.setAttribute('content', `Buy fresh ${activeProduct.name} online from Buyto with fast delivery.`);
-    }
-  }, [activeProduct]);
+
 
   // Image Hover Zoom
   const handleMouseMove = (e) => {
@@ -424,6 +413,11 @@ export default function ProductDetailsPage({
 
   return (
     <div className="page-with-bottom-nav" style={{ background: "#f7f8fa", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
+      <SEO 
+        title={activeProduct ? activeProduct.name : "Product Details"} 
+        description={activeProduct ? activeProduct.description || `Buy fresh ${activeProduct.name} online from Buyto with fast delivery.` : "View product details on Buyto."} 
+        image={activeProduct ? activeProduct.image : undefined} 
+      />
       {/* Top Breadcrumb */}
       <div style={{ padding: "12px 0", fontSize: "14px", color: "#6b7280", fontWeight: "500", display: "flex", gap: "6px" }}>
         <span style={{ cursor: "pointer" }} onClick={() => navigate("/")}>Home</span>
@@ -443,7 +437,7 @@ export default function ProductDetailsPage({
             <div style={{ display: "flex", flexDirection: isMobile ? "row" : "column", gap: "10px", justifyContent: "center" }}>
               {thumbnails.map((thumb, idx) => (
                 <div
-                  key={idx}
+                  key={`${thumb}-${idx}`}
                   onClick={() => {
                     setSelectedImage(thumb);
                     setActiveTab(idx);
@@ -596,7 +590,7 @@ export default function ProductDetailsPage({
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {activeProduct.variants.map((v, idx) => (
                       <div
-                        key={idx}
+                        key={v._id || `${activeProduct._id}-${v.weight || idx}`}
                         onClick={() => setSelectedVariantIndex(idx)}
                         style={{
                           display: "flex",
@@ -758,7 +752,7 @@ export default function ProductDetailsPage({
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
             {(activeProduct.highlights || []).map((h, i) => (
               <span
-                key={i}
+                key={h || i}
                 style={{
                   background: "#f0fdf4",
                   color: "#166534",
@@ -789,7 +783,7 @@ export default function ProductDetailsPage({
               { title: "Return Policy", desc: "No Question asked", icon: <RotateCcw size={24} color="#16a34a" /> }
             ].map((card, i) => (
               <div
-                key={i}
+                key={card.title}
                 style={{
                   background: "#f9fafb",
                   border: "1px solid #f3f4f6",

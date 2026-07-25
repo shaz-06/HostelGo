@@ -7,6 +7,7 @@ import CartBillDetails from "../components/CartBillDetails";
 import LoginRequiredPrompt from "../components/common/LoginRequiredPrompt";
 import { getOptimizedImageUrl } from "../utils/imageOptimizer";
 import { MOBILE_NAV_TOTAL_OFFSET } from "../constants/layoutConstants";
+import SEO from "../components/common/SEO";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -131,6 +132,7 @@ export default function CartPage({
         return sessionStorage.getItem("buyto_applied_coupon_code") || "";
     });
     const [couponDiscount, setCouponDiscount] = useState(0);
+    const [typedCouponCode, setTypedCouponCode] = useState("");
 
     // Revalidate coupon whenever cart subtotal or appliedCouponCode changes
     useEffect(() => {
@@ -1292,10 +1294,12 @@ export default function CartPage({
 
             {/* Address List */}
             {addresses.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "16px", color: "#6b7280", border: "1.5px dashed #cbd5e1", borderRadius: "14px", marginBottom: "14px" }}>
-                    <p style={{ margin: "0 0 10px 0", fontSize: "12px" }}>No saved addresses yet</p>
-                    <button onClick={openAddModal} style={{ background: "#318616", color: "white", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "750", cursor: "pointer" }}>
-                        [ Add New Address ]
+                <div style={{ textAlign: "center", padding: "24px 16px", color: "#6b7280", border: "2px dashed #cbd5e1", borderRadius: "18px", marginBottom: "14px", background: "#f8fafc" }}>
+                    <span style={{ fontSize: "36px", display: "block", marginBottom: "8px" }}>📍</span>
+                    <h4 style={{ margin: "0 0 4px 0", fontSize: "14px", fontWeight: "900", color: "#334155" }}>Where should we deliver?</h4>
+                    <p style={{ margin: "0 0 16px 0", fontSize: "12px", color: "#64748b", fontWeight: "600" }}>Add your hostel, PG, or home address.</p>
+                    <button onClick={openAddModal} style={{ background: "#318616", color: "white", border: "none", padding: "8px 18px", borderRadius: "10px", fontSize: "12px", fontWeight: "800", cursor: "pointer", boxShadow: "0 2px 6px rgba(49,134,22,0.15)" }}>
+                        Add Address
                     </button>
                 </div>
             ) : (
@@ -1417,7 +1421,11 @@ export default function CartPage({
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
                 {localActiveCoupons.length === 0 ? (
-                    <span style={{ fontSize: "12px", color: "#9ca3af" }}>No coupons currently available</span>
+                    <div style={{ textAlign: "center", padding: "16px", border: "1.5px dashed #e2e8f0", borderRadius: "16px", background: "#f8fafc" }}>
+                        <span style={{ fontSize: "28px", display: "block", marginBottom: "4px" }}>🏷️</span>
+                        <p style={{ margin: "0 0 2px 0", fontSize: "13px", fontWeight: "900", color: "#475569" }}>No coupon available today</p>
+                        <p style={{ margin: 0, fontSize: "11px", color: "#94a3b8", fontWeight: "600" }}>We'll automatically apply the best offer.</p>
+                    </div>
                 ) : (
                     localActiveCoupons.map((coupon) => {
                         const minVal = coupon.minimumOrderValue || coupon.minOrderValue || 0;
@@ -1537,6 +1545,42 @@ export default function CartPage({
                         );
                     })
                 )}
+            </div>
+            <div style={{ display: "flex", gap: "8px", marginTop: "12px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
+                <input 
+                    placeholder="Enter Coupon (e.g. SAVE50)" 
+                    value={typedCouponCode}
+                    onChange={(e) => setTypedCouponCode(e.target.value)}
+                    style={{ flexGrow: 1, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "10px", fontSize: "13px", fontWeight: "750", outline: "none" }}
+                    id="coupon-input-manual"
+                />
+                <button 
+                    onClick={() => {
+                        const code = typedCouponCode?.trim()?.toUpperCase();
+                        if (code) {
+                            const matchingCoupon = localActiveCoupons.find(c => (c.couponCode || c.code)?.toUpperCase() === code);
+                            if (matchingCoupon) {
+                                const minVal = matchingCoupon.minimumOrderValue || matchingCoupon.minOrderValue || 0;
+                                if (subtotal >= minVal) {
+                                    sessionStorage.setItem("buyto_applied_coupon_code", matchingCoupon.couponCode || matchingCoupon.code);
+                                    setAppliedCouponCode(matchingCoupon.couponCode || matchingCoupon.code);
+                                    setToast(matchingCoupon);
+                                    setTimeout(() => setToast(null), 2500);
+                                    alert("Coupon Applied Successfully!");
+                                } else {
+                                    alert(`This coupon requires a minimum order value of ₹${minVal}`);
+                                }
+                            } else {
+                                sessionStorage.setItem("buyto_applied_coupon_code", code);
+                                setAppliedCouponCode(code);
+                                alert(`Coupon Code "${code}" Applied!`);
+                            }
+                        }
+                    }}
+                    style={{ background: "#318616", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", cursor: "pointer" }}
+                >
+                    Apply
+                </button>
             </div>
         </div>
     );
@@ -1791,53 +1835,155 @@ export default function CartPage({
         </div>
     );
 
+    const productDiscount = originalTotal > total ? Math.round(originalTotal - total) : 0;
+    const buyCoinsCashback = Math.round(total * 0.05);
+    const noBagReward = noBagPledge ? 2 : 0;
+    const totalSavings = productDiscount + buyCoinsCashback + noBagReward;
+
     return (
-        <div className="page-with-bottom-nav" style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-            <div style={{ maxWidth: "1600px", margin: "0 auto", padding: windowWidth < 768 ? "12px" : "24px", paddingBottom: "140px" }}>
+        <div className="page-with-bottom-nav" style={{ minHeight: "100vh", background: "linear-gradient(to bottom, #F8FFF8 0%, #FFFFFF 50%, #F4FFF7 100%)", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+            <SEO title="Your Cart" description="Review your items, apply discount coupons, and checkout securely on Buyto." />
+            <div style={{
+                maxWidth: "1600px",
+                margin: "0 auto",
+                paddingTop: windowWidth < 768 ? "12px" : "24px",
+                paddingLeft: windowWidth < 768 ? "12px" : "24px",
+                paddingRight: windowWidth < 768 ? "12px" : "24px",
+                paddingBottom: "140px"
+            }}>
 
                 {/* HEADER */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <button onClick={() => navigate("/")} style={{ border: "none", background: "transparent", fontSize: "28px", cursor: "pointer" }}>←</button>
-                        <h1 style={{ fontSize: windowWidth < 768 ? "22px" : "30px", fontWeight: "850", margin: 0, color: "#111827" }}>
+                        <button onClick={() => navigate("/")} style={{ border: "none", background: "transparent", fontSize: "28px", cursor: "pointer", color: "#374151" }}>←</button>
+                        <h1 style={{ fontSize: windowWidth < 768 ? "22px" : "30px", fontWeight: "900", margin: 0, color: "#111827", letterSpacing: "-0.5px" }}>
                             Checkout Cart
                         </h1>
                     </div>
-                    <div style={{ padding: "10px 14px", borderRadius: "14px", background: "white", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <div style={{ padding: "10px 14px", borderRadius: "14px", background: "white", boxShadow: "0 4px 12px rgba(0,0,0,0.03)", display: "flex", alignItems: "center", gap: "6px" }}>
                         <span style={{ fontSize: "18px" }}>🛒</span>
                         <b style={{ color: "#318616" }}>{cartItems.length} Items</b>
                     </div>
                 </div>
 
+                {/* CHECKOUT PROGRESS INDICATOR */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "16px 0 24px 0", padding: "14px 20px", background: "white", borderRadius: "16px", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "15px", color: "#318616" }}>🛒</span>
+                        <span style={{ fontSize: "12px", fontWeight: "800", color: "#318616" }}>Cart ✓</span>
+                    </div>
+                    <div style={{ flexGrow: 1, height: "2px", background: selectedAddressId ? "#318616" : "#e5e7eb", margin: "0 8px" }}></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "15px", color: selectedAddressId ? "#318616" : "#9ca3af" }}>📍</span>
+                        <span style={{ fontSize: "12px", fontWeight: "800", color: selectedAddressId ? "#318616" : "#6b7280" }}>Address {selectedAddressId ? "✓" : ""}</span>
+                    </div>
+                    <div style={{ flexGrow: 1, height: "2px", background: "#e5e7eb", margin: "0 8px" }}></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "15px", color: "#9ca3af" }}>💳</span>
+                        <span style={{ fontSize: "12px", fontWeight: "800", color: "#6b7280" }}>Payment</span>
+                    </div>
+                </div>
+
+                {/* SAVINGS HERO BANNER */}
+                {totalSavings > 0 && (
+                    <div style={{
+                        background: "linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)",
+                        borderRadius: "20px",
+                        padding: "16px 20px",
+                        marginBottom: "24px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "14px",
+                        boxShadow: "0 4px 16px rgba(49, 134, 22, 0.06)"
+                    }}>
+                        <span style={{ fontSize: "28px" }}>🎉</span>
+                        <div>
+                            <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "900", color: "#1B5E20" }}>You're saving ₹{totalSavings} today!</h4>
+                            <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#2E7D32", fontWeight: "700" }}>
+                                {productDiscount > 0 && `₹${productDiscount} discount `}
+                                {buyCoinsCashback > 0 && `• ₹${buyCoinsCashback} BuyCoins cashback `}
+                                {noBagReward > 0 && `• ₹${noBagReward} No Bag reward`}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* MAIN GRID LAYOUT */}
                 {isDesktop ? (
                     /* DESKTOP 70/30 DOUBLE-COLUMN LAYOUT */
                     <div style={{ display: "grid", gridTemplateColumns: "7fr 3fr", gap: "24px" }}>
-                        {/* LEFT COLUMN: Cart items, Did You Forget, Emergency, etc. */}
+                        {/* LEFT COLUMN */}
                         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
                             {renderCartItems()}
                             {renderDidYouForget()}
                             {renderOtherRecommendations()}
                         </div>
 
-                        {/* RIGHT COLUMN: Address selection, Coupons, BuyCoins, Green Initiative, Bill Details, Checkout button (Sticky) */}
+                        {/* RIGHT COLUMN */}
                         <div style={{ position: "sticky", top: "24px", height: "fit-content", display: "flex", flexDirection: "column", gap: "20px" }}>
+                            {/* Estimated Delivery Card */}
+                            {selectedAddressId && (
+                                <div style={{ background: "white", padding: "16px", borderRadius: "20px", boxShadow: "0 4px 16px rgba(0,0,0,0.03)", border: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: "12px" }}>
+                                    <span style={{ fontSize: "24px" }}>🚚</span>
+                                    <div>
+                                        <h4 style={{ margin: 0, fontSize: "13px", color: "#64748B", fontWeight: "800", textTransform: "uppercase" }}>Estimated Delivery</h4>
+                                        <p style={{ margin: "2px 0 0 0", fontSize: "14px", fontWeight: "900", color: "#1E293B" }}>Expected Today, 25-30 mins</p>
+                                    </div>
+                                </div>
+                            )}
+
                             {renderAddressSection()}
                             {renderCoupons()}
                             {renderBuyCoins()}
                             {renderGreenInitiative()}
                             {renderBillDetails()}
+
+                            {/* Trust Signals and Success Psychology */}
+                            <div style={{ marginTop: "12px", padding: "16px", background: "rgba(255,255,255,0.6)", borderRadius: "16px", border: "1px dashed #e2e8f0" }}>
+                                <div style={{ fontSize: "12px", color: "#10B981", fontWeight: "900", textAlign: "center", marginBottom: "12px" }}>
+                                    🎉 Only one step left! You're almost done.
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-around", fontSize: "11px", color: "#64748B", fontWeight: "800" }}>
+                                    <span>🔒 Secure Payments</span>
+                                    <span>🚚 Fast Delivery</span>
+                                    <span>↩ Easy Refunds</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : (
-                    /* MOBILE FLOW: Cart -> Address -> Coupons -> BuyCoins -> Green Initiative -> Bill Details -> Checkout Button -> Recommendations */
-                    <div style={{ display: "flex", flexDirection: "column" }}>
+                    /* MOBILE FLOW */
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                        {/* Estimated Delivery Card */}
+                        {selectedAddressId && (
+                            <div style={{ background: "white", padding: "14px 16px", borderRadius: "18px", boxShadow: "0 4px 12px rgba(0,0,0,0.02)", display: "flex", alignItems: "center", gap: "10px" }}>
+                                <span style={{ fontSize: "22px" }}>🚚</span>
+                                <div>
+                                    <h4 style={{ margin: 0, fontSize: "11px", color: "#64748B", fontWeight: "800", textTransform: "uppercase" }}>Estimated Delivery</h4>
+                                    <p style={{ margin: "2px 0 0 0", fontSize: "13px", fontWeight: "900", color: "#1E293B" }}>Expected Today, 25-30 mins</p>
+                                </div>
+                            </div>
+                        )}
+
                         {renderCartItems()}
                         {renderAddressSection()}
                         {renderCoupons()}
                         {renderBuyCoins()}
                         {renderGreenInitiative()}
                         {renderBillDetails()}
+
+                        {/* Trust Signals */}
+                        <div style={{ padding: "16px", background: "white", borderRadius: "18px", boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
+                            <div style={{ fontSize: "12px", color: "#10B981", fontWeight: "900", textAlign: "center", marginBottom: "10px" }}>
+                                🎉 Only one step left! You're almost done.
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-around", fontSize: "10px", color: "#64748B", fontWeight: "800" }}>
+                                <span>🔒 Secure Payments</span>
+                                <span>🚚 Fast Delivery</span>
+                                <span>↩ Easy Refunds</span>
+                            </div>
+                        </div>
+
                         {renderDidYouForget()}
                         {renderOtherRecommendations()}
                     </div>
@@ -1845,28 +1991,34 @@ export default function CartPage({
 
             </div>
 
-            {/* FIXED STICKY BOTTOM BAR FOR MOBILE */}
+            {/* FIXED GLASSMORPHIC BOTTOM BAR FOR MOBILE */}
             {!isDesktop && cartItems.length > 0 && (
                 <div style={{
                     position: "fixed",
-                    bottom: `${MOBILE_NAV_TOTAL_OFFSET}px`,
-                    left: "0",
-                    right: "0",
-                    background: "white",
+                    bottom: `${MOBILE_NAV_TOTAL_OFFSET + 8}px`,
+                    left: "16px",
+                    right: "16px",
+                    background: "rgba(255, 255, 255, 0.85)",
+                    backdropFilter: "blur(20px)",
+                    WebkitBackdropFilter: "blur(20px)",
                     padding: "14px 20px",
-                    boxShadow: "0 -4px 20px rgba(0,0,0,0.08)",
-                    borderTop: "1px solid #e5e7eb",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+                    borderRadius: "24px",
+                    border: "1px solid rgba(255,255,255,0.3)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
                     zIndex: 999
                 }}>
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: "600" }}>Total to Pay</span>
-                        <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
-                            <span style={{ fontSize: "22px", fontWeight: "850", color: "#111827" }}>₹{total}</span>
-                            {originalTotal > total && <s style={{ fontSize: "14px", color: "#9ca3af" }}>₹{originalTotal}</s>}
+                        <span style={{ fontSize: "11px", color: "#6b7280", fontWeight: "700" }}>Total to Pay</span>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                            <span style={{ fontSize: "20px", fontWeight: "900", color: "#111827" }}>₹{total}</span>
+                            {originalTotal > total && <s style={{ fontSize: "12px", color: "#9ca3af" }}>₹{originalTotal}</s>}
                         </div>
+                        {totalSavings > 0 && (
+                            <span style={{ fontSize: "10px", color: "#318616", fontWeight: "800" }}>Saved ₹{totalSavings}</span>
+                        )}
                     </div>
 
                     <button
@@ -1883,15 +2035,15 @@ export default function CartPage({
                             background: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "#318616" : "#9ca3af",
                             color: "white",
                             border: "none",
-                            padding: "12px 24px",
+                            padding: "12px 22px",
                             borderRadius: "14px",
-                            fontSize: "14px",
-                            fontWeight: "800",
+                            fontSize: "13px",
+                            fontWeight: "850",
                             cursor: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "pointer" : "not-allowed",
-                            boxShadow: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "0 4px 12px rgba(49,134,22,0.2)" : "none"
+                            boxShadow: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "0 4px 12px rgba(49,134,22,0.15)" : "none"
                         }}
                     >
-                        {!isLoggedIn ? "Continue with Phone Number →" : !selectedAddressId ? "Select Address" : !isAddressServiceable ? "Unserviceable" : "Proceed to Pay"}
+                        {!isLoggedIn ? "Continue Securely →" : !selectedAddressId ? "Select Address" : !isAddressServiceable ? "Unserviceable" : "Proceed to Pay"}
                     </button>
                 </div>
             )}

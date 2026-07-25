@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState, useRef } 
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import SEO from "../components/common/SEO";
 import { io } from "socket.io-client";
 import BuytoRiderAvatar from "../components/common/BuytoRiderAvatar";
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
@@ -901,6 +902,7 @@ export default function OrderTrackingPage({ orderId }) {
 
   return (
     <div style={pageStyle}>
+      <SEO title={orderId ? `Track Order #${orderId.slice(-6).toUpperCase()}` : "Track Order"} description="Track live delivery status and location for your Buyto order." />
       <style>{`
         @media (max-width: 900px) {
           .tracking-desktop-layout {

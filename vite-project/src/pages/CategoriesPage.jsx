@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { classifyProduct, canonicalCategory } from "../utils/productClassifier";
+import SEO from "../components/common/SEO";
 
 const getCategoryGradient = (name, isStore = false) => {
   const lower = name.toLowerCase();
@@ -398,6 +399,7 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
         paddingBottom: "80px"
       }}
     >
+      <SEO title="Categories" description="Explore fresh grocery categories including Fruits, Vegetables, Dairy, Snacks, and Beverages on Buyto." />
       {/* Sticky Header */}
       <header
         style={{

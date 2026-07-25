@@ -152,7 +152,7 @@ export const AuthProvider = ({ children }) => {
     loadSaveForLater();
   }, [token]);
 
-  const syncGuestSavedProducts = async (userToken) => {
+  const syncGuestSavedProducts = React.useCallback(async (userToken) => {
     const guestSaved = localStorage.getItem("buyto_save_for_later");
     if (guestSaved) {
       try {
@@ -176,9 +176,9 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("buyto_save_for_later");
       }
     }
-  };
+  }, []);
 
-  const toggleSaveForLater = async (product) => {
+  const toggleSaveForLater = React.useCallback(async (product) => {
     const productId = String(product._id || product.id);
     const isSaved = saveForLaterIds.includes(productId);
 
@@ -220,9 +220,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("buyto_save_for_later", JSON.stringify(updatedIds));
       return { success: true, isSaved: !isSaved };
     }
-  };
+  }, [saveForLaterIds, token]);
 
-  const login = async (email, password) => {
+  const login = React.useCallback(async (email, password) => {
     console.log("=== [FRONTEND AUTH LOGIN] ===");
     const res = await apiFetch(window.API_BASE_URL + "/api/auth/login", {
       method: "POST",
@@ -253,27 +253,27 @@ export const AuthProvider = ({ children }) => {
     }, 100);
 
     return data;
-  };
+  }, [syncGuestSavedProducts]);
 
   const [loginBottomSheetOpen, setLoginBottomSheetOpen] = useState(false);
   const [onLoginSuccessCallback, setOnLoginSuccessCallback] = useState(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
 
-  const openOnboarding = () => {
+  const openOnboarding = React.useCallback(() => {
     setOnboardingOpen(true);
-  };
+  }, []);
 
-  const closeOnboarding = () => {
+  const closeOnboarding = React.useCallback(() => {
     setOnboardingOpen(false);
-  };
+  }, []);
 
-  const updateUserInSession = (updatedUser) => {
+  const updateUserInSession = React.useCallback((updatedUser) => {
     setUser(updatedUser);
     localStorage.setItem("buyto_user", JSON.stringify(updatedUser));
     localStorage.setItem("hostelgoUser", JSON.stringify(updatedUser));
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = React.useCallback(async () => {
     if (!token) return;
     try {
       const res = await fetch(window.API_BASE_URL + "/api/auth/me", {
@@ -293,20 +293,20 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error("refreshUser error:", err);
     }
-  };
+  }, [token]);
 
-  const openLogin = (onSuccess) => {
+  const openLogin = React.useCallback((onSuccess) => {
     console.log("Opening OTP bottom sheet");
     setOnLoginSuccessCallback(() => typeof onSuccess === "function" ? onSuccess : null);
     setLoginBottomSheetOpen(true);
-  };
+  }, []);
 
-  const closeLogin = () => {
+  const closeLogin = React.useCallback(() => {
     setLoginBottomSheetOpen(false);
     setOnLoginSuccessCallback(null);
-  };
+  }, []);
 
-  const setAuthSession = async (authToken, authUser, isNewUser = false, welcomeBonusAmount = 20) => {
+  const setAuthSession = React.useCallback(async (authToken, authUser, isNewUser = false, welcomeBonusAmount = 20) => {
     console.log("LOGIN SUCCESS");
     await syncGuestSavedProducts(authToken);
     setToken(authToken);
@@ -335,9 +335,9 @@ export const AuthProvider = ({ children }) => {
     }
     setLoginBottomSheetOpen(false);
     setOnLoginSuccessCallback(null);
-  };
+  }, [onLoginSuccessCallback, syncGuestSavedProducts]);
 
-  const signup = async (name, email, phone, password) => {
+  const signup = React.useCallback(async (name, email, phone, password) => {
     console.log("=== [FRONTEND AUTH SIGNUP] ===");
     const res = await apiFetch(window.API_BASE_URL + "/api/auth/signup", {
       method: "POST",
@@ -381,9 +381,9 @@ export const AuthProvider = ({ children }) => {
     setOnLoginSuccessCallback(null);
 
     return data;
-  };
+  }, [onLoginSuccessCallback, syncGuestSavedProducts]);
 
-  const logout = () => {
+  const logout = React.useCallback(() => {
     console.log("=== [FRONTEND AUTH LOGOUT] ===");
 
     setToken(null);
@@ -397,13 +397,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("hostelgo_cart");
     localStorage.removeItem("cart");
     localStorage.removeItem("buyto_selected_address_id");
-  };
+  }, []);
 
-  const verifyAdmin = (verifiedToken) => {
+  const verifyAdmin = React.useCallback((verifiedToken) => {
     sessionStorage.setItem("buyto_admin_token", verifiedToken);
     localStorage.setItem("buyto_token", verifiedToken);
     setToken(verifiedToken);
-  };
+  }, []);
 
   const isAdminVerified = !!token && !!sessionStorage.getItem("buyto_admin_token");
 
@@ -458,35 +458,61 @@ export const AuthProvider = ({ children }) => {
     registerAdminPushToken();
   }, [user]);
 
+  const authContextValue = React.useMemo(() => ({
+    user,
+    isLoggedIn,
+    token,
+    loading,
+    login,
+    signup,
+    logout,
+    setAuthSession,
+    verifyAdmin,
+    isAdminVerified,
+    saveForLaterIds,
+    toggleSaveForLater,
+    loginBottomSheetOpen,
+    isLoginOpen: loginBottomSheetOpen,
+    openLogin,
+    closeLogin,
+    onboardingOpen,
+    isOnboardingOpen: onboardingOpen,
+    openOnboarding,
+    closeOnboarding,
+    updateUserInSession,
+    refreshUser,
+    showWelcomeModal,
+    setShowWelcomeModal,
+    welcomeBonus,
+    appConfig
+  }), [
+    user,
+    isLoggedIn,
+    token,
+    loading,
+    login,
+    signup,
+    logout,
+    setAuthSession,
+    verifyAdmin,
+    isAdminVerified,
+    saveForLaterIds,
+    toggleSaveForLater,
+    loginBottomSheetOpen,
+    openLogin,
+    closeLogin,
+    onboardingOpen,
+    openOnboarding,
+    closeOnboarding,
+    updateUserInSession,
+    refreshUser,
+    showWelcomeModal,
+    welcomeBonus,
+    appConfig
+  ]);
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isLoggedIn, 
-      token, 
-      loading, 
-      login, 
-      signup, 
-      logout, 
-      setAuthSession, 
-      verifyAdmin,
-      isAdminVerified,
-      saveForLaterIds, 
-      toggleSaveForLater, 
-      loginBottomSheetOpen,
-      isLoginOpen: loginBottomSheetOpen,
-      openLogin,
-      closeLogin,
-      onboardingOpen,
-      isOnboardingOpen: onboardingOpen,
-      openOnboarding,
-      closeOnboarding,
-      updateUserInSession,
-      refreshUser,
-      showWelcomeModal,
-      setShowWelcomeModal,
-      welcomeBonus,
-      appConfig
-    }}>
+    <AuthContext.Provider value={authContextValue}>
       {children}
     </AuthContext.Provider>
   );

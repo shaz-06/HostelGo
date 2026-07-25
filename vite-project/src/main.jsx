@@ -37,11 +37,14 @@ if ('serviceWorker' in navigator) {
 }
 
 import ErrorBoundary from "./components/common/ErrorBoundary";
+import { HelmetProvider } from "react-helmet-async";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <HelmetProvider>
+        <App />
+      </HelmetProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 )
@@ -79,7 +82,9 @@ if (import.meta.env.DEV) {
       if (el.id === "root" || el.tagName === "HTML" || el.tagName === "BODY") return;
       const rect = el.getBoundingClientRect();
       if (rect.right > width + 1 && !hasClippingAncestor(el)) {
-        console.warn(`[OVERFLOW] ${el.tagName}.${el.className.split(" ").filter(c => c).join(".")}#${el.id} (R: ${Math.round(rect.right)}px > VW: ${width}px)`);
+        const classNameStr = el.getAttribute('class') || '';
+        const classes = classNameStr.split(/\s+/).filter(Boolean).join(".");
+        console.warn(`[OVERFLOW] ${el.tagName}.${classes}#${el.id} (R: ${Math.round(rect.right)}px > VW: ${width}px)`);
       }
     });
   }, 3000);

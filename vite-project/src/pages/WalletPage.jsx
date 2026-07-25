@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import SEO from "../components/common/SEO";
 
 import BuyCoin from "../components/common/BuyCoin";
 
@@ -62,6 +63,7 @@ export default function WalletPage() {
 
   return (
     <div style={containerStyle}>
+      <SEO title="BuyCoins" description="Check your BuyCoins balance, cashback earnings, and loyalty rewards on Buyto." />
       <div style={cardWrapperStyle}>
         {/* Back navigation */}
         <button onClick={handleBack} style={backButtonStyle}>

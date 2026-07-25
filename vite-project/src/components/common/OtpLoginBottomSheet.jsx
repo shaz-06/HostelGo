@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
+import SEO from "./SEO";
 import { msg91Login } from "../../services/otpService";
 import phoneIllustration from "../../assets/illustrations/phone-verification.png";
 import { RotateCw } from "lucide-react";
@@ -201,6 +202,7 @@ export default function OtpLoginBottomSheet() {
 
   return (
     <div style={backdropStyle} onClick={closeLogin}>
+      <SEO title="Login" description="Sign in securely with your mobile number to continue shopping on Buyto." />
       <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
         {/* Drag handle indicator */}
         <div style={dragIndicatorStyle} onClick={closeLogin}></div>

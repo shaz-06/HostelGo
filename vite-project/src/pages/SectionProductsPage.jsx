@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 import ProductCard from "../ProductCard";
 import { cachedFetch } from "../utils/apiCache";
+import { getOptimizedImageUrl } from "../utils/imageOptimizer";
 import { usePerfLogger } from "../utils/perfLogger";
+import SEO from "../components/common/SEO";
 
 const DAIRY_PRODUCTS = [
   {
@@ -3098,6 +3101,7 @@ export default function SectionProductsPage({
   const [apiError, setApiError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("default");
+  const [trendingFilter, setTrendingFilter] = useState("All");
 
   // Read active cart items from localStorage/props to support cart operations
   const [localCart, setLocalCart] = useState({});
@@ -4404,6 +4408,10 @@ export default function SectionProductsPage({
         </div>
       </div>
     );
+  }
+
+  if (type === "trending") {
+    return renderTrendingPremiumPage();
   }
 
   if (windowWidth < 768) {
@@ -7100,4 +7108,583 @@ export default function SectionProductsPage({
       </div>
     </div>
   );
+
+  // ==========================================
+  // PREMIUM TRENDING / TOP PICKS PAGE RENDER
+  // ==========================================
+  function renderTrendingPremiumPage() {
+    const trendingChips = [
+      { id: "All", label: "All" },
+      { id: "Trending", label: "🔥 Trending" },
+      { id: "FastDelivery", label: "⚡ Fast Delivery" },
+      { id: "Organic", label: "💚 Organic" },
+      { id: "Under50", label: "₹ Under 50" },
+      { id: "TopRated", label: "⭐ Top Rated" },
+      { id: "New", label: "New" }
+    ];
+
+    // Filter list by selected trendingFilter state
+    let displayList = products.filter(p => p.isTrending);
+
+    if (trendingFilter === "Trending") {
+      // isTrending is already filtered, do nothing
+    } else if (trendingFilter === "FastDelivery") {
+      displayList = displayList.filter(p => p.eta && parseInt(p.eta) <= 15);
+    } else if (trendingFilter === "Organic") {
+      displayList = displayList.filter(p => p.name.toLowerCase().includes("organic") || p.name.toLowerCase().includes("fresh") || p.name.toLowerCase().includes("leaf") || p.name.toLowerCase().includes("fruit"));
+    } else if (trendingFilter === "Under50") {
+      displayList = displayList.filter(p => p.price < 50);
+    } else if (trendingFilter === "TopRated") {
+      // Mock: names with odd length are top rated
+      displayList = displayList.filter(p => p.name.length % 2 !== 0);
+    } else if (trendingFilter === "New") {
+      // Mock: names with even length are new
+      displayList = displayList.filter(p => p.name.length % 2 === 0);
+    }
+
+    // Apply Search Query
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.trim().toLowerCase();
+      displayList = displayList.filter(p => p.name.toLowerCase().includes(q));
+    }
+
+    // Apply Sorting
+    if (sortBy === "price-asc") {
+      displayList.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-desc") {
+      displayList.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "discount") {
+      displayList.sort((a, b) => {
+        const getD = x => x.originalPrice ? ((x.originalPrice - x.price) / x.originalPrice) : 0;
+        return getD(b) - getD(a);
+      });
+    }
+
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: "linear-gradient(to bottom, #F7FFF4 0%, #FFFFFF 50%, #F4FFF8 100%)",
+        fontFamily: "'Outfit', 'Inter', sans-serif",
+        position: "relative",
+        overflowX: "hidden",
+        paddingBottom: "120px",
+        animation: "fadeIn 0.4s ease-out"
+      }}>
+        {/* CSS Keyframes for Page Transitions & Pulsing discount badge */}
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes pulseBadge {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+          }
+        `}</style>
+
+        {/* Background Decors */}
+        <div style={{ position: "absolute", top: "8%", left: "4%", fontSize: "65px", opacity: 0.05, pointerEvents: "none" }}>🥭</div>
+        <div style={{ position: "absolute", top: "35%", right: "6%", fontSize: "75px", opacity: 0.04, pointerEvents: "none" }}>🥑</div>
+        <div style={{ position: "absolute", top: "65%", left: "6%", fontSize: "70px", opacity: 0.05, pointerEvents: "none" }}>🌿</div>
+        <div style={{ position: "absolute", top: "20%", right: "10%", fontSize: "55px", opacity: 0.04, pointerEvents: "none" }}>🍃</div>
+
+        <SEO title="Top Picks" description="Our most-loved products today on Buyto." />
+
+        {/* STICKY HEADER */}
+        <div style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1000,
+          background: "rgba(255, 255, 255, 0.82)",
+          backdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(229, 231, 235, 0.5)",
+          padding: "16px 24px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.02)"
+        }}>
+          <div style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <button 
+                onClick={() => navigate("/")} 
+                style={{
+                  background: "rgba(0,0,0,0.04)",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "36px",
+                  height: "36px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "16px",
+                  cursor: "pointer",
+                  color: "#475569",
+                  fontWeight: "800",
+                  transition: "background 0.2s"
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(0,0,0,0.08)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "rgba(0,0,0,0.04)"}
+              >
+                ←
+              </button>
+              <div>
+                <h1 style={{ fontSize: "24px", fontWeight: "900", color: "#1E293B", margin: 0, display: "flex", alignItems: "center", gap: "8px", letterSpacing: "-0.5px" }}>
+                  ⚡ Top Picks
+                </h1>
+                <span style={{ fontSize: "12px", color: "#64748B", fontWeight: "800" }}>{displayList.length} Products</span>
+              </div>
+            </div>
+
+            {/* Sort & Filtering Controls */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{
+                background: "rgba(255, 255, 255, 0.8)",
+                border: "1px solid rgba(229, 231, 235, 0.8)",
+                borderRadius: "999px",
+                padding: "8px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
+                backdropFilter: "blur(10px)"
+              }}>
+                <span style={{ fontSize: "12px", fontWeight: "800", color: "#475569" }}>⇅ Sort:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    color: "#318616",
+                    outline: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  <option value="default">Popularity</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="discount">Discount</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px 16px" }}>
+          
+          {/* HERO BANNER */}
+          <div style={{
+            background: "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)",
+            borderRadius: "24px",
+            padding: windowWidth < 768 ? "24px" : "36px",
+            marginBottom: "32px",
+            position: "relative",
+            overflow: "hidden",
+            boxShadow: "0 10px 30px rgba(49, 134, 22, 0.08)"
+          }}>
+            <div style={{ position: "absolute", right: "-20px", top: "-20px", fontSize: "110px", opacity: 0.15, pointerEvents: "none" }}>⚡</div>
+            <div style={{ position: "absolute", left: "60%", bottom: "-30px", fontSize: "90px", opacity: 0.1, pointerEvents: "none" }}>🍏</div>
+
+            <div style={{ maxWidth: "600px", position: "relative", zIndex: 5 }}>
+              <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(4px)", padding: "4px 12px", borderRadius: "999px", fontSize: "11px", fontWeight: "800", color: "#2E7D32", display: "inline-block", marginBottom: "12px" }}>
+                ✨ HANDPICKED FOR YOU
+              </div>
+              <h2 style={{ fontSize: windowWidth < 768 ? "28px" : "38px", fontWeight: "950", color: "#1B5E20", margin: "0 0 8px 0", lineHeight: "1.1", letterSpacing: "-0.5px" }}>
+                ⚡ Top Picks
+              </h2>
+              <p style={{ fontSize: windowWidth < 768 ? "14px" : "16px", color: "#2E7D32", fontWeight: "600", margin: "0 0 24px 0", lineHeight: "1.4" }}>
+                Our most-loved products today. Handpicked based on popularity and best value.
+              </p>
+
+              {/* Stats Bar */}
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                <div style={{ background: "white", padding: "10px 16px", borderRadius: "14px", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
+                  <span style={{ fontSize: "16px" }}>🔥</span>
+                  <span style={{ fontSize: "13px", fontWeight: "800", color: "#374151" }}>{displayList.length} Products</span>
+                </div>
+                <div style={{ background: "white", padding: "10px 16px", borderRadius: "14px", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
+                  <span style={{ fontSize: "16px" }}>⭐</span>
+                  <span style={{ fontSize: "13px", fontWeight: "800", color: "#374151" }}>4.8 Avg Rating</span>
+                </div>
+                <div style={{ background: "white", padding: "10px 16px", borderRadius: "14px", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
+                  <span style={{ fontSize: "16px" }}>🚚</span>
+                  <span style={{ fontSize: "13px", fontWeight: "800", color: "#374151" }}>7 Mins Delivery</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* QUICK FILTER CHIPS */}
+          <div style={{
+            display: "flex",
+            gap: "8px",
+            overflowX: "auto",
+            paddingBottom: "16px",
+            marginBottom: "24px",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none"
+          }} className="hide-scrollbar">
+            {trendingChips.map(chip => {
+              const isActive = trendingFilter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  onClick={() => setTrendingFilter(chip.id)}
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: "999px",
+                    background: isActive ? "#318616" : "white",
+                    color: isActive ? "white" : "#475569",
+                    border: isActive ? "1px solid #318616" : "1px solid #E2E8F0",
+                    fontWeight: "800",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+                  }}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* PRODUCTS GRID */}
+          {displayList.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <span style={{ fontSize: "48px" }}>🔍</span>
+              <h3 style={{ color: "#374151", fontSize: "20px", fontWeight: "800", marginTop: "12px" }}>No items match your filter</h3>
+            </div>
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: "24px"
+            }}>
+              {displayList.map((product, idx) => {
+                // Interspersed recommendation cards
+                const isRecommendationIdx = idx > 0 && idx % 8 === 0;
+                return (
+                  <React.Fragment key={product._id || product.id}>
+                    <PremiumProductCard product={product} />
+                    {isRecommendationIdx && (
+                      <div style={{
+                        gridColumn: "1 / -1",
+                        background: "linear-gradient(90deg, #318616 0%, #1B5E20 100%)",
+                        borderRadius: "24px",
+                        padding: "28px",
+                        color: "white",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginTop: "12px",
+                        marginBottom: "12px",
+                        boxShadow: "0 8px 24px rgba(49, 134, 22, 0.15)",
+                        flexWrap: "wrap",
+                        gap: "16px"
+                      }}>
+                        <div>
+                          <span style={{ background: "rgba(255,255,255,0.2)", padding: "4px 10px", borderRadius: "999px", fontSize: "10px", fontWeight: "800", letterSpacing: "0.5px" }}>
+                            💚 BUYTO RECOMMENDATION
+                          </span>
+                          <h4 style={{ fontSize: "22px", fontWeight: "950", margin: "8px 0 4px 0", letterSpacing: "-0.5px" }}>Recommended For You</h4>
+                          <p style={{ fontSize: "14px", margin: 0, opacity: 0.9 }}>Customers who bought these items also loved fresh bananas and curd.</p>
+                        </div>
+                        <button
+                          onClick={() => navigate("/")}
+                          style={{
+                            background: "white",
+                            border: "none",
+                            color: "#318616",
+                            padding: "12px 24px",
+                            borderRadius: "14px",
+                            fontWeight: "900",
+                            fontSize: "14px",
+                            cursor: "pointer",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+                          }}
+                        >
+                          Shop More →
+                        </button>
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
+
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // PREMIUM PRODUCT CARD COMPONENT
+  // ==========================================
+  function PremiumProductCard({ product }) {
+    const { saveForLaterIds, toggleSaveForLater } = useContext(AuthContext);
+    const [isHovered, setIsHovered] = useState(false);
+    const [isHeartPop, setIsHeartPop] = useState(false);
+
+    const isSaved = saveForLaterIds?.includes(String(product._id || product.id));
+    const cartItem = cartItems?.find(item => item._id === (product._id || product.id));
+    const quantity = cartItem ? cartItem.quantity : 0;
+
+    // Stable mock rating based on name hash
+    const getMockRating = (name) => {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const rating = 4.3 + (Math.abs(hash) % 7) / 10;
+      const count = 45 + (Math.abs(hash) % 250);
+      return { rating: rating.toFixed(1), count };
+    };
+
+    const { rating, count } = getMockRating(product.name);
+
+    // Alternate Ribbon Bestseller / Top Pick
+    const isBestseller = product.name.length % 2 === 0;
+
+    const discountPercentage = product.originalPrice && product.originalPrice > product.price
+      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+      : 0;
+
+    const handleSaveClick = (e) => {
+      e.stopPropagation();
+      setIsHeartPop(true);
+      setTimeout(() => setIsHeartPop(false), 300);
+      toggleSaveForLater(product._id || product.id);
+    };
+
+    return (
+      <div
+        onClick={() => navigate(`/product/${product._id || product.id}`)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          background: "white",
+          borderRadius: "20px",
+          padding: "16px",
+          boxShadow: isHovered 
+            ? "0 12px 30px rgba(49, 134, 22, 0.12)" 
+            : "0 4px 16px rgba(0, 0, 0, 0.03)",
+          border: isHovered ? "1px solid rgba(49, 134, 22, 0.2)" : "1px solid #f1f5f9",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+          position: "relative",
+          width: "100%",
+          boxSizing: "border-box",
+          transform: isHovered ? "translateY(-4px)" : "none",
+        }}
+      >
+        {/* Ribbon / Badge */}
+        <div style={{
+          position: "absolute",
+          top: "12px",
+          left: "12px",
+          background: isBestseller 
+            ? "linear-gradient(90deg, #F59E0B 0%, #D97706 100%)"
+            : "linear-gradient(90deg, #10B981 0%, #059669 100%)",
+          color: "white",
+          padding: "4px 8px",
+          borderRadius: "6px",
+          fontWeight: "900",
+          fontSize: "10px",
+          letterSpacing: "0.5px",
+          zIndex: 20,
+          boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+          textTransform: "uppercase"
+        }}>
+          {isBestseller ? "🏆 Bestseller" : "🏆 Top Pick"}
+        </div>
+
+        {/* Heart Bookmark Icon */}
+        <button
+          onClick={handleSaveClick}
+          style={{
+            position: "absolute",
+            top: "12px",
+            right: "12px",
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            background: "rgba(255, 255, 255, 0.92)",
+            border: "none",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            zIndex: 20,
+            transition: "transform 0.2s ease",
+            transform: isHeartPop ? "scale(1.35)" : "scale(1)"
+          }}
+        >
+          <span style={{ fontSize: "16px", color: isSaved ? "#EF4444" : "#94A3B8" }}>
+            {isSaved ? "❤️" : "🤍"}
+          </span>
+        </button>
+
+        {/* Product Image */}
+        <div style={{
+          background: "#F8FAFC",
+          borderRadius: "16px",
+          height: "150px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          overflow: "hidden",
+          padding: "8px"
+        }}>
+          <img
+            src={getOptimizedImageUrl(product.image, "medium", product)}
+            alt={product.name}
+            style={{
+              maxWidth: "85%",
+              maxHeight: "85%",
+              objectFit: "contain",
+              transition: "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
+              transform: isHovered ? "scale(1.06)" : "scale(1)"
+            }}
+          />
+          {discountPercentage > 0 && (
+            <div style={{
+              position: "absolute",
+              bottom: "8px",
+              left: "8px",
+              background: "#318616",
+              color: "white",
+              padding: "2px 6px",
+              borderRadius: "4px",
+              fontSize: "10px",
+              fontWeight: "900",
+              animation: "pulseBadge 2s infinite ease-in-out"
+            }}>
+              {discountPercentage}% OFF
+            </div>
+          )}
+        </div>
+
+        {/* Card Metadata */}
+        <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", marginTop: "12px" }}>
+          <div>
+            <div style={{ fontSize: "10px", color: "#94A3B8", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              {product.brand || "Buyto Fresh"}
+            </div>
+            
+            <h3 style={{
+              fontSize: "14px",
+              fontWeight: "800",
+              color: "#1E293B",
+              margin: "4px 0",
+              height: "36px",
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              lineHeight: "18px"
+            }}>
+              {product.name}
+            </h3>
+
+            {/* Ratings and Reviews */}
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "8px" }}>
+              <span style={{ color: "#F59E0B", fontSize: "12px" }}>★</span>
+              <span style={{ fontSize: "11px", fontWeight: "800", color: "#475569" }}>{rating}</span>
+              <span style={{ fontSize: "11px", color: "#94A3B8" }}>({count})</span>
+              <span style={{ fontSize: "11px", color: "#94A3B8", marginLeft: "auto", fontWeight: "700" }}>{product.weight}</span>
+            </div>
+          </div>
+
+          {/* Pricing and Action */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                <span style={{ fontSize: "18px", fontWeight: "900", color: "#1E293B" }}>₹{product.price}</span>
+                {product.originalPrice > product.price && (
+                  <span style={{ textDecoration: "line-through", color: "#94A3B8", fontSize: "12px", fontWeight: "600" }}>₹{product.originalPrice}</span>
+                )}
+              </div>
+              <div style={{ fontSize: "10px", color: "#318616", fontWeight: "850", display: "flex", alignItems: "center", gap: "2px" }}>
+                <span>⚡</span> {product.eta || "7 mins"}
+              </div>
+            </div>
+
+            {/* Quantity Controls */}
+            <div style={{ width: "80px", height: "32px" }}>
+              {quantity === 0 ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addToCart(product);
+                  }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "8px",
+                    background: "white",
+                    border: "1.5px solid #318616",
+                    color: "#318616",
+                    fontWeight: "900",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#318616";
+                    e.currentTarget.style.color = "white";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "white";
+                    e.currentTarget.style.color = "#318616";
+                  }}
+                >
+                  ADD +
+                </button>
+              ) : (
+                <div style={{
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: "8px",
+                  background: "#318616",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0 8px",
+                  boxSizing: "border-box"
+                }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromCart(product);
+                    }}
+                    style={{ background: "transparent", border: "none", color: "white", fontWeight: "900", fontSize: "16px", cursor: "pointer" }}
+                  >
+                    -
+                  </button>
+                  <span style={{ color: "white", fontWeight: "900", fontSize: "12px" }}>{quantity}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToCart(product);
+                    }}
+                    style={{ background: "transparent", border: "none", color: "white", fontWeight: "900", fontSize: "16px", cursor: "pointer" }}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }

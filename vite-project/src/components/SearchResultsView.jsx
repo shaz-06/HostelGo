@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import ProductCard from "../ProductCard";
+import SEO from "./common/SEO";
 import MobileProductCard from "./mobile/MobileProductCard";
 
 export default function SearchResultsView({
@@ -97,6 +98,7 @@ export default function SearchResultsView({
 
   return (
     <div style={{ fontFamily: "'Outfit', 'Inter', sans-serif", width: "100%" }}>
+      <SEO title={query ? `Search "${query}"` : "Search"} description={query ? `Search results for "${query}" on Buyto.` : "Search across thousands of daily essentials and groceries on Buyto."} />
       {/* SECTION 1: SEARCH RESULTS */}
       <div style={{ marginBottom: "32px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "16px" }}>

@@ -73,6 +73,13 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
   const [mapCenter, setMapCenter] = useState([13.3409, 74.7978]);
   const [markerPos, setMarkerPos] = useState([13.3409, 74.7978]);
   const [gpsDetecting, setGpsDetecting] = useState(false);
+  const [gpsProgressText, setGpsProgressText] = useState("");
+  const [toastMsg, setToastMsg] = useState("");
+  
+  const isMounted = useRef(true);
+  const abortControllerRef = useRef(null);
+  const geocodeCache = useRef({});
+
   const [isModalAddressServiceable, setIsModalAddressServiceable] = useState(true);
   const [serviceabilityMessage, setServiceabilityMessage] = useState("");
   const [showLocationConfirm, setShowLocationConfirm] = useState(false);
@@ -87,11 +94,26 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [mounted, setMounted] = useState(false);
 
+  const showToast = (msg) => {
+    if (!isMounted.current) return;
+    setToastMsg(msg);
+    setTimeout(() => {
+      if (isMounted.current) setToastMsg("");
+    }, 4500);
+  };
+
   useEffect(() => {
+    isMounted.current = true;
     setMounted(true);
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      isMounted.current = false;
+      window.removeEventListener("resize", handleResize);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   const token = localStorage.getItem("buyto_token");
@@ -232,70 +254,372 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
     }, 650);
   };
 
-  // GPS geolocation
-  const detectGpsLocation = () => {
+  // 1. Request Browser Location helper
+  const requestBrowserLocation = () => {
+    return new Promise((resolve, reject) => {
+      // Check cached coordinates (freshness window: 5 mins)
+      const cachedData = localStorage.getItem("buyto_last_gps_coords");
+      if (cachedData) {
+        try {
+          const { latitude: cachedLat, longitude: cachedLng, timestamp } = JSON.parse(cachedData);
+          if (Date.now() - timestamp < 5 * 60 * 1000) {
+            console.log("[GPS] Using cached coordinates from less than 5 minutes ago:", cachedLat, cachedLng);
+            resolve({ latitude: cachedLat, longitude: cachedLng });
+            return;
+          }
+        } catch (e) {
+          console.error("Error reading cached GPS coords:", e);
+        }
+      }
+
+      if (!navigator.geolocation) {
+        const err = new Error("Geolocation not supported");
+        err.code = 0;
+        reject(err);
+        return;
+      }
+
+      if (navigator.permissions && typeof navigator.permissions.query === "function") {
+        navigator.permissions.query({ name: "geolocation" }).then((status) => {
+          console.log("[GPS] Permission state detected:", status.state);
+        }).catch((err) => {
+          console.log("[GPS] Permissions query not fully supported or failed:", err);
+        });
+      }
+
+      const startTime = Date.now();
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const duration = Date.now() - startTime;
+          console.log(`[GPS] Coordinates acquired in ${duration}ms`);
+          if (duration > 2000) {
+            console.warn(`[GPS WARNING] GPS acquisition took ${duration}ms, exceeding 2s threshold.`);
+          }
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          
+          // Cache coordinates
+          try {
+            localStorage.setItem("buyto_last_gps_coords", JSON.stringify({
+              latitude: lat,
+              longitude: lng,
+              timestamp: Date.now()
+            }));
+          } catch (e) {
+            console.error("Failed to write to localStorage:", e);
+          }
+
+          resolve({ latitude: lat, longitude: lng });
+        },
+        (err) => {
+          reject(err);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  };
+
+  // 2. Reverse Geocode helper
+  const reverseGeocode = async (lat, lng) => {
+    // Check in-memory cache first (rounded to 4 decimal places, ~11m accuracy)
+    const cacheKey = `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
+    if (geocodeCache.current && geocodeCache.current[cacheKey]) {
+      console.log("[Geocode] Cache hit for coordinates:", cacheKey);
+      return geocodeCache.current[cacheKey];
+    }
+
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const startTime = Date.now();
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      abortControllerRef.current = null;
+
+      const duration = Date.now() - startTime;
+      console.log(`[Geocode] Completed in ${duration}ms`);
+      if (duration > 2000) {
+        console.warn(`[Geocode WARNING] Geocoding took ${duration}ms, exceeding 2s threshold.`);
+      }
+
+      if (!response.ok) {
+        if (response.status === 429 || response.status >= 500) {
+          console.warn(`[Geocode] Server returned status ${response.status}, using fallback.`);
+          return "Current Location (Coordinates Available)";
+        }
+        throw new Error(`Reverse geocoding HTTP error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const result = data.display_name || `${lat}, ${lng}`;
+      
+      // Store in cache
+      if (geocodeCache.current) {
+        geocodeCache.current[cacheKey] = result;
+      }
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      abortControllerRef.current = null;
+      console.error("[GEOCODE ERROR] Failed or timed out:", error);
+      return "Current Location (Coordinates Available)";
+    }
+  };
+
+  // 3. Save Current Location helper
+  const saveCurrentLocation = async (lat, lng, addressLine, serviceableStatus) => {
+    const startTime = Date.now();
+    
+    // Validate coordinates
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      const err = new Error("Invalid GPS coordinates received.");
+      console.error("[SAVE ERROR] Invalid coords:", lat, lng);
+      throw err;
+    }
+
+    const labelText = "GPS Location";
+    const nameText = user?.name || "Guest User";
+    const phoneText = user?.phone || "0000000000";
+
+    let savedAddrObj = null;
+
+    if (isLoggedIn && token) {
+      const payload = {
+        label: labelText,
+        addressType: labelText,
+        fullName: nameText,
+        phone: phoneText,
+        addressLine: addressLine,
+        landmark: "",
+        roomNumber: "",
+        city: "",
+        pincode: "",
+        notes: "",
+        latitude: lat,
+        longitude: lng,
+        isDefault: true,
+        serviceable: serviceableStatus,
+        lastCheckedAt: new Date()
+      };
+
+      const res = await fetch(`${window.API_BASE_URL}/api/addresses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const duration = Date.now() - startTime;
+      console.log(`[Save] Address saved in ${duration}ms`);
+      if (duration > 2000) {
+        console.warn(`[Save WARNING] Saving to backend took ${duration}ms, exceeding 2s threshold.`);
+      }
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const err = new Error(errorData.message || "Failed to save address to backend");
+        console.error("[SAVE ERROR] Backend call rejected:", err);
+        throw err;
+      }
+
+      const data = await res.json();
+      if (!data.success || !data.address) {
+        const err = new Error(data.message || "Failed to save address to backend");
+        console.error("[SAVE ERROR] Response marked success=false:", err);
+        throw err;
+      }
+      savedAddrObj = data.address;
+    } else {
+      // Guest local storage
+      const newAddress = {
+        _id: "guest_" + Date.now(),
+        label: labelText,
+        fullName: nameText,
+        phone: phoneText,
+        addressLine: addressLine,
+        landmark: "",
+        roomNumber: "",
+        city: "",
+        pincode: "",
+        notes: "",
+        latitude: lat,
+        longitude: lng,
+        isDefault: true,
+        serviceable: serviceableStatus
+      };
+
+      let updatedAddresses = [...addresses];
+      updatedAddresses = updatedAddresses.map(a => ({ ...a, isDefault: false }));
+      updatedAddresses.push(newAddress);
+
+      localStorage.setItem("buyto_guest_addresses", JSON.stringify(updatedAddresses));
+      setAddresses(updatedAddresses);
+      savedAddrObj = newAddress;
+      
+      const duration = Date.now() - startTime;
+      console.log(`[Save] Guest address saved to localStorage in ${duration}ms`);
+    }
+
+    return savedAddrObj;
+  };
+
+  // 4. Select Address helper
+  const selectAddress = (addr) => {
+    console.log("[Address] Selected successfully");
+    let updatedRecents = [addr, ...recentAddresses.filter(r => r._id !== addr._id && r.addressLine !== addr.addressLine)];
+    updatedRecents = updatedRecents.slice(0, 5);
+    localStorage.setItem("buyto_recent_addresses", JSON.stringify(updatedRecents));
+
+    onSelectAddress(addr);
+    handleClose();
+    refreshAddressContext();
+  };
+
+  // 5. Refresh Address Context helper
+  const refreshAddressContext = () => {
+    fetchAddresses();
+  };
+
+  // GPS geolocation main function
+  const detectGpsLocation = async (autoSelectAndClose = true) => {
+    if (gpsDetecting) return;
+    
+    console.log("Location button clicked");
     setGpsDetecting(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const newPos = [lat, lng];
+    setGpsProgressText("📍 Detecting location...");
 
-        setMapCenter(newPos);
-        setMarkerPos(newPos);
-        setAddressForm(prev => ({ ...prev, latitude: lat, longitude: lng }));
-        setGpsDetecting(false);
+    const flowStartTime = Date.now();
 
-        setShowLocationConfirm(false);
-        setServiceabilityMessage("Checking delivery serviceability...");
-        await checkModalServiceability(lat, lng);
+    try {
+      const position = await requestBrowserLocation();
+      if (!isMounted.current) return;
 
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            const addrText = data.display_name || `${lat}, ${lng}`;
-            setDetectedAddressText(addrText);
-            setAddressForm(prev => ({ ...prev, addressLine: addrText }));
-            setShowLocationConfirm(true);
+      const lat = position.latitude;
+      const lng = position.longitude;
+      const newPos = [lat, lng];
+
+      setMapCenter(newPos);
+      setMarkerPos(newPos);
+      setAddressForm(prev => ({ ...prev, latitude: lat, longitude: lng }));
+
+      setGpsProgressText("🗺️ Finding address...");
+      // Execute geocode and serviceability concurrently in parallel
+      const [addressLine, serviceableStatus] = await Promise.all([
+        reverseGeocode(lat, lng),
+        checkModalServiceability(lat, lng)
+      ]);
+      if (!isMounted.current) return;
+
+      setDetectedAddressText(addressLine);
+      setAddressForm(prev => ({ ...prev, addressLine: addressLine }));
+
+      if (autoSelectAndClose) {
+        setGpsProgressText("💾 Saving address...");
+        
+        const matchedAddr = addresses.find(addr => {
+          if (addr.addressLine === addressLine) return true;
+          if (addr.latitude !== undefined && addr.longitude !== undefined && addr.latitude !== null && addr.longitude !== null) {
+            const latDiff = Math.abs(Number(addr.latitude) - Number(lat));
+            const lngDiff = Math.abs(Number(addr.longitude) - Number(lng));
+            if (latDiff < 0.0005 && lngDiff < 0.0005) return true;
           }
-        } catch (error) {
-          console.error("Reverse geocoding failed:", error);
-        }
-      },
-      async (err) => {
-        setGpsDetecting(false);
-        const fallbackLat = 13.3409;
-        const fallbackLng = 74.7978;
-        const fallbackPos = [fallbackLat, fallbackLng];
+          return false;
+        });
 
-        setMapCenter(fallbackPos);
-        setMarkerPos(fallbackPos);
-        setAddressForm(prev => ({ ...prev, latitude: fallbackLat, longitude: fallbackLng }));
-
-        setShowLocationConfirm(false);
-        setServiceabilityMessage("Checking delivery serviceability...");
-        await checkModalServiceability(fallbackLat, fallbackLng);
-
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${fallbackLat}&lon=${fallbackLng}`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            const addrText = data.display_name || `${fallbackLat}, ${fallbackLng}`;
-            setDetectedAddressText(addrText);
-            setAddressForm(prev => ({ ...prev, addressLine: addrText }));
-            setShowLocationConfirm(true);
+        if (matchedAddr) {
+          console.log("[GPS] Match found with existing address:", matchedAddr._id, "- Reusing instead of duplicating.");
+          showToast("📍 Delivery location updated successfully.");
+          setTimeout(() => {
+            if (isMounted.current) selectAddress(matchedAddr);
+          }, 800);
+        } else {
+          try {
+            const savedAddr = await saveCurrentLocation(lat, lng, addressLine, serviceableStatus);
+            if (!isMounted.current) return;
+            showToast("📍 Delivery location updated successfully.");
+            setTimeout(() => {
+              if (isMounted.current) selectAddress(savedAddr);
+            }, 800);
+          } catch (saveErr) {
+            if (isMounted.current) {
+              showToast("❌ Unable to save your location.");
+            }
+            throw saveErr;
           }
-        } catch (error) {
-          console.error("Reverse geocoding failed:", error);
         }
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
+      } else {
+        setShowLocationConfirm(false);
+        if (isMounted.current) {
+          setShowLocationConfirm(true);
+        }
+      }
+
+      const totalDuration = Date.now() - flowStartTime;
+      console.log(`[Total] Completed location flow in ${totalDuration}ms`);
+      if (totalDuration > 4000) {
+        console.warn(`[Total WARNING] Total flow took ${totalDuration}ms, exceeding 4s.`);
+      }
+    } catch (err) {
+      console.error("Location flow failed:", err);
+      if (!isMounted.current) return;
+
+      if (err.code !== undefined) {
+        switch (err.code) {
+          case 1:
+            console.error("[GPS ERROR] Permission denied");
+            showToast("📍 Location permission denied.");
+            break;
+          case 2:
+            console.error("[GPS ERROR] Position unavailable");
+            showToast("📡 Unable to determine your location.");
+            break;
+          case 3:
+            console.error("[GPS ERROR] Timeout");
+            showToast("⏱️ Location request timed out. Please try again.");
+            break;
+          default:
+            console.error("[GPS ERROR] Unknown error code:", err.code);
+            showToast("Please try again.");
+            break;
+        }
+      } else if (err.message && err.message.includes("coordinates")) {
+        showToast("Invalid GPS coordinates received.");
+      } else if (err.message && err.message.includes("save")) {
+        // Handled inside try block
+      } else {
+        if (!navigator.onLine) {
+          console.error("[GPS ERROR] Network offline");
+          showToast("🌐 Please check your internet connection.");
+        } else {
+          showToast("Please try again.");
+        }
+      }
+
+      const selectedAddressId = localStorage.getItem("buyto_selected_address_id");
+      if (selectedAddressId) {
+        const prevSelected = addresses.find(a => a._id === selectedAddressId);
+        if (prevSelected) {
+          setTimeout(() => {
+            if (isMounted.current) {
+              showToast("Using your previously selected delivery address.");
+            }
+          }, 2000);
+        }
+      }
+    } finally {
+      if (isMounted.current) {
+        setGpsDetecting(false);
+        setGpsProgressText("");
+        if (abortControllerRef.current) {
+          abortControllerRef.current = null;
+        }
+      }
+    }
   };
 
   // Smooth close wrapper
@@ -328,16 +652,7 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
     setStartY(null);
   };
 
-  // Handle address selection
-  const selectAddress = (addr) => {
-    // Add to Recent Addresses
-    let updatedRecents = [addr, ...recentAddresses.filter(r => r._id !== addr._id && r.addressLine !== addr.addressLine)];
-    updatedRecents = updatedRecents.slice(0, 5); // Limit to top 5
-    localStorage.setItem("buyto_recent_addresses", JSON.stringify(updatedRecents));
-
-    onSelectAddress(addr);
-    handleClose();
-  };
+  // Touch handlers for swipe down to close
 
   // Form submission: save address
   const handleFormSubmit = async (e) => {
@@ -495,6 +810,29 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
       }}
       onClick={handleClose}
     >
+      {toastMsg && (
+        <div style={{
+          position: "fixed",
+          top: "24px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(15, 23, 42, 0.9)",
+          color: "white",
+          padding: "12px 24px",
+          borderRadius: "20px",
+          border: "1px solid rgba(255, 255, 255, 0.15)",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
+          fontSize: "14px",
+          fontWeight: "700",
+          zIndex: 100000,
+          textAlign: "center",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }} onClick={(e) => e.stopPropagation()}>
+          {toastMsg}
+        </div>
+      )}
       {/* Liquid Glass Bottom Sheet */}
       <div
         ref={sheetRef}
@@ -609,7 +947,7 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
               {/* Quick Actions inside Form */}
               <button
                 type="button"
-                onClick={detectGpsLocation}
+                onClick={() => detectGpsLocation(false)}
                 disabled={gpsDetecting}
                 style={{
                   padding: "10px",
@@ -626,7 +964,7 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
                   gap: "6px"
                 }}
               >
-                {gpsDetecting ? "⏳ Detecting Location..." : "📍 Use GPS Location"}
+                {gpsDetecting ? `⏳ ${gpsProgressText || "Detecting..."}` : "📍 Use GPS Location"}
               </button>
 
               {/* Student-focused Address Presets */}
@@ -902,7 +1240,7 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
                   ➕ Add New Address
                 </button>
                 <button
-                  onClick={detectGpsLocation}
+                  onClick={() => detectGpsLocation(true)}
                   disabled={gpsDetecting}
                   style={{
                     padding: "12px 14px",
@@ -919,7 +1257,7 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
                     gap: "6px"
                   }}
                 >
-                  {gpsDetecting ? "⏳ GPS..." : "📍 Use Current Location"}
+                  {gpsDetecting ? `⏳ ${gpsProgressText || "GPS..."}` : "📍 Use Current Location"}
                 </button>
               </div>
 

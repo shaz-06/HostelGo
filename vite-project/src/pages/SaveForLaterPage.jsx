@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import ProductCard from "../ProductCard";
+import SEO from "../components/common/SEO";
 
 export default function SaveForLaterPage({
   products = [],
@@ -109,6 +110,7 @@ export default function SaveForLaterPage({
 
   return (
     <div style={containerStyle}>
+      <SEO title="Wishlist" description="View your saved products and favorite items on Buyto." />
       {/* Header */}
       <header style={headerStyle}>
         <button onClick={() => navigate(-1)} style={backBtnStyle}>

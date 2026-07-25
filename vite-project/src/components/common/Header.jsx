@@ -382,28 +382,53 @@ const Header = React.memo(({
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-start" }}>
 
             {/* Branded Section */}
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <style dangerouslySetInnerHTML={{
                 __html: `
-                .premium-logo {
-                  height: 32px;
-                  width: auto;
+                .premium-logo-container {
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  animation: fadeIn 200ms ease;
+                }
+                .premium-logo-img {
+                  width: 48px !important;
+                  height: 48px !important;
+                  border-radius: 50% !important;
+                  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+                  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+                  object-fit: cover !important;
+                  image-rendering: -webkit-optimize-contrast !important;
+                  image-rendering: crisp-edges !important;
                   transition: transform 0.2s ease, opacity 0.2s ease;
                 }
                 .premium-wordmark {
                   font-family: 'Outfit', sans-serif;
                   font-weight: 900;
-                  font-size: 26px;
+                  font-size: 22px;
                   line-height: 1;
                   letter-spacing: -0.5px;
+                  display: inline-flex;
+                  align-items: center;
+                  align-self: center;
                   transition: transform 0.2s ease;
                 }
                 @media (min-width: 768px) {
-                  .premium-logo {
-                    height: 38px;
+                  .premium-logo-img {
+                    width: 52px !important;
+                    height: 52px !important;
                   }
                   .premium-wordmark {
-                    font-size: 32px;
+                    font-size: 24px;
+                  }
+                }
+                @media (min-width: 1024px) {
+                  .premium-logo-img {
+                    width: 56px !important;
+                    height: 56px !important;
+                  }
+                  .premium-wordmark {
+                    font-size: 26px;
                   }
                 }
                 .address-block:hover .address-chevron {
@@ -413,11 +438,11 @@ const Header = React.memo(({
                   color: #318616 !important;
                 }
               `}} />
-              <div style={{ display: "inline-flex", animation: "fadeIn 200ms ease" }}>
+              <div className="premium-logo-container">
                 <BuytoLogo
-                  responsive={false}
+                  responsive={true}
                   clickable={false}
-                  className="premium-logo"
+                  imgClassName="premium-logo-img"
                   style={{ display: "flex" }}
                 />
               </div>
@@ -437,7 +462,7 @@ const Header = React.memo(({
                 textAlign: "left",
                 cursor: "pointer",
                 userSelect: "none",
-                marginTop: "10px"
+                marginTop: "12px"
               }}
             >
               <span style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500", lineHeight: "1.2" }}>

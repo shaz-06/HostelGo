@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import SEO from "../components/common/SEO";
 
 export default function MyOrdersPage() {
   const navigate = useNavigate();
@@ -268,6 +269,7 @@ export default function MyOrdersPage() {
         fontFamily: "'Outfit', 'Inter', sans-serif"
       }}
     >
+      <SEO title="My Orders" description="View your past orders, active deliveries, and receipts on Buyto." />
       {/* Toast Notification */}
       {toastMsg && (
         <div

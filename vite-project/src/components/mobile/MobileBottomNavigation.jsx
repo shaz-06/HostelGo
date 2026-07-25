@@ -133,14 +133,15 @@ const MobileBottomNavigation = React.memo(({ isVisible = true }) => {
               gap: "6px",
               cursor: "pointer",
               transition: "all 0.2s ease",
-              background: isActive ? "rgba(255, 255, 255, 0.35)" : "transparent",
+              background: isActive ? "rgba(255, 255, 255, 0.45)" : "transparent",
               backdropFilter: isActive && supportsBlur ? "blur(15px)" : "none",
               WebkitBackdropFilter: isActive && supportsBlur ? "blur(15px)" : "none",
               color: isActive ? "#318616" : "#1f2937",
               borderRadius: "999px",
               transform: isActive ? "scale(1.04)" : "scale(1)",
               padding: isActive ? "8px 18px" : "0 8px",
-              margin: "2px"
+              margin: "2px",
+              boxShadow: isActive ? "0 0 15px rgba(49, 134, 22, 0.35)" : "none"
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>

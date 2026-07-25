@@ -8,6 +8,7 @@ export default function BuytoLogo({
   clickable = true,
   style = {},
   imgStyle = {},
+  imgClassName = "",
   className = "",
   onClick,
   ...props
@@ -72,7 +73,7 @@ export default function BuytoLogo({
       <img
         src={logoPath}
         alt={appName}
-        className={responsive ? `buyto-logo-${size}` : ""}
+        className={`${responsive ? `buyto-logo-${size}` : ""} ${imgClassName}`.trim()}
         style={{
           width: "auto",
           height: responsive ? undefined : staticHeight,

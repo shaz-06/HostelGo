@@ -43,7 +43,8 @@ import ForegroundNotificationBanner from "./components/common/ForegroundNotifica
 import { LoaderProvider } from "./context/LoaderContext";
 import BuytoLoader from "./components/common/BuytoLoader";
 import SearchResultsView from "./components/SearchResultsView";
-import SEOHeadManager from "./components/common/SEOHeadManager";
+import SEO from "./components/common/SEO";
+import OfflineScreen from "./components/common/OfflineScreen";
 
 // Lazy-loaded components & pages
 const AddressSelectorModal = lazy(() => import("./components/common/AddressSelectorModal"));
@@ -476,6 +477,25 @@ function ScrollToTop() {
 
 function App() {
   const [appReady, setAppReady] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      alert("✅ You're back online!");
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
@@ -497,6 +517,7 @@ function App() {
 
   return (
     <LoaderProvider>
+      {isOffline && <OfflineScreen onRetry={() => setIsOffline(false)} />}
       <AuthProvider>
         <BrowserRouter>
           <GTMRouteTracker />
@@ -606,117 +627,7 @@ function AppContent({ onReady }) {
   const location = useLocation();
 
   useEffect(() => {
-    const canonicalUrl = "https://www.buyto.co.in" + (location.pathname === "/" ? "/" : location.pathname.replace(/\/$/, ""));
-    
-    // 1. Canonical tag
-    let canonicalLink = document.querySelector("link[rel='canonical']");
-    if (!canonicalLink) {
-      canonicalLink = document.createElement("link");
-      canonicalLink.rel = "canonical";
-      document.head.appendChild(canonicalLink);
-    }
-    canonicalLink.href = canonicalUrl;
-
-    // 2. Open Graph og:url
-    let ogUrl = document.querySelector("meta[property='og:url']");
-    if (!ogUrl) {
-      ogUrl = document.createElement("meta");
-      ogUrl.setAttribute("property", "og:url");
-      document.head.appendChild(ogUrl);
-    }
-    ogUrl.setAttribute("content", canonicalUrl);
-
-    // 3. Twitter twitter:url
-    let twitterUrl = document.querySelector("meta[name='twitter:url']");
-    if (!twitterUrl) {
-      twitterUrl = document.createElement("meta");
-      twitterUrl.setAttribute("name", "twitter:url");
-      document.head.appendChild(twitterUrl);
-    }
-    twitterUrl.setAttribute("content", canonicalUrl);
-
-    // 4. Image tags
-    let ogImage = document.querySelector("meta[property='og:image']");
-    if (!ogImage) {
-      ogImage = document.createElement("meta");
-      ogImage.setAttribute("property", "og:image");
-      document.head.appendChild(ogImage);
-    }
-    ogImage.setAttribute("content", "https://www.buyto.co.in/logo.png");
-
-    let twitterImage = document.querySelector("meta[name='twitter:image']");
-    if (!twitterImage) {
-      twitterImage = document.createElement("meta");
-      twitterImage.setAttribute("name", "twitter:image");
-      document.head.appendChild(twitterImage);
-    }
-    twitterImage.setAttribute("content", "https://www.buyto.co.in/logo.png");
-
-    // 5. Dynamic Title & Descriptions depending on pathname
-    const routeMetadata = {
-      "/": {
-        title: "Buyto - Instant Grocery & Daily Essentials Delivery",
-        description: "Buyto is a quick-commerce platform delivering groceries, electronics, fashion, daily essentials and more in minutes."
-      },
-      "/categories": {
-        title: "Categories | Buyto - Instant Grocery & Daily Essentials Delivery",
-        description: "Browse various categories on Buyto including fresh fruits, vegetables, dairy, snacks, beverages and household essentials."
-      },
-      "/about": {
-        title: "About Us | Buyto - Instant Grocery & Daily Essentials Delivery",
-        description: "Learn more about Buyto, our micro-fulfillment centers, instant delivery networks, and our mission to simplify shopping."
-      },
-      "/contact": {
-        title: "Contact Us | Buyto - Instant Grocery & Daily Essentials Delivery",
-        description: "Get in touch with the Buyto customer support team for any queries regarding orders, payments, refunds or partner registrations."
-      },
-      "/faq": {
-        title: "Buyto FAQs | Delivery, Orders, Payments & Support",
-        description: "Find answers to common questions about Buyto, including Buyto Instant deliveries, Buyto Minutes, payments, refunds, orders, delivery partners, and customer support."
-      },
-      "/privacy-policy": {
-        title: "Privacy Policy | Buyto - Instant Grocery & Daily Essentials Delivery",
-        description: "Read the Buyto Privacy Policy to understand how we collect, store, protect, and use your personal information."
-      },
-      "/terms": {
-        title: "Terms & Conditions | Buyto - Instant Grocery & Daily Essentials Delivery",
-        description: "Review the Terms and Conditions for using the Buyto platform, placing orders, making payments, and utilizing our services."
-      },
-      "/refund-policy": {
-        title: "Refund Policy | Buyto - Instant Grocery & Daily Essentials Delivery",
-        description: "Understand Buyto's refund and return policies for damaged products, missing items, and order cancellations."
-      },
-      "/shipping-policy": {
-        title: "Shipping & Delivery Policy | Buyto - Instant Grocery & Daily Essentials Delivery",
-        description: "Find out more about Buyto's delivery rates, scheduled delivery slots, and shipping areas."
-      }
-    };
-
-    const metadata = routeMetadata[location.pathname] || routeMetadata["/"];
-
-    // Update title and description tags (unless on FAQ page which has its own metadata handlers)
-    if (location.pathname !== "/faq") {
-      document.title = metadata.title;
-
-      let metaDescription = document.querySelector("meta[name='description']");
-      if (metaDescription) {
-        metaDescription.setAttribute("content", metadata.description);
-      }
-
-      let ogTitle = document.querySelector("meta[property='og:title']");
-      if (ogTitle) ogTitle.setAttribute("content", metadata.title);
-
-      let ogDesc = document.querySelector("meta[property='og:description']");
-      if (ogDesc) ogDesc.setAttribute("content", metadata.description);
-
-      let twitterTitle = document.querySelector("meta[name='twitter:title']");
-      if (twitterTitle) twitterTitle.setAttribute("content", metadata.title);
-
-      let twitterDesc = document.querySelector("meta[name='twitter:description']");
-      if (twitterDesc) twitterDesc.setAttribute("content", metadata.description);
-    }
-
-    // 6. Track page view in GA4
+    // Track page view in GA4
     trackPageView(location.pathname);
   }, [location.pathname]);
 
@@ -1049,18 +960,7 @@ function AppContent({ onReady }) {
   const [roomNumber, setRoomNumber] = useState(() => localStorage.getItem("roomNumber") || "Floor 1");
   const [showAddressModal, setShowAddressModal] = useState(false);
 
-  const searchSuggestions = products.length > 0
-    ? products.map(item => item.name)
-    : ["fresh fruits", "organic veggies", "fresh milk", "bread & eggs", "ice cream", "potato chips", "cold drinks"];
 
-  const [searchIndex, setSearchIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSearchIndex((prev) => (prev + 1) % searchSuggestions.length);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [searchSuggestions.length]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -1141,19 +1041,56 @@ function AppContent({ onReady }) {
   }, [onReady]);
 
   useEffect(() => {
+    if (import.meta.env.PROD) return;
     const detectOverflow = () => {
-      const elements = document.querySelectorAll('*');
-      elements.forEach((el) => {
-        if (el.scrollWidth > window.innerWidth) {
-          console.warn(
-            "⚠️ OVERFLOW OFFENDER:",
-            el.tagName,
-            el.className ? `.${el.className.split(' ').join('.')}` : '',
-            el.id ? `#${el.id}` : '',
-            `(${el.scrollWidth}px > ${window.innerWidth}px)`
-          );
-        }
-      });
+      const runCheck = () => {
+        const width = window.innerWidth;
+        const elements = document.querySelectorAll('*');
+        
+        const hasClippingAncestor = (el) => {
+          let parent = el.parentElement;
+          while (parent) {
+            if (parent.tagName === "HTML" || parent.tagName === "BODY" || parent.id === "root") {
+              parent = parent.parentElement;
+              continue;
+            }
+            const style = window.getComputedStyle(parent);
+            if (
+              style.overflowX === "auto" ||
+              style.overflowX === "scroll" ||
+              style.overflowX === "hidden" ||
+              style.overflow === "auto" ||
+              style.overflow === "scroll" ||
+              style.overflow === "hidden"
+            ) {
+              return true;
+            }
+            parent = parent.parentElement;
+          }
+          return false;
+        };
+
+        elements.forEach((el) => {
+          if (el.id === "root" || el.tagName === "HTML" || el.tagName === "BODY") return;
+          const rect = el.getBoundingClientRect();
+          if (rect.right > width + 1 && !hasClippingAncestor(el)) {
+            const classNameStr = el.getAttribute('class') || '';
+            const classes = classNameStr.split(/\s+/).filter(Boolean).join(".");
+            console.warn(
+              "⚠️ OVERFLOW OFFENDER:",
+              el.tagName,
+              classes ? `.${classes}` : '',
+              el.id ? `#${el.id}` : '',
+              `(${Math.round(rect.right)}px > ${width}px)`
+            );
+          }
+        });
+      };
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(runCheck);
+      } else {
+        setTimeout(runCheck, 0);
+      }
     };
     const timer = setTimeout(detectOverflow, 2000);
     window.addEventListener("resize", detectOverflow);
@@ -1164,16 +1101,16 @@ function AppContent({ onReady }) {
   }, []);
 
   // Helper to generate cart keys
-  const getCartKey = (product) => {
+  const getCartKey = React.useCallback((product) => {
     const suffix = product.selectedWeight ? `_${product.selectedWeight}` : "";
     return `${product._id || product.id}${suffix}`;
-  };
+  }, []);
 
-  const getProductId = (product) => {
+  const getProductId = React.useCallback((product) => {
     return String(product._id || product.id);
-  };
+  }, []);
 
-  const addToCart = (product) => {
+  const addToCart = React.useCallback((product) => {
     setCartItems((prevItems) => {
       const productId = getProductId(product);
 
@@ -1197,9 +1134,9 @@ function AppContent({ onReady }) {
         },
       ];
     });
-  };
+  }, [getProductId]);
 
-  const removeFromCart = (product) => {
+  const removeFromCart = React.useCallback((product) => {
     setCartItems((prevItems) => {
       const productId = getProductId(product);
 
@@ -1221,7 +1158,7 @@ function AppContent({ onReady }) {
           : item
       );
     });
-  };
+  }, [getProductId]);
 
   const setCart = (val) => {
     if (typeof val === "function") {
@@ -1331,10 +1268,10 @@ function AppContent({ onReady }) {
     return { ...defaults, ...product };
   };
 
-  const openProduct = (productId) => {
+  const openProduct = React.useCallback((productId) => {
     setSelectedProductId(productId);
     setSelectedVariantIndex(0);
-  };
+  }, []);
 
   const activeProduct = enrichProduct(products.find(p => p._id === selectedProductId));
 
@@ -1487,7 +1424,7 @@ function AppContent({ onReady }) {
     };
   }, [products, filteredProducts]);
 
-  const sections = [
+  const sections = React.useMemo(() => [
     {
       title: "Exclusive Deals For You",
       emoji: "🔥",
@@ -1517,7 +1454,7 @@ function AppContent({ onReady }) {
       emoji: "❤️",
       products: wellnessProducts,
     },
-  ];
+  ], [exclusiveDeals, mosquitoProducts, breadProducts, pickleProducts, wellnessProducts]);
 
   const recommendedList = useMemo(() => {
     if (!products || products.length === 0) return [];
@@ -1560,15 +1497,6 @@ function AppContent({ onReady }) {
     return deals.slice(0, 16);
   }, [products]);
 
-  console.log("sections:", sections);
-  console.log("wellnessProducts:", wellnessProducts);
-  console.log("SECTIONS LENGTH:", sections.length);
-  console.log(sections);
-  console.log("exclusiveDeals:", exclusiveDeals);
-  console.log("mosquitoProducts:", mosquitoProducts);
-  console.log("breadProducts:", breadProducts);
-  console.log("pickleProducts:", pickleProducts);
-  console.log("wellnessProducts array:", wellnessProducts);
 
   const renderProductCard = (product) => (
     <ProductCard
@@ -1652,7 +1580,21 @@ function AppContent({ onReady }) {
         position: "relative",
         boxSizing: "border-box"
       }}>
-        <SEOHeadManager cartItemsCount={totalItems} />
+        {location.pathname === "/" && <SEO isHome={true} />}
+        {location.pathname === "/login" && <SEO title="Login" description="Login to your Buyto account." />}
+        {location.pathname === "/signup" && <SEO title="Create Account" description="Create a new Buyto account." />}
+        {!["/", "/login", "/signup", "/search", "/categories", "/cart", "/payment", "/success", "/profile/edit", "/profile", "/orders", "/my-orders", "/address", "/wishlist", "/buycoins", "/wallet", "/notifications", "/help", "/about", "/contact", "/settings", "/buycoins/transactions", "/buycoins/rewards", "/privacy-policy", "/terms", "/refund-policy", "/shipping-policy", "/faq", "/support/chat", "/shopping-list", "/shopping-list/results", "/shopping-list/smart-matching", "/save-for-later", "/saved-lists"].includes(location.pathname) && 
+          !location.pathname.startsWith("/category/") && 
+          !location.pathname.startsWith("/products/") && 
+          !location.pathname.startsWith("/product/") && 
+          !location.pathname.startsWith("/track-order/") && 
+          !location.pathname.startsWith("/orders/") && 
+          !location.pathname.startsWith("/section/") && 
+          !location.pathname.startsWith("/admin") && 
+          !location.pathname.startsWith("/rider") && 
+          <SEO title="404 - Page Not Found" description="Page not found." />
+        }
+
         {showHeader && (
           <Header
             userLocation={userLocation}
@@ -1714,7 +1656,7 @@ function AppContent({ onReady }) {
               <div style={{ marginTop: "20px" }}>
                 {selectedProduct.variants.map((variant, index) => (
                   <div
-                    key={index}
+                    key={variant._id || `${selectedProduct._id}-${variant.weight || index}`}
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
@@ -1924,7 +1866,10 @@ function AppContent({ onReady }) {
 
   if (location.pathname.startsWith("/track-order/") || location.pathname.startsWith("/orders/")) {
     const prefix = location.pathname.startsWith("/track-order/") ? "/track-order/" : "/orders/";
-    const orderId = location.pathname.split(prefix)[1];
+    let orderId = location.pathname.split(prefix)[1];
+    if (orderId && orderId.endsWith("/tracking")) {
+      orderId = orderId.replace("/tracking", "");
+    }
     return (
       <ProtectedRoute>
         <OrderTrackingPage orderId={orderId} />
@@ -1932,10 +1877,11 @@ function AppContent({ onReady }) {
     );
   }
 
-  if (location.pathname === "/success") {
+  if (location.pathname === "/success" || location.pathname.startsWith("/success/")) {
+    const orderId = location.pathname.startsWith("/success/") ? location.pathname.split("/success/")[1] : null;
     const el = (
       <ProtectedRoute>
-        <SuccessPage />
+        <SuccessPage orderId={orderId} />
       </ProtectedRoute>
     );
     if (windowWidth < 768) {
@@ -2339,8 +2285,14 @@ function AppContent({ onReady }) {
         }
       `}</style>
 
-      {/* MAIN CONTAINER */}
-      <main style={{ maxWidth: "1280px", margin: "0 auto", padding: windowWidth < 768 ? "12px" : "24px", paddingBottom: "100px" }}>
+      <main style={{
+        maxWidth: "1280px",
+        margin: "0 auto",
+        paddingTop: windowWidth < 768 ? "12px" : "24px",
+        paddingLeft: windowWidth < 768 ? "12px" : "24px",
+        paddingRight: windowWidth < 768 ? "12px" : "24px",
+        paddingBottom: "100px"
+      }}>
 
         <Routes>
           <Route
@@ -2627,11 +2579,10 @@ function AppContent({ onReady }) {
                             section.products.length > 0
                           )
                           .map((section, index) => {
-                            console.log("RENDERING:", section.title);
                             const sectionId = getSectionIdForTitle(section.title);
 
                             return (
-                              <div id={sectionId} key={index}>
+                              <div id={sectionId} key={section.title || index}>
                                 <HorizontalProductSection
                                   title={section.title}
                                   subtitle={section.subtitle}
@@ -2977,7 +2928,7 @@ function AppContent({ onReady }) {
             <div style={{ marginTop: "20px" }}>
               {selectedProduct.variants.map((variant, index) => (
                 <div
-                  key={index}
+                  key={variant._id || `${selectedProduct._id}-${variant.weight || index}`}
                   style={{
                     display: "flex",
                     justifyContent: "space-between",

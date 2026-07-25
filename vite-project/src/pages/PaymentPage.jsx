@@ -4,6 +4,7 @@ import { io } from "socket.io-client";
 import { motion } from "framer-motion";
 import { AuthContext } from "../context/AuthContext";
 import { apiFetch } from "../utils/apiClient";
+import SEO from "../components/common/SEO";
 import BuyCoin from "../components/common/BuyCoin";
 import { calculateBill } from "../utils/billCalculator";
 import CartBillDetails from "../components/CartBillDetails";
@@ -765,6 +766,7 @@ export default function PaymentPage({
         justifyContent: "center",
       }}
     >
+      <SEO title="Checkout" description="Secure payment and checkout on Buyto." />
       <div
         style={{
           width: "100%",

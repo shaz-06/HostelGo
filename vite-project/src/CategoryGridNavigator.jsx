@@ -152,7 +152,7 @@ function CategoryGridNavigator({ setSelectedCategory, windowWidth }) {
       </p>
 
       {categorySections.map((section, idx) => (
-        <div key={idx} style={{ marginBottom: "28px" }}>
+        <div key={section.title} style={{ marginBottom: "28px" }}>
           <h3
             style={{
               fontSize: windowWidth < 768 ? "14px" : "16px",
@@ -179,7 +179,7 @@ function CategoryGridNavigator({ setSelectedCategory, windowWidth }) {
           >
             {section.items.map((item, itemIdx) => (
               <div
-                key={itemIdx}
+                key={item.name}
                 onClick={() => handleItemClick(item)}
                 style={{
                   background: item.bg,

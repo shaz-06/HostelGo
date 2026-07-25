@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import SEO from "../components/common/SEO";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -203,6 +204,7 @@ export default function SettingsPage() {
 
   return (
     <div style={containerStyle}>
+      <SEO title="Settings" description="Update your application preferences and security settings on Buyto." />
       <div style={contentWrapperStyle}>
 
         {/* Global style injections */}
