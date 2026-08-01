@@ -1,7 +1,8 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { LoaderContext } from "../../context/LoaderContext";
-import { logoPath, appName } from "../../config/branding";
+import { logoPath } from "../../config/branding";
+
 
 const MESSAGES = [
   "⚡ Loading Your Buyto...",
@@ -14,7 +15,19 @@ const MESSAGES = [
   "✨ Almost ready...",
 ];
 
-export default function BuytoLoader() {
+const HIDE_LAYOUT_ROUTES = [
+  "/login",
+  "/signup",
+  "/admin",
+  "/admin-login",
+  "/admin-verify",
+  "/rider",
+  "/payment",
+  "/details",
+  "/track-order",
+];
+
+export default function BuytoLoader({ mode = "fullscreen" }) {
   const { pathname } = useLocation();
 
   const {
@@ -24,19 +37,43 @@ export default function BuytoLoader() {
     loaderTimeStage,
     handleRetry,
     handleGoHome,
+    isNavigating,
   } = useContext(LoaderContext);
 
   const [messageIndex, setMessageIndex] = useState(0);
   const [fade, setFade] = useState(true);
 
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : true
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(max-width: 767px)");
+    const handleChange = (e) => setIsMobile(e.matches);
+
+    setIsMobile(media.matches);
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
+
+  const showLayout = useMemo(
+    () => !HIDE_LAYOUT_ROUTES.some(route => pathname.startsWith(route)),
+    [pathname]
+  );
+
+  const hasHeader = showLayout;
+  const hasBottomNav = showLayout;
+
   const ADMIN_ROUTE_PREFIXES = ["/admin", "/admin-login", "/admin-verify"];
   const isAdminRoute = ADMIN_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
-  if (isAdminRoute) return null;
-
   // Rotate messages
   useEffect(() => {
-    if (!showLoader || errorState) return;
+    if ((mode !== "inline" && !showLoader) || errorState) return;
 
     const interval = setInterval(() => {
       setFade(false);
@@ -47,12 +84,45 @@ export default function BuytoLoader() {
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [showLoader, errorState]);
+  }, [showLoader, errorState, mode]);
 
-  if (!showLoader && !errorState) return null;
+  if (isAdminRoute) return null;
+  if (mode !== "inline" && (!showLoader || isNavigating) && !errorState) return null;
+
+  const isInline = mode === "inline";
+
+  const computedOverlayStyle = isInline ? {
+    position: "relative",
+    width: "100%",
+    minHeight: "calc(100vh - 70px - env(safe-area-inset-bottom, 0px))",
+    backgroundColor: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "20px",
+    boxSizing: "border-box",
+  } : {
+    position: "fixed",
+    top: (isMobile && hasHeader) ? "var(--header-height, 60px)" : "0",
+    bottom: (isMobile && hasBottomNav) ? "calc(var(--bottom-nav-height, 70px) + env(safe-area-inset-bottom, 0px))" : "0",
+    left: isMobile ? "50%" : "0",
+    transform: isMobile ? "translateX(-50%)" : "none",
+    maxWidth: isMobile ? "480px" : "100%",
+    width: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 999, // below 1000 of Bottom Navigation / Header
+    padding: "20px",
+    backdropFilter: "blur(4px)",
+    pointerEvents: "none",
+    right: isMobile ? "auto" : "0",
+    boxSizing: "border-box",
+  };
 
   return (
-    <div style={overlayStyle}>
+    <div style={computedOverlayStyle}>
       <style dangerouslySetInnerHTML={{
         __html: `
           @keyframes pulse {
@@ -120,17 +190,18 @@ export default function BuytoLoader() {
         ) : (
           // Active Loading View
           <div style={loadingContainerStyle}>
-            <img
-              src={logoPath}
-              alt={appName}
-              className="loader-logo"
-              style={logoStyle}
-            />
-
-            <div style={bouncingDotsStyle}>
-              <span className="dot"></span>
-              <span className="dot"></span>
-              <span className="dot"></span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "180px", marginBottom: "16px" }}>
+              <img
+                src={logoPath}
+                alt="Buyto Logo"
+                className="loader-logo"
+                style={{ height: "64px", width: "auto", marginBottom: "24px", objectFit: "contain" }}
+              />
+              <div style={bouncingDotsStyle}>
+                <div className="dot"></div>
+                <div className="dot"></div>
+                <div className="dot"></div>
+              </div>
             </div>
 
             <div
@@ -158,21 +229,6 @@ export default function BuytoLoader() {
 }
 
 // Styling system
-const overlayStyle = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: "rgba(255, 255, 255, 0.95)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 99999,
-  padding: "20px",
-  backdropFilter: "blur(4px)",
-};
-
 const cardStyle = {
   backgroundColor: "#ffffff",
   borderRadius: "24px",
@@ -182,6 +238,7 @@ const cardStyle = {
   boxShadow: "0 12px 32px rgba(0, 0, 0, 0.08)",
   textAlign: "center",
   border: "1px solid #f1f5f9",
+  pointerEvents: "auto",
 };
 
 const loadingContainerStyle = {

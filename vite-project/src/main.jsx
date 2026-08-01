@@ -38,12 +38,15 @@ if ('serviceWorker' in navigator) {
 
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { HelmetProvider } from "react-helmet-async";
+import { ThemeProvider } from "./context/ThemeContext";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <HelmetProvider>
-        <App />
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
       </HelmetProvider>
     </ErrorBoundary>
   </React.StrictMode>,

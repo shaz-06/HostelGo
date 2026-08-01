@@ -16,11 +16,11 @@ async function runTest() {
     console.log("Connected.");
 
     // Seed test admin device token if not present
-    let adminToken = await AdminDeviceToken.findOne({ phone: "6363849864" });
+    let adminToken = await AdminDeviceToken.findOne({ phone: "**" });
     if (!adminToken) {
       console.log("Seeding test admin device token...");
       adminToken = await AdminDeviceToken.create({
-        phone: "6363849864",
+        phone: "**",
         fcmTokens: ["mock_fcm_token_123"]
       });
     } else {

@@ -12,7 +12,7 @@ async function verifyAccessToken(accessToken) {
   if (accessToken === "DUMMY_SUCCESS_TOKEN") {
     console.log("=== [MSG91 SERVICE] BYPASSING FOR DUMMY_SUCCESS_TOKEN ===");
     return {
-      message: "916363849864",
+      message: "**",
       type: "success"
     };
   }

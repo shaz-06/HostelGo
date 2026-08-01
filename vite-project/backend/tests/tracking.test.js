@@ -74,6 +74,7 @@ async function runTests() {
     console.log("Connected to database for session persistence tests.");
 
     const testOrder = new Order({
+      orderId: "BUY260726000000",
       user: {
         name: "Test Tracking User",
         phone: "9876543222",
@@ -90,19 +91,19 @@ async function runTests() {
     await testOrder.save();
 
     // Start tracking session
-    await trackingService.startSession(testOrder._id);
+    await trackingService.startSession(testOrder.orderId);
     
-    const reloadedOrder = await Order.findById(testOrder._id);
+    const reloadedOrder = await Order.findOne({ orderId: testOrder.orderId });
     assert.strictEqual(reloadedOrder.trackingSessionActive, true, "trackingSessionActive should be true");
     assert.strictEqual(reloadedOrder.orderStatus, "Rider Assigned", "Status should be Rider Assigned");
     assert.ok(reloadedOrder.simulatedRoute.length > 0, "Stored simulated route should not be empty");
     
     // Stop session for cleanup
-    trackingService.stopSession(testOrder._id);
+    trackingService.stopSession(testOrder.orderId);
     console.log("✅ Mongoose tracking session start and persistence passed.");
 
     // Cleanup
-    await Order.findByIdAndDelete(testOrder._id);
+    await Order.deleteOne({ orderId: testOrder.orderId });
     await mongoose.disconnect();
     console.log("\n🎉 All Live Order Tracking tests passed successfully!");
     process.exit(0);

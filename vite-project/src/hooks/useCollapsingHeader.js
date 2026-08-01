@@ -16,12 +16,15 @@ export function useCollapsingHeader() {
     const handleScroll = () => {
       const currentScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
 
-      // Rule: Scroll down past 10px -> hide header. Only when scrollY <= 10px -> unhide header.
+      // Collapse when scrollY > 10, expand only when scrollY <= 10
       const shouldCollapse = currentScrollY > 10;
 
-      if (shouldCollapse !== isCollapsed) {
-        setIsCollapsed(shouldCollapse);
-      }
+      setIsCollapsed((prev) => {
+        if (shouldCollapse !== prev) {
+          return shouldCollapse;
+        }
+        return prev;
+      });
 
       lastScrollY.current = currentScrollY;
       ticking.current = false;
@@ -36,7 +39,7 @@ export function useCollapsingHeader() {
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [isCollapsed]);
+  }, []);
 
   return isCollapsed;
 }

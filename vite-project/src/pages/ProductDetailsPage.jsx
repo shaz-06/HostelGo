@@ -7,45 +7,24 @@ import { usePerfLogger, measureLoadingOperation } from "../utils/perfLogger";
 import { AuthContext } from "../context/AuthContext";
 import { getOptimizedImageUrl } from "../utils/imageOptimizer";
 import SEO from "../components/common/SEO";
+import ProductDetailsSkeleton from "../components/common/ProductDetailsSkeleton";
 import {
+  ChevronUp,
+  ChevronDown,
   ShoppingBag,
   Heart,
-  ChevronDown,
-  ChevronUp,
-  Truck,
-  ShieldCheck,
+  Share2,
   Clock,
+  Truck,
+  Shield,
+  ShieldCheck,
   RotateCcw,
-  Sparkles,
+  Star,
+  Info,
   ThumbsUp,
   Plus,
   Check
 } from "lucide-react";
-
-// --- Skeleton Loader Component ---
-function PDPSkeleton() {
-  return (
-    <div style={{ background: "white", borderRadius: "24px", padding: "24px", marginTop: "24px", fontFamily: "Inter, sans-serif" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px" }}>
-        <div style={{ display: "flex", gap: "16px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse" style={{ width: "64px", height: "64px", background: "#f3f4f6", borderRadius: "8px" }} />
-            ))}
-          </div>
-          <div className="animate-pulse" style={{ flexGrow: 1, height: "360px", background: "#f3f4f6", borderRadius: "16px" }} />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div className="animate-pulse" style={{ width: "120px", height: "24px", background: "#f3f4f6", borderRadius: "4px" }} />
-          <div className="animate-pulse" style={{ width: "80%", height: "36px", background: "#f3f4f6", borderRadius: "4px" }} />
-          <div className="animate-pulse" style={{ width: "140px", height: "28px", background: "#f3f4f6", borderRadius: "4px" }} />
-          <div className="animate-pulse" style={{ width: "200px", height: "48px", background: "#f3f4f6", borderRadius: "4px" }} />
-          <div className="animate-pulse" style={{ height: "100px", background: "#f3f4f6", borderRadius: "8px" }} />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // --- Accordion Section Component ---
 function AccordionSection({ title, children }) {
@@ -268,11 +247,7 @@ export default function ProductDetailsPage({
     } else {
       // Fetch product by ID from backend
       setLoading(true);
-      cachedFetch((window.API_BASE_URL || "") + `/api/products/${id}`)
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to load product details");
-          return res.json();
-        })
+      cachedFetch((window.API_BASE_URL || "") + `/api/products/${id}`, { minDelay: 700 })
         .then((data) => {
           const raw = data.product || data;
           const enriched = enrichProduct(raw);
@@ -388,7 +363,7 @@ export default function ProductDetailsPage({
     ].filter(Boolean);
   }, [activeProduct]);
 
-  if (loading) return <PDPSkeleton />;
+  if (loading) return <ProductDetailsSkeleton />;
 
   if (apiError || !activeProduct) {
     return (

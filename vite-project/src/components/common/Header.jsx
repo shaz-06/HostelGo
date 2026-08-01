@@ -34,8 +34,14 @@ const LogoArea = ({ brandText = "Buyto", whiteText = false }) => {
         />
       </div>
       <span className="premium-wordmark">
-        <span style={{ color: whiteText ? "#FFFFFF" : "#F59E0B" }}>{parts[0]}</span>
-        <span style={{ color: whiteText ? "#FFFFFF" : "#318616" }}>{parts[1]}</span>
+        <span style={{ 
+          color: whiteText ? "var(--logo-part1-color, #FFFFFF)" : "#F59E0B",
+          transition: "color 350ms ease-in-out"
+        }}>{parts[0]}</span>
+        <span style={{ 
+          color: whiteText ? "var(--logo-part2-color, #FFFFFF)" : "#318616",
+          transition: "color 350ms ease-in-out"
+        }}>{parts[1]}</span>
       </span>
     </div>
   );
@@ -66,7 +72,16 @@ const WalletButton = ({ balance, onClick, compact = false }) => {
       onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
       onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
     >
-      <span style={{ fontSize: compact ? "14px" : "16px" }}>💰</span>
+      <img 
+        src="https://img.icons8.com/?size=100&id=MjAYkOMsbYOO&format=png&color=000000" 
+        alt="Wallet" 
+        style={{ 
+          width: compact ? "18px" : "22px", 
+          height: compact ? "18px" : "22px", 
+          objectFit: "contain",
+          flexShrink: 0 
+        }} 
+      />
       <span>₹{balance}</span>
     </div>
   );
@@ -179,7 +194,7 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
               style={{
                 fontSize: "12px",
                 fontWeight: isActive ? "700" : "500",
-                color: whiteText ? "#FFFFFF" : (isActive ? "#318616" : "#374151"),
+                color: whiteText ? "var(--category-text-color, #FFFFFF)" : (isActive ? "#318616" : "var(--category-text-color, #374151)"),
                 textAlign: "center",
                 lineHeight: "1.2",
                 maxWidth: "72px",
@@ -337,6 +352,7 @@ const Header = React.memo(({
   const isCollapsed = useCollapsingHeader();
   const [collapsibleHeight, setCollapsibleHeight] = useState(80);
   const collapsibleRef = useRef(null);
+  const overlayRef = useRef(null);
   const promos = [
     { text: "Flat ₹100 OFF", sub: "on first order", icon: "🎁" },
     { text: "Free Delivery", sub: "above 149", icon: "🛵" },
@@ -479,6 +495,67 @@ const Header = React.memo(({
     return () => observer.disconnect();
   }, [isDown, collapsibleHeight, isMobile]);
 
+  const isHomepage = location.pathname === "/";
+
+  useEffect(() => {
+    if (!isHomepage) return;
+
+    let heroEl = document.getElementById("home-hero-banner");
+    let ticking = false;
+
+    const updateOpacity = () => {
+      if (!heroEl) {
+        heroEl = document.getElementById("home-hero-banner");
+      }
+      if (!heroEl || !overlayRef.current) {
+        ticking = false;
+        return;
+      }
+
+      const rect = heroEl.getBoundingClientRect();
+      const headerRect = headerRef.current ? headerRef.current.getBoundingClientRect() : { height: 116 };
+      
+      const visibleHeight = Math.max(0, rect.bottom - headerRect.height);
+      const progress = Math.min(1, Math.max(0, visibleHeight / rect.height));
+
+      overlayRef.current.style.opacity = progress;
+
+      if (headerRef.current) {
+        if (progress > 0.5) {
+          headerRef.current.style.setProperty("--header-text-color", "#FFFFFF");
+          headerRef.current.style.setProperty("--logo-part1-color", "#FFFFFF");
+          headerRef.current.style.setProperty("--logo-part2-color", "#FFFFFF");
+          headerRef.current.style.setProperty("--category-text-color", "#FFFFFF");
+        } else {
+          headerRef.current.style.setProperty("--header-text-color", "#000000");
+          headerRef.current.style.setProperty("--logo-part1-color", "#F59E0B");
+          headerRef.current.style.setProperty("--logo-part2-color", "#318616");
+          headerRef.current.style.setProperty("--category-text-color", "#000000");
+        }
+      }
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateOpacity);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    updateOpacity();
+
+    const timeoutId = setTimeout(updateOpacity, 100);
+    const intervalId = setInterval(updateOpacity, 500);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [isHomepage, isMobile, collapsibleHeight]);
+
   const renderSearchInput = () => {
     return (
       <>
@@ -575,12 +652,16 @@ const Header = React.memo(({
             padding: "4px"
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-            <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
-            <line x1="12" y1="19" x2="12" y2="23"></line>
-            <line x1="8" y1="23" x2="16" y2="23"></line>
-          </svg>
+          <img 
+            src="https://img.icons8.com/?size=100&id=IUGIR3D9OImC&format=png&color=000000"
+            alt="Mic"
+            style={{ 
+              width: "18px", 
+              height: "18px", 
+              objectFit: "contain",
+              opacity: isListening ? 0.6 : 1
+            }}
+          />
         </button>
         {isFocused && localQuery.trim().length > 0 && (
           <div
@@ -955,9 +1036,38 @@ const Header = React.memo(({
           boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
-          fontFamily: "'Outfit', 'Inter', sans-serif"
+          fontFamily: "'Outfit', 'Inter', sans-serif",
+          backgroundImage: isHomepage
+            ? "linear-gradient(180deg, #FAF8F6 0%, #F5EDE3 100%)"
+            : "linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)), url('/images/mobile-header-bg.png?v=2')",
+          backgroundSize: isHomepage ? "auto" : "cover",
+          backgroundPosition: "center center",
+          backgroundRepeat: "no-repeat",
+          backgroundColor: "#F7C600", // Fallback premium golden color
+          borderBottomLeftRadius: "16px",
+          borderBottomRightRadius: "16px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+          overflow: "hidden"
         }}
       >
+        {isHomepage && (
+          <div
+            ref={overlayRef}
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 0,
+              backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)), url('/images/mobile-header-bg.png?v=2')",
+              backgroundSize: "cover",
+              backgroundPosition: "center center",
+              backgroundRepeat: "no-repeat",
+              pointerEvents: "none",
+              transition: "opacity 350ms ease-in-out",
+              willChange: "opacity",
+              opacity: 1
+            }}
+          />
+        )}
         {/* CSS for logos/wordmark in mobile */}
         <style dangerouslySetInnerHTML={{
           __html: `
@@ -990,10 +1100,9 @@ const Header = React.memo(({
         <div
           ref={collapsibleRef}
           style={{
-            backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)), url('/images/mobile-header-bg.png')",
-            backgroundSize: "cover",
-            backgroundPosition: "top center",
-            backgroundRepeat: "no-repeat",
+            position: "relative",
+            zIndex: 1,
+            background: "transparent",
             paddingTop: isDown ? "0px" : "calc(env(safe-area-inset-top) + 8px)",
             paddingBottom: isDown ? "0px" : "6px",
             paddingLeft: isDown ? "0px" : "16px",
@@ -1030,14 +1139,14 @@ const Header = React.memo(({
                 alignSelf: "flex-start"
               }}
             >
-              <span style={{ fontSize: "13px", color: "#FFFFFF", fontWeight: "400" }}>
+              <span style={{ fontSize: "13px", color: "var(--header-text-color, #FFFFFF)", fontWeight: "400", transition: "color 350ms ease-in-out" }}>
                 <strong style={{ fontWeight: "700" }}>{addressType}</strong> • {getTruncatedAddress(addressText, 7)}
               </span>
               <span style={{
                 fontSize: "10px",
-                color: "#FFFFFF",
+                color: "var(--header-text-color, #FFFFFF)",
                 display: "inline-block",
-                transition: "transform 200ms ease",
+                transition: "transform 200ms ease, color 350ms ease-in-out",
                 transform: addressExpanded ? "rotate(180deg)" : "rotate(0deg)"
               }}>▼</span>
             </div>
@@ -1050,11 +1159,9 @@ const Header = React.memo(({
           className="sticky-toolbar"
           style={{
             position: "relative",
+            zIndex: 1,
             width: "100%",
-            backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)), url('/images/mobile-header-bg.png')",
-            backgroundSize: "cover",
-            backgroundPosition: "bottom center",
-            backgroundRepeat: "no-repeat",
+            background: "transparent",
             paddingTop: "6px",
             paddingBottom: "8px",
             paddingLeft: "16px",
@@ -1062,9 +1169,6 @@ const Header = React.memo(({
             display: "flex",
             flexDirection: "column",
             gap: "6px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
-            borderBottomLeftRadius: "16px",
-            borderBottomRightRadius: "16px",
             minHeight: `${stickyToolbarHeight}px`,
             boxSizing: "border-box"
           }}
@@ -1097,7 +1201,9 @@ const Header = React.memo(({
         position: "sticky",
         top: 0,
         zIndex: 1000,
-        background: "linear-gradient(135deg, #D8F0B4 0%, #BEE08A 100%)",
+        backgroundImage: isHomepage 
+          ? "linear-gradient(180deg, #FAF8F6 0%, #F5EDE3 100%)" 
+          : "linear-gradient(135deg, #D8F0B4 0%, #BEE08A 100%)",
         boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
         fontFamily: "'Outfit', 'Inter', sans-serif",
         paddingTop: "calc(env(safe-area-inset-top) + 24px)",
@@ -1121,7 +1227,27 @@ const Header = React.memo(({
         minHeight: isDown ? "auto" : "280px"
       }}
     >
-      <DesktopHeaderContent />
+      {isHomepage && (
+        <div
+          ref={overlayRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 0,
+            backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)), url('/images/mobile-header-bg.png?v=2')",
+            backgroundSize: "cover",
+            backgroundPosition: "center center",
+            backgroundRepeat: "no-repeat",
+            pointerEvents: "none",
+            transition: "opacity 350ms ease-in-out",
+            willChange: "opacity",
+            opacity: 1
+          }}
+        />
+      )}
+      <div style={{ position: "relative", zIndex: 1, width: "100%" }}>
+        <DesktopHeaderContent />
+      </div>
     </div>
   );
 });

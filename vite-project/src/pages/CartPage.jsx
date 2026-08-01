@@ -449,10 +449,19 @@ export default function CartPage({
         const syncAndCalculate = async () => {
             if (!isLoggedIn || !token) return;
             try {
-                const cartArray = cartItems.map(item => ({
-                    productId: item._id || item.id,
-                    quantity: item.quantity
-                }));
+                const cartArray = cartItems.map(item => {
+                    let pId = item._id;
+                    if (!pId && item.id && products && products.length > 0) {
+                        const matched = products.find(p => p.id === item.id || (p.name && item.name && p.name.toLowerCase().trim() === item.name.toLowerCase().trim()));
+                        if (matched && matched._id) {
+                            pId = matched._id;
+                        }
+                    }
+                    return {
+                        productId: pId || item.id,
+                        quantity: item.quantity
+                    };
+                });
 
                 if (cartArray.length === 0) return;
 

@@ -47,6 +47,17 @@ export default function PaymentPage({
 }) {
   const navigate = useNavigate();
   const { token, user: contextUser, refreshUser, appConfig } = useContext(AuthContext);
+
+  const subtotal = Object.values(cart || {}).reduce(
+    (acc, item) => acc + item.product.price * item.quantity,
+    0
+  );
+  const originalSubtotal = Object.values(cart || {}).reduce(
+    (acc, item) => acc + (item.product.originalPrice || item.product.price) * item.quantity,
+    0
+  );
+  const cartSize = Object.keys(cart || {}).length;
+
   const [isProcessing, setIsProcessing] = useState(false);
   const isProcessingRef = useRef(false);
   const rzpInstanceRef = useRef(null);
@@ -261,16 +272,6 @@ export default function PaymentPage({
     };
   }, []);
 
-  const subtotal = Object.values(cart || {}).reduce(
-    (acc, item) => acc + item.product.price * item.quantity,
-    0
-  );
-  const originalSubtotal = Object.values(cart || {}).reduce(
-    (acc, item) => acc + (item.product.originalPrice || item.product.price) * item.quantity,
-    0
-  );
-  const cartSize = Object.keys(cart || {}).length;
-
   // Synchronize cart and calculate redemption limit on checkout
   useEffect(() => {
     const syncAndCalculate = async () => {
@@ -394,6 +395,28 @@ export default function PaymentPage({
       if (paymentMethod === "cod") {
         // 1. Cash on Delivery placement
         console.log("=== CREATE ORDER REQUEST ===");
+        const payload = {
+          user: {
+            name: user.name || "Customer",
+            phone: user.phone || "0000000000",
+            location: user.location || "Central Address",
+            room: String(user.room || user.roomNumber || "")
+          },
+          products,
+          amount: total,
+          deliveryAddress,
+          deliveryLatitude: gpsCoords ? gpsCoords.latitude : null,
+          deliveryLongitude: gpsCoords ? gpsCoords.longitude : null,
+          couponId: billBreakdown.couponId,
+          couponCode: billBreakdown.couponCode,
+          couponDiscount: billBreakdown.couponDiscount,
+          buyCoinsRedeemed: billBreakdown.buyCoinsRedeemed,
+          buyCoinsDiscount: billBreakdown.buyCoinsDiscount,
+          noBagPledge: localStorage.getItem("buyto_no_bag_pledge") === "true",
+          addressId: localStorage.getItem("buyto_selected_address_id") || null
+        };
+        console.log("Create Order Payload", payload);
+
         const response = await apiFetch(window.API_BASE_URL + "/api/orders", {
           method: "POST",
           headers: {
@@ -401,26 +424,7 @@ export default function PaymentPage({
             "Authorization": `Bearer ${token}`
           },
           blocking: true,
-          body: JSON.stringify({
-            user: {
-              name: user.name || "Customer",
-              phone: user.phone || "0000000000",
-              location: user.location || "Central Address",
-              room: String(user.room || user.roomNumber || "")
-            },
-            products,
-            amount: total,
-            deliveryAddress,
-            deliveryLatitude: gpsCoords ? gpsCoords.latitude : null,
-            deliveryLongitude: gpsCoords ? gpsCoords.longitude : null,
-            couponId: billBreakdown.couponId,
-            couponCode: billBreakdown.couponCode,
-            couponDiscount: billBreakdown.couponDiscount,
-            buyCoinsRedeemed: billBreakdown.buyCoinsRedeemed,
-            buyCoinsDiscount: billBreakdown.buyCoinsDiscount,
-            noBagPledge: localStorage.getItem("buyto_no_bag_pledge") === "true",
-            addressId: localStorage.getItem("buyto_selected_address_id") || null
-          })
+          body: JSON.stringify(payload)
         });
 
         const data = await response.json();
@@ -490,32 +494,35 @@ export default function PaymentPage({
         }
 
         console.log("=== CREATE ORDER REQUEST ===");
+        const payload = {
+          amount: total,
+          user: {
+            name: user.name || "Customer",
+            phone: user.phone || "0000000000",
+            location: user.location || "Central Address",
+            room: String(user.room || user.roomNumber || "")
+          },
+          products,
+          deliveryAddress,
+          deliveryLatitude: gpsCoords ? gpsCoords.latitude : null,
+          deliveryLongitude: gpsCoords ? gpsCoords.longitude : null,
+          couponId: billBreakdown.couponId,
+          couponCode: billBreakdown.couponCode,
+          couponDiscount: billBreakdown.couponDiscount,
+          buyCoinsRedeemed: billBreakdown.buyCoinsRedeemed,
+          buyCoinsDiscount: billBreakdown.buyCoinsDiscount,
+          noBagPledge: localStorage.getItem("buyto_no_bag_pledge") === "true",
+          addressId: localStorage.getItem("buyto_selected_address_id") || null
+        };
+        console.log("Create Order Payload", payload);
+
         const response = await fetch(window.API_BASE_URL + "/api/payment/create-order", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`
           },
-          body: JSON.stringify({
-            amount: total,
-            user: {
-              name: user.name || "Customer",
-              phone: user.phone || "0000000000",
-              location: user.location || "Central Address",
-              room: String(user.room || user.roomNumber || "")
-            },
-            products,
-            deliveryAddress,
-            deliveryLatitude: gpsCoords ? gpsCoords.latitude : null,
-            deliveryLongitude: gpsCoords ? gpsCoords.longitude : null,
-            couponId: billBreakdown.couponId,
-            couponCode: billBreakdown.couponCode,
-            couponDiscount: billBreakdown.couponDiscount,
-            buyCoinsRedeemed: billBreakdown.buyCoinsRedeemed,
-            buyCoinsDiscount: billBreakdown.buyCoinsDiscount,
-            noBagPledge: localStorage.getItem("buyto_no_bag_pledge") === "true",
-            addressId: localStorage.getItem("buyto_selected_address_id") || null
-          })
+          body: JSON.stringify(payload)
         });
 
         const data = await response.json();

@@ -341,7 +341,7 @@ router.delete("/riders/:id", async (req, res) => {
     }).lean();
 
     if (activeOrder) {
-      const shortId = activeOrder._id.toString().substring(activeOrder._id.toString().length - 8).toUpperCase();
+      const shortId = activeOrder.orderId || activeOrder._id.toString().substring(activeOrder._id.toString().length - 8).toUpperCase();
       return res.status(400).json({
         message: `This rider is currently assigned to Order #${shortId}. Complete or reassign the order before deleting this rider.`
       });
@@ -654,7 +654,7 @@ router.get("/orders/search-suggestions", async (req, res) => {
     const { getDistance } = require("../services/routeGenerator");
 
     const matched = activeOrders.filter(order => {
-      const orderIdStr = order._id.toString().toLowerCase();
+      const orderIdStr = (order.orderId || "").toLowerCase();
       const customerName = (order.user?.name || "").toLowerCase();
       const customerPhone = (order.user?.phone || "").toLowerCase();
       
@@ -680,8 +680,8 @@ router.get("/orders/search-suggestions", async (req, res) => {
 
       return {
         _id: order._id,
-        orderId: order._id.toString(),
-        shortId: order._id.toString().substring(order._id.toString().length - 8).toUpperCase(),
+        orderId: order.orderId || order._id.toString(),
+        shortId: order.orderId || order._id.toString().substring(order._id.toString().length - 8).toUpperCase(),
         customerName: order.user?.name || "Customer",
         customerPhone: order.user?.phone || "",
         deliveryAddress: order.deliveryAddress || "",
@@ -721,15 +721,7 @@ router.put("/riders/:riderId/assign-order", async (req, res) => {
       return res.status(400).json({ message: "This rider is suspended." });
     }
 
-    let order = null;
-    if (mongoose.isValidObjectId(orderNumber)) {
-      order = await Order.findById(orderNumber);
-    } else {
-      const suffix = orderNumber.trim();
-      const allOrders = await Order.find({});
-      order = allOrders.find(o => o._id.toString().toLowerCase().endsWith(suffix.toLowerCase()));
-    }
-
+    const order = await Order.findOne({ orderId: orderNumber.trim() });
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -752,49 +744,19 @@ router.put("/riders/:riderId/assign-order", async (req, res) => {
       }
     }
 
-    const expectedPrevRiderId = order.assignedRider?.riderId || null;
-    let isReassignment = !!expectedPrevRiderId;
-
-    // Release previous rider if applicable
-    if (isReassignment && String(expectedPrevRiderId) !== String(rider._id)) {
-      try {
-        const prevRider = await User.findById(expectedPrevRiderId);
-        if (prevRider) {
-          prevRider.riderStatus = "Available";
-          await prevRider.save();
-        }
-      } catch (err) {
-        console.error("Failed to release previous rider:", err.message);
-      }
-    }
-
-    // Release any previous order assigned to this new rider
-    const activeOrdersForRider = await Order.find({
+    // Check if rider is already assigned to another active order
+    const activeOrderForRider = await Order.findOne({
       riderId: rider._id,
-      _id: { $ne: order._id },
       orderStatus: { $nin: ["Delivered", "Cancelled", "Delivery Failed"] }
     });
-
-    for (const activeOrder of activeOrdersForRider) {
-      activeOrder.assignedRider = null;
-      activeOrder.riderId = null;
-      activeOrder.riderName = "";
-      activeOrder.riderPhone = "";
-      activeOrder.riderAssigned = false;
-      activeOrder.orderStatus = "Preparing";
-      
-      activeOrder.assignmentHistory.push({
-        action: "Unassigned",
-        riderId: rider._id,
-        assignedBy: "Admin",
-        reason: "Rider reassigned to another order"
+    if (activeOrderForRider) {
+      return res.status(400).json({
+        message: `Rider ${rider.name} is already assigned to active Order #${activeOrderForRider.orderId}.`
       });
-      await activeOrder.save();
-
-      const trackingService = require("../services/trackingService");
-      trackingService.stopSession(activeOrder._id);
-      trackingService.emitStatusUpdated(String(activeOrder._id), activeOrder, (activeOrder.trackingVersion || 0) + 1);
     }
+
+    const expectedPrevRiderId = order.assignedRider?.riderId || null;
+    let isReassignment = !!expectedPrevRiderId;
 
     // Update new rider status to Busy
     rider.riderStatus = "Busy";
@@ -816,7 +778,8 @@ router.put("/riders/:riderId/assign-order", async (req, res) => {
             profilePhoto: rider.profileImage || "",
             vehicleType: rider.vehicleType || "",
             vehicleNumber: rider.vehicleNumber || "",
-            rating: rider.rating || 5.0
+            rating: rider.rating || 5.0,
+            assignedAt: new Date()
           },
           riderId: rider._id,
           riderName: rider.name,

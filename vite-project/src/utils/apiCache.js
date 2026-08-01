@@ -1,3 +1,5 @@
+import { apiFetch } from "./apiClient";
+
 const cache = new Map();
 const inFlightRequests = new Map();
 
@@ -8,10 +10,15 @@ const inFlightRequests = new Map();
  * @param {number} ttlMs - Cache expiration duration in milliseconds (default 2 minutes).
  */
 export async function cachedFetch(url, options = {}, ttlMs = 120000) {
+  // Automatically apply 700ms minDelay for product-related GET API requests to ensure skeleton display consistency
+  if (url.includes("/api/products") && options.minDelay === undefined) {
+    options.minDelay = 700;
+  }
+
   // Only cache GET requests
   const method = (options.method || 'GET').toUpperCase();
   if (method !== 'GET') {
-    return fetch(url, options).then(res => res.json());
+    return apiFetch(url, options).then(res => res.json());
   }
 
   const cacheKey = JSON.stringify({ url, options });
@@ -29,7 +36,7 @@ export async function cachedFetch(url, options = {}, ttlMs = 120000) {
 
   // 3. Initiate the request with timing instrumentation
   const reqStart = performance.now();
-  const requestPromise = fetch(url, options)
+  const requestPromise = apiFetch(url, options)
     .then(async (res) => {
       const durationMs = (performance.now() - reqStart).toFixed(2);
       const contentLength = res.headers.get("content-length") || "0";

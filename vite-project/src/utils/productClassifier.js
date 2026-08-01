@@ -229,6 +229,21 @@ export const canonicalCategory = (name) => {
   if (lower === "atta, rice and dal" || lower === "atta, rice & dal" || lower === "atta rice & dal" || lower === "grocery") {
     return "Atta, Rice and Dal";
   }
+  if (lower === "ice cream" || lower === "icecream" || lower === "ice-cream" || lower === "ice creams & desserts" || lower === "ice creams & frozen desserts" || lower === "ice-creams-frozen-desserts") {
+    return "Ice Creams & Frozen Desserts";
+  }
+  if (lower === "noodles & pasta" || lower === "noodles, pasta & vermicelli" || lower === "noodles" || lower === "pasta" || lower === "noodles-pasta-vermicelli") {
+    return "Noodles, Pasta & Vermicelli";
+  }
+  if (lower === "frozen foods" || lower === "frozen food" || lower === "frozen" || lower === "frozen-food") {
+    return "Frozen Food";
+  }
+  if (lower === "cake corner" || lower === "cakes" || lower === "cake" || lower === "cake-corner") {
+    return "Cake Corner";
+  }
+  if (lower === "pan centre" || lower === "paan corner" || lower === "paan" || lower === "pan center" || lower === "paan-corner") {
+    return "Paan Corner";
+  }
   if (lower === "other" || lower === "other products") {
     return "Other Products";
   }

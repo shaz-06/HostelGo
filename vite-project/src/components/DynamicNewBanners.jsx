@@ -29,7 +29,7 @@ const promoSlides = [
   }
 ];
 
-export default function DynamicNewBanners() {
+function DynamicNewBanners() {
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -226,3 +226,5 @@ export default function DynamicNewBanners() {
     </div>
   );
 }
+
+export default React.memo(DynamicNewBanners);

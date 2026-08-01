@@ -28,7 +28,7 @@ class TrackingService {
     }
 
     try {
-      const order = await Order.findById(orderId);
+      const order = await Order.findOne({ orderId });
       if (!order) {
         console.error(`[TrackingService] Order not found for session start: ${orderIdStr}`);
         return null;
@@ -102,16 +102,6 @@ class TrackingService {
         vehicle: order.assignedRider.vehicleType,
         vehicleNumber: order.assignedRider.vehicleNumber
       };
-    } else {
-      const rider = getSimulatedRider(orderIdStr);
-      riderData = {
-        riderName: rider.name,
-        riderPhoto: rider.profileImage,
-        phone: rider.phone,
-        rating: rider.rating,
-        vehicle: rider.vehicleType,
-        vehicleNumber: rider.plateNumber
-      };
     }
 
     const tracking = {
@@ -153,7 +143,7 @@ class TrackingService {
     const Order = require("../models/Order");
     let order = null;
     try {
-      order = await Order.findById(orderIdStr);
+      order = await Order.findOne({ orderId: orderIdStr });
     } catch (err) {
       console.error("[TrackingService] Error finding order in emitRiderAssigned:", err);
     }
@@ -172,31 +162,17 @@ class TrackingService {
         vehicleType: order.assignedRider.vehicleType,
         vehicleNumber: order.assignedRider.vehicleNumber
       };
-    } else {
-      const rider = getSimulatedRider(orderIdStr);
-      riderData = {
-        riderId: null,
-        name: rider.name,
-        riderName: rider.name,
-        phone: rider.phone,
-        riderPhoto: rider.profileImage,
-        profilePhoto: rider.profileImage,
-        rating: rider.rating,
-        vehicle: rider.vehicleType,
-        vehicleType: rider.vehicleType,
-        vehicleNumber: rider.plateNumber
-      };
     }
 
     const payload = {
       type: "rider",
       orderId: orderIdStr,
-      riderName: riderData.name,
-      riderPhoto: riderData.profilePhoto,
-      phone: riderData.phone,
-      rating: riderData.rating,
-      vehicle: riderData.vehicleType,
-      vehicleNumber: riderData.vehicleNumber,
+      riderName: riderData ? riderData.name : "",
+      riderPhoto: riderData ? riderData.profilePhoto : "",
+      phone: riderData ? riderData.phone : "",
+      rating: riderData ? riderData.rating : 5.0,
+      vehicle: riderData ? riderData.vehicleType : "",
+      vehicleNumber: riderData ? riderData.vehicleNumber : "",
       rider: riderData,
       updatedAt: new Date().toISOString(),
       version
@@ -226,7 +202,7 @@ class TrackingService {
    */
   async getTrackingState(orderId) {
     try {
-      const order = await Order.findById(orderId);
+      const order = await Order.findOne({ orderId });
       if (!order) return null;
 
       const Product = require("../models/Product");
@@ -382,7 +358,7 @@ class TrackingService {
         }
 
         // Check if status transitioned on the movement engine
-        const order = await Order.findById(orderIdStr);
+        const order = await Order.findOne({ orderId: orderIdStr });
         if (order) {
           let hasChanged = false;
           if (state.stage !== order.orderStatus) {
@@ -437,7 +413,7 @@ class TrackingService {
 
         // Automatic completion when progress reaches 100% or ETA is 0
         if (state.progress >= 100) {
-          const freshOrder = await Order.findById(orderIdStr);
+          const freshOrder = await Order.findOne({ orderId: orderIdStr });
           if (freshOrder) {
             await this._completeOrderDelivery(freshOrder);
           }

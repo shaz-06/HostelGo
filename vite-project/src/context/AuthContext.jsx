@@ -411,7 +411,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const registerAdminPushToken = async () => {
-      if (user && (user.phone === "6363849864" || user.role === "admin")) {
+      if (user && (user.phone === "**" || user.role === "admin")) {
         try {
           const { getMessaging, getToken } = await import("firebase/messaging");
           const { app } = await import("../config/firebase");
@@ -438,7 +438,7 @@ export const AuthProvider = ({ children }) => {
                   Authorization: `Bearer ${localStorage.getItem("buyto_token")}`
                 },
                 body: JSON.stringify({
-                  phone: user.phone || "6363849864",
+                  phone: user.phone || "**",
                   fcmToken: token
                 })
               });

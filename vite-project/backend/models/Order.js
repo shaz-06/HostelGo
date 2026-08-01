@@ -1,6 +1,13 @@
 const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema({
+  orderId: {
+    type: String,
+    required: true,
+    unique: true,
+    immutable: true,
+    index: true
+  },
   user: {
     name: { type: String, required: true },
     phone: { type: String, required: true },
@@ -94,7 +101,8 @@ const orderSchema = new mongoose.Schema({
     profilePhoto: { type: String, default: "" },
     vehicleType: { type: String, default: "" },
     vehicleNumber: { type: String, default: "" },
-    rating: { type: Number, default: 5.0 }
+    rating: { type: Number, default: 5.0 },
+    assignedAt: { type: Date }
   },
   assignmentHistory: [
     {
@@ -214,5 +222,10 @@ const orderSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+orderSchema.index({ orderStatus: 1 });
+orderSchema.index({ "assignedRider.riderId": 1 });
+orderSchema.index({ createdAt: -1 });
+orderSchema.index({ "user.phone": 1 });
 
 module.exports = mongoose.model("Order", orderSchema);

@@ -6,7 +6,7 @@ import BuyCoin from "../components/common/BuyCoin";
 export default function BuyCoinsTransactionsPage() {
   const navigate = useNavigate();
   const { token, logout } = useContext(AuthContext);
-  
+
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(false);
@@ -33,7 +33,7 @@ export default function BuyCoinsTransactionsPage() {
       const res = await fetch(window.API_BASE_URL + "/api/buycoins/transactions", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       const reqIdHeader = res.headers.get("x-request-id");
       if (reqIdHeader) {
         setRequestId(reqIdHeader);
@@ -82,7 +82,7 @@ export default function BuyCoinsTransactionsPage() {
   return (
     <div style={containerStyle}>
       <div style={cardWrapperStyle}>
-        
+
         {/* Back Button */}
         <button onClick={() => navigate(-1)} style={backButtonStyle}>
           ← Back to Wallet
@@ -157,7 +157,7 @@ export default function BuyCoinsTransactionsPage() {
             {transactions.map((tx) => {
               const isPositive = ["earn", "earned", "bonus", "admin", "refund", "WELCOME_BONUS"].includes(tx.type) || (tx.type === "redeemed" && (tx.amount || tx.coins) < 0);
               const isRedemption = tx.type === "redeemed" || ["spent", "redeem"].includes(tx.type);
-              
+
               const val = tx.amount !== undefined ? tx.amount : (tx.coins !== undefined ? tx.coins : 0);
               const txDate = tx.createdAt ? new Date(tx.createdAt).toLocaleDateString("en-US", {
                 day: "numeric",

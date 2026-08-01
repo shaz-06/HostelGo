@@ -318,7 +318,7 @@ const rightBanners = [
   }
 ];
 
-export default function CategoryDiscovery({ products = [] }) {
+function CategoryDiscovery({ products = [] }) {
   const navigate = useNavigate();
 
 
@@ -605,3 +605,5 @@ export default function CategoryDiscovery({ products = [] }) {
     </div>
   );
 }
+
+export default React.memo(CategoryDiscovery);

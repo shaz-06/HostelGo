@@ -1,10 +1,154 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ProductCard from "../ProductCard";
 import { classifyProduct, canonicalCategory } from "../utils/productClassifier";
 import { cachedFetch } from "../utils/apiCache";
+import { apiFetch } from "../utils/apiClient";
 import { usePerfLogger } from "../utils/perfLogger";
 import SEO from "../components/common/SEO";
+
+// Module-level cache to persist categories data across navigations
+const categoryProductsCache = {};
+
+const categoryRouteMap = {
+  // Fresh & Grocery
+  "fresh-vegetables": "The Veggie Store",
+  "fresh-fruits": "The Fruit Store",
+  "dairy-bread-eggs": "Dairy, Bread & Eggs",
+  "dairy-bread-and-eggs": "Dairy, Bread & Eggs",
+  "meat-seafood": "Meat and Seafood",
+  "meat-and-seafood": "Meat and Seafood",
+  "atta-rice-and-dal": "Atta, Rice and Dal",
+  "atta-rice-dal": "Atta, Rice and Dal",
+  "masalas": "Masalas",
+  "oils-and-ghee": "Oil & Ghee",
+  "oil-ghee": "Oil & Ghee",
+  "cereals-breakfast": "Breakfast",
+  "breakfast": "Breakfast",
+
+  // Snacks & Drinks
+  "cold-drinks-juices": "Beverages",
+  "cold-drinks-and-juices": "Beverages",
+  "chips-namkeens": "Snacks",
+  "chips-and-namkeens": "Snacks",
+  "ice-cream": "Ice-Cream",
+  "ice-creams-frozen-desserts": "Ice-Cream",
+  "ice-creams-and-desserts": "Ice-Cream",
+  "chocolates": "Chocolates",
+  "noodles-pasta-vermicelli": "Noodles & Pasta",
+  "noodles-and-pasta": "Noodles & Pasta",
+  "frozen-food": "Frozen Foods",
+  "frozen-foods": "Frozen Foods",
+  "sweet-corner": "Sweet Corner",
+  "paan-corner": "Pan Centre",
+  "pan-centre": "Pan Centre",
+  "cake-corner": "Cake Corner",
+  "biscuits-and-cakes": "Snacks",
+  "tea-coffee-drinks": "Beverages",
+  "tea-coffee": "Beverages",
+  "sauces-and-spreads": "Premium Pickles",
+
+  // Beauty & Wellness
+  "bath-body": "Bath & Body",
+  "bath-and-body": "Bath & Body",
+  "hair-care": "Hair Care",
+  "skin-care": "Skin Care",
+  "skincare": "Skin Care",
+  "makeup": "Makeups",
+  "makeups": "Makeups",
+  "oral-care": "Oral Care",
+  "grooming": "Grooming",
+  "baby-care": "Baby Care",
+  "fragrances": "Perfumes",
+  "perfumes": "Perfumes",
+  "protein-supplements": "Proteins",
+  "feminine-hygiene": "Female Hygiene",
+  "sexual-wellness": "Sexual Wellness",
+  "health-pharma": "Health & Pharmacy",
+  "health-and-pharma": "Health & Pharmacy",
+
+  // Household & Lifestyle
+  "home-furnishing": "House Holds",
+  "home-and-kitchen": "Kitchen & Cooking",
+  "home-kitchen": "Kitchen & Cooking",
+  "kitchen-dining": "Kitchen & Cooking",
+  "cleaning-essentials": "Cleaning Essentials",
+  "cleaners-repellents": "Cleaning Essentials",
+  "clothing": "Clothing Section",
+  "mobiles-electronics": "Mobiles & Electronics",
+  "appliances": "Mobiles & Electronics",
+  "electronics-appliances": "Mobiles & Electronics",
+  "books-stationery": "Stationary",
+  "stationery": "Stationary",
+  "jewellery-accessories": "Grooming",
+
+  // Electronics & Appliances
+  "puja": "Pooja Essentials",
+  "puja-store": "Pooja Essentials",
+  "toys-games": "Toys and Games",
+  "sports-fitness": "Sports Equipment",
+  "pet-supplies": "Pet Shop",
+
+  // Shop By Store
+  "book-store": "Stationary",
+  "the-noice-store": "The Noice Store",
+  "health-hub": "Health Hub",
+  "sports-and-fitness-store": "Sports Equipment",
+  "instadrops-store": "Instadrops Store",
+  "summer-store": "Summer Store",
+  "gourmet-store": "Gourmet Store",
+  "travel-store": "Travel Store"
+};
+
+function ProductCardSkeleton({ isMobile }) {
+  return (
+    <div
+      style={{
+        padding: "12px",
+        borderRadius: "20px",
+        background: "rgba(255, 255, 255, 0.65)",
+        border: "1px solid rgba(0,0,0,0.05)",
+        backdropFilter: "blur(10px)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        height: isMobile ? "250px" : "310px",
+        boxSizing: "border-box",
+        position: "relative",
+        overflow: "hidden"
+      }}
+    >
+      <div style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%)",
+        animation: "shimmer 1.5s infinite",
+        transform: "translateX(-100%)"
+      }} />
+      <style>{`
+        @keyframes shimmer {
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
+      {/* Image box skeleton */}
+      <div style={{ width: "100%", height: isMobile ? "110px" : "150px", borderRadius: "14px", background: "rgba(0,0,0,0.05)" }} />
+      {/* Text skeletons */}
+      <div style={{ width: "70%", height: "14px", borderRadius: "4px", background: "rgba(0,0,0,0.05)", marginTop: "4px" }} />
+      <div style={{ width: "40%", height: "11px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }} />
+      {/* Footer area skeleton */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "45%" }}>
+          <div style={{ width: "100%", height: "14px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }} />
+          <div style={{ width: "60%", height: "10px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }} />
+        </div>
+        <div style={{ width: "70px", height: "32px", borderRadius: "10px", background: "rgba(49, 134, 22, 0.15)" }} />
+      </div>
+    </div>
+  );
+}
 
 const generateSlug = (name) => {
   if (!name) return "";
@@ -16,6 +160,9 @@ const generateSlug = (name) => {
     .replace(/-+/g, '-')
     .trim();
 };
+
+const normalize = (text) =>
+  text?.toLowerCase().replace(/\s+/g, " ").trim() || "";
 
 const CATEGORY_SUBCATEGORIES = {
   "dairy-bread-eggs": [
@@ -438,14 +585,15 @@ export default function CategoryProductsPage({
   const { slug } = useParams();
   const navigate = useNavigate();
 
-  const [localProducts, setLocalProducts] = useState(products);
+  const [localProducts, setLocalProducts] = useState([]);
   const [localCategories, setLocalCategories] = useState(categories);
-  const [loading, setLoading] = useState(parentLoading);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    setLoading(parentLoading);
-  }, [parentLoading]);
+  
+  // Pagination & Load More States
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [activeSubcategory, setActiveSubcategory] = useState("Show All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -458,60 +606,164 @@ export default function CategoryProductsPage({
     window.scrollTo(0, 0);
   }, [slug]);
 
-  // Sync with parent props
-  useEffect(() => {
-    if (products && products.length > 0) {
-      setLocalProducts(products);
-    }
-  }, [products]);
-
+  // Sync Categories with parent props
   useEffect(() => {
     if (categories && categories.length > 0) {
       setLocalCategories(categories);
+    } else {
+      cachedFetch(window.API_BASE_URL + "/api/categories")
+        .then(data => {
+          setLocalCategories(data || []);
+        })
+        .catch(err => {
+          console.error("Error loading categories in CategoryProductsPage:", err);
+        });
     }
   }, [categories]);
 
-  // Fetch if empty and parent is not loading
-  useEffect(() => {
-    const fetchFreshData = async () => {
-      if (!parentLoading && (!products || products.length === 0)) {
-        try {
+  // Helper fetch function
+  const fetchCategoryData = async (categoryName, pageNum, isBackground = false, signal = null) => {
+    try {
+      if (!isBackground) {
+        if (pageNum > 1) {
+          setLoadingMore(true);
+        } else {
           setLoading(true);
-          const [pData, cData] = await Promise.all([
-            cachedFetch(window.API_BASE_URL + "/api/products"),
-            cachedFetch(window.API_BASE_URL + "/api/categories")
-          ]);
-          const enrichedPData = (pData || []).map(p => ({
-            ...p,
-            _classifiedCategory: canonicalCategory(classifyProduct(p))
-          }));
-          setLocalProducts(enrichedPData);
-          setLocalCategories(cData);
-        } catch (err) {
-          console.error("Error loading products/categories dynamically:", err);
-          setError("Failed to connect to server");
-        } finally {
-          setLoading(false);
         }
       }
-    };
-    fetchFreshData();
-  }, [products, categories, parentLoading]);
+      
+      const url = `${window.API_BASE_URL}/api/products?category=${encodeURIComponent(categoryName)}&page=${pageNum}&limit=20`;
+      const isBlocking = false;
+      const res = await apiFetch(url, { signal, blocking: isBlocking, minDelay: 700 });
+      if (!res.ok) throw new Error("Failed to fetch products");
+      const data = await res.json();
+      
+      const enriched = (data || []).map(p => ({
+        ...p,
+        _classifiedCategory: canonicalCategory(classifyProduct(p))
+      }));
+
+      setLocalProducts(prev => {
+        const nextProducts = pageNum === 1 ? enriched : [...prev, ...enriched];
+        // Cache data
+        categoryProductsCache[slug] = {
+          products: nextProducts,
+          page: pageNum,
+          hasMore: enriched.length === 20,
+          fetchedAt: Date.now()
+        };
+        return nextProducts;
+      });
+
+      setHasMore(enriched.length === 20);
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("Error loading category products:", err);
+        setError("Failed to load products for this category.");
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
 
   // Match the category
   const matchedCategory = useMemo(() => {
-    if (!slug) return null;
-    let found = localCategories.find(c => {
-      const cSlug = c.slug || generateSlug(c.name);
-      return cSlug.toLowerCase() === slug.toLowerCase();
-    });
-    if (!found) {
-      const slugNormalized = slug.replace(/-/g, ' ');
-      const slugCanonical = canonicalCategory(slugNormalized);
-      found = localCategories.find(c => canonicalCategory(c.name) === slugCanonical);
+    if (!slug || localCategories.length === 0) return null;
+
+    const categoryName = categoryRouteMap[slug];
+
+    if (!categoryName) {
+      console.warn(
+        `Category slug "${slug}" not found inside route mapping.`
+      );
+      return null;
     }
-    return found;
+
+    console.info("[Category Resolver]", {
+      routeSlug: slug,
+      backendCategory: categoryName,
+    });
+
+    const dbCategory = localCategories.find(c => c.name === categoryName);
+    return dbCategory || { name: categoryName };
   }, [localCategories, slug]);
+
+  // Main fetch hook based on current category slug
+  useEffect(() => {
+    if (!slug || localCategories.length === 0) return;
+
+    if (!matchedCategory) {
+      setLoading(false);
+      return;
+    }
+
+    setPage(1);
+    setHasMore(true);
+    setError("");
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const categoryName = matchedCategory.name;
+
+    if (categoryProductsCache[slug]) {
+      const cached = categoryProductsCache[slug];
+      setLocalProducts(cached.products);
+      setPage(cached.page);
+      setHasMore(cached.hasMore);
+      setLoading(false);
+
+      // Refresh in background if stale (> 30s)
+      if (Date.now() - cached.fetchedAt > 30000) {
+        fetchCategoryData(categoryName, 1, true, signal);
+      }
+    } else {
+      setLocalProducts([]);
+      setLoading(true);
+      fetchCategoryData(categoryName, 1, false, signal);
+    }
+
+    return () => {
+      controller.abort();
+    };
+  }, [slug, localCategories, matchedCategory]);
+
+  // Load More function
+  const loadMore = () => {
+    if (loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    
+    const categoryName = matchedCategory ? matchedCategory.name : slug;
+    fetchCategoryData(categoryName, nextPage);
+  };
+
+  const observerTarget = useRef(null);
+
+  useEffect(() => {
+    if (!hasMore || loading || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0] && entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: "200px" }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loading, loadingMore, page, localCategories, slug]);
 
   // Get active subcategories list
   const subcategories = useMemo(() => {
@@ -634,21 +886,31 @@ export default function CategoryProductsPage({
     setSelectedFilters({});
   };
 
-  if (loading || parentLoading) {
+  if (loading) {
+    const isMobile = windowWidth < 768;
     return (
-      <div style={{ padding: "20px 0", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-        <div style={{ height: "32px", width: "200px", background: "#e5e7eb", borderRadius: "8px", marginBottom: "20px", animation: "pulse 1.5s infinite ease-in-out" }} />
+      <div style={{ padding: isMobile ? "10px" : "20px 0", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+        <div style={{ height: "32px", width: "200px", background: "rgba(0,0,0,0.05)", borderRadius: "8px", marginBottom: "20px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)", animation: "shimmer 1.5s infinite" }} />
+        </div>
         <div style={{ display: "flex", gap: "20px" }}>
-          {/* Sidebar Skeleton */}
-          <div style={{ width: "220px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} style={{ height: "36px", background: "#e5e7eb", borderRadius: "8px", animation: "pulse 1.5s infinite ease-in-out" }} />
-            ))}
-          </div>
-          {/* Grid Skeleton */}
-          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "20px" }}>
+          {!isMobile && (
+            <div style={{ width: "220px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} style={{ height: "36px", background: "rgba(0,0,0,0.05)", borderRadius: "8px", position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)", animation: "shimmer 1.5s infinite" }} />
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{
+            flex: 1,
+            display: "grid",
+            gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: isMobile ? "12px" : "20px"
+          }}>
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} style={{ background: "white", borderRadius: "16px", padding: "16px", height: "240px", border: "1px solid #f3f4f6", animation: "pulse 1.5s infinite ease-in-out" }} />
+              <ProductCardSkeleton key={index} isMobile={isMobile} />
             ))}
           </div>
         </div>
@@ -984,32 +1246,56 @@ export default function CategoryProductsPage({
               </p>
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "repeat(2, minmax(0, 1fr))"
-                  : "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: isMobile ? "12px" : "20px",
-                width: "100%",
-                maxWidth: "100%",
-                boxSizing: "border-box"
-              }}
-            >
-              {filteredCategoryProducts.map(p => (
-                <ProductCard
-                  key={p._id || p.id}
-                  product={p}
-                  addToCart={addToCart}
-                  removeFromCart={removeFromCart}
-                  cart={cart}
-                  cartItems={cartItems}
-                  windowWidth={windowWidth}
-                  getCartKey={getCartKey}
-                  setSelectedProduct={setSelectedProduct}
-                />
-              ))}
-            </div>
+            <>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "repeat(2, minmax(0, 1fr))"
+                    : "repeat(auto-fill, minmax(180px, 1fr))",
+                  gap: isMobile ? "12px" : "20px",
+                  width: "100%",
+                  maxWidth: "100%",
+                  boxSizing: "border-box"
+                }}
+              >
+                {filteredCategoryProducts.map(p => (
+                  <ProductCard
+                    key={p._id || p.id}
+                    product={p}
+                    addToCart={addToCart}
+                    removeFromCart={removeFromCart}
+                    cart={cart}
+                    cartItems={cartItems}
+                    windowWidth={windowWidth}
+                    getCartKey={getCartKey}
+                    setSelectedProduct={setSelectedProduct}
+                  />
+                ))}
+              </div>
+
+              {/* Load More trigger and loading cards */}
+              {hasMore && (
+                <div
+                  ref={observerTarget}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile
+                      ? "repeat(2, minmax(0, 1fr))"
+                      : "repeat(auto-fill, minmax(180px, 1fr))",
+                    gap: isMobile ? "12px" : "20px",
+                    marginTop: "20px",
+                    width: "100%",
+                    minHeight: "50px"
+                  }}
+                >
+                  {loadingMore &&
+                    Array.from({ length: isMobile ? 2 : 4 }).map((_, idx) => (
+                      <ProductCardSkeleton key={`more-skeleton-${idx}`} isMobile={isMobile} />
+                    ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -46,7 +46,7 @@ const trendingItems = [
   }
 ];
 
-export default function TrendingThisWeek() {
+function TrendingThisWeek() {
   const navigate = useNavigate();
 
   const [currentIndex, setCurrentIndex] = React.useState(3);
@@ -518,3 +518,5 @@ export default function TrendingThisWeek() {
     </div>
   );
 }
+
+export default React.memo(TrendingThisWeek);

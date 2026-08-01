@@ -1,9 +1,14 @@
 import React, { useEffect, useState, useContext, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, useSearchParams, Navigate } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { io } from "socket.io-client";
+import { motion, AnimatePresence } from "framer-motion";
 import { initializePushNotifications, retrySyncIfNeeded } from "./services/pushNotifications";
-import { BRANDING } from "./config/branding";
+import { BRANDING, logoPath, appName } from "./config/branding";
+import ProductDetailsSkeleton from "./components/common/ProductDetailsSkeleton";
 import BuytoLogo from "./components/common/BuytoLogo";
+import { Geolocation } from "@capacitor/geolocation";
+import LocationPermissionModal from "./components/location/LocationPermissionModal";
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
@@ -17,18 +22,7 @@ import { initializeAnalytics, trackPageView } from "./utils/analytics";
 import PromoBannerCarousel from "./components/PromoBannerCarousel";
 import DynamicNewBanners from "./components/DynamicNewBanners";
 import { classifyProduct, canonicalCategory } from "./utils/productClassifier";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import { io } from "socket.io-client";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import Footer from "./components/Footer";
-import AboutPage from "./pages/AboutPage";
-import ContactPage from "./pages/ContactPage";
-import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
-import TermsPage from "./pages/TermsPage";
-import RefundPolicyPage from "./pages/RefundPolicyPage";
-import ShippingPolicyPage from "./pages/ShippingPolicyPage";
-import FAQPage from "./pages/FAQPage";
 import HorizontalProductSection from "./HorizontalProductSection";
 import TrendingThisWeek from "./components/TrendingThisWeek";
 import MobileBannerCarousel from "./components/mobile/MobileBannerCarousel";
@@ -39,51 +33,79 @@ import ProductCard from "./ProductCard";
 import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
 import OnboardingBottomSheet from "./components/common/OnboardingBottomSheet";
 import WelcomeRewardModal from "./components/common/WelcomeRewardModal";
-import ForegroundNotificationBanner from "./components/common/ForegroundNotificationBanner";
-import { LoaderProvider } from "./context/LoaderContext";
+import { LoaderProvider, LoaderContext } from "./context/LoaderContext";
 import BuytoLoader from "./components/common/BuytoLoader";
-import SearchResultsView from "./components/SearchResultsView";
 import SEO from "./components/common/SEO";
-import OfflineScreen from "./components/common/OfflineScreen";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+
+const safeLazy = (importFn) => {
+  const LazyComponent = lazy(() =>
+    importFn().catch((err) => {
+      console.error("Chunk load failed, reloading page...", err);
+      window.location.reload();
+      return { default: () => null };
+    })
+  );
+  return (props) => (
+    <ErrorBoundary>
+      <LazyComponent {...props} />
+    </ErrorBoundary>
+  );
+};
+
+const AboutPage = safeLazy(() => import("./pages/AboutPage"));
+const ContactPage = safeLazy(() => import("./pages/ContactPage"));
+const PrivacyPolicyPage = safeLazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsPage = safeLazy(() => import("./pages/TermsPage"));
+const RefundPolicyPage = safeLazy(() => import("./pages/RefundPolicyPage"));
+const ShippingPolicyPage = safeLazy(() => import("./pages/ShippingPolicyPage"));
+const FAQPage = safeLazy(() => import("./pages/FAQPage"));
+const SearchResultsView = safeLazy(() => import("./components/SearchResultsView"));
+const ForegroundNotificationBanner = safeLazy(() => import("./components/common/ForegroundNotificationBanner"));
+
 
 // Lazy-loaded components & pages
-const AddressSelectorModal = lazy(() => import("./components/common/AddressSelectorModal"));
+const AddressSelectorModal = safeLazy(() => import("./components/common/AddressSelectorModal"));
 
-const CartPage = lazy(() => import("./pages/CartPage"));
-const UserDetails = lazy(() => import("./pages/UserDetails"));
-const PaymentPage = lazy(() => import("./pages/PaymentPage"));
-const SuccessPage = lazy(() => import("./pages/SuccessPage"));
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const EditProfilePage = lazy(() => import("./pages/EditProfilePage"));
-const MyOrdersPage = lazy(() => import("./pages/MyOrdersPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const WalletPage = lazy(() => import("./pages/WalletPage"));
-const BuyCoinsTransactionsPage = lazy(() => import("./pages/BuyCoinsTransactionsPage"));
-const BuyCoinsRewardsPage = lazy(() => import("./pages/BuyCoinsRewardsPage"));
-const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
-const HelpPage = lazy(() => import("./pages/HelpPage"));
-const SectionProductsPage = lazy(() => import("./pages/SectionProductsPage"));
-const ProductDetailsPage = lazy(() => import("./pages/ProductDetailsPage"));
-const CategoryProductsPage = lazy(() => import("./pages/CategoryProductsPage"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const AdminVerification = lazy(() => import("./pages/AdminVerification"));
-const AdminOrdersPage = lazy(() => import("./pages/AdminOrdersPage"));
-const AdminProductsPage = lazy(() => import("./pages/AdminProductsPage"));
-const AdminRidersPage = lazy(() => import("./pages/AdminRidersPage"));
-const RiderDashboard = lazy(() => import("./pages/RiderDashboard"));
-const RiderLogin = lazy(() => import("./pages/RiderLogin"));
-const RiderSignup = lazy(() => import("./pages/RiderSignup"));
-const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage"));
-const SupportChatPage = lazy(() => import("./pages/SupportChatPage"));
-const AdminSupportPage = lazy(() => import("./pages/AdminSupportPage"));
-const AdminNotificationsPage = lazy(() => import("./pages/AdminNotificationsPage"));
+const CartPage = safeLazy(() => import("./pages/CartPage"));
+const UserDetails = safeLazy(() => import("./pages/UserDetails"));
+const PaymentPage = safeLazy(() => import("./pages/PaymentPage"));
+const SuccessPage = safeLazy(() => import("./pages/SuccessPage"));
+const ProfilePage = safeLazy(() => import("./pages/ProfilePage"));
+const EditProfilePage = safeLazy(() => import("./pages/EditProfilePage"));
+const MyOrdersPage = safeLazy(() => import("./pages/MyOrdersPage"));
+const SettingsPage = safeLazy(() => import("./pages/SettingsPage"));
+const WalletPage = safeLazy(() => import("./pages/WalletPage"));
+const BuyCoinsTransactionsPage = safeLazy(() => import("./pages/BuyCoinsTransactionsPage"));
+const BuyCoinsRewardsPage = safeLazy(() => import("./pages/BuyCoinsRewardsPage"));
+const NotificationsPage = safeLazy(() => import("./pages/NotificationsPage"));
+const HelpPage = safeLazy(() => import("./pages/HelpPage"));
+const SectionProductsPage = safeLazy(() => import("./pages/SectionProductsPage"));
+const ProductDetailsPage = safeLazy(() => import("./pages/ProductDetailsPage"));
+const CategoryProductsPage = safeLazy(() => import("./pages/CategoryProductsPage"));
+const AdminDashboard = safeLazy(() => import("./pages/AdminDashboard"));
+const AdminVerification = safeLazy(() => import("./pages/AdminVerification"));
+const AdminOrdersPage = safeLazy(() => import("./pages/AdminOrdersPage"));
+const AdminProductsPage = safeLazy(() => import("./pages/AdminProductsPage"));
+const AdminRidersPage = safeLazy(() => import("./pages/AdminRidersPage"));
+const RiderDashboard = safeLazy(() => import("./pages/RiderDashboard"));
+const RiderLogin = safeLazy(() => import("./pages/RiderLogin"));
+const RiderSignup = safeLazy(() => import("./pages/RiderSignup"));
+const OrderTrackingPage = safeLazy(() => import("./pages/OrderTrackingPage"));
+const SupportChatPage = safeLazy(() => import("./pages/SupportChatPage"));
+const AdminSupportPage = safeLazy(() => import("./pages/AdminSupportPage"));
+const AdminNotificationsPage = safeLazy(() => import("./pages/AdminNotificationsPage"));
 
-const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
-const ShoppingListPage = lazy(() => import("./pages/ShoppingListPage"));
-const ShoppingListResultsPage = lazy(() => import("./pages/ShoppingListResultsPage"));
-const SmartMatchingPage = lazy(() => import("./pages/SmartMatchingPage"));
-const SavedListsPage = lazy(() => import("./pages/SavedListsPage"));
-const SaveForLaterPage = lazy(() => import("./pages/SaveForLaterPage"));
+const CategoriesPage = safeLazy(() => import("./pages/CategoriesPage"));
+const ShoppingListPage = safeLazy(() => import("./pages/ShoppingListPage"));
+const ShoppingListResultsPage = safeLazy(() => import("./pages/ShoppingListResultsPage"));
+const SmartMatchingPage = safeLazy(() => import("./pages/SmartMatchingPage"));
+const SavedListsPage = safeLazy(() => import("./pages/SavedListsPage"));
+const SaveForLaterPage = safeLazy(() => import("./pages/SaveForLaterPage"));
+const PaymentSettingsPage = safeLazy(() => import("./pages/PaymentSettingsPage"));
+const MyAddressesPage = safeLazy(() => import("./pages/MyAddressesPage"));
+const RequestAddressPage = safeLazy(() => import("./pages/RequestAddressPage"));
+const ManageSharesPage = safeLazy(() => import("./pages/ManageSharesPage"));
 
 // API Cache & Performance Logger
 import { cachedFetch } from "./utils/apiCache";
@@ -170,50 +192,7 @@ import MobileBottomNavigation from "./components/mobile/MobileBottomNavigation";
 import FloatingCartPopup from "./components/common/FloatingCartPopup";
 import { MOBILE_NAV_TOTAL_OFFSET } from "./constants/layoutConstants";
 
-const destinationIcon = new L.DivIcon({
-  html: `
-    <div
-      style="
-        width:12px;
-        height:12px;
-        background:#ef4444;
-        border-radius:3px;
-        border:2px solid white;
-        box-shadow:0 1px 6px rgba(0,0,0,0.2);
-      "
-    ></div>
-  `,
-  className: "",
-  iconSize: [12, 12],
-});
 
-const riderIcon = new L.DivIcon({
-  html: `
-    <div
-      style="
-        font-size:22px;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-      "
-    >
-      🛵
-    </div>
-  `,
-  className: "",
-  iconSize: [22, 22],
-});
-
-// Custom map viewer helper to keep viewport dynamically focused on both rider and user location in global popup
-function ChangePopupMapView({ center, userPos }) {
-  const map = useMap();
-  useEffect(() => {
-    if (center && userPos) {
-      console.log("=== MAP CENTER ===");
-      console.log(center);
-      map.fitBounds([center, userPos], { padding: [20, 20] });
-    }
-  }, [center, userPos, map]);
-  return null;
-}
 
 function GlobalLayout({ children }) {
   const location = useLocation();
@@ -255,208 +234,12 @@ function GlobalLayout({ children }) {
     setHideTrackingCard(!!localStorage.getItem("hideTrackingCard"));
   }, [location.pathname]);
 
-  const isLiveTrackingEnabled = false;
-
-  const activeOrder = localStorage.getItem("activeOrder") === "true";
-  const latestOrderId = localStorage.getItem("latestOrderId");
-
-  const shouldShowFloatingCard =
-    isLiveTrackingEnabled &&
-    activeOrder &&
-    latestOrderId &&
-    !hideTrackingCard &&
-    location.pathname !== "/success" &&
-    location.pathname !== "/order-success";
-
-  const [riderPos, setRiderPos] = useState([13.628, 74.693]);
-  const [userPos, setUserPos] = useState([13.628, 74.693]);
-  const [currentETA, setCurrentETA] = useState(30);
-
-  useEffect(() => {
-    if (!isLiveTrackingEnabled) return;
-    if (!latestOrderId || !activeOrder) return;
-
-    const fetchOrderDetails = async () => {
-      const token = localStorage.getItem("buyto_token");
-      if (!token) return;
-      try {
-        const res = await fetch(window.API_BASE_URL + `/api/orders/track/${latestOrderId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const uLat = data.order?.deliveryLatitude || data.order?.user?.latitude || 13.628;
-          const uLng = data.order?.deliveryLongitude || data.order?.user?.longitude || 74.693;
-          setUserPos([uLat, uLng]);
-
-          const rLat = data.rider?.latitude || data.rider?.currentLocation?.lat || (uLat + 0.005);
-          const rLng = data.rider?.longitude || data.rider?.currentLocation?.lng || (uLng + 0.005);
-          setRiderPos([rLat, rLng]);
-
-          // Haversine dynamic ETA
-          const R = 6371; // km
-          const dLat = (uLat - rLat) * Math.PI / 180;
-          const dLon = (uLng - rLng) * Math.PI / 180;
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(rLat * Math.PI / 180) * Math.cos(uLat * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const distance = R * c;
-          const minutes = Math.max(1, Math.round(distance * 2.4 + 2));
-          setCurrentETA(data.order?.orderStatus === "Delivered" ? 0 : minutes);
-
-          console.log("=== CUSTOMER GPS ===");
-          console.log(uLat, uLng);
-          console.log("=== RIDER GPS UPDATE ===");
-          console.log(rLat, rLng);
-        }
-      } catch (err) {
-        console.error("Error fetching order in popup:", err);
-      }
-    };
-
-    fetchOrderDetails();
-    const interval = setInterval(fetchOrderDetails, 8000);
-    return () => clearInterval(interval);
-  }, [latestOrderId, activeOrder]);
-
-  useEffect(() => {
-    if (!isLiveTrackingEnabled) return;
-    if (!latestOrderId || !activeOrder) return;
-
-    const socket = io(window.API_BASE_URL);
-
-    socket.on("connect", () => {
-      console.log("🔌 Popup connected to Socket.IO. Joining room:", latestOrderId);
-      socket.emit("joinOrderRoom", latestOrderId);
-    });
-
-    socket.on("riderLocationUpdated", (data) => {
-      console.log("=== SOCKET LOCATION EVENT ===");
-      console.log(data);
-      setRiderPos([data.latitude, data.longitude]);
-
-      const R = 6371; // km
-      const dLat = (userPos[0] - data.latitude) * Math.PI / 180;
-      const dLon = (userPos[1] - data.longitude) * Math.PI / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(data.latitude * Math.PI / 180) * Math.cos(userPos[0] * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = R * c;
-      const minutes = Math.max(1, Math.round(distance * 2.4 + 2));
-      setCurrentETA(minutes);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [latestOrderId, activeOrder, userPos]);
-
   return (
     <>
       {children}
-      <ForegroundNotificationBanner />
-      {shouldShowFloatingCard && (
-        <div
-          onClick={() => {
-            const latestId = localStorage.getItem("latestOrderId");
-            if (latestId) {
-              navigate(`/track-order/${latestId}`);
-            } else {
-              navigate("/success");
-            }
-          }}
-          style={{
-            position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            width: "280px",
-            background: "white",
-            borderRadius: "24px",
-            overflow: "hidden",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.16)",
-            zIndex: 9999,
-            cursor: "pointer",
-            border: "1px solid #e5e7eb",
-            fontFamily: "'Outfit', 'Inter', sans-serif",
-            transition: "transform 0.2s ease, box-shadow 0.2s ease",
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = "translateY(-4px)";
-            e.currentTarget.style.boxShadow = "0 18px 48px rgba(0,0,0,0.22)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = "none";
-            e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.16)";
-          }}
-        >
-          {/* Close Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              localStorage.setItem("hideTrackingCard", "true");
-              setHideTrackingCard(true);
-            }}
-            style={{
-              position: "absolute",
-              top: "12px",
-              right: "12px",
-              width: "24px",
-              height: "24px",
-              borderRadius: "50%",
-              border: "none",
-              background: "#f3f4f6",
-              color: "#4b5563",
-              fontSize: "10px",
-              fontWeight: "800",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 10000,
-            }}
-          >
-            ✕
-          </button>
-
-          {/* Top Info */}
-          <div style={{ padding: "16px" }}>
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937", display: "flex", alignItems: "center", gap: "6px" }}>
-              <span>🛵</span> Arriving in {currentETA} mins
-            </h3>
-            <p style={{ color: "#6b7280", marginTop: "4px", fontSize: "12px", margin: 0, fontWeight: "600" }}>
-              📍 Tap to open live tracking
-            </p>
-          </div>
-
-          {/* Mini Map */}
-          <div style={{ height: "130px", width: "100%", position: "relative" }}>
-            <MapContainer
-              center={riderPos}
-              zoom={13}
-              style={{
-                height: "100%",
-                width: "100%",
-              }}
-              zoomControl={false}
-              attributionControl={false}
-              dragging={false}
-              doubleClickZoom={false}
-              scrollWheelZoom={false}
-            >
-              <ChangePopupMapView center={riderPos} userPos={userPos} />
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <Marker position={userPos} icon={destinationIcon} />
-              <Marker position={riderPos} icon={riderIcon} />
-            </MapContainer>
-          </div>
-        </div>
-      )}
+      <Suspense fallback={null}>
+        <ForegroundNotificationBanner />
+      </Suspense>
     </>
   );
 }
@@ -475,27 +258,130 @@ function ScrollToTop() {
   return null;
 }
 
-function App() {
-  const [appReady, setAppReady] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+function SuspenseFallbackLoader() {
+  const path = window.location.pathname;
+  if (path.startsWith("/product/")) {
+    return <ProductDetailsSkeleton />;
+  }
+
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : true
+  );
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOffline(false);
-      alert("✅ You're back online!");
-    };
-    const handleOffline = () => {
-      setIsOffline(true);
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 767px)");
+    const handleChange = (e) => setIsMobile(e.matches);
+    setIsMobile(media.matches);
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
   }, []);
+
+  const HIDE_LAYOUT_ROUTES = [
+    "/login",
+    "/signup",
+    "/admin",
+    "/admin-login",
+    "/admin-verify",
+    "/rider",
+    "/payment",
+    "/details",
+    "/track-order",
+  ];
+  const showLayout = !HIDE_LAYOUT_ROUTES.some(route => path.startsWith(route));
+
+  return (
+    <div style={{
+      position: "fixed",
+      top: 0,
+      bottom: (isMobile && showLayout) ? "calc(var(--bottom-nav-height, 70px) + env(safe-area-inset-bottom, 0px))" : "0",
+      left: isMobile ? "50%" : "0",
+      transform: isMobile ? "translateX(-50%)" : "none",
+      maxWidth: isMobile ? "480px" : "100%",
+      width: "100%",
+      backgroundColor: "rgba(255, 255, 255, 0.95)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 999,
+      padding: "20px",
+      backdropFilter: "blur(4px)",
+      fontFamily: "'Outfit', 'Inter', sans-serif",
+      boxSizing: "border-box"
+    }}>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.95; }
+            50% { transform: scale(1.08); opacity: 1; filter: drop-shadow(0 4px 12px rgba(49, 134, 22, 0.2)); }
+            100% { transform: scale(1); opacity: 0.95; }
+          }
+          @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+          }
+          .loader-logo {
+            animation: pulse 2s infinite ease-in-out;
+          }
+          .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #318616;
+            margin: 0 4px;
+            animation: bounce 0.6s infinite alternate;
+          }
+          .dot:nth-child(2) { animation-delay: 0.2s; }
+          .dot:nth-child(3) { animation-delay: 0.4s; }
+        `
+      }} />
+      <div style={{
+        backgroundColor: "#ffffff",
+        borderRadius: "24px",
+        padding: "40px 32px",
+        maxWidth: "400px",
+        width: "100%",
+        boxShadow: "0 12px 32px rgba(0, 0, 0, 0.08)",
+        textAlign: "center",
+        border: "1px solid #f1f5f9",
+      }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "180px", marginBottom: "16px" }}>
+            <img
+              src={logoPath}
+              alt="Buyto Logo"
+              className="loader-logo"
+              style={{ height: "64px", width: "auto", marginBottom: "24px", objectFit: "contain" }}
+            />
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
+              <div className="dot"></div>
+              <div className="dot"></div>
+              <div className="dot"></div>
+            </div>
+          </div>
+          <div style={{
+            fontSize: "17px",
+            fontWeight: "600",
+            color: "#1e293b",
+            marginBottom: "12px",
+            height: "24px",
+          }}>
+            ⚡ Loading Your Buyto...
+          </div>
+          <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "32px" }}>
+            Please wait a moment...
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
@@ -517,29 +403,12 @@ function App() {
 
   return (
     <LoaderProvider>
-      {isOffline && <OfflineScreen onRetry={() => setIsOffline(false)} />}
       <AuthProvider>
         <BrowserRouter>
           <GTMRouteTracker />
           <ScrollToTop />
           <GlobalLayout>
-            <Suspense fallback={
-              <div style={{ width: "100%", height: "3px", background: "#e5e7eb", position: "fixed", top: 0, left: 0, zIndex: 99999 }}>
-                <div style={{
-                  height: "100%",
-                  background: "#318616",
-                  width: "40%",
-                  animation: "routeProgress 0.8s ease-in-out infinite"
-                }} />
-                <style>{`
-                  @keyframes routeProgress {
-                    0% { margin-left: 0%; width: 20%; }
-                    50% { margin-left: 40%; width: 50%; }
-                    100% { margin-left: 100%; width: 10%; }
-                  }
-                `}</style>
-              </div>
-            }>
+            <Suspense fallback={<SuspenseFallbackLoader />}>
               <AppContent onReady={() => setAppReady(true)} />
             </Suspense>
           </GlobalLayout>
@@ -556,6 +425,168 @@ function AppContent({ onReady }) {
   usePerfLogger("AppContent");
   useHeaderTheme();
   const [bottomNavVisible, setBottomNavVisible] = useState(true);
+  const [hideNavOverride, setHideNavOverride] = useState(false);
+
+  const { user, isLoggedIn, token, logout } = useContext(AuthContext) || { user: null };
+  const [activeNotification, setActiveNotification] = useState(null);
+  const [showRespondModal, setShowRespondModal] = useState(false);
+  const [myAddresses, setMyAddresses] = useState([]);
+  const [selectedAddressToShare, setSelectedAddressToShare] = useState("");
+
+  useEffect(() => {
+    if (isLoggedIn && user && user._id) {
+      const socket = io(window.API_BASE_URL);
+      
+      socket.emit("registerUser", user._id);
+
+      socket.on("address-share-request", (data) => {
+        setActiveNotification({
+          type: "request",
+          requestId: data.requestId,
+          title: "Address Share Request",
+          message: `${data.senderName} wants to use one of your saved delivery addresses.`,
+          senderName: data.senderName
+        });
+      });
+
+      socket.on("address-share-accepted", (data) => {
+        setActiveNotification({
+          type: "alert",
+          title: "Request Accepted",
+          message: `🎉 ${data.ownerName} shared "${data.addressLabel}" with you.`
+        });
+        window.dispatchEvent(new CustomEvent("addressChanged"));
+      });
+
+      socket.on("address-share-rejected", (data) => {
+        setActiveNotification({
+          type: "alert",
+          title: "Request Declined",
+          message: `Your address request to ${data.ownerName} was declined.`
+        });
+      });
+
+      socket.on("address-share-revoked", (data) => {
+        setActiveNotification({
+          type: "alert",
+          title: "Sharing Revoked",
+          message: `${data.ownerName} has stopped sharing their address.`
+        });
+        window.dispatchEvent(new CustomEvent("addressChanged"));
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    }
+  }, [isLoggedIn, user]);
+
+  const handleOpenShareOptions = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${window.API_BASE_URL}/api/addresses`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.addresses) {
+          const owned = data.addresses.filter(a => !a.isShared);
+          setMyAddresses(owned);
+          if (owned.length > 0) {
+            setSelectedAddressToShare(owned[0]._id);
+          }
+          setShowRespondModal(true);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAcceptRequest = async () => {
+    if (!selectedAddressToShare) return;
+    try {
+      const res = await fetch(`${window.API_BASE_URL}/api/address-share/respond`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          requestId: activeNotification.requestId,
+          action: "accept",
+          addressId: selectedAddressToShare
+        })
+      });
+      if (res.ok) {
+        setActiveNotification(null);
+        setShowRespondModal(false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRejectRequest = async () => {
+    try {
+      const res = await fetch(`${window.API_BASE_URL}/api/address-share/respond`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          requestId: activeNotification.requestId,
+          action: "reject"
+        })
+      });
+      if (res.ok) {
+        setActiveNotification(null);
+        setShowRespondModal(false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    const handleHide = (e) => {
+      setHideNavOverride(!!e.detail);
+    };
+    window.addEventListener("hideBottomNav", handleHide);
+    return () => {
+      window.removeEventListener("hideBottomNav", handleHide);
+    };
+  }, []);
+
+  const { isNavigating, setIsNavigating, isRouteLoaded, markRouteAsLoaded } = useContext(LoaderContext);
+  const location = useLocation();
+  const prevPathRef = useRef(location.pathname);
+
+  // Turn off startup loading overlay once app mount sequence settles
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsNavigating(false);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [setIsNavigating]);
+
+  useEffect(() => {
+    if (location.pathname !== prevPathRef.current) {
+      const path = location.pathname;
+      prevPathRef.current = path;
+
+      if (!isRouteLoaded(path) && !path.startsWith("/product/")) {
+        setIsNavigating(true);
+        const timer = setTimeout(() => {
+          setIsNavigating(false);
+        }, 150);
+        return () => clearTimeout(timer);
+      } else {
+        setIsNavigating(false);
+      }
+    }
+  }, [location.pathname, setIsNavigating, isRouteLoaded]);
 
   useEffect(() => {
     let lastScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
@@ -624,15 +655,12 @@ function AppContent({ onReady }) {
 
   const FREE_DELIVERY_THRESHOLD = 99;
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     // Track page view in GA4
     trackPageView(location.pathname);
   }, [location.pathname]);
 
-  const { user, token, logout } = useContext(AuthContext);
-  const isLoggedIn = !!user && !user.isGuest;
   const [products, setProducts] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -667,6 +695,27 @@ function AppContent({ onReady }) {
   }, [cartItems]);
 
   const [pushToast, setPushToast] = useState({ title: "", body: "", deepLink: null, visible: false });
+
+  // Enrich legacy or mock products loaded from localStorage with their Mongo _id when products catalog is loaded
+  useEffect(() => {
+    if (products && products.length > 0 && cartItems && cartItems.length > 0) {
+      let updated = false;
+      const enrichedItems = cartItems.map(item => {
+        if (!item._id && item.id) {
+          const matched = products.find(p => p.id === item.id || (p.name && item.name && p.name.toLowerCase().trim() === item.name.toLowerCase().trim()));
+          if (matched && matched._id) {
+            updated = true;
+            return { ...item, _id: matched._id };
+          }
+        }
+        return item;
+      });
+      if (updated) {
+        setCartItems(enrichedItems);
+      }
+    }
+  }, [products, cartItems]);
+
 
   // Sync cartItems state with localStorage & sync with backend
   useEffect(() => {
@@ -955,12 +1004,10 @@ function AppContent({ onReady }) {
     fetchActiveCoupons();
   }, [token]);
   const firstName = user?.name?.split(" ")[0] || "";
-  const [showMenu, setShowMenu] = useState(false);
-  const [userLocation, setUserLocation] = useState(() => localStorage.getItem("userLocation") || "Apartment 101, Central Tower");
-  const [roomNumber, setRoomNumber] = useState(() => localStorage.getItem("roomNumber") || "Floor 1");
+  const [userLocation, setUserLocation] = useState(() => localStorage.getItem("userLocation") || "");
+  const [roomNumber, setRoomNumber] = useState(() => localStorage.getItem("roomNumber") || "");
   const [showAddressModal, setShowAddressModal] = useState(false);
-
-
+  const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -968,48 +1015,207 @@ function AppContent({ onReady }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    const fetchDefaultAddress = async () => {
-      if (isLoggedIn && token) {
-        try {
-          const res = await fetch(window.API_BASE_URL + "/api/addresses", {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.addresses && data.addresses.length > 0) {
+  const fetchDefaultAddress = async () => {
+    if (isLoggedIn && token) {
+      try {
+        const res = await fetch(window.API_BASE_URL + "/api/addresses", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.addresses) {
+            if (data.addresses.length > 0) {
               const def = data.addresses.find(a => a.isDefault) || data.addresses[0];
               const addressLineText = def.addressLine + (def.landmark ? `, ${def.landmark}` : "");
               localStorage.setItem("userLocation", addressLineText);
               localStorage.setItem("roomNumber", def.roomNumber || "");
               localStorage.setItem("buyto_selected_address_id", def._id);
+              localStorage.setItem("buyto_selected_address_type", def.label || "Other");
+              localStorage.setItem("buyto_selected_address_full", JSON.stringify(def));
               setUserLocation(addressLineText);
               setRoomNumber(def.roomNumber || "");
+              return addressLineText;
+            } else {
+              // Sync local onboarding location to backend for logged-in user
+              const guestAddressStr = localStorage.getItem("buyto_selected_address_full");
+              const userLoc = localStorage.getItem("userLocation");
+              if (guestAddressStr || userLoc) {
+                try {
+                  let payload = {
+                    label: "PG",
+                    fullName: user?.name || "User",
+                    phone: user?.phone || "6363849864",
+                    addressLine: userLoc || "SDM Gents Luxury PG",
+                    landmark: "",
+                    roomNumber: localStorage.getItem("roomNumber") || "",
+                    latitude: 12.9716,
+                    longitude: 77.5946,
+                    isDefault: true,
+                    serviceable: true
+                  };
+                  if (guestAddressStr) {
+                    const guestAddr = JSON.parse(guestAddressStr);
+                    payload = {
+                      ...payload,
+                      label: guestAddr.label || guestAddr.addressType || payload.label,
+                      addressLine: guestAddr.addressLine || guestAddr.houseNumber || guestAddr.area || payload.addressLine,
+                      landmark: guestAddr.landmark || payload.landmark,
+                      roomNumber: guestAddr.roomNumber || payload.roomNumber,
+                      latitude: guestAddr.latitude !== undefined ? guestAddr.latitude : payload.latitude,
+                      longitude: guestAddr.longitude !== undefined ? guestAddr.longitude : payload.longitude
+                    };
+                  }
+                  const saveRes = await fetch(window.API_BASE_URL + "/api/addresses", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                  });
+                  if (saveRes.ok) {
+                    const saveResult = await saveRes.json();
+                    if (saveResult.success && saveResult.address) {
+                      const def = saveResult.address;
+                      const addressLineText = def.addressLine + (def.landmark ? `, ${def.landmark}` : "");
+                      localStorage.setItem("userLocation", addressLineText);
+                      localStorage.setItem("roomNumber", def.roomNumber || "");
+                      localStorage.setItem("buyto_selected_address_id", def._id);
+                      localStorage.setItem("buyto_selected_address_type", def.label || "Other");
+                      localStorage.setItem("buyto_selected_address_full", JSON.stringify(def));
+                      setUserLocation(addressLineText);
+                      setRoomNumber(def.roomNumber || "");
+                      if (refreshUser) refreshUser();
+                      return addressLineText;
+                    }
+                  }
+                } catch (e) {
+                  console.error("Error migrating guest address to backend:", e);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching default address on mount:", e);
+      }
+    } else {
+      const guestAddresses = localStorage.getItem("buyto_guest_addresses");
+      if (guestAddresses) {
+        try {
+          const parsed = JSON.parse(guestAddresses);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const def = parsed.find(a => a.isDefault) || parsed[0];
+            const addressLineText = def.addressLine + (def.landmark ? `, ${def.landmark}` : "");
+            localStorage.setItem("userLocation", addressLineText);
+            localStorage.setItem("roomNumber", def.roomNumber || "");
+            localStorage.setItem("buyto_selected_address_id", def._id);
+            localStorage.setItem("buyto_selected_address_type", def.label || "Other");
+            localStorage.setItem("buyto_selected_address_full", JSON.stringify(def));
+            setUserLocation(addressLineText);
+            setRoomNumber(def.roomNumber || "");
+            return addressLineText;
+          }
+        } catch (e) { }
+      }
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    const handleAddressChange = () => {
+      setUserLocation(localStorage.getItem("userLocation") || "");
+      setRoomNumber(localStorage.getItem("roomNumber") || "");
+    };
+    window.addEventListener("addressChanged", handleAddressChange);
+    return () => window.removeEventListener("addressChanged", handleAddressChange);
+  }, []);
+
+  useEffect(() => {
+    const initLocationCheck = async () => {
+      // 1. Wait for default address checking to settle
+      const resolvedAddress = await fetchDefaultAddress();
+      const existingLocation = resolvedAddress || localStorage.getItem("userLocation");
+
+      if (existingLocation) {
+        // We have a valid saved location! Skip modal.
+        return;
+      }
+
+      // 2. If no location, check permission
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const perm = await Geolocation.checkPermissions();
+          if (perm.location !== "granted") {
+            setShowLocationPermissionModal(true);
+          } else {
+            // Permission granted but no address saved? Try to resolve it once!
+            try {
+              const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`);
+              if (res.ok) {
+                const data = await res.json();
+                const addressLine = data.display_name || `${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
+                localStorage.setItem("userLocation", addressLine);
+                setUserLocation(addressLine);
+              } else {
+                setShowLocationPermissionModal(true);
+              }
+            } catch (err) {
+              console.warn("Failed auto-resolving coordinates:", err);
+              setShowLocationPermissionModal(true);
             }
           }
         } catch (e) {
-          console.error("Error fetching default address on mount:", e);
+          setShowLocationPermissionModal(true);
         }
       } else {
-        const guestAddresses = localStorage.getItem("buyto_guest_addresses");
-        if (guestAddresses) {
-          try {
-            const parsed = JSON.parse(guestAddresses);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              const def = parsed.find(a => a.isDefault) || parsed[0];
-              const addressLineText = def.addressLine + (def.landmark ? `, ${def.landmark}` : "");
-              localStorage.setItem("userLocation", addressLineText);
-              localStorage.setItem("roomNumber", def.roomNumber || "");
-              localStorage.setItem("buyto_selected_address_id", def._id);
-              setUserLocation(addressLineText);
-              setRoomNumber(def.roomNumber || "");
-            }
-          } catch (e) { }
+        // Web Platform: check if permission query is supported
+        try {
+          const status = await navigator.permissions.query({ name: "geolocation" });
+          if (status.state !== "granted") {
+            setShowLocationPermissionModal(true);
+          }
+        } catch (e) {
+          setShowLocationPermissionModal(true);
         }
       }
     };
-    fetchDefaultAddress();
+
+    initLocationCheck();
   }, [isLoggedIn, token]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleAppStateChange = async (state) => {
+      if (state.isActive && !localStorage.getItem("userLocation")) {
+        // App returned to foreground and still has no valid location. Recheck permission!
+        try {
+          const permStatus = await Geolocation.checkPermissions();
+          if (permStatus.location === "granted") {
+            // Permission was granted in settings! Resolve position and close modal.
+            const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 6000 });
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`);
+            if (res.ok) {
+              const data = await res.json();
+              const addressLine = data.display_name || `${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
+              localStorage.setItem("userLocation", addressLine);
+              setUserLocation(addressLine);
+              setShowLocationPermissionModal(false);
+            }
+          }
+        } catch (err) {
+          console.error("Error rechecking permission on resume:", err);
+        }
+      }
+    };
+
+    const handler = CapApp.addListener("appStateChange", handleAppStateChange);
+    return () => {
+      handler.then(h => h.remove());
+    };
+  }, []);
 
   useEffect(() => {
     if (windowWidth < 768 && location.pathname !== "/search" && !location.search.includes("tab=search") && searchQuery !== "") {
@@ -1019,8 +1225,8 @@ function AppContent({ onReady }) {
   }, [location.pathname, location.search, windowWidth]);
 
   useEffect(() => {
-    console.log("=== API FETCH INITIATED ===", window.API_BASE_URL + "/api/products");
-    cachedFetch(window.API_BASE_URL + "/api/products")
+    console.log("=== API FETCH INITIATED ===", window.API_BASE_URL + "/api/products?limit=40");
+    cachedFetch(window.API_BASE_URL + "/api/products?limit=40", { minDelay: 700 })
       .then((data) => {
         console.log("=== API FETCH SUCCESS ===", data.length, "products loaded");
         const preClassified = (data || []).map(p => ({
@@ -1111,8 +1317,17 @@ function AppContent({ onReady }) {
   }, []);
 
   const addToCart = React.useCallback((product) => {
+    // Enrich product with _id from catalog if missing
+    let enriched = { ...product };
+    if (!enriched._id && enriched.id && products && products.length > 0) {
+      const matched = products.find(p => p.id === enriched.id);
+      if (matched && matched._id) {
+        enriched._id = matched._id;
+      }
+    }
+
     setCartItems((prevItems) => {
-      const productId = getProductId(product);
+      const productId = getProductId(enriched);
 
       const existingItem = prevItems.find(
         (item) => getProductId(item) === productId
@@ -1129,12 +1344,13 @@ function AppContent({ onReady }) {
       return [
         ...prevItems,
         {
-          ...product,
+          ...enriched,
           quantity: 1,
         },
       ];
     });
-  }, [getProductId]);
+  }, [getProductId, products]);
+
 
   const removeFromCart = React.useCallback((product) => {
     setCartItems((prevItems) => {
@@ -1513,36 +1729,38 @@ function AppContent({ onReady }) {
     />
   );
 
-  const computedCartItems = Object.values(cart).map(item => {
-    const variant = item.product.variants?.find(v => v.weight === item.product.selectedWeight);
-    const originalPrice = variant ? variant.originalPrice : (item.product.originalPrice || item.product.price);
-    return {
-      ...item.product,
-      id: getCartKey(item.product),
-      name: item.product.name,
-      weight: item.product.selectedWeight || item.product.weight,
-      price: item.product.price,
-      image: item.product.image,
-      quantity: item.quantity,
-      originalPrice: originalPrice,
-    };
-  });
+  const computedCartItems = useMemo(() => {
+    return Object.values(cart).map(item => {
+      const variant = item.product.variants?.find(v => v.weight === item.product.selectedWeight);
+      const originalPrice = variant ? variant.originalPrice : (item.product.originalPrice || item.product.price);
+      return {
+        ...item.product,
+        id: getCartKey(item.product),
+        name: item.product.name,
+        weight: item.product.selectedWeight || item.product.weight,
+        price: item.product.price,
+        image: item.product.image,
+        quantity: item.quantity,
+        originalPrice: originalPrice,
+      };
+    });
+  }, [cart, getCartKey]);
 
-  const increaseQty = (id) => {
+  const increaseQty = useCallback((id) => {
     const item = cart[id];
     if (item) {
       addToCart(item.product);
     }
-  };
+  }, [cart, addToCart]);
 
-  const decreaseQty = (id) => {
+  const decreaseQty = useCallback((id) => {
     const item = cart[id];
     if (item) {
       removeFromCart(item.product);
     }
-  };
+  }, [cart, removeFromCart]);
 
-  const removeFromCartCompletely = (id) => {
+  const removeFromCartCompletely = useCallback((id) => {
     setCartItems((prevItems) => {
       return prevItems.filter((item) => {
         const key = item._id || item.id;
@@ -1551,7 +1769,7 @@ function AppContent({ onReady }) {
         return cartKey !== id;
       });
     });
-  };
+  }, []);
 
   const getAppBackground = () => {
     const path = location.pathname;
@@ -1569,6 +1787,8 @@ function AppContent({ onReady }) {
   };
 
   const wrapCustomerLayout = (element, showHeader = true) => {
+    const layoutLoading = loading || isNavigating;
+
     return (
       <div style={{
         background: getAppBackground(),
@@ -1580,10 +1800,42 @@ function AppContent({ onReady }) {
         position: "relative",
         boxSizing: "border-box"
       }}>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes fadeOut {
+              from { opacity: 1; }
+              to { opacity: 0; }
+            }
+            .fade-in-loader {
+              animation: fadeIn 150ms ease-out forwards;
+            }
+            .fade-out-loader {
+              animation: fadeOut 150ms ease-in forwards;
+            }
+            .fade-in-header {
+              animation: fadeIn 200ms ease-out forwards;
+            }
+            .fade-in-content {
+              animation: fadeIn 250ms ease-out forwards;
+            }
+            .layout-loading-container {
+              width: 100%;
+              min-height: calc(100vh - 70px - env(safe-area-inset-bottom, 0px));
+              display: flex;
+              align-items: center;
+              justifyContent: center;
+              background-color: #ffffff;
+            }
+          `
+        }} />
         {location.pathname === "/" && <SEO isHome={true} />}
         {location.pathname === "/login" && <SEO title="Login" description="Login to your Buyto account." />}
         {location.pathname === "/signup" && <SEO title="Create Account" description="Create a new Buyto account." />}
-        {!["/", "/login", "/signup", "/search", "/categories", "/cart", "/payment", "/success", "/profile/edit", "/profile", "/orders", "/my-orders", "/address", "/wishlist", "/buycoins", "/wallet", "/notifications", "/help", "/about", "/contact", "/settings", "/buycoins/transactions", "/buycoins/rewards", "/privacy-policy", "/terms", "/refund-policy", "/shipping-policy", "/faq", "/support/chat", "/shopping-list", "/shopping-list/results", "/shopping-list/smart-matching", "/save-for-later", "/saved-lists"].includes(location.pathname) && 
+        {!["/", "/login", "/signup", "/search", "/categories", "/cart", "/payment", "/success", "/profile/edit", "/profile", "/orders", "/my-orders", "/address", "/wishlist", "/buycoins", "/wallet", "/notifications", "/help", "/about", "/contact", "/settings", "/buycoins/transactions", "/buycoins/rewards", "/privacy-policy", "/terms", "/refund-policy", "/shipping-policy", "/faq", "/support/chat", "/shopping-list", "/shopping-list/results", "/shopping-list/smart-matching", "/save-for-later", "/saved-lists", "/payment-settings", "/profile/request-address", "/profile/manage-shares"].includes(location.pathname) && 
           !location.pathname.startsWith("/category/") && 
           !location.pathname.startsWith("/products/") && 
           !location.pathname.startsWith("/product/") && 
@@ -1595,20 +1847,22 @@ function AppContent({ onReady }) {
           <SEO title="404 - Page Not Found" description="Page not found." />
         }
 
-        {showHeader && (
-          <Header
-            userLocation={userLocation}
-            roomNumber={roomNumber}
-            totalItems={totalItems}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            isLoggedIn={isLoggedIn}
-            onOpenAddressModal={() => setShowAddressModal(true)}
-            eta={7}
-            displayCats={memoizedDisplayCats}
-            selectedCategory={selectedCategory}
-            onCategoryClick={handleCategoryClick}
-          />
+        {showHeader && !layoutLoading && (
+          <div className="fade-in-header" style={{ position: "sticky", top: 0, zIndex: 1000, width: "100%" }}>
+            <Header
+              userLocation={userLocation}
+              roomNumber={roomNumber}
+              totalItems={totalItems}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              isLoggedIn={isLoggedIn}
+              onOpenAddressModal={() => setShowAddressModal(true)}
+              eta={7}
+              displayCats={memoizedDisplayCats}
+              selectedCategory={selectedCategory}
+              onCategoryClick={handleCategoryClick}
+            />
+          </div>
         )}
         <div style={{
           paddingBottom: "140px",
@@ -1617,11 +1871,21 @@ function AppContent({ onReady }) {
           maxWidth: "100%",
           overflowX: "clip"
         }}>
-          {element}
-          <Footer />
+          {layoutLoading ? (
+            <div className="fade-in-loader layout-loading-container">
+              <BuytoLoader mode="inline" />
+            </div>
+          ) : (
+            <div className="fade-in-content">
+              {element}
+            </div>
+          )}
+          {!layoutLoading && windowWidth >= 1024 && <Footer />}
         </div>
-        <FloatingCartPopup totalItems={totalItems} totalPrice={totalPrice} bottomNavVisible={bottomNavVisible} />
-        <MobileBottomNavigation isVisible={bottomNavVisible} />
+        {!layoutLoading && (
+          <FloatingCartPopup totalItems={totalItems} totalPrice={totalPrice} bottomNavVisible={bottomNavVisible} />
+        )}
+        <MobileBottomNavigation isVisible={bottomNavVisible && !hideNavOverride} />
 
         {/* STEP 4 — POPUP SELECTOR FOR MULTI-VARIANT PRODUCTS */}
         {selectedProduct && (
@@ -1749,12 +2013,19 @@ function AppContent({ onReady }) {
           <Suspense fallback={null}>
             <AddressSelectorModal
               isLoggedIn={isLoggedIn}
-              onClose={() => setShowAddressModal(false)}
+              onClose={() => {
+                setShowAddressModal(false);
+                if (!localStorage.getItem("userLocation")) {
+                  setShowLocationPermissionModal(true);
+                }
+              }}
               onSelectAddress={(addr) => {
                 const addressLineText = addr.addressLine + (addr.landmark ? `, ${addr.landmark}` : "");
                 localStorage.setItem("userLocation", addressLineText);
                 localStorage.setItem("roomNumber", addr.roomNumber || "");
                 localStorage.setItem("buyto_selected_address_id", addr._id);
+                localStorage.setItem("buyto_selected_address_type", addr.label || "Other");
+                localStorage.setItem("buyto_selected_address_full", JSON.stringify(addr));
                 setUserLocation(addressLineText);
                 setRoomNumber(addr.roomNumber || "");
                 setShowAddressModal(false);
@@ -1762,6 +2033,19 @@ function AppContent({ onReady }) {
             />
           </Suspense>
         )}
+        
+        {/* LOCATION PERMISSION MODAL */}
+        <LocationPermissionModal
+          isOpen={showLocationPermissionModal}
+          onLocationResolved={(address) => {
+            setUserLocation(address);
+            setShowLocationPermissionModal(false);
+          }}
+          onSelectManually={() => {
+            setShowLocationPermissionModal(false);
+            setShowAddressModal(true);
+          }}
+        />
         <OtpLoginBottomSheet />
         <OnboardingBottomSheet />
       </div>
@@ -1857,7 +2141,7 @@ function AppContent({ onReady }) {
       return (
         <div style={{ minHeight: "100vh", paddingBottom: `${MOBILE_NAV_TOTAL_OFFSET}px` }}>
           {el}
-          <MobileBottomNavigation isVisible={bottomNavVisible} />
+          <MobileBottomNavigation isVisible={bottomNavVisible && !hideNavOverride} />
         </div>
       );
     }
@@ -1906,7 +2190,35 @@ function AppContent({ onReady }) {
     return wrapCustomerLayout(
       <ProtectedRoute>
         <ProfilePage />
-      </ProtectedRoute>
+      </ProtectedRoute>,
+      false
+    );
+  }
+
+  if (location.pathname === "/payment-settings") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <PaymentSettingsPage />
+      </ProtectedRoute>,
+      false
+    );
+  }
+
+  if (location.pathname === "/profile/request-address") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <RequestAddressPage />
+      </ProtectedRoute>,
+      false
+    );
+  }
+
+  if (location.pathname === "/profile/manage-shares") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <ManageSharesPage />
+      </ProtectedRoute>,
+      false
     );
   }
 
@@ -1921,8 +2233,9 @@ function AppContent({ onReady }) {
   if (location.pathname === "/address") {
     return wrapCustomerLayout(
       <ProtectedRoute>
-        <ProfilePage defaultTab="addresses" />
-      </ProtectedRoute>
+        <MyAddressesPage />
+      </ProtectedRoute>,
+      false
     );
   }
 
@@ -3079,7 +3392,12 @@ function AppContent({ onReady }) {
         <Suspense fallback={null}>
           <AddressSelectorModal
             isLoggedIn={isLoggedIn}
-            onClose={() => setShowAddressModal(false)}
+            onClose={() => {
+              setShowAddressModal(false);
+              if (!localStorage.getItem("userLocation")) {
+                setShowLocationPermissionModal(true);
+              }
+            }}
             onSelectAddress={(addr) => {
               const addressLineText = addr.addressLine + (addr.landmark ? `, ${addr.landmark}` : "");
               localStorage.setItem("userLocation", addressLineText);
@@ -3092,6 +3410,131 @@ function AppContent({ onReady }) {
           />
         </Suspense>
       )}
+
+      {/* LOCATION PERMISSION MODAL */}
+      <LocationPermissionModal
+        isOpen={showLocationPermissionModal}
+        onLocationResolved={(address) => {
+          setUserLocation(address);
+          setShowLocationPermissionModal(false);
+        }}
+        onSelectManually={() => {
+          setShowLocationPermissionModal(false);
+          setShowAddressModal(true);
+        }}
+      />
+
+      {/* Real-time In-App Notification Center Overlay */}
+      <AnimatePresence>
+        {activeNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}
+            className="fixed top-4 left-4 right-4 z-[200] max-w-sm mx-auto bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 flex flex-col gap-3"
+          >
+            <div className="flex flex-col gap-1 text-left">
+              <h4 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5">
+                🔔 {activeNotification.title}
+              </h4>
+              <p className="text-[12px] font-bold text-gray-400 leading-normal">
+                {activeNotification.message}
+              </p>
+            </div>
+            {activeNotification.type === "request" ? (
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleRejectRequest}
+                  className="px-3.5 py-2 rounded-xl text-[12px] font-black text-gray-500 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={handleOpenShareOptions}
+                  className="px-3.5 py-2 rounded-xl text-[12px] font-black text-white bg-[#318616] hover:bg-[#286f12] transition-colors"
+                >
+                  Share Address
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setActiveNotification(null)}
+                  className="px-3.5 py-2 rounded-xl text-[12px] font-black text-gray-800 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Choose Address Modal for Sharing */}
+      <AnimatePresence>
+        {showRespondModal && (
+          <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setShowRespondModal(false)} />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}
+              className="bg-white rounded-[28px] w-full max-w-sm p-6 shadow-2xl relative z-10 flex flex-col gap-4 text-center"
+            >
+              <h3 className="text-[18px] font-black text-gray-800 leading-tight">Choose Address</h3>
+              <p className="text-[12px] font-bold text-gray-400">
+                Select which of your saved addresses you want to share with {activeNotification?.senderName || "the requestor"}.
+              </p>
+              
+              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto mt-2 text-left">
+                {myAddresses.map(addr => (
+                  <label 
+                    key={addr._id}
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all duration-150 ${
+                      selectedAddressToShare === addr._id
+                        ? "border-[#318616] bg-green-50/30"
+                        : "border-gray-100 hover:border-gray-200"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[14px] font-extrabold text-gray-800 truncate">{addr.label || addr.addressType}</span>
+                      <span className="text-[11px] font-bold text-gray-400 truncate max-w-[200px]">{addr.addressLine}</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="share_address"
+                      checked={selectedAddressToShare === addr._id}
+                      onChange={() => setSelectedAddressToShare(addr._id)}
+                      className="accent-[#318616] w-4.5 h-4.5"
+                    />
+                  </label>
+                ))}
+                {myAddresses.length === 0 && (
+                  <p className="text-[12px] text-gray-400 font-bold text-center py-4">No saved addresses to share.</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setShowRespondModal(false)}
+                  className="flex-1 py-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-200/50 rounded-2xl text-[14px] font-black text-gray-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAcceptRequest}
+                  disabled={!selectedAddressToShare}
+                  className="flex-1 py-3.5 bg-[#318616] hover:bg-[#286f12] rounded-2xl text-[14px] font-black text-white transition-colors"
+                >
+                  Share
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 

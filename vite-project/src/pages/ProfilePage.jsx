@@ -1,22 +1,64 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import AddressSelectorModal from "../components/common/AddressSelectorModal";
 import SEO from "../components/common/SEO";
 import BuyCoin from "../components/common/BuyCoin";
+import { useTheme } from "../context/ThemeContext";
+import { motion, AnimatePresence } from "framer-motion";
+
+// Import configuration and modular components
+import { profileMenuConfig } from "../data/profileMenu";
+import ProfileHeader from "../components/profile/ProfileHeader";
+import ProfileBanner from "../components/profile/ProfileBanner";
+import QuickActions from "../components/profile/QuickActions";
+import ProfileSection from "../components/profile/ProfileSection";
+import ProfileRow from "../components/profile/ProfileRow";
+import VersionFooter from "../components/profile/VersionFooter";
+
+// Additional Lucide icons used directly in page elements
+import { Smartphone, Sun, EyeOff, ChevronDown } from "lucide-react";
 
 export default function ProfilePage({ defaultTab = "" }) {
   const navigate = useNavigate();
   const { user, isLoggedIn, token, logout, openLogin, refreshUser } = useContext(AuthContext);
+  const { theme: globalTheme, setTheme: setGlobalTheme } = useTheme();
 
-  // States for API data
+  // States
   const [orders, setOrders] = useState([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
   const [liveUser, setLiveUser] = useState(user);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [activeAddress, setActiveAddress] = useState(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showAppearanceDropdown, setShowAppearanceDropdown] = useState(false);
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState(-1);
+  const cancelBtnRef = React.useRef(null);
+  const logoutBtnRef = React.useRef(null);
+  const lightOptionRef = React.useRef(null);
+  const darkOptionRef = React.useRef(null);
+
+  // Redesign Feature States (persisted locally)
+  const [isAppUpdated, setIsAppUpdated] = useState(() => {
+    return localStorage.getItem("buyto_app_updated") === "true";
+  });
+  const [hideSensitive, setHideSensitive] = useState(() => {
+    return localStorage.getItem("buyto_hide_sensitive") === "true";
+  });
+
+  // Handle defaultTab from routing
+  useEffect(() => {
+    if (defaultTab === "addresses") {
+      setShowAddressModal(true);
+    }
+  }, [defaultTab]);
 
   // Sync session & live profile details
+  useEffect(() => {
+    if (user) {
+      setLiveUser(user);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!token) return;
     if (refreshUser) {
@@ -51,514 +93,518 @@ export default function ProfilePage({ defaultTab = "" }) {
     }
   }, [liveUser]);
 
-  // Get time of day greeting
-  const getGreeting = () => {
-    const hr = new Date().getHours();
-    if (hr < 12) return "Good Morning";
-    if (hr < 17) return "Good Afternoon";
-    return "Good Evening";
-  };
+  // Callbacks
+  const handleBack = useCallback(() => {
+    navigate(-1);
+  }, [navigate]);
 
-  const memberDateStr = liveUser?.createdAt
-    ? new Date(liveUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
-    : "July 2026";
+  const handleOrdersClick = useCallback(() => {
+    if (!isLoggedIn) {
+      openLogin();
+    } else {
+      navigate("/orders");
+    }
+  }, [isLoggedIn, navigate, openLogin]);
 
-  const handleLogoutClick = () => {
+  const handleWalletClick = useCallback(() => {
+    if (!isLoggedIn) {
+      openLogin();
+    } else {
+      navigate("/wallet");
+    }
+  }, [isLoggedIn, navigate, openLogin]);
+
+  const handleHelpClick = useCallback(() => {
+    navigate("/help");
+  }, [navigate]);
+
+  const handleBannerClick = useCallback(() => {
+    if (!isLoggedIn) {
+      openLogin();
+    } else {
+      // Complete profile action
+      navigate("/profile/edit");
+    }
+  }, [isLoggedIn, openLogin, navigate]);
+
+  const handleCancelLogout = useCallback(() => {
+    setShowLogoutDialog(false);
+    if (window.history.state?.dialog === "logout") {
+      window.history.back();
+    }
+  }, []);
+
+  const confirmLogout = useCallback(() => {
+    setShowLogoutDialog(false);
+    if (window.history.state?.dialog === "logout") {
+      window.history.back();
+    }
     logout();
     navigate("/");
-  };
+  }, [logout, navigate]);
 
-  // Render stats section
-  const renderStats = () => (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: "16px",
-      margin: "24px 0",
-      padding: "20px",
-      background: "white",
-      borderRadius: "24px",
-      boxShadow: "0 10px 30px rgba(0,0,0,0.02)",
-      border: "1px solid #f1f5f9"
-    }}>
-      <div style={{ textAlign: "center", padding: "12px", borderRight: "1px solid #f1f5f9" }}>
-        <h4 style={{ margin: 0, fontSize: "28px", fontWeight: "950", color: "#318616" }}>10K+</h4>
-        <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "#64748B", fontWeight: "800", textTransform: "uppercase" }}>Products Available</p>
-      </div>
-      <div style={{ textAlign: "center", padding: "12px" }}>
-        <h4 style={{ margin: 0, fontSize: "28px", fontWeight: "950", color: "#318616" }}>25K+</h4>
-        <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "#64748B", fontWeight: "800", textTransform: "uppercase" }}>Happy Students</p>
-      </div>
-      <div style={{ textAlign: "center", padding: "12px", borderRight: "1px solid #f1f5f9", borderTop: "1px solid #f1f5f9" }}>
-        <h4 style={{ margin: 0, fontSize: "28px", fontWeight: "950", color: "#318616" }}>15 min</h4>
-        <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "#64748B", fontWeight: "800", textTransform: "uppercase" }}>Avg Delivery</p>
-      </div>
-      <div style={{ textAlign: "center", padding: "12px", borderTop: "1px solid #f1f5f9" }}>
-        <h4 style={{ margin: 0, fontSize: "28px", fontWeight: "950", color: "#318616" }}>4.9★</h4>
-        <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "#64748B", fontWeight: "800", textTransform: "uppercase" }}>Customer Rating</p>
-      </div>
-    </div>
-  );
+  const handleLogout = useCallback(() => {
+    setShowLogoutDialog(true);
+  }, []);
+
+  useEffect(() => {
+    if (showLogoutDialog) {
+      window.dispatchEvent(new CustomEvent("hideBottomNav", { detail: true }));
+      window.history.pushState({ dialog: "logout" }, "");
+      
+      const handlePopState = (event) => {
+        setShowLogoutDialog(false);
+      };
+      
+      const handleGlobalKeyDown = (e) => {
+        if (e.key === "Escape") {
+          setShowLogoutDialog(false);
+          window.history.back();
+        }
+        if (e.key === "Tab") {
+          const cancelBtn = cancelBtnRef.current;
+          const logoutBtn = logoutBtnRef.current;
+          if (cancelBtn && logoutBtn) {
+            if (e.shiftKey) {
+              if (document.activeElement === cancelBtn) {
+                logoutBtn.focus();
+                e.preventDefault();
+              }
+            } else {
+              if (document.activeElement === logoutBtn) {
+                cancelBtn.focus();
+                e.preventDefault();
+              }
+            }
+          }
+        }
+      };
+
+      window.addEventListener("popstate", handlePopState);
+      window.addEventListener("keydown", handleGlobalKeyDown);
+
+      setTimeout(() => {
+        cancelBtnRef.current?.focus();
+      }, 50);
+
+      return () => {
+        window.dispatchEvent(new CustomEvent("hideBottomNav", { detail: false }));
+        window.removeEventListener("popstate", handlePopState);
+        window.removeEventListener("keydown", handleGlobalKeyDown);
+      };
+    }
+  }, [showLogoutDialog]);
+
+  const handleShare = useCallback(() => {
+    if (navigator.share) {
+      navigator.share({
+        title: "Buyto App",
+        text: "Check out Buyto for 15-minute hostel deliveries!",
+        url: window.location.origin
+      }).catch(err => console.log(err));
+    } else {
+      // Fallback
+      navigator.clipboard.writeText(window.location.origin);
+      alert("App link copied to clipboard!");
+    }
+  }, []);
+
+  const handleOpenAddress = useCallback(() => {
+    if (!isLoggedIn) {
+      openLogin();
+    } else {
+      setShowAddressModal(true);
+    }
+  }, [isLoggedIn, openLogin]);
+
+  // Toggle handlers
+  const handleToggleSensitive = useCallback(() => {
+    setHideSensitive(prev => {
+      const nextValue = !prev;
+      localStorage.setItem("buyto_hide_sensitive", nextValue ? "true" : "false");
+      return nextValue;
+    });
+  }, []);
+
+  const handleSelectTheme = useCallback((selectedTheme) => {
+    setGlobalTheme(selectedTheme.toUpperCase());
+    setShowAppearanceDropdown(false);
+  }, [setGlobalTheme]);
+
+  useEffect(() => {
+    if (showAppearanceDropdown) {
+      const handleKeyDown = (e) => {
+        if (e.key === "Escape") {
+          setShowAppearanceDropdown(false);
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setActiveDropdownIndex(prev => (prev === -1 || prev === 1) ? 0 : 1);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setActiveDropdownIndex(prev => (prev === -1 || prev === 0) ? 1 : 0);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          if (activeDropdownIndex === 0) {
+            handleSelectTheme("light");
+          } else if (activeDropdownIndex === 1) {
+            handleSelectTheme("dark");
+          }
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    } else {
+      setActiveDropdownIndex(-1);
+    }
+  }, [showAppearanceDropdown, activeDropdownIndex, handleSelectTheme]);
+
+  useEffect(() => {
+    if (showAppearanceDropdown) {
+      if (activeDropdownIndex === 0) {
+        lightOptionRef.current?.focus();
+      } else if (activeDropdownIndex === 1) {
+        darkOptionRef.current?.focus();
+      }
+    }
+  }, [activeDropdownIndex, showAppearanceDropdown]);
+
+  const handleToggleAppearanceDropdown = useCallback(() => {
+    setShowAppearanceDropdown(prev => !prev);
+  }, []);
+
+  const handleCloseAppearanceDropdown = useCallback(() => {
+    setShowAppearanceDropdown(false);
+  }, []);
+
+  const handleSelectLight = useCallback(() => {
+    handleSelectTheme("light");
+  }, [handleSelectTheme]);
+
+  const handleSelectDark = useCallback(() => {
+    handleSelectTheme("dark");
+  }, [handleSelectTheme]);
+
+  const handleCloseAddressModal = useCallback(() => {
+    setShowAddressModal(false);
+  }, []);
+
+  const handleSelectAddressDummy = useCallback(() => {}, []);
+
+  const handleAppUpdateDismiss = useCallback(() => {
+    setIsAppUpdated(true);
+    localStorage.setItem("buyto_app_updated", "true");
+  }, []);
+
+  // Menu action router
+  const handleMenuRowClick = useCallback((item) => {
+    if (!isLoggedIn && item.id !== "about-buyto" && item.id !== "privacy-policy" && item.id !== "terms-conditions" && item.id !== "refund-policy" && item.id !== "faq" && item.id !== "contact-us" && item.id !== "help-center") {
+      openLogin();
+      return;
+    }
+
+    if (item.actionType === "navigate") {
+      navigate(item.path);
+    } else if (item.actionType === "callback") {
+      if (item.actionKey === "onOpenAddress") {
+        handleOpenAddress();
+      } else if (item.actionKey === "onShare") {
+        handleShare();
+      } else if (item.actionKey === "onLogout") {
+        handleLogout();
+      }
+    }
+  }, [isLoggedIn, navigate, openLogin, handleOpenAddress, handleShare, handleLogout]);
+
+  // Memoized Config with Dynamic Subtitles
+  const memoizedMenuConfig = useMemo(() => {
+    return profileMenuConfig.map(section => {
+      // Map and inject dynamic subtitles if needed (e.g. show active address name under Address Book)
+      const updatedItems = section.items.map(item => {
+        if (item.id === "address-book" && activeAddress) {
+          const addressDesc = activeAddress.houseNumber 
+            ? `${activeAddress.houseNumber}, ${activeAddress.buildingName || activeAddress.landmark}`
+            : activeAddress.addressLine1;
+          return { ...item, subtitle: addressDesc };
+        }
+        if (item.id === "buycoins" && isLoggedIn) {
+          return { ...item, subtitle: `${liveUser?.buyCoins ?? 0} Coins available` };
+        }
+        return item;
+      });
+      return { ...section, items: updatedItems };
+    });
+  }, [activeAddress, liveUser, isLoggedIn]);
 
   return (
-    <div className="page-with-bottom-nav" style={{ minHeight: "100vh", background: "linear-gradient(to bottom, #F8FFF8 0%, #FFFFFF 50%, #FDFDFD 100%)", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+    <div className="page-with-bottom-nav min-h-screen bg-[#F6F7FB] pb-[100px] overflow-x-hidden font-sans">
       <SEO title={isLoggedIn ? "My Profile" : "Login"} description="Manage your account profile, addresses, and settings on Buyto." />
       
-      {/* Dynamic inline styles for micro-animations */}
+      {/* Dynamic inline styles for micro-animations and custom styling */}
       <style dangerouslySetInnerHTML={{
         __html: `
-        .hover-lift {
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .hover-lift:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 30px rgba(49, 134, 22, 0.08);
+        .animate-fade-in {
+          animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        .hover-lift:active {
-          transform: translateY(-1px);
-        }
-        .glow-btn {
-          animation: buttonGlow 3s infinite alternate;
-        }
-        @keyframes buttonGlow {
-          0% { box-shadow: 0 4px 12px rgba(49, 134, 22, 0.2); }
-          100% { box-shadow: 0 4px 24px rgba(49, 134, 22, 0.4); }
-        }
-        .scale-hover {
-          transition: transform 0.2s ease;
-        }
-        .scale-hover:hover {
-          transform: scale(1.05);
-        }
-        .sparkle-icon {
-          animation: sparkle 2s infinite ease-in-out;
-        }
-        @keyframes sparkle {
-          0%, 100% { opacity: 0.8; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.15); }
-        }
-        .social-btn {
-          transition: all 0.2s ease;
-        }
-        .social-btn:hover {
-          transform: scale(1.1) translateY(-2px);
-        }
-      `}} />
+        `
+      }} />
 
-      {/* Glassmorphic Sticky Header */}
-      <div style={{
-        position: "sticky",
-        top: 0,
-        background: "rgba(255, 255, 255, 0.85)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(229, 231, 235, 0.5)",
-        padding: "16px 20px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        zIndex: 999
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button onClick={() => navigate(-1)} style={{ border: "none", background: "transparent", fontSize: "24px", cursor: "pointer", color: "#374151" }}>←</button>
-          <span style={{ fontSize: "18px", fontWeight: "900", color: "#111827" }}>My Account</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ fontSize: "14px", fontWeight: "800", color: "#318616" }}>Buyto Dashboard</span>
-        </div>
-      </div>
+      {/* 1. Header */}
+      <ProfileHeader 
+        user={liveUser} 
+        isLoggedIn={isLoggedIn} 
+        onBack={handleBack} 
+      />
 
-      <div style={{ maxWidth: "500px", margin: "0 auto", padding: "20px 16px 100px 16px" }}>
+      {/* 2. Profile Completion Banner */}
+      <ProfileBanner 
+        isLoggedIn={isLoggedIn} 
+        user={liveUser}
+        onClick={handleBannerClick} 
+      />
 
-        {/* LOGGED OUT VIEW */}
-        {!isLoggedIn ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            
-            {/* Premium Hero Section */}
-            <div style={{
-              background: "linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)",
-              borderRadius: "28px",
-              padding: "24px",
-              position: "relative",
-              overflow: "hidden",
-              boxShadow: "0 8px 30px rgba(49, 134, 22, 0.05)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              border: "1px solid rgba(255,255,255,0.4)"
-            }}>
-              {/* Dotted leaf overlay */}
-              <div style={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: "radial-gradient(#318616 1px, transparent 1px)",
-                backgroundSize: "16px 16px",
-                opacity: 0.05,
-                pointerEvents: "none"
-              }} />
-              
-              <div style={{ zIndex: 1, flexGrow: 1, paddingRight: "12px" }}>
-                <h2 style={{ margin: 0, fontSize: "26px", fontWeight: "950", color: "#1B5E20", letterSpacing: "-0.5px" }}>
-                  👋 Welcome to Buyto
-                </h2>
-                <div style={{ margin: "8px 0 16px 0", fontSize: "13px", color: "#2E7D32", fontWeight: "700", display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <span>✓ Shop smarter.</span>
-                  <span>✓ Earn BuyCoins rewards.</span>
-                  <span>✓ Track every order in real-time.</span>
+      {/* 3. Quick Action Cards */}
+      <QuickActions 
+        onOrders={handleOrdersClick}
+        onWallet={handleWalletClick}
+        onHelp={handleHelpClick}
+      />
+
+      <div className="mt-5 space-y-5">
+        {/* 4. Update Card */}
+        {!isAppUpdated && (
+          <div className="mx-4">
+            <div className="bg-white rounded-[18px] border border-gray-100 p-4 flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+              <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-blue-50">
+                  <img 
+                    src="https://img.icons8.com/?size=100&id=L9ByuHGgbUNK&format=png&color=000000" 
+                    alt="Update" 
+                    className="w-[18px] h-[18px] object-contain" 
+                  />
                 </div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "white", padding: "6px 12px", borderRadius: "10px", fontSize: "12px", fontWeight: "800", color: "#b45309", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                  <span className="sparkle-icon">🪙</span> 20 BuyCoins Welcome Bonus
+                <div className="flex-1 min-w-0">
+                  <span className="text-[15px] font-semibold text-gray-800 block truncate">
+                    App update available
+                  </span>
+                  <span className="text-[11px] font-medium text-gray-400 block mt-0.5 leading-tight">
+                    Bug fixes and performance improvements
+                  </span>
                 </div>
               </div>
-
-              {/* Mascot Waving Illustration */}
-              <div style={{ zIndex: 1, width: "90px", height: "90px", display: "flex", alignItems: "center", justifyContent: "center", background: "white", borderRadius: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.03)", flexShrink: 0, border: "2px solid white" }}>
-                <span style={{ fontSize: "52px" }}>🛒</span>
+              <div className="flex items-center gap-2">
+                <span className="bg-blue-50 text-blue-600 text-[11px] font-extrabold px-2 py-1 rounded-md">
+                  v18.15.0
+                </span>
+                <button 
+                  onClick={handleAppUpdateDismiss}
+                  className="text-[12px] font-extrabold text-[#318616] hover:underline px-2 py-1"
+                >
+                  Update
+                </button>
               </div>
             </div>
-
-            {/* Feature Highlights Pills */}
-            <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "4px", scrollbarWidth: "none" }}>
-              <span style={{ background: "#E8F5E9", color: "#2E7D32", padding: "6px 12px", borderRadius: "50px", fontSize: "11px", fontWeight: "800", whiteSpace: "nowrap" }}>🚚 15 Min Delivery</span>
-              <span style={{ background: "#FEF3C7", color: "#D97706", padding: "6px 12px", borderRadius: "50px", fontSize: "11px", fontWeight: "800", whiteSpace: "nowrap" }}>🪙 BuyCoins</span>
-              <span style={{ background: "#E0F2FE", color: "#0369A1", padding: "6px 12px", borderRadius: "50px", fontSize: "11px", fontWeight: "800", whiteSpace: "nowrap" }}>📦 Live Tracking</span>
-              <span style={{ background: "#F3E8FF", color: "#7E22CE", padding: "6px 12px", borderRadius: "50px", fontSize: "11px", fontWeight: "800", whiteSpace: "nowrap" }}>🎓 Student Discounts</span>
-            </div>
-
-            {/* Better Login CTA */}
-            <div
-              onClick={openLogin}
-              className="glow-btn"
-              style={{
-                background: "linear-gradient(135deg, #318616, #4ca728)",
-                borderRadius: "24px",
-                padding: "20px",
-                textAlign: "center",
-                cursor: "pointer",
-                transition: "transform 0.1s",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center"
-              }}
-            >
-              <h4 style={{ margin: 0, color: "white", fontSize: "18px", fontWeight: "950", display: "flex", alignItems: "center", gap: "8px" }}>
-                🔐 Login / Sign Up
-              </h4>
-              <p style={{ margin: "4px 0 0 0", color: "rgba(255,255,255,0.9)", fontSize: "12px", fontWeight: "700" }}>
-                Continue with Phone Number
-              </p>
-              <div style={{ marginTop: "12px", background: "rgba(255,255,255,0.2)", padding: "4px 14px", borderRadius: "50px", color: "white", fontSize: "11px", fontWeight: "800" }}>
-                🎁 Get 20 BuyCoins FREE
-              </div>
-            </div>
-
-            {/* 2x3 Quick Actions Grid */}
-            <div>
-              <h3 style={{ fontSize: "14px", fontWeight: "900", color: "#64748B", margin: "0 0 12px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>⚡ Quick Actions</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                {[
-                  { label: "Orders", icon: "🛍", action: openLogin },
-                  { label: "BuyCoins", icon: "🪙", action: openLogin },
-                  { label: "Wishlist", icon: "❤️", action: openLogin },
-                  { label: "Addresses", icon: "📍", action: openLogin },
-                  { label: "Offers", icon: "🎁", action: openLogin },
-                  { label: "Settings", icon: "⚙", action: () => navigate("/settings") }
-                ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={item.action}
-                    className="hover-lift"
-                    style={{
-                      background: "white",
-                      borderRadius: "18px",
-                      padding: "16px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                      cursor: "pointer",
-                      border: "1px solid #e5e7eb"
-                    }}
-                  >
-                    <span style={{ fontSize: "28px" }}>{item.icon}</span>
-                    <span style={{ fontSize: "13px", fontWeight: "850", color: "#374151" }}>{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Account Benefits Card */}
-            <div style={{
-              background: "white",
-              borderRadius: "20px",
-              padding: "20px",
-              border: "1px solid #e5e7eb"
-            }}>
-              <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: "900", color: "#1E293B" }}>Why create an account?</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px", color: "#475569", fontWeight: "750" }}>
-                <span>✓ Faster checkout</span>
-                <span>✓ Track live orders in real-time</span>
-                <span>✓ Exclusive student discounts</span>
-                <span>✓ Earn BuyCoins rewards on every purchase</span>
-              </div>
-            </div>
-
-          </div>
-        ) : (
-          /* LOGGED IN VIEW */
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            
-            {/* Personalized Hero Welcome Card */}
-            <div style={{
-              background: "linear-gradient(135deg, #318616 0%, #4ca728 50%, #f59e0b 100%)",
-              borderRadius: "28px",
-              padding: "24px",
-              position: "relative",
-              overflow: "hidden",
-              boxShadow: "0 10px 30px rgba(49, 134, 22, 0.15)",
-              color: "white"
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
-                <div style={{
-                  width: "56px",
-                  height: "56px",
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.25)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "20px",
-                  fontWeight: "900"
-                }}>
-                  {(liveUser?.name || "US").substring(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <h2 style={{ fontSize: "20px", fontWeight: "900", margin: 0 }}>
-                    👋 {getGreeting()}, {liveUser?.name || "Customer"}
-                  </h2>
-                  <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)", margin: "2px 0 0 0", fontWeight: "700" }}>
-                    Member since {memberDateStr}
-                  </p>
-                </div>
-              </div>
-
-              {/* Quick stats horizontal summary */}
-              <div style={{ display: "flex", gap: "16px", borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: "14px" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.75)", fontWeight: "800", textTransform: "uppercase" }}>BuyCoins</div>
-                  <div style={{ fontSize: "18px", fontWeight: "950" }}>{liveUser?.buyCoins ?? 0} Coins</div>
-                </div>
-                <div style={{ width: "1px", background: "rgba(255,255,255,0.2)" }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.75)", fontWeight: "800", textTransform: "uppercase" }}>Orders</div>
-                  <div style={{ fontSize: "18px", fontWeight: "950" }}>{orders.length} Placed</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Achievement progress section */}
-            <div style={{
-              background: "white",
-              borderRadius: "20px",
-              padding: "16px 20px",
-              border: "1px solid #e5e7eb",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.02)"
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "800", color: "#1E293B", marginBottom: "8px" }}>
-                <span>🏅 Your Progress</span>
-                <span style={{ color: "#318616" }}>{orders.length} / 20 Orders</span>
-              </div>
-              <div style={{ width: "100%", height: "8px", background: "#f1f5f9", borderRadius: "10px", overflow: "hidden", marginBottom: "8px" }}>
-                <div style={{ width: `${Math.min((orders.length / 20) * 100, 100)}%`, height: "100%", background: "#318616", borderRadius: "10px" }} />
-              </div>
-              <span style={{ fontSize: "11px", color: "#64748B", fontWeight: "750" }}>
-                🎉 Next Milestone Reward: 50 Bonus BuyCoins!
-              </span>
-            </div>
-
-            {/* 2x3 Quick Actions Grid for Logged In */}
-            <div>
-              <h3 style={{ fontSize: "14px", fontWeight: "900", color: "#64748B", margin: "0 0 12px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>⚡ Quick Actions</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                {[
-                  { label: "Orders", icon: "🛍", action: () => navigate("/orders") },
-                  { label: "BuyCoins", icon: "🪙", action: () => navigate("/buycoins/transactions") },
-                  { label: "Wishlist", icon: "❤️", action: () => navigate("/wishlist") },
-                  { label: "Addresses", icon: "📍", action: () => setShowAddressModal(true) },
-                  { label: "Offers", icon: "🎁", action: () => navigate("/cart") },
-                  { label: "Settings", icon: "⚙", action: () => navigate("/settings") }
-                ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={item.action}
-                    className="hover-lift"
-                    style={{
-                      background: "white",
-                      borderRadius: "18px",
-                      padding: "16px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                      cursor: "pointer",
-                      border: "1px solid #e5e7eb"
-                    }}
-                  >
-                    <span style={{ fontSize: "28px" }}>{item.icon}</span>
-                    <span style={{ fontSize: "13px", fontWeight: "850", color: "#374151" }}>{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Log Out Button */}
-            <button
-              onClick={handleLogoutClick}
-              style={{
-                width: "100%",
-                background: "#FEE2E2",
-                color: "#991B1B",
-                border: "none",
-                borderRadius: "16px",
-                padding: "14px",
-                fontSize: "14px",
-                fontWeight: "900",
-                cursor: "pointer"
-              }}
-            >
-              Sign Out from Account
-            </button>
-
           </div>
         )}
 
-        {/* Alternate Background: Soft mint section for FAQ & Support */}
-        <div style={{
-          background: "#F0FDF4",
-          borderRadius: "24px",
-          padding: "20px",
-          margin: "24px 0",
-          border: "1.5px dashed #cbd5e1"
-        }}>
-          <h3 style={{ fontSize: "14px", fontWeight: "900", color: "#166534", margin: "0 0 14px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>📞 Support & Help</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {[
-              { label: "FAQs", icon: "❓", path: "/faq" },
-              { label: "Contact Us", icon: "📞", path: "/contact" },
-              { label: "Track Order", icon: "📦", path: isLoggedIn ? "/orders" : "/" },
-              { label: "Help Center", icon: "💬", path: "/help" },
-              { label: "Terms & Conditions", icon: "📄", path: "/terms" },
-              { label: "Privacy Policy", icon: "🔒", path: "/privacy-policy" },
-              { label: "Refund Policy", icon: "↩", path: "/refund-policy" }
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                onClick={() => {
-                  if (item.label === "Track Order" && !isLoggedIn) {
-                    openLogin();
-                  } else {
-                    navigate(item.path);
-                  }
-                }}
-                className="hover-lift"
-                style={{
-                  background: "white",
-                  padding: "14px 18px",
-                  borderRadius: "14px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  cursor: "pointer",
-                  fontSize: "13.5px",
-                  fontWeight: "800",
-                  color: "#374151"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
+        {/* 5. Appearance Card */}
+        <div className="mx-4 relative">
+          <div className="bg-white rounded-[18px] border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] overflow-hidden">
+            <ProfileRow
+              icon="https://img.icons8.com/?size=100&id=nncre7HDghLc&format=png&color=000000"
+              label="Appearance"
+              rightContent={
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[12px] font-extrabold text-[#318616] tracking-wider uppercase">
+                    {globalTheme}
+                  </span>
+                  <ChevronDown 
+                    className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
+                      showAppearanceDropdown ? "rotate-180" : "rotate-0"
+                    }`}
+                  />
                 </div>
-                <span style={{ color: "#9ca3af" }}>→</span>
+              }
+              onClick={handleToggleAppearanceDropdown}
+              isLast={true}
+            />
+          </div>
+
+          {/* Dropdown Menu */}
+          <AnimatePresence>
+            {showAppearanceDropdown && (
+              <>
+                {/* Click outside backdrop overlay */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={handleCloseAppearanceDropdown} 
+                />
+                
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1e293b] rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 z-50 p-1.5 flex flex-col overflow-hidden"
+                  role="menu"
+                >
+                  <button
+                    ref={lightOptionRef}
+                    onClick={handleSelectLight}
+                    className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                    role="menuitem"
+                  >
+                    <span>Light</span>
+                    {globalTheme.toLowerCase() === "light" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                  </button>
+                  <button
+                    ref={darkOptionRef}
+                    onClick={handleSelectDark}
+                    className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                    role="menuitem"
+                  >
+                    <span>Dark</span>
+                    {globalTheme.toLowerCase() === "dark" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* 6. Settings Toggle (Hide Sensitive Products) */}
+        <div className="mx-4">
+          <div className="bg-white rounded-[18px] border border-gray-100 p-4 flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-3.5 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+                <EyeOff className="w-[18px] h-[18px]" />
               </div>
+              <div className="flex-1 min-w-0 pr-2">
+                <span className="text-[15px] font-semibold text-gray-800 block truncate">
+                  Hide sensitive products
+                </span>
+                <span className="text-[11px] font-medium text-gray-400 block mt-0.5 leading-tight">
+                  Wellness, intimate hygiene and other sensitive items will be hidden
+                </span>
+              </div>
+            </div>
+            
+            {/* Custom iOS-like Toggle Switch */}
+            <button
+              onClick={handleToggleSensitive}
+              className={`w-[46px] h-6 rounded-full transition-colors duration-200 focus:outline-none relative flex-shrink-0 ${
+                hideSensitive ? "bg-[#318616]" : "bg-gray-200"
+              }`}
+              role="switch"
+              aria-checked={hideSensitive}
+            >
+              <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-200 ${
+                hideSensitive ? "translate-x-[24px]" : "translate-x-0.5"
+              }`} />
+            </button>
+          </div>
+        </div>
+
+        {/* 7. Grouped Sections */}
+        {memoizedMenuConfig.map((section, sectionIdx) => (
+          <ProfileSection key={section.title || sectionIdx} title={section.title}>
+            {section.items.map((item, itemIdx) => (
+              <ProfileRow
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                subtitle={item.subtitle}
+                danger={item.danger}
+                onClick={() => handleMenuRowClick(item)}
+                isLast={itemIdx === section.items.length - 1}
+              />
             ))}
-          </div>
-        </div>
+          </ProfileSection>
+        ))}
 
-        {/* Alternating Background: Soft Cream section for Socials */}
-        <div style={{
-          background: "#FFFBEB",
-          borderRadius: "24px",
-          padding: "20px",
-          margin: "24px 0",
-          textAlign: "center"
-        }}>
-          <p style={{ margin: "0 0 14px 0", fontSize: "12px", color: "#92400E", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.5px" }}>Follow Buyto</p>
-          <div style={{ display: "flex", justifyContent: "center", gap: "16px" }}>
-            <a href="https://www.instagram.com/letsbuyto/" target="_blank" rel="noreferrer" className="social-btn" style={{ textDecoration: "none", fontSize: "28px" }}>📸</a>
-            <a href="https://youtube.com" target="_blank" rel="noreferrer" className="social-btn" style={{ textDecoration: "none", fontSize: "28px" }}>▶️</a>
-            <a href="https://twitter.com" target="_blank" rel="noreferrer" className="social-btn" style={{ textDecoration: "none", fontSize: "28px" }}>🐦</a>
-            <a href="https://facebook.com" target="_blank" rel="noreferrer" className="social-btn" style={{ textDecoration: "none", fontSize: "28px" }}>📘</a>
-          </div>
-        </div>
-
-        {/* Statistics Section */}
-        {renderStats()}
-
-        {/* Better Footer */}
-        <div style={{ textAlign: "center", marginTop: "40px", borderTop: "1px solid #e5e7eb", paddingTop: "24px" }}>
-          <p style={{ margin: 0, fontSize: "11px", fontWeight: "800", color: "#94A3B8" }}>
-            Made with ❤️ in Bengaluru
-          </p>
-          <p style={{ margin: "4px 0 0 0", fontSize: "11px", fontWeight: "700", color: "#CBD5E1" }}>
-            Version 1.0 • © 2026 Buyto
-          </p>
-          <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "12px", fontSize: "11px", fontWeight: "750" }}>
-            <span onClick={() => navigate("/privacy-policy")} style={{ color: "#64748B", cursor: "pointer" }}>Privacy</span>
-            <span style={{ color: "#CBD5E1" }}>•</span>
-            <span onClick={() => navigate("/terms")} style={{ color: "#64748B", cursor: "pointer" }}>Terms</span>
-            <span style={{ color: "#CBD5E1" }}>•</span>
-            <span onClick={() => navigate("/help")} style={{ color: "#64748B", cursor: "pointer" }}>About</span>
-          </div>
-        </div>
-
+        {/* 8. Footer */}
+        <VersionFooter version="v18.13.0" />
       </div>
-
-      {/* Floating BuyCoins Card (if logged out) */}
-      {!isLoggedIn && (
-        <div
-          onClick={openLogin}
-          className="scale-hover"
-          style={{
-            position: "fixed",
-            bottom: "90px",
-            right: "20px",
-            background: "#FEF3C7",
-            border: "1.5px solid #F59E0B",
-            padding: "10px 16px",
-            borderRadius: "50px",
-            boxShadow: "0 8px 24px rgba(245, 158, 11, 0.18)",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            cursor: "pointer",
-            zIndex: 9999
-          }}
-        >
-          <span style={{ fontSize: "18px" }}>🪙</span>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-            <span style={{ fontSize: "10px", fontWeight: "800", color: "#B45309", textTransform: "uppercase" }}>Login now</span>
-            <span style={{ fontSize: "11.5px", fontWeight: "900", color: "#78350F" }}>Earn 20 BuyCoins FREE</span>
-          </div>
-        </div>
-      )}
 
       {/* Address Selector Modal */}
       {showAddressModal && (
         <AddressSelectorModal
-          onClose={() => setShowAddressModal(false)}
-          onSelectAddress={() => { }}
+          onClose={handleCloseAddressModal}
+          onSelectAddress={handleSelectAddressDummy}
           isLoggedIn={isLoggedIn}
         />
       )}
 
+      {/* Logout Confirmation Dialog */}
+      <AnimatePresence>
+        {showLogoutDialog && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={handleCancelLogout}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            />
+
+            {/* Dialog Container */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="bg-white rounded-[28px] w-full max-w-sm p-6 shadow-2xl relative z-10 text-center border border-gray-100 flex flex-col items-center gap-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="logout-dialog-title"
+              aria-describedby="logout-dialog-desc"
+            >
+              {/* Illustration / Icon */}
+              <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-1">
+                <img 
+                  src="https://img.icons8.com/?size=100&id=j5sJqtadgqDL&format=png&color=000000" 
+                  alt="Logout" 
+                  className="w-8 h-8 object-contain" 
+                />
+              </div>
+
+              {/* Title */}
+              <h3 id="logout-dialog-title" className="text-[20px] font-black text-gray-900 leading-tight">
+                Logout?
+              </h3>
+
+              {/* Message */}
+              <p id="logout-dialog-desc" className="text-[13px] font-bold text-gray-400 leading-relaxed max-w-[280px]">
+                Are you sure you want to logout from your Buyto account?<br />
+                You'll need to sign in again to access your account.
+              </p>
+
+              {/* Buttons */}
+              <div className="flex gap-3 w-full mt-2">
+                <button
+                  ref={cancelBtnRef}
+                  onClick={handleCancelLogout}
+                  className="flex-1 py-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-200/50 rounded-2xl text-[14px] font-black text-gray-800 transition-colors focus:ring-2 focus:ring-gray-300 focus:outline-none"
+                >
+                  Cancel
+                </button>
+                <button
+                  ref={logoutBtnRef}
+                  onClick={confirmLogout}
+                  className="flex-1 py-3.5 bg-[#EF4444] hover:bg-[#DC2626] rounded-2xl text-[14px] font-black text-white transition-colors focus:ring-2 focus:ring-red-400 focus:outline-none"
+                >
+                  Logout
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const promoSlides = [
   {
@@ -23,7 +24,8 @@ const promoSlides = [
   }
 ];
 
-export default function PromoBannerCarousel() {
+function PromoBannerCarousel() {
+  const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -218,3 +220,5 @@ export default function PromoBannerCarousel() {
     </div>
   );
 }
+
+export default React.memo(PromoBannerCarousel);

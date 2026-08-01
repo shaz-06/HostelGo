@@ -8,7 +8,9 @@ import CategoryDiscovery from "../CategoryDiscovery";
 import TrendingThisWeek from "../TrendingThisWeek";
 import DynamicNewBanners from "../DynamicNewBanners";
 import PromoBannerCarousel from "../PromoBannerCarousel";
-import SearchResultsView from "../SearchResultsView";
+import OffersBottomDrawer from "../common/OffersBottomDrawer";
+import DeliveryIllustration from "../../assets/illustrations/free_delivery_illustration.png";
+const SearchResultsView = React.lazy(() => import("../SearchResultsView"));
 
 function MobileHome({
   products,
@@ -26,7 +28,7 @@ function MobileHome({
   onOpenAddressModal,
   displayCats = [],
   selectedCategory = "All",
-  onCategoryClick = () => {},
+  onCategoryClick = () => { },
   forceSearchTab = false
 }) {
   const navigate = useNavigate();
@@ -38,6 +40,19 @@ function MobileHome({
   const [wellnessHover, setWellnessHover] = useState(false);
   const [recommendedHover, setRecommendedHover] = useState(false);
 
+  const [selectedOffer, setSelectedOffer] = useState(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const openOffer = React.useCallback((offerId) => {
+    console.log("[MobileHome] openOffer called with:", offerId);
+    setSelectedOffer(offerId);
+    setIsDrawerOpen(true);
+  }, []);
+
+  const closeOffer = React.useCallback(() => {
+    setIsDrawerOpen(false);
+  }, []);
+
   useEffect(() => {
     if (location.search.includes("scroll=categories")) {
       const el = document.getElementById("mobile-categories-anchor");
@@ -48,18 +63,19 @@ function MobileHome({
   }, [location.search]);
 
   // Filter products by categories for standard sections
-  const getCategoryMatch = (pCat, targetCat) => {
+  const getCategoryMatch = React.useCallback((pCat, targetCat) => {
     if (!pCat || !targetCat) return false;
     return pCat.toLowerCase().includes(targetCat.toLowerCase());
-  };
+  }, []);
 
-  const trendingProducts = products.filter((p) => p.isTrending);
-  const fruitProducts = products.filter((p) => getCategoryMatch(p.category, "Fruit"));
-  const veggieProducts = products.filter((p) => getCategoryMatch(p.category, "Veg"));
-  const dairyProducts = products.filter((p) => getCategoryMatch(p.category, "Dairy") || getCategoryMatch(p.category, "Bread") || getCategoryMatch(p.category, "Egg"));
-  const snackProducts = products.filter((p) => getCategoryMatch(p.category, "Snack"));
-  const beverageProducts = products.filter((p) => getCategoryMatch(p.category, "Beverage") || getCategoryMatch(p.category, "Drink"));
-  const groceryProducts = products.filter((p) => getCategoryMatch(p.category, "Atta") || getCategoryMatch(p.category, "Rice") || getCategoryMatch(p.category, "Dal"));
+  const trendingProducts = useMemo(() => products.filter((p) => p.isTrending), [products]);
+  const fruitProducts = useMemo(() => products.filter((p) => getCategoryMatch(p.category, "Fruit")), [products, getCategoryMatch]);
+  const veggieProducts = useMemo(() => products.filter((p) => getCategoryMatch(p.category, "Veg")), [products, getCategoryMatch]);
+  const dairyProducts = useMemo(() => products.filter((p) => getCategoryMatch(p.category, "Dairy") || getCategoryMatch(p.category, "Bread") || getCategoryMatch(p.category, "Egg")), [products, getCategoryMatch]);
+  const snackProducts = useMemo(() => products.filter((p) => getCategoryMatch(p.category, "Snack")), [products, getCategoryMatch]);
+  const beverageProducts = useMemo(() => products.filter((p) => getCategoryMatch(p.category, "Beverage") || getCategoryMatch(p.category, "Drink")), [products, getCategoryMatch]);
+  const groceryProducts = useMemo(() => products.filter((p) => getCategoryMatch(p.category, "Atta") || getCategoryMatch(p.category, "Rice") || getCategoryMatch(p.category, "Dal")), [products, getCategoryMatch]);
+
 
   const recommendedList = useMemo(() => {
     if (!products || products.length === 0) return [];
@@ -123,17 +139,17 @@ function MobileHome({
 
     const containerStyle = isTrendingNearYou
       ? {
-          marginTop: "24px",
-          marginBottom: "16px",
-          background: "#F5FCF4",
-          border: "1px solid #E7F5E5",
-          borderRadius: "28px",
-          padding: "24px 16px",
-          boxShadow: "0 8px 30px rgba(49,134,22,0.06)",
-          position: "relative",
-        }
+        marginTop: "24px",
+        marginBottom: "16px",
+        background: "#F5FCF4",
+        border: "1px solid #E7F5E5",
+        borderRadius: "28px",
+        padding: "24px 16px",
+        boxShadow: "0 8px 30px rgba(49,134,22,0.06)",
+        position: "relative",
+      }
       : isBestDeals
-      ? {
+        ? {
           marginTop: "24px",
           marginBottom: "16px",
           background:
@@ -147,56 +163,56 @@ function MobileHome({
           position: "relative",
           animation: "gentle-shimmer 25s ease-in-out infinite",
         }
-      : isFruits
-      ? {
-          marginTop: "24px",
-          marginBottom: "16px",
-          background: "#DDF8D4",
-          border: "1px solid rgba(49, 134, 22, 0.12)",
-          borderRadius: "28px",
-          padding: "24px 16px",
-          boxShadow: "0 8px 30px rgba(49, 134, 22, 0.06)",
-          position: "relative",
-        }
-      : isMosquitoes
-      ? {
-          marginTop: "24px",
-          marginBottom: "16px",
-          background: "#F3ECFF",
-          border: "1px solid rgba(147, 112, 219, 0.12)",
-          borderRadius: "28px",
-          padding: "24px 16px",
-          boxShadow: "0 8px 30px rgba(147, 112, 219, 0.06)",
-          position: "relative",
-        }
-      : isSexualWellness
-      ? {
-          marginTop: "24px",
-          marginBottom: "16px",
-          background: "#FCEFF5",
-          border: "1px solid rgba(233, 167, 197, 0.15)",
-          borderRadius: "28px",
-          padding: "24px 16px",
-          boxShadow: "0 8px 30px rgba(233, 167, 197, 0.08)",
-          position: "relative",
-        }
-      : isRecommended
-      ? {
-          marginTop: "24px",
-          marginBottom: "16px",
-          background: "#FFF8D9",
-          border: "1px solid rgba(245, 158, 11, 0.12)",
-          borderRadius: "28px",
-          padding: "24px 16px",
-          boxShadow: "0 8px 30px rgba(245, 158, 11, 0.06)",
-          position: "relative",
-        }
-      : {
-          marginBottom: "16px",
-          background: "white",
-          paddingTop: "8px",
-          position: "relative",
-        };
+        : isFruits
+          ? {
+            marginTop: "24px",
+            marginBottom: "16px",
+            background: "#DDF8D4",
+            border: "1px solid rgba(49, 134, 22, 0.12)",
+            borderRadius: "28px",
+            padding: "24px 16px",
+            boxShadow: "0 8px 30px rgba(49, 134, 22, 0.06)",
+            position: "relative",
+          }
+          : isMosquitoes
+            ? {
+              marginTop: "24px",
+              marginBottom: "16px",
+              background: "#F3ECFF",
+              border: "1px solid rgba(147, 112, 219, 0.12)",
+              borderRadius: "28px",
+              padding: "24px 16px",
+              boxShadow: "0 8px 30px rgba(147, 112, 219, 0.06)",
+              position: "relative",
+            }
+            : isSexualWellness
+              ? {
+                marginTop: "24px",
+                marginBottom: "16px",
+                background: "#FCEFF5",
+                border: "1px solid rgba(233, 167, 197, 0.15)",
+                borderRadius: "28px",
+                padding: "24px 16px",
+                boxShadow: "0 8px 30px rgba(233, 167, 197, 0.08)",
+                position: "relative",
+              }
+              : isRecommended
+                ? {
+                  marginTop: "24px",
+                  marginBottom: "16px",
+                  background: "#FFF8D9",
+                  border: "1px solid rgba(245, 158, 11, 0.12)",
+                  borderRadius: "28px",
+                  padding: "24px 16px",
+                  boxShadow: "0 8px 30px rgba(245, 158, 11, 0.06)",
+                  position: "relative",
+                }
+                : {
+                  marginBottom: "16px",
+                  background: "white",
+                  paddingTop: "8px",
+                  position: "relative",
+                };
 
     const headingStyle = {
       fontSize: "15px",
@@ -209,40 +225,40 @@ function MobileHome({
 
     const seeAllStyle = (isTrendingNearYou || isBestDeals || isFruits || isMosquitoes || isSexualWellness || isRecommended)
       ? {
-          border: "none",
-          background: "transparent",
-          color: (isTrendingNearYou ? trendingHover : isBestDeals ? dealsHover : isFruits ? fruitsHover : isMosquitoes ? mosquitoesHover : isSexualWellness ? wellnessHover : recommendedHover) ? "#286F12" : "#318616",
-          fontWeight: "600",
-          fontSize: "12px",
-          cursor: "pointer",
-          transition: "color 0.2s",
-          zIndex: 1,
-          position: "relative",
-        }
+        border: "none",
+        background: "transparent",
+        color: (isTrendingNearYou ? trendingHover : isBestDeals ? dealsHover : isFruits ? fruitsHover : isMosquitoes ? mosquitoesHover : isSexualWellness ? wellnessHover : recommendedHover) ? "#286F12" : "#318616",
+        fontWeight: "600",
+        fontSize: "12px",
+        cursor: "pointer",
+        transition: "color 0.2s",
+        zIndex: 1,
+        position: "relative",
+      }
       : {
-          border: "none",
-          background: "transparent",
-          color: "#2563eb",
-          fontWeight: "800",
-          fontSize: "12px",
-          cursor: "pointer",
-        };
+        border: "none",
+        background: "transparent",
+        color: "#2563eb",
+        fontWeight: "800",
+        fontSize: "12px",
+        cursor: "pointer",
+      };
 
-    const sectionId = title.toLowerCase().includes("best deals") 
-      ? "best-deals-today" 
-      : title.toLowerCase().includes("fresh fruits") 
-      ? "fresh-fruits" 
-      : title.toLowerCase().includes("trending near you")
-      ? "trending-near-you"
-      : title.toLowerCase().includes("fresh vegetables")
-      ? "fresh-vegetables"
-      : title.toLowerCase().includes("dairy")
-      ? "dairy-bread-eggs"
-      : title.toLowerCase().includes("snacks")
-      ? "snacks"
-      : title.toLowerCase().includes("atta")
-      ? "atta-rice-and-dal"
-      : undefined;
+    const sectionId = title.toLowerCase().includes("best deals")
+      ? "best-deals-today"
+      : title.toLowerCase().includes("fresh fruits")
+        ? "fresh-fruits"
+        : title.toLowerCase().includes("trending near you")
+          ? "trending-near-you"
+          : title.toLowerCase().includes("fresh vegetables")
+            ? "fresh-vegetables"
+            : title.toLowerCase().includes("dairy")
+              ? "dairy-bread-eggs"
+              : title.toLowerCase().includes("snacks")
+                ? "snacks"
+                : title.toLowerCase().includes("atta")
+                  ? "atta-rice-and-dal"
+                  : undefined;
 
     return (
       <div id={sectionId} style={{ ...containerStyle, transition: "all 0.5s ease" }}>
@@ -359,22 +375,187 @@ function MobileHome({
               </div>
             </div>
           ) : (
-            <SearchResultsView
-              searchQuery={searchQuery}
-              filteredProducts={filteredProducts}
-              allProducts={products}
-              isMobile={true}
-              addToCart={addToCart}
-              removeFromCart={removeFromCart}
-              cartItems={cartItems}
-              setSelectedProduct={setSelectedProduct}
-              setSearchQuery={setSearchQuery}
-            />
+            <React.Suspense fallback={null}>
+              <SearchResultsView
+                searchQuery={searchQuery}
+                filteredProducts={filteredProducts}
+                allProducts={products}
+                isMobile={true}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cartItems={cartItems}
+                setSelectedProduct={setSelectedProduct}
+                setSearchQuery={setSearchQuery}
+              />
+            </React.Suspense>
           )}
         </div>
       ) : (
         /* STANDARD DEDICATED MOBILE HOME LAYOUT */
         <>
+          {/* Dark Gold Welcome Header */}
+          <div id="home-hero-banner" style={{
+            height: "140px",
+            backgroundImage: "url('/images/welcome-bg.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            textAlign: "center",
+            fontFamily: "'Outfit', 'Inter', sans-serif",
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            boxSizing: "border-box"
+          }}>
+            {/* Overlapping Tab */}
+            <div style={{
+              backgroundColor: "#ffc200",
+              color: "#1e293b",
+              padding: "6px 20px",
+              borderTopLeftRadius: "12px",
+              borderTopRightRadius: "12px",
+              fontSize: "11px",
+              fontWeight: "850",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: "-1px", // overlap the border
+              zIndex: 2
+            }}>
+              ✦ OFFERS FOR YOU ✦
+            </div>
+          </div>
+
+          {/* Offers Cards Bar */}
+          <div style={{
+            padding: "0 16px 16px 16px",
+            backgroundColor: "#ffc200", // Solid bright gold/yellow container matching the screenshot exactly
+            fontFamily: "'Outfit', 'Inter', sans-serif",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "12px",
+            boxSizing: "border-box",
+            position: "relative",
+            zIndex: 1
+          }}>
+            {/* Card 1 - Discount */}
+            <div
+              className="offer-card-clickable"
+              onClick={() => openOffer("discount")}
+              style={{
+                backgroundColor: "#ffecbc", // Pale gold/cream card background matching the screenshot
+                borderRadius: "16px",
+                padding: "12px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+              }}
+            >
+              {/* Left side: Scalloped Badge */}
+              <div style={{
+                flexShrink: 0,
+                width: "48px",
+                height: "48px",
+                backgroundColor: "#fffdf9",
+                borderRadius: "50%",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <div style={{
+                  width: "40px",
+                  height: "40px",
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fef3c7'%3E%3Cpath d='M12 1.5l1.6 2.1 2.6-.6.5 2.6 2.4.9-.7 2.5 1.9 1.8-1.8 1.9.8 2.5-2.4.9-.6 2.6-2.6-.5L12 22.5l-1.6-2.1-2.6.6-.5-2.6-2.4-.9.7-2.5-1.9-1.8 1.8-1.9-.8-2.5 2.4-.9.6-2.6 2.6.5L12 1.5z'/%3E%3C/svg%3E")`,
+                  backgroundSize: "cover",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "20px",
+                  fontWeight: "900",
+                  color: "#2a1a08"
+                }}>
+                  %
+                </div>
+              </div>
+              {/* Right side: Texts */}
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontSize: "14px", fontWeight: "850", color: "#2d1d00", lineHeight: "1.2" }}>
+                  Enjoy FLAT ₹50 OFF
+                </span>
+                <span style={{ fontSize: "11px", fontWeight: "650", color: "#7c6847", marginTop: "2px", lineHeight: "1.2" }}>
+                  On your first order above ₹249
+                </span>
+              </div>
+            </div>
+
+            {/* Card 2 - Free Delivery */}
+            <div
+              className="offer-card-clickable"
+              onClick={() => openOffer("delivery")}
+              style={{
+                backgroundColor: "#ffecbc", // Pale gold/cream card background matching the screenshot
+                borderRadius: "16px",
+                padding: "12px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+              }}
+            >
+              {/* Left side: Delivery Rider Illustration */}
+              <div style={{
+                flexShrink: 0,
+                width: "48px",
+                height: "48px",
+                backgroundColor: "#ffffff",
+                borderRadius: "14px",
+                border: "1px solid #f1f5f9",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden"
+              }}>
+                <img
+                  src={DeliveryIllustration}
+                  alt="Free Delivery"
+                  style={{
+                    width: "46px",
+                    height: "46px",
+                    objectFit: "contain"
+                  }}
+                />
+              </div>
+              {/* Right side: Texts */}
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontSize: "14px", fontWeight: "850", color: "#2d1d00", lineHeight: "1.2" }}>
+                  Enjoy FREE delivery
+                </span>
+                <span style={{ fontSize: "11px", fontWeight: "650", color: "#7c6847", marginTop: "2px", lineHeight: "1.2" }}>
+                  On all your orders
+                </span>
+              </div>
+            </div>
+
+            {/* Custom Styles for active press effect */}
+            <style>{`
+              .offer-card-clickable {
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                user-select: none;
+              }
+              .offer-card-clickable:active {
+                transform: scale(0.98);
+              }
+            `}</style>
+          </div>
+
           {/* Trending This Week Section */}
           <TrendingThisWeek />
 
@@ -484,7 +665,7 @@ function MobileHome({
               >
                 <span>🛒</span> Continue Shopping
               </button>
-              
+
               <button
                 className="premium-action-btn-mobile"
                 onClick={() => {
@@ -546,12 +727,12 @@ function MobileHome({
                     toast.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
                     toast.style.opacity = "0";
                     document.body.appendChild(toast);
-                    
+
                     requestAnimationFrame(() => {
                       toast.style.transform = "translateX(-50%) translateY(0)";
                       toast.style.opacity = "1";
                     });
-                    
+
                     setTimeout(() => {
                       toast.style.transform = "translateX(-50%) translateY(-20px)";
                       toast.style.opacity = "0";
@@ -592,6 +773,12 @@ function MobileHome({
               </button>
             </div>
           </div>
+          {isDrawerOpen && (
+            <OffersBottomDrawer
+              offerId={selectedOffer}
+              onClose={closeOffer}
+            />
+          )}
         </>
       )}
     </div>

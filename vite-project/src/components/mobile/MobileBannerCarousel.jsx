@@ -235,4 +235,4 @@ function MobileBannerCarousel() {
   );
 }
 
-export default MobileBannerCarousel;
+export default React.memo(MobileBannerCarousel);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import SEO from "../components/common/SEO";
+import { apiFetch } from "../utils/apiClient";
 
 export default function MyOrdersPage() {
   const navigate = useNavigate();
@@ -34,8 +35,9 @@ export default function MyOrdersPage() {
     }
 
     setLoading(true);
-    fetch((window.API_BASE_URL || "") + "/api/orders/my-orders", {
-      headers: { Authorization: `Bearer ${token}` }
+    apiFetch((window.API_BASE_URL || "") + "/api/orders/my-orders", {
+      headers: { Authorization: `Bearer ${token}` },
+      blocking: true
     })
       .then(res => res.json())
       .then(data => {

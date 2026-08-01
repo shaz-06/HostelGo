@@ -3,16 +3,47 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const Address = require("../models/Address");
 
-// GET /api/addresses - Fetch all addresses ever saved by the logged-in user
+// GET /api/addresses - Fetch all addresses ever saved by the logged-in user & shared addresses
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const userId = req.user._id;
-    // Retrieve and sort by: isDefault descending, lastUsedAt descending, updatedAt descending
-    const addresses = await Address.find({ userId })
+    // Retrieve owned addresses
+    const ownedAddresses = await Address.find({ userId })
       .sort({ isDefault: -1, lastUsedAt: -1, updatedAt: -1 })
       .lean();
 
-    return res.json({ success: true, addresses });
+    const owned = ownedAddresses.map(addr => ({
+      ...addr,
+      isShared: false
+    }));
+
+    // Retrieve active shared addresses
+    const AddressShare = require("../models/AddressShare");
+    const shares = await AddressShare.find({
+      sharedWithUserId: userId,
+      status: "accepted",
+      expiresAt: { $gt: new Date() }
+    })
+      .populate("ownerId", "name")
+      .populate("addressId")
+      .lean();
+
+    const shared = shares
+      .filter(s => s.addressId)
+      .map(s => ({
+        ...s.addressId,
+        _id: s.addressId._id,
+        shareId: s._id,
+        isShared: true,
+        sharedBy: {
+          id: s.ownerId._id,
+          name: s.ownerId.name || "User"
+        }
+      }));
+
+    const combined = [...owned, ...shared];
+
+    return res.json({ success: true, addresses: combined });
   } catch (error) {
     console.error("❌ Error fetching addresses:", error);
     return res.status(500).json({ success: false, message: "Failed to fetch addresses", error: error.message });
@@ -71,6 +102,11 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
     const address = await Address.findOne({ _id: req.params.id, userId });
     if (!address) {
+      // Check if this address exists at all in the database (which means it's shared/owned by someone else)
+      const existsInDb = await Address.findById(req.params.id);
+      if (existsInDb) {
+        return res.status(403).json({ success: false, message: "Cannot edit a shared address" });
+      }
       return res.status(404).json({ success: false, message: "Address not found" });
     }
 
@@ -104,15 +140,54 @@ router.put("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// DELETE /api/addresses/:id - Delete an address
+// DELETE /api/addresses/:id - Delete or remove an address
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const userId = req.user._id;
-    const result = await Address.deleteOne({ _id: req.params.id, userId });
 
-    if (result.deletedCount === 0) {
+    // Check if it's a shared address link for the current user first
+    const AddressShare = require("../models/AddressShare");
+    const share = await AddressShare.findOne({
+      addressId: req.params.id,
+      sharedWithUserId: userId,
+      status: "accepted"
+    });
+
+    if (share) {
+      share.status = "removed";
+      await share.save();
+      return res.json({ success: true, message: "Shared address removed successfully" });
+    }
+
+    // If it's the user's own address, perform owner delete cascade
+    const address = await Address.findOne({ _id: req.params.id, userId });
+    if (!address) {
       return res.status(404).json({ success: false, message: "Address not found" });
     }
+
+    // Cascade: Revoke all active shares and notify recipients
+    const sharesToRevoke = await AddressShare.find({ addressId: req.params.id, status: "accepted" });
+    for (const shareItem of sharesToRevoke) {
+      shareItem.status = "revoked";
+      await shareItem.save();
+
+      // Create notification
+      const notification = new Notification({
+        userId: shareItem.sharedWithUserId,
+        title: "Address Sharing Revoked",
+        body: `The address "${address.label}" shared by ${req.user.name || "Owner"} is no longer available because it was deleted.`,
+        data: { type: "address_share_revoked", shareId: shareItem._id }
+      });
+      await notification.save();
+
+      // Emit socket notification
+      global.io?.to(`user_${shareItem.sharedWithUserId}`).emit("address-share-revoked", {
+        shareId: shareItem._id,
+        ownerName: req.user.name || "Owner"
+      });
+    }
+
+    await Address.deleteOne({ _id: req.params.id, userId });
 
     return res.json({ success: true, message: "Address deleted successfully" });
   } catch (error) {

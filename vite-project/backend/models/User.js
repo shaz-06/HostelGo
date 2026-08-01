@@ -41,6 +41,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: ""
     },
+    dateOfBirth: {
+      type: Date,
+      default: null
+    },
+    avatar: {
+      type: String,
+      default: ""
+    },
     profileCompleted: {
       type: Boolean,
       default: false
@@ -67,6 +75,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["Available", "Assigned", "Busy", "Delivered"],
       default: "Available"
+    },
+    assignedOrderId: {
+      type: String,
+      default: null,
+      index: true
     },
     rating: {
       type: Number,

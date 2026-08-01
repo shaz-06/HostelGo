@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import SEO from "../components/common/SEO";
+import { apiFetch } from "../utils/apiClient";
 import { io } from "socket.io-client";
 import BuytoRiderAvatar from "../components/common/BuytoRiderAvatar";
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
@@ -353,7 +354,7 @@ const RiderWaitingCard = () => {
       <BuytoRiderAvatar isWaiting={true} size={50} />
       <div style={{ flex: 1 }}>
         <strong style={{ fontSize: 15, fontWeight: 900, color: "#166534" }}>
-          🚚 Finding Your Delivery Partner
+          🚚 Searching for rider...
         </strong>
         <p style={{ margin: "2px 0 0", fontSize: 12, color: "#15803d", fontWeight: 700, lineHeight: "1.4" }}>
           We're assigning the best available rider. We'll notify you as soon as your rider is assigned.
@@ -480,8 +481,9 @@ export default function OrderTrackingPage({ orderId }) {
     while (retries < maxRetries) {
       try {
         console.log(`[Tracking Load] Fetching order track data. Attempt ${retries + 1}/${maxRetries}`);
-        const res = await fetch(window.API_BASE_URL + `/api/orders/track/${orderId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const res = await apiFetch(window.API_BASE_URL + `/api/orders/track/${orderId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          blocking: true
         });
         const data = await res.json();
         
@@ -688,7 +690,7 @@ export default function OrderTrackingPage({ orderId }) {
         console.log("🔌 Connected to Socket.IO room order_" + orderId);
         setConnectionStatus(connectionStatus === "reconnecting" ? "online" : "connected");
         stopFallbackPolling();
-        socket.emit("joinOrderRoom", orderId);
+        socket.emit("joinOrderRoom", { orderId, token });
       });
 
       socket.on("disconnect", () => {
@@ -1004,7 +1006,7 @@ export default function OrderTrackingPage({ orderId }) {
         <div>
           <button style={backBtnStyle} onClick={() => navigate("/profile")}>← Back to Home</button>
           <h1 style={{ fontSize: 24, fontWeight: 900, color: "#0f172a", margin: "12px 0 4px" }}>
-            Order #{orderId.slice(-8).toUpperCase()}
+            Order #{orderId}
           </h1>
           <p style={mutedStyle}>Buyto Express Delivery</p>
         </div>

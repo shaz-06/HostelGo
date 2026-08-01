@@ -13,6 +13,46 @@ const DeliverySettings = require("../models/DeliverySettings");
 const authMiddleware = require("../middleware/authMiddleware");
 const DeliveryServiceZone = require("../models/DeliveryServiceZone");
 const { getDistance } = require("../services/routeGenerator");
+const Counter = require("../models/Counter");
+const validateAddressForCheckout = async (addressId, userId) => {
+  if (!addressId) return true;
+  const AddressShare = require("../models/AddressShare");
+  const Address = require("../models/Address");
+  const User = require("../models/User");
+
+  // Check if it belongs to the user
+  const ownAddress = await Address.findOne({ _id: addressId, userId });
+  if (ownAddress) return true;
+
+  // Check if it's shared with the user and is active
+  const share = await AddressShare.findOne({
+    addressId,
+    sharedWithUserId: userId,
+    status: "accepted",
+    expiresAt: { $gt: new Date() }
+  });
+
+  if (!share) return false;
+
+  // Verify owner and address still exist
+  const owner = await User.findById(share.ownerId);
+  const address = await Address.findById(share.addressId);
+  if (!owner || !address) return false;
+
+  return true;
+};
+
+async function generateUniqueOrderId() {
+  const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, ""); // "260726"
+  const counterId = `order_sequence_${todayStr}`;
+  const counter = await Counter.findOneAndUpdate(
+    { _id: counterId },
+    { $inc: { seq: 1 } },
+    { upsert: true, new: true }
+  );
+  const paddedSeq = String(counter.seq).padStart(6, "0");
+  return `BUY${todayStr}${paddedSeq}`;
+}
 
 async function validateAndCalculateDiscount({ couponCode, subtotal, user }) {
   if (!couponCode) return { discount: 0, couponDetails: null };
@@ -96,6 +136,11 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
 
   // 1. Fetch products & recalculate subtotal
   const productIds = products.map(p => p.productId ? p.productId.toString() : p._id ? p._id.toString() : "");
+  for (const id of productIds) {
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error(`Invalid product ID format: "${id}". Must be a valid 24-character hexadecimal ObjectId.`);
+    }
+  }
   const dbProducts = await Product.find({ _id: { $in: productIds } }).lean();
   const priceMap = new Map(dbProducts.map(p => [p._id.toString(), p.price]));
 
@@ -431,11 +476,20 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
   console.log("MongoDB connection state (readyState):", mongoose.connection.readyState);
 
   try {
-    const { amount, user, products, deliveryAddress, couponId, couponCode, buyCoinsRedeemed, noBagPledge } = req.body;
+    const { amount, user, products, deliveryAddress, couponId, couponCode, buyCoinsRedeemed, noBagPledge, addressId } = req.body;
 
     if (!user || typeof user !== "object" || !products || !deliveryAddress) {
       console.error("❌ Validation Error: user, products, or deliveryAddress missing or invalid");
       return res.status(400).json({ message: "User, products, and deliveryAddress are required" });
+    }
+
+    // Address sharing validation check
+    const isAddressValid = await validateAddressForCheckout(addressId, req.user._id);
+    if (!isAddressValid) {
+      return res.status(400).json({
+        success: false,
+        message: "This shared address is no longer available. Please choose another delivery address."
+      });
     }
 
     // Server-side recalculation
@@ -494,7 +548,9 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
     }
 
     // 3. Save pending order in MongoDB
+    const orderId = await generateUniqueOrderId();
     const order = new Order({
+      orderId,
       user,
       userId: req.user._id,
       products,
@@ -707,12 +763,14 @@ router.post("/payment/verify", async (req, res) => {
       console.log("Reducing inventory stock...");
       for (const item of savedOrder.products) {
         try {
-          const product = await Product.findOne({
-            $or: [
-              { _id: item.productId },
-              { id: item.productId }
-            ]
-          });
+          const filter = [];
+          if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
+            filter.push({ _id: item.productId });
+          }
+          if (item.productId) {
+            filter.push({ id: item.productId });
+          }
+          const product = filter.length > 0 ? await Product.findOne({ $or: filter }) : null;
 
           if (product) {
             product.stock = Math.max(0, product.stock - item.quantity);
@@ -739,7 +797,7 @@ router.post("/payment/verify", async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "Payment signature verified successfully and order updated in DB",
-        orderId: String(savedOrder._id),
+        orderId: savedOrder.orderId,
         order: savedOrder,
         trackingReady: true
       });
@@ -771,11 +829,20 @@ router.post("/orders", authMiddleware, async (req, res) => {
   console.log(req.body.user);
 
   try {
-    const { user, products, amount, deliveryAddress, couponId, couponCode, buyCoinsRedeemed, noBagPledge } = req.body;
+    const { user, products, amount, deliveryAddress, couponId, couponCode, buyCoinsRedeemed, noBagPledge, addressId } = req.body;
 
     if (!user || typeof user !== "object" || !products || amount === undefined || !deliveryAddress) {
       console.error("❌ COD Validation Error: Missing required fields or invalid user details");
       return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Address sharing validation check
+    const isAddressValid = await validateAddressForCheckout(addressId, req.user._id);
+    if (!isAddressValid) {
+      return res.status(400).json({
+        success: false,
+        message: "This shared address is no longer available. Please choose another delivery address."
+      });
     }
 
     // Server-side recalculation
@@ -820,7 +887,9 @@ router.post("/orders", authMiddleware, async (req, res) => {
     }
 
     // 1. Create COD Order record
+    const orderId = await generateUniqueOrderId();
     const order = new Order({
+      orderId,
       user,
       userId: req.user._id,
       products,
@@ -940,12 +1009,14 @@ router.post("/orders", authMiddleware, async (req, res) => {
       console.log("Reducing inventory stock for COD order...");
       for (const item of products) {
         try {
-          const product = await Product.findOne({
-            $or: [
-              { _id: item.productId },
-              { id: item.productId }
-            ]
-          });
+          const filter = [];
+          if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
+            filter.push({ _id: item.productId });
+          }
+          if (item.productId) {
+            filter.push({ id: item.productId });
+          }
+          const product = filter.length > 0 ? await Product.findOne({ $or: filter }) : null;
 
           if (product) {
             product.stock = Math.max(0, product.stock - item.quantity);
@@ -972,7 +1043,7 @@ router.post("/orders", authMiddleware, async (req, res) => {
       return res.status(201).json({
         success: true,
         message: "COD order placed successfully",
-        orderId: String(savedOrder._id),
+        orderId: savedOrder.orderId,
         order: savedOrder,
         trackingReady: true
       });
@@ -1001,12 +1072,7 @@ const generateInvoicePDFHandler = async (req, res) => {
   console.log(`=== [INVOICE GENERATION START] Order ID: ${orderId} | User: ${req.user?._id} ===`);
 
   try {
-    if (!mongoose.isValidObjectId(orderId)) {
-      console.warn(`[INVOICE FAIL] Invalid MongoDB orderId format: ${orderId}`);
-      return res.status(400).json({ success: false, message: "Invalid Order ID" });
-    }
-
-    const order = await Order.findById(orderId).lean();
+    const order = await Order.findOne({ orderId }).lean();
     if (!order) {
       console.warn(`[INVOICE FAIL] Order not found in DB: ${orderId}`);
       return res.status(404).json({ success: false, message: "Order not found" });
@@ -1027,7 +1093,7 @@ const generateInvoicePDFHandler = async (req, res) => {
     const PDFDocument = require("pdfkit");
     const doc = new PDFDocument({ margin: 40, size: "A4" });
 
-    const shortId = String(order._id).slice(-8).toUpperCase();
+    const shortId = order.orderId;
     const filename = `Buyto-Invoice-${shortId}.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");
@@ -1261,19 +1327,15 @@ router.get("/orders/my-orders", authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/orders/track/:id
+// GET /api/orders/track/:orderId
 // Returns live tracking details for the authenticated customer who owns this order.
-router.get("/orders/track/:id", authMiddleware, async (req, res) => {
+router.get("/orders/track/:orderId", authMiddleware, async (req, res) => {
   console.log("=== CUSTOMER TRACK ORDER ===");
-  console.log("Order ID:", req.params.id);
+  console.log("Order ID:", req.params.orderId);
   console.log("Customer Phone:", req.user.phone);
 
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ message: "Invalid order id" });
-    }
-
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findOne({ orderId: req.params.orderId });
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -1295,7 +1357,7 @@ router.get("/orders/track/:id", authMiddleware, async (req, res) => {
     }
 
     const trackingService = require("../services/trackingService");
-    const payload = await trackingService.getTrackingState(req.params.id);
+    const payload = await trackingService.getTrackingState(order.orderId);
     return res.json(payload);
   } catch (error) {
     console.error("❌ Track Order Error:", error);

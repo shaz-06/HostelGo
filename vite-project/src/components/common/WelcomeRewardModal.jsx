@@ -16,7 +16,7 @@ export default function WelcomeRewardModal() {
         setShowWelcomeModal(false);
         return;
       }
-      
+
       // Mark as shown in session storage
       sessionStorage.setItem("buytoWelcomeRewardShown", "true");
 
@@ -99,7 +99,7 @@ export default function WelcomeRewardModal() {
           </div>
 
           <h2 style={titleStyle}>Welcome to Buyto!</h2>
-          
+
           <div style={badgeContainerStyle}>
             <span style={badgeStyle}>
               🎁 Welcome Bonus: +{bonus} BuyCoins

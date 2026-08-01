@@ -39,6 +39,13 @@ subprojects {
             }
         }
     }
+    tasks.configureEach { task ->
+        if (task.class.name.contains("KotlinCompile")) {
+            task.kotlinOptions {
+                jvmTarget = "17"
+            }
+        }
+    }
 }
 
 task clean(type: Delete) {

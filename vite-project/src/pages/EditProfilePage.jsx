@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { ArrowLeft, Camera, Trash2, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 
 export default function EditProfilePage() {
   const navigate = useNavigate();
-  const { user, token, refreshUser } = useContext(AuthContext);
+  const { user, token, refreshUser, updateUserInSession } = useContext(AuthContext);
 
-  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [toastType, setToastType] = useState("success"); // "success" | "error"
 
@@ -32,7 +33,7 @@ export default function EditProfilePage() {
 
   const fileInputRef = useRef(null);
 
-  // Initial populate from user context / backend fetch
+  // Initial populate
   useEffect(() => {
     let isMounted = true;
     const fetchLatestProfile = async () => {
@@ -74,13 +75,12 @@ export default function EditProfilePage() {
     gender !== origGender ||
     avatar !== origAvatar;
 
-  const showToast = (msg, type = "success") => {
+  const showToast = useCallback((msg, type = "success") => {
     setToastMsg(msg);
     setToastType(type);
     setTimeout(() => setToastMsg(""), 3500);
-  };
+  }, []);
 
-  // Back action with unsaved check
   const handleBackClick = () => {
     if (isDirty) {
       setShowUnsavedDialog(true);
@@ -89,12 +89,11 @@ export default function EditProfilePage() {
     }
   };
 
-  // Avatar Upload / Remove handlers
-  const handleAvatarChange = (e) => {
+  // Avatar upload via multipart POST /api/upload
+  const handleAvatarChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    // Validate type & size
     if (!file.type.startsWith("image/")) {
       showToast("Please select a valid image file (JPG, PNG, WebP)", "error");
       return;
@@ -104,11 +103,30 @@ export default function EditProfilePage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setAvatar(reader.result); // Base64 data URL preview & save
-    };
-    reader.readAsDataURL(file);
+    setUploadingAvatar(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const res = await fetch(window.API_BASE_URL + "/api/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+      const data = await res.json();
+      setUploadingAvatar(false);
+      if (data.success && data.imageUrl) {
+        setAvatar(data.imageUrl);
+        showToast("Photo uploaded successfully!", "success");
+      } else {
+        showToast(data.message || "Failed to upload photo", "error");
+      }
+    } catch (err) {
+      setUploadingAvatar(false);
+      showToast("Error uploading photo", "error");
+    }
   };
 
   const handleRemoveAvatar = () => {
@@ -170,7 +188,11 @@ export default function EditProfilePage() {
         setOtpStep("input");
         setNewPhone("");
         setOtpCode("");
-        if (refreshUser) refreshUser();
+        if (updateUserInSession) {
+          updateUserInSession({ ...user, phone: data.phone });
+        } else if (refreshUser) {
+          await refreshUser();
+        }
         showToast("Phone number updated successfully!", "success");
       } else {
         showToast(data.message || "OTP verification failed", "error");
@@ -213,8 +235,13 @@ export default function EditProfilePage() {
       setSaving(false);
 
       if (data.success) {
-        if (refreshUser) await refreshUser();
-        showToast("✅ Profile updated successfully.", "success");
+        // Immediately synchronize user context state
+        if (updateUserInSession && data.user) {
+          updateUserInSession(data.user);
+        } else if (refreshUser) {
+          await refreshUser();
+        }
+        showToast("Profile updated successfully.", "success");
         setTimeout(() => {
           navigate("/profile");
         }, 1200);
@@ -236,185 +263,107 @@ export default function EditProfilePage() {
 
   if (initialLoading) {
     return (
-      <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px 16px", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-        <div style={{ height: "24px", width: "140px", background: "#e2e8f0", borderRadius: "8px", marginBottom: "24px" }} />
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", marginBottom: "32px" }}>
-          <div style={{ width: "96px", height: "96px", borderRadius: "50%", background: "#e2e8f0" }} />
-          <div style={{ width: "120px", height: "18px", background: "#e2e8f0", borderRadius: "6px" }} />
+      <div className="max-w-[600px] mx-auto p-5 space-y-6">
+        <div className="h-6 w-36 bg-gray-200 dark:bg-gray-800 rounded-md animate-pulse" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
+          <div className="h-4 w-28 bg-gray-200 dark:bg-gray-800 rounded-sm animate-pulse" />
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ height: "48px", background: "#e2e8f0", borderRadius: "12px" }} />
-          <div style={{ height: "48px", background: "#e2e8f0", borderRadius: "12px" }} />
-          <div style={{ height: "48px", background: "#e2e8f0", borderRadius: "12px" }} />
+        <div className="space-y-4">
+          <div className="h-[48px] bg-gray-200 dark:bg-gray-800 rounded-[12px] animate-pulse" />
+          <div className="h-[48px] bg-gray-200 dark:bg-gray-800 rounded-[12px] animate-pulse" />
+          <div className="h-[48px] bg-gray-200 dark:bg-gray-800 rounded-[12px] animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ background: "#f8fafc", minHeight: "100vh", paddingBottom: "100px", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+    <div className="min-h-screen bg-[var(--bg-primary)] pb-[100px] font-sans text-[var(--text-primary)]">
       {/* Toast Notification */}
       {toastMsg && (
         <div
-          style={{
-            position: "fixed",
-            top: "20px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: toastType === "error" ? "#ef4444" : "#318616",
-            color: "white",
-            padding: "12px 24px",
-            borderRadius: "30px",
-            fontWeight: "700",
-            fontSize: "14px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
-            zIndex: 99999,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
-          }}
+          className={`fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold text-sm shadow-lg z-[99999] flex items-center gap-2 text-white transition-all duration-300 animate-fade-in ${
+            toastType === "error" ? "bg-red-500" : "bg-[#318616]"
+          }`}
         >
-          <span>{toastType === "error" ? "⚠️" : "✅"}</span>
+          {toastType === "error" ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
           <span>{toastMsg}</span>
         </div>
       )}
 
       {/* Header Bar */}
-      <div
-        style={{
-          background: "#ffffff",
-          padding: "16px 20px",
-          borderBottom: "1px solid #f1f5f9",
-          display: "flex",
-          alignItems: "center",
-          gap: "16px",
-          position: "sticky",
-          top: 0,
-          zIndex: 100
-        }}
-      >
+      <div className="sticky top-0 bg-[var(--bg-card)] border-b border-[var(--border-color)] px-5 py-4 flex items-center gap-4 z-50">
         <button
           onClick={handleBackClick}
-          style={{
-            background: "#f1f5f9",
-            border: "none",
-            borderRadius: "50%",
-            width: "36px",
-            height: "36px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            color: "#1e293b",
-            fontSize: "18px",
-            fontWeight: "800"
-          }}
+          className="w-9 h-9 rounded-full bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-primary)] hover:bg-gray-200 active:scale-95 transition-all duration-150 focus:outline-none"
         >
-          ←
+          <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 style={{ fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 }}>
+        <h1 className="text-[17px] font-black tracking-tight">
           Edit Profile
         </h1>
       </div>
 
-      {/* Container */}
-      <div style={{ maxWidth: "560px", margin: "0 auto", padding: "24px 16px" }}>
-
+      {/* Form Container */}
+      <div className="max-w-[560px] mx-auto p-4">
+        
         {/* Profile Picture Section */}
-        <div style={{ background: "#ffffff", borderRadius: "20px", padding: "24px", textAlign: "center", marginBottom: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.03)", border: "1px solid #f1f5f9" }}>
-          <div style={{ position: "relative", display: "inline-block", marginBottom: "16px" }}>
-            {avatar ? (
+        <div className="bg-[var(--bg-card)] rounded-[20px] p-6 text-center mb-5 border border-[var(--border-color)] shadow-sm">
+          <div className="relative inline-block mb-4">
+            {uploadingAvatar ? (
+              <div className="w-24 h-24 rounded-full border-2 border-[var(--border-color)] flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+                <Loader2 className="w-8 h-8 animate-spin text-[#318616]" />
+              </div>
+            ) : avatar ? (
               <img
                 src={avatar}
                 alt="Profile Avatar"
-                style={{
-                  width: "100px",
-                  height: "100px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: "3px solid #318616"
-                }}
+                className="w-24 h-24 rounded-full object-cover border-3 border-[#318616] shadow-sm"
               />
             ) : (
-              <div
-                style={{
-                  width: "100px",
-                  height: "100px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #318616 0%, #15803d 100%)",
-                  color: "white",
-                  fontSize: "36px",
-                  fontWeight: "900",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto",
-                  boxShadow: "0 4px 12px rgba(49, 134, 22, 0.25)"
-                }}
-              >
-                {getInitials(name)}
-              </div>
+              <img
+                src="https://img.icons8.com/?size=100&id=492ILERveW8G&format=png&color=000000"
+                alt="Default Profile Avatar"
+                className="w-24 h-24 rounded-full object-contain p-2 bg-gray-50 border border-gray-100"
+              />
             )}
           </div>
 
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
+          <div className="flex gap-2.5 justify-center flex-wrap">
             <button
               type="button"
+              disabled={uploadingAvatar}
               onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              style={{
-                background: "#f0fdf4",
-                color: "#166534",
-                border: "1px solid #bbf7d0",
-                padding: "8px 16px",
-                borderRadius: "20px",
-                fontSize: "13px",
-                fontWeight: "700",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px"
-              }}
+              className="bg-[#f0fdf4] dark:bg-[#318616]/10 text-[#318616] border border-[#bbf7d0] dark:border-[#318616]/30 px-4 py-2 rounded-full text-[13px] font-bold cursor-pointer flex items-center gap-1.5 hover:bg-[#dcfce7] active:scale-95 transition-all"
             >
-              📷 Change Photo
+              <Camera className="w-4 h-4" /> Change Photo
             </button>
             <input
               type="file"
               ref={fileInputRef}
               onChange={handleAvatarChange}
               accept="image/png, image/jpeg, image/webp"
-              style={{ display: "none" }}
+              className="hidden"
             />
             {avatar && (
               <button
                 type="button"
                 onClick={handleRemoveAvatar}
-                style={{
-                  background: "#fef2f2",
-                  color: "#991b1b",
-                  border: "1px solid #fecaca",
-                  padding: "8px 16px",
-                  borderRadius: "20px",
-                  fontSize: "13px",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}
+                className="bg-red-50 dark:bg-red-950/20 text-red-600 border border-red-200 dark:border-red-900/30 px-4 py-2 rounded-full text-[13px] font-bold cursor-pointer flex items-center gap-1.5 hover:bg-red-100/50 active:scale-95 transition-all"
               >
-                🗑 Remove Photo
+                <Trash2 className="w-4 h-4" /> Remove
               </button>
             )}
           </div>
         </div>
 
-        {/* Personal Information Form */}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          
+        {/* Input Fields Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* Full Name */}
-          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "16px", border: "1px solid #f1f5f9" }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
-              Full Name <span style={{ color: "#ef4444" }}>*</span>
+          <div className="bg-[var(--bg-card)] rounded-[16px] p-4 border border-[var(--border-color)]">
+            <label className="block text-[11px] font-extrabold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+              Full Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -424,23 +373,14 @@ export default function EditProfilePage() {
               required
               minLength={2}
               maxLength={50}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                fontSize: "14px",
-                fontWeight: "600",
-                borderRadius: "10px",
-                border: "1px solid #cbd5e1",
-                outline: "none",
-                boxSizing: "border-box"
-              }}
+              className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] px-3.5 py-3 text-sm font-semibold rounded-[10px] border border-[var(--border-color)] outline-none focus:border-[#318616] transition-colors"
             />
           </div>
 
-          {/* Phone Number (Read-only + OTP button) */}
-          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "16px", border: "1px solid #f1f5f9" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <label style={{ fontSize: "12px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          {/* Phone Number */}
+          <div className="bg-[var(--bg-card)] rounded-[16px] p-4 border border-[var(--border-color)]">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-[11px] font-extrabold text-[var(--text-secondary)] uppercase tracking-wider">
                 Phone Number
               </label>
               <button
@@ -451,45 +391,27 @@ export default function EditProfilePage() {
                   setOtpStep("input");
                   setShowPhoneModal(true);
                 }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#318616",
-                  fontWeight: "800",
-                  fontSize: "12px",
-                  cursor: "pointer"
-                }}
+                className="text-[12px] font-extrabold text-[#318616] hover:underline focus:outline-none"
               >
                 Change Phone Number
               </button>
             </div>
-            <div style={{ position: "relative" }}>
+            <div className="relative">
               <input
                 type="text"
                 value={phone ? `+91 ${phone}` : "Not provided"}
                 readOnly
-                style={{
-                  width: "100%",
-                  padding: "12px 14px",
-                  fontSize: "14px",
-                  fontWeight: "700",
-                  borderRadius: "10px",
-                  border: "1px solid #e2e8f0",
-                  background: "#f8fafc",
-                  color: "#475569",
-                  outline: "none",
-                  boxSizing: "border-box"
-                }}
+                className="w-full bg-[var(--bg-secondary)]/50 text-[var(--text-secondary)] px-3.5 py-3 text-sm font-bold rounded-[10px] border border-[var(--border-color)] outline-none"
               />
-              <span style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", fontWeight: "700", color: "#166534", background: "#dcfce7", padding: "2px 8px", borderRadius: "8px" }}>
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-extrabold text-green-600 bg-green-50 dark:bg-green-950/30 px-2 py-0.5 rounded-md border border-green-200 dark:border-green-900/30">
                 Verified 🔒
               </span>
             </div>
           </div>
 
           {/* Email Address */}
-          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "16px", border: "1px solid #f1f5f9" }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+          <div className="bg-[var(--bg-card)] rounded-[16px] p-4 border border-[var(--border-color)]">
+            <label className="block text-[11px] font-extrabold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
               Email Address
             </label>
             <input
@@ -497,63 +419,37 @@ export default function EditProfilePage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="example@gmail.com"
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                fontSize: "14px",
-                fontWeight: "600",
-                borderRadius: "10px",
-                border: "1px solid #cbd5e1",
-                outline: "none",
-                boxSizing: "border-box"
-              }}
+              className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] px-3.5 py-3 text-sm font-semibold rounded-[10px] border border-[var(--border-color)] outline-none focus:border-[#318616] transition-colors"
             />
           </div>
 
           {/* Date of Birth */}
-          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "16px", border: "1px solid #f1f5f9" }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+          <div className="bg-[var(--bg-card)] rounded-[16px] p-4 border border-[var(--border-color)]">
+            <label className="block text-[11px] font-extrabold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
               Date of Birth (Optional)
             </label>
             <input
               type="date"
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                fontSize: "14px",
-                fontWeight: "600",
-                borderRadius: "10px",
-                border: "1px solid #cbd5e1",
-                outline: "none",
-                boxSizing: "border-box"
-              }}
+              className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] px-3.5 py-3 text-sm font-semibold rounded-[10px] border border-[var(--border-color)] outline-none focus:border-[#318616] transition-colors"
             />
           </div>
 
           {/* Gender */}
-          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "16px", border: "1px solid #f1f5f9" }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" }}>
+          <div className="bg-[var(--bg-card)] rounded-[16px] p-4 border border-[var(--border-color)]">
+            <label className="block text-[11px] font-extrabold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
               Gender (Optional)
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+            <div className="grid grid-cols-2 gap-2.5">
               {["Male", "Female", "Other", "Prefer not to say"].map((g) => (
                 <label
                   key={g}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "10px 14px",
-                    borderRadius: "10px",
-                    border: gender === g ? "2px solid #318616" : "1px solid #e2e8f0",
-                    background: gender === g ? "#f0fdf4" : "#ffffff",
-                    cursor: "pointer",
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    color: gender === g ? "#15803d" : "#334155"
-                  }}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-[10px] border cursor-pointer text-[13px] font-bold transition-all ${
+                    gender === g
+                      ? "border-[#318616] bg-[#f0fdf4] dark:bg-[#318616]/10 text-[#318616]"
+                      : "border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-gray-100/50"
+                  }`}
                 >
                   <input
                     type="radio"
@@ -561,7 +457,7 @@ export default function EditProfilePage() {
                     value={g}
                     checked={gender === g}
                     onChange={(e) => setGender(e.target.value)}
-                    style={{ accentColor: "#318616" }}
+                    className="accent-[#318616]"
                   />
                   {g}
                 </label>
@@ -569,65 +465,34 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          {/* Sticky Bottom Save Button */}
-          <div
-            style={{
-              position: "fixed",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: "#ffffff",
-              borderTop: "1px solid #e2e8f0",
-              padding: "16px 20px",
-              boxShadow: "0 -4px 16px rgba(0,0,0,0.06)",
-              zIndex: 90
-            }}
-          >
-            <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+          {/* Sticky Bottom Save Button bar */}
+          <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-card)] border-t border-[var(--border-color)] p-4 shadow-md z-40">
+            <div className="max-w-[560px] mx-auto">
               <button
                 type="submit"
                 disabled={!isDirty || saving}
-                style={{
-                  width: "100%",
-                  background: !isDirty || saving ? "#cbd5e1" : "linear-gradient(135deg, #318616 0%, #15803d 100%)",
-                  color: "white",
-                  padding: "14px",
-                  borderRadius: "14px",
-                  border: "none",
-                  fontSize: "15px",
-                  fontWeight: "800",
-                  cursor: !isDirty || saving ? "not-allowed" : "pointer",
-                  boxShadow: !isDirty || saving ? "none" : "0 4px 14px rgba(49, 134, 22, 0.35)",
-                  transition: "all 0.2s"
-                }}
+                className={`w-full py-3.5 rounded-[14px] text-[15px] font-black text-white flex items-center justify-center gap-2 transition-all ${
+                  !isDirty || saving
+                    ? "bg-gray-300 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                    : "bg-[#318616] hover:bg-[#318616]/95 shadow-[0_4px_14px_rgba(49,134,22,0.3)] active:scale-[0.99] cursor-pointer"
+                }`}
               >
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                 {saving ? "Saving Changes..." : "Save Changes"}
               </button>
             </div>
           </div>
         </form>
-
       </div>
 
       {/* Phone OTP Verification Modal */}
       {showPhoneModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            padding: "16px"
-          }}
-        >
-          <div style={{ background: "white", borderRadius: "20px", padding: "24px", maxWidth: "400px", width: "100%", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ fontSize: "18px", fontWeight: "800", margin: "0 0 8px 0", color: "#0f172a" }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[20px] p-6 max-w-[400px] w-full shadow-2xl">
+            <h3 className="text-[17px] font-black mb-2 text-[var(--text-primary)]">
               Change Phone Number
             </h3>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: "0 0 20px 0" }}>
+            <p className="text-[12.5px] text-[var(--text-secondary)] mb-5 leading-relaxed">
               {otpStep === "input"
                 ? "Enter your new 10-digit phone number. We will send an OTP code for verification."
                 : `Enter the 6-digit OTP code sent to +91 ${newPhone}.`}
@@ -642,30 +507,20 @@ export default function EditProfilePage() {
                   onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, ""))}
                   placeholder="Enter 10-digit phone number"
                   required
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: "10px",
-                    border: "1px solid #cbd5e1",
-                    fontSize: "16px",
-                    fontWeight: "700",
-                    marginBottom: "16px",
-                    outline: "none",
-                    boxSizing: "border-box"
-                  }}
+                  className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-[10px] p-3 text-base font-bold mb-4 outline-none focus:border-[#318616]"
                 />
-                <div style={{ display: "flex", gap: "10px" }}>
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setShowPhoneModal(false)}
-                    style={{ flex: 1, padding: "12px", borderRadius: "10px", border: "1px solid #cbd5e1", background: "white", fontWeight: "700", cursor: "pointer" }}
+                    className="flex-1 py-2.5 rounded-[10px] border border-[var(--border-color)] bg-transparent text-[var(--text-primary)] font-bold cursor-pointer hover:bg-gray-100/50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={otpLoading}
-                    style={{ flex: 1, padding: "12px", borderRadius: "10px", border: "none", background: "#318616", color: "white", fontWeight: "800", cursor: "pointer" }}
+                    className="flex-1 py-2.5 rounded-[10px] bg-[#318616] text-white font-bold cursor-pointer hover:bg-[#318616]/95"
                   >
                     {otpLoading ? "Sending..." : "Send OTP"}
                   </button>
@@ -680,32 +535,20 @@ export default function EditProfilePage() {
                   onChange={(e) => setOtpCode(e.target.value)}
                   placeholder="Enter OTP (Default: 123456)"
                   required
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: "10px",
-                    border: "1px solid #cbd5e1",
-                    fontSize: "18px",
-                    fontWeight: "800",
-                    letterSpacing: "4px",
-                    textAlign: "center",
-                    marginBottom: "16px",
-                    outline: "none",
-                    boxSizing: "border-box"
-                  }}
+                  className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-[10px] p-3 text-lg font-black tracking-widest text-center mb-4 outline-none focus:border-[#318616]"
                 />
-                <div style={{ display: "flex", gap: "10px" }}>
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setOtpStep("input")}
-                    style={{ flex: 1, padding: "12px", borderRadius: "10px", border: "1px solid #cbd5e1", background: "white", fontWeight: "700", cursor: "pointer" }}
+                    className="flex-1 py-2.5 rounded-[10px] border border-[var(--border-color)] bg-transparent text-[var(--text-primary)] font-bold cursor-pointer hover:bg-gray-100/50"
                   >
                     Back
                   </button>
                   <button
                     type="submit"
                     disabled={otpLoading}
-                    style={{ flex: 1, padding: "12px", borderRadius: "10px", border: "none", background: "#318616", color: "white", fontWeight: "800", cursor: "pointer" }}
+                    className="flex-1 py-2.5 rounded-[10px] bg-[#318616] text-white font-bold cursor-pointer hover:bg-[#318616]/95"
                   >
                     {otpLoading ? "Verifying..." : "Verify & Save"}
                   </button>
@@ -718,40 +561,22 @@ export default function EditProfilePage() {
 
       {/* Unsaved Changes Confirmation Dialog */}
       {showUnsavedDialog && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            padding: "16px"
-          }}
-        >
-          <div style={{ background: "white", borderRadius: "20px", padding: "24px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
-            <div style={{ fontSize: "36px", marginBottom: "12px" }}>⚠️</div>
-            <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px 0" }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4 animate-fade-in">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[20px] p-6 max-w-[380px] w-full text-center shadow-2xl">
+            <div className="w-12 h-12 bg-amber-500/10 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3.5">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="text-[17px] font-black text-[var(--text-primary)] mb-1.5">
               Discard changes?
             </h3>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: "0 0 20px 0" }}>
+            <p className="text-[12.5px] text-[var(--text-secondary)] mb-5 leading-relaxed">
               Your changes haven't been saved.
             </p>
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowUnsavedDialog(false)}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  borderRadius: "10px",
-                  border: "1px solid #cbd5e1",
-                  background: "#ffffff",
-                  fontWeight: "700",
-                  color: "#334155",
-                  cursor: "pointer"
-                }}
+                className="flex-1 py-2.5 rounded-[10px] border border-[var(--border-color)] bg-transparent text-[var(--text-primary)] font-bold cursor-pointer hover:bg-gray-100/50"
               >
                 Continue Editing
               </button>
@@ -761,16 +586,7 @@ export default function EditProfilePage() {
                   setShowUnsavedDialog(false);
                   navigate("/profile");
                 }}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  borderRadius: "10px",
-                  border: "none",
-                  background: "#ef4444",
-                  color: "white",
-                  fontWeight: "800",
-                  cursor: "pointer"
-                }}
+                className="flex-1 py-2.5 rounded-[10px] bg-red-500 text-white font-bold cursor-pointer hover:bg-red-600"
               >
                 Discard
               </button>
@@ -778,7 +594,6 @@ export default function EditProfilePage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

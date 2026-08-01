@@ -4,11 +4,11 @@ const AdminDeviceToken = require("../models/AdminDeviceToken");
 exports.sendNewOrderNotification = async (order) => {
   try {
     const adminUser = await AdminDeviceToken.findOne({
-      phone: "6363849864",
+      phone: "**",
     });
 
     if (!adminUser || !adminUser.fcmTokens || adminUser.fcmTokens.length === 0) {
-      console.log("[AdminNotification] No registered admin FCM tokens found for 6363849864");
+      console.log("[AdminNotification] No registered admin FCM tokens found for **");
       return;
     }
 

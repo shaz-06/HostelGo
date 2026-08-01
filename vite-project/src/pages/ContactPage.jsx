@@ -76,9 +76,9 @@ export default function ContactPage() {
               </div>
               <h3 style={cardTitleStyle}>Phone Support</h3>
             </div>
-            <p style={cardContentStyle}>+91 6363849864</p>
+            <p style={cardContentStyle}>+91 **</p>
             <button
-              onClick={() => window.open("tel:+91 6363849864")}
+              onClick={() => window.open("tel:+91 **")}
               className="premium-btn-yellow"
               style={ctaBtnYellowStyle}
             >

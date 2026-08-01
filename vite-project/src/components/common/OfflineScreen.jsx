@@ -9,8 +9,6 @@ export default function OfflineScreen({ onRetry }) {
       setRetrying(false);
       if (navigator.onLine) {
         onRetry();
-      } else {
-        alert("⚠️ Still offline. Please check your network connection and try again.");
       }
     }, 1000);
   };

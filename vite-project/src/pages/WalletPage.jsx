@@ -70,9 +70,12 @@ export default function WalletPage() {
           ← Back
         </button>
 
-        {/* Heading */}
         <div style={headerStyle}>
-          <span style={{ fontSize: "28px" }}>💰</span>
+          <img 
+            src="https://img.icons8.com/?size=100&id=MjAYkOMsbYOO&format=png&color=000000" 
+            alt="Wallet" 
+            style={{ width: "36px", height: "36px", objectFit: "contain", display: "block", margin: "0 auto 4px auto" }} 
+          />
           <h1 style={titleStyle}>BuyCoins Wallet</h1>
           <p style={subtitleStyle}>Earn coins on purchases and redeem them at checkout</p>
         </div>

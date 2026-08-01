@@ -85,11 +85,15 @@ export default function HelpPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "32px" }}>
           {/* Call Support */}
           <div
-            onClick={() => alert("📞 Dialing Buyto Hotline: +91 6363849864")}
+            onClick={() => alert("📞 Dialing Buyto Hotline: +91 **")}
             style={cardStyle}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "24px" }}>📞</span>
+              <img
+                src="https://img.icons8.com/?size=100&id=19nQzXuCO2It&format=png&color=000000"
+                alt="Call"
+                style={{ width: "24px", height: "24px", objectFit: "contain" }}
+              />
               <div>
                 <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "700" }}>Call Support</h4>
                 <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#6b7280" }}>Speak with our helper</p>
@@ -104,7 +108,11 @@ export default function HelpPage() {
             style={cardStyle}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "24px" }}>💬</span>
+              <img
+                src="https://img.icons8.com/?size=100&id=SKPXwfsncJbF&format=png&color=000000"
+                alt="Chat"
+                style={{ width: "24px", height: "24px", objectFit: "contain" }}
+              />
               <div>
                 <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "700" }}>Chat With Us</h4>
                 <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#6b7280" }}>24/7 instant chat assistant</p>
@@ -119,7 +127,11 @@ export default function HelpPage() {
             style={{ ...cardStyle, textDecoration: "none", color: "inherit" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "24px" }}>📧</span>
+              <img
+                src="https://img.icons8.com/?size=100&id=W2i9VMhMFvHm&format=png&color=000000"
+                alt="Email"
+                style={{ width: "24px", height: "24px", objectFit: "contain" }}
+              />
               <div>
                 <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "700" }}>Email Support</h4>
                 <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#6b7280" }}>support@buyto.com</p>

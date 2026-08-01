@@ -11,17 +11,17 @@ const AboutPage = () => {
             desc: "Ultra-fast delivery powered by local fulfillment partners.",
         },
         {
-            icon: "🕒",
+            icon: "https://img.icons8.com/?size=100&id=QrVIoywwY1OD&format=png&color=000000",
             title: "24/7 Support",
             desc: "Customer assistance available whenever you need help.",
         },
         {
-            icon: "🛒",
+            icon: "https://img.icons8.com/?size=100&id=TquBfvAjccPc&format=png&color=000000",
             title: "Thousands of Products",
             desc: "Groceries, electronics, fashion, essentials and more.",
         },
         {
-            icon: "🔒",
+            icon: "https://img.icons8.com/?size=100&id=BL6umjxvbHck&format=png&color=000000",
             title: "Secure Payments",
             desc: "Safe and trusted payment processing for every order.",
         },
@@ -31,17 +31,17 @@ const AboutPage = () => {
             desc: "Competitive prices with exciting offers and discounts.",
         },
         {
-            icon: "🎁",
+            icon: "https://img.icons8.com/?size=100&id=DA67d1tKQ9Pr&format=png&color=000000",
             title: "BuyCoins Rewards",
             desc: "Earn rewards and exclusive benefits on purchases.",
         },
         {
-            icon: "📍",
+            icon: "https://img.icons8.com/?size=100&id=xPX4qmtKvtBp&format=png&color=000000",
             title: "Hyperlocal Network",
             desc: "Supporting local stores and communities.",
         },
         {
-            icon: "🚀",
+            icon: "https://img.icons8.com/?size=100&id=lTKW3iI3wIT0&format=png&color=000000",
             title: "Technology Driven",
             desc: "Built using modern cloud and AI-powered systems.",
         },
@@ -273,7 +273,17 @@ const AboutPage = () => {
                                 border: "1px solid #e2e8f0",
                             }}
                         >
-                            <div style={{ fontSize: "40px" }}>{item.icon}</div>
+                            <div style={{ fontSize: "40px", display: "flex", alignItems: "center", height: "40px" }}>
+                                {typeof item.icon === "string" && item.icon.startsWith("http") ? (
+                                    <img
+                                        src={item.icon}
+                                        alt={item.title}
+                                        style={{ width: "40px", height: "40px", objectFit: "contain" }}
+                                    />
+                                ) : (
+                                    item.icon
+                                )}
+                            </div>
 
                             <h3
                                 style={{

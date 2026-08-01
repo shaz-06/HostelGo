@@ -32,6 +32,7 @@ const riderRoutes = require("./routes/riderRoutes");
 const supportRoutes = require("./routes/supportRoutes");
 const buyCoinRoutes = require("./routes/buyCoinRoutes");
 const addressRoutes = require("./routes/addressRoutes");
+const addressShareRoutes = require("./routes/addressShareRoutes");
 const saveForLaterRoutes = require("./routes/saveForLaterRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const checkoutRoutes = require("./routes/checkoutRoutes");
@@ -427,16 +428,18 @@ const pricingRuleRoutes = require("./routes/pricingRuleRoutes");
 app.use("/api/pricing-rules", pricingRuleRoutes);
 app.use("/api", paymentRoutes);
 app.use("/api/users", userRoutes);
-app.put("/api/profile", require("./middleware/authMiddleware"), async (req, res) => {
-  const updateProfileHandler = userRoutes; // router contains PUT /profile handler
+app.put("/api/profile", require("./middleware/authMiddleware"), (req, res, next) => {
   req.url = "/profile";
-  userRoutes(req, res);
+  userRoutes(req, res, next);
 });
 
 app.get("/api/products", async (req, res) => {
   try {
     const searchQuery = (req.query.search || req.query.q || req.query.query || "").toString().trim();
     const categoryQuery = (req.query.category || "").toString().trim();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 0;
+    const skip = (page - 1) * limit;
 
     let products = [];
     if (isConnected) {
@@ -458,12 +461,19 @@ app.get("/api/products", async (req, res) => {
         filter.category = new RegExp(categoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
       }
 
-      products = await Product.find(filter, "name category subCategory brand price originalPrice weight image stock eta rating isAd variants tags").lean();
+      if (limit > 0) {
+        products = await Product.find(filter, "id name category subCategory brand price originalPrice weight image stock eta rating isAd variants tags").skip(skip).limit(limit).lean();
+      } else {
+        products = await Product.find(filter, "id name category subCategory brand price originalPrice weight image stock eta rating isAd variants tags").lean();
+      }
 
       // Merge fallback mock products only if searching/fetching returned no results or in offline dev fallback
       if (!searchQuery && !categoryQuery) {
         const productIds = new Set(products.map((product) => product.id || String(product._id)));
-        const missingFallbackProducts = mockProducts.filter((product) => !productIds.has(product.id));
+        let missingFallbackProducts = mockProducts.filter((product) => !productIds.has(product.id));
+        if (limit > 0) {
+          missingFallbackProducts = missingFallbackProducts.slice(skip, skip + limit);
+        }
         products = [...products, ...missingFallbackProducts];
       }
     } else {
@@ -479,6 +489,13 @@ app.get("/api/products", async (req, res) => {
           (p.subcategory && p.subcategory.toLowerCase().includes(q)) ||
           (Array.isArray(p.tags) && p.tags.some(t => t && t.toLowerCase().includes(q)))
         );
+      }
+      if (categoryQuery && categoryQuery !== "All") {
+        const cat = categoryQuery.toLowerCase();
+        products = products.filter(p => p.category && p.category.toLowerCase().includes(cat));
+      }
+      if (limit > 0) {
+        products = products.slice(skip, skip + limit);
       }
     }
 
@@ -498,7 +515,12 @@ app.get("/api/products/:id", async (req, res) => {
     const { id } = req.params;
     let product = null;
     if (isConnected) {
-      product = await Product.findById(id).lean() || await Product.findOne({ id }).lean();
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        product = await Product.findById(id).lean();
+      }
+      if (!product) {
+        product = await Product.findOne({ id }).lean();
+      }
     }
     if (!product) {
       product = mockProducts.find(p => String(p._id || p.id) === String(id));
@@ -584,6 +606,7 @@ try {
       methods: ["GET", "POST"]
     }
   });
+  global.io = io;
 
   const trackingService = require("./services/trackingService");
   trackingService.setSocketIO(io);
@@ -591,23 +614,62 @@ try {
   io.on("connection", (socket) => {
     console.log("🔌 Socket.IO client connected:", socket.id);
 
-    socket.on("joinOrderRoom", async (orderId) => {
-      const room1 = `order:${orderId}`;
-      const room2 = `order_${orderId}`;
-      socket.join(orderId);
+    socket.on("registerUser", (userId) => {
+      socket.join(`user_${userId}`);
+      console.log(`🔌 Socket.IO client ${socket.id} joined user_${userId}`);
+    });
+
+    socket.on("joinOrderRoom", async (data) => {
+      const orderIdVal = typeof data === "object" ? data.orderId : data;
+      const clientToken = typeof data === "object" ? data.token : null;
+
+      let isAuthorized = false;
+      const Order = require("./models/Order");
+      const User = require("./models/User");
+      const jwt = require("jsonwebtoken");
+
+      try {
+        if (!clientToken) {
+          console.warn(`[SocketAuth] Missing token for joinOrderRoom on order: ${orderIdVal}`);
+        } else {
+          const decoded = jwt.verify(clientToken, process.env.JWT_SECRET || "buyto_super_secret_key");
+          const user = await User.findById(decoded.id);
+          if (user) {
+            if (user.role === "admin") {
+              isAuthorized = true;
+            } else {
+              const order = await Order.findOne({ orderId: orderIdVal });
+              if (order && (String(order.userId) === String(user._id) || order.user?.phone === user.phone)) {
+                isAuthorized = true;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[SocketAuth] Error authorizing joinOrderRoom for order ${orderIdVal}:`, err.message);
+      }
+
+      if (!isAuthorized) {
+        console.warn(`[SocketAuth] Rejecting unauthorized socket room join for order: ${orderIdVal}`);
+        return;
+      }
+
+      const room1 = `order:${orderIdVal}`;
+      const room2 = `order_${orderIdVal}`;
+      socket.join(orderIdVal);
       socket.join(room1);
       socket.join(room2);
-      console.log(`Customer joined room: order_${orderId}`);
-      console.log(`🔌 Socket client joined rooms: ${orderId}, ${room1}, and ${room2}`);
+      console.log(`Customer joined room: order_${orderIdVal}`);
+      console.log(`🔌 Socket client joined rooms: ${orderIdVal}, ${room1}, and ${room2}`);
 
       // Sync latest order state on join / reconnect
       try {
-        const statePayload = await trackingService.getTrackingState(orderId);
+        const statePayload = await trackingService.getTrackingState(orderIdVal);
         if (statePayload && statePayload.order) {
           const currentVersion = statePayload.order.trackingVersion || 1;
-          trackingService.emitStatusUpdated(String(orderId), statePayload.order, currentVersion);
+          trackingService.emitStatusUpdated(String(orderIdVal), statePayload.order, currentVersion);
           if (statePayload.order.orderStatus !== "Order Placed" && statePayload.order.orderStatus !== "Packed") {
-            trackingService.emitRiderAssigned(String(orderId), currentVersion);
+            trackingService.emitRiderAssigned(String(orderIdVal), currentVersion);
           }
         }
       } catch (err) {
@@ -718,6 +780,7 @@ app.use("/api/buycoins", buyCoinRoutes);
 app.use("/api/checkout", checkoutRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/addresses", addressRoutes);
+app.use("/api/address-share", addressShareRoutes);
 app.use("/api/save-for-later", saveForLaterRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", userRoutes);
@@ -820,6 +883,23 @@ server.listen(PORT, "0.0.0.0", () => {
       }
     } catch (err) {
       console.error("[Cron Error] Cart reminder scheduler failed:", err.message);
+    }
+  });
+
+  // Schedule address share request expiry check every hour
+  cron.schedule("0 * * * *", async () => {
+    try {
+      console.log("[Cron] Running Address Share request expiry job...");
+      const AddressShare = require("./models/AddressShare");
+      const result = await AddressShare.updateMany(
+        { status: "pending", expiresAt: { $lte: new Date() } },
+        { status: "expired" }
+      );
+      if (result.modifiedCount > 0) {
+        console.log(`[Cron] Expired ${result.modifiedCount} pending address share requests.`);
+      }
+    } catch (err) {
+      console.error("[Cron Error] Address share expiry job failed:", err.message);
     }
   });
 

@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const authMiddleware = require("../middleware/authMiddleware");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
@@ -13,7 +14,7 @@ const calculateCartSubtotal = async (userId) => {
   }
 
   // Extract all product ObjectIds from the cart
-  const productIds = cart.items.map(item => item.productId);
+  const productIds = cart.items.map(item => item.productId).filter(id => mongoose.Types.ObjectId.isValid(id));
   console.log("DEBUG: productIds mapped from cart:", productIds);
   
   // Load products from DB to get the latest, authoritative prices
@@ -61,10 +62,20 @@ router.post("/cart", authMiddleware, async (req, res, next) => {
 
       console.log(`[CONCURRENCY INFO] Route: ${routeName}, ReqId: ${requestId}, CartId: ${cartId}, PrevVersion: ${prevVersion}, Attempt: ${attempts}/${maxAttempts}`);
 
-      const cartItems = items.map(item => ({
-        productId: item.productId || item._id, // Support both formats
-        quantity: Number(item.quantity) || 1
-      }));
+      const cartItems = [];
+      for (const item of items) {
+        const pId = item.productId || item._id;
+        if (!pId || !mongoose.Types.ObjectId.isValid(pId)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid product ID format: "${pId}". Must be a valid 24-character hexadecimal ObjectId.`
+          });
+        }
+        cartItems.push({
+          productId: pId,
+          quantity: Number(item.quantity) || 1
+        });
+      }
 
       // Atomic overwrite to avoid Mongoose VersionError conflicts
       const cart = await Cart.findOneAndUpdate(

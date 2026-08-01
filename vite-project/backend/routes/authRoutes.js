@@ -150,6 +150,8 @@ router.post("/signup", [
         email: updatedUser.email,
         phone: updatedUser.phone,
         role: updatedUser.role,
+        dateOfBirth: updatedUser.dateOfBirth,
+        avatar: updatedUser.avatar || "",
         addresses: updatedUser.addresses,
         buyCoins: updatedUser.buyCoins,
         buyCoinsStats: updatedUser.buyCoinsStats
@@ -262,6 +264,8 @@ router.post("/login", loginLimiter, [
         email: user.email,
         phone: user.phone,
         role: user.role,
+        dateOfBirth: user.dateOfBirth,
+        avatar: user.avatar || "",
         addresses: user.addresses,
         buyCoins: user.buyCoins,
         buyCoinsStats: user.buyCoinsStats
@@ -281,7 +285,7 @@ router.get("/me", authMiddleware, async (req, res) => {
   console.log("=== [AUTH PROFILE LOAD] ===");
   console.log("User Loaded ID:", req.user._id);
 
-  if (req.user.phone === "6363849864" && (req.user.role !== "admin" || !req.user.isFounder)) {
+  if (req.user.phone === "***" && (req.user.role !== "admin" || !req.user.isFounder)) {
     console.log("Enforcing founder admin privileges in /me for:", req.user.phone);
     req.user.role = "admin";
     req.user.isFounder = true;
@@ -302,6 +306,8 @@ router.get("/me", authMiddleware, async (req, res) => {
       isFounder: !!userObj.isFounder,
       hasAdminPin: !!req.user.adminPin,
       gender: userObj.gender || "",
+      dateOfBirth: userObj.dateOfBirth,
+      avatar: userObj.avatar || "",
       profileCompleted: !!userObj.profileCompleted,
       addresses: userObj.addresses || [],
       buyCoins: userObj.buyCoins || 0,
@@ -843,7 +849,7 @@ router.post("/msg91-login", async (req, res) => {
       }
     }
 
-    if (phone === "6363849864") {
+    if (phone === "***") {
       user.role = "admin";
       user.isFounder = true;
       await user.save();
@@ -879,6 +885,8 @@ router.post("/msg91-login", async (req, res) => {
         isFounder: !!updatedUser.isFounder,
         hasAdminPin: !!updatedUser.adminPin,
         gender: updatedUser.gender || "",
+        dateOfBirth: updatedUser.dateOfBirth,
+        avatar: updatedUser.avatar || "",
         profileCompleted: !!updatedUser.profileCompleted,
         addresses: updatedUser.addresses,
         buyCoins: updatedUser.buyCoins,

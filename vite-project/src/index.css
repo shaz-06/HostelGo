@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -24,6 +23,126 @@
   --radius-md: 14px;
   --radius-lg: 20px;
   --radius-xl: 28px;
+
+  /* Semantic Theme Tokens */
+  --bg-primary: #f7f8fa;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #FFFFFF;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --border-color: #E5E7EB;
+  --accent-color: #318616;
+  --success-color: #10B981;
+  --warning-color: #F59E0B;
+  --error-color: #EF4444;
+}
+
+.dark {
+  --primary: #318616;
+  --secondary: #FFFFFF;
+  --accent: #22C55E;
+  --background: #0F1115;
+  --card-bg: #1E2128;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --hover: #45a027;
+  --border: #32363F;
+
+  /* Semantic Theme Tokens - Dark Mode */
+  --bg-primary: #0F1115;
+  --bg-secondary: #181A20;
+  --bg-card: #1E2128;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --border-color: #32363F;
+  --accent-color: #318616;
+}
+
+/* Global Transition to animate color, background-color, border-color, box-shadow */
+* {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global Overrides for Full Dark Theme Coverage */
+.dark body,
+.dark #root,
+.dark .page-with-bottom-nav {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Override background colors of elements in dark mode */
+.dark .bg-white,
+.dark div[style*="background: white"],
+.dark div[style*="background-color: white"],
+.dark div[style*="background: rgb(255, 255, 255)"],
+.dark div[style*="background-color: rgb(255, 255, 255)"],
+.dark div[style*="background: #ffffff"],
+.dark div[style*="background-color: #ffffff"],
+.dark button[style*="background: white"],
+.dark button[style*="background-color: white"],
+.dark header[style*="background: white"],
+.dark header[style*="background-color: white"],
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: var(--bg-card) !important;
+  background: var(--bg-card) !important;
+}
+
+.dark .bg-gray-100,
+.dark .bg-slate-100,
+.dark .bg-[#f7f8fa],
+.dark .bg-[#F6F7FB] {
+  background-color: var(--bg-secondary) !important;
+  background: var(--bg-secondary) !important;
+}
+
+/* Overriding text colors */
+.dark text,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark span[style*="color: #111827"],
+.dark span[style*="color: rgb(17, 24, 39)"],
+.dark div[style*="color: #111827"],
+.dark div[style*="color: rgb(17, 24, 39)"],
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400,
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400,
+.dark span[style*="color: #6B7280"],
+.dark span[style*="color: rgb(107, 114, 128)"],
+.dark div[style*="color: #6B7280"],
+.dark div[style*="color: rgb(107, 114, 128)"] {
+  color: var(--text-secondary) !important;
+}
+
+/* Borders and lines */
+.dark hr,
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark div[style*="border-bottom: 1px solid rgba(229, 231, 235, 0.5)"],
+.dark div[style*="border-bottom: 1px solid #f1f5f9"],
+.dark div[style*="border: 1px solid #e5e7eb"],
+.dark div[style*="border: 1.5px dashed #cbd5e1"] {
+  border-color: var(--border-color) !important;
 }
 
 *,

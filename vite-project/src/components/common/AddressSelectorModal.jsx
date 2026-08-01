@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
+import { createPortal } from "react-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -76,6 +77,11 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
   const [gpsProgressText, setGpsProgressText] = useState("");
   const [toastMsg, setToastMsg] = useState("");
   
+  const [showGpsOverlay, setShowGpsOverlay] = useState(false);
+  const [gpsOverlayFadeOut, setGpsOverlayFadeOut] = useState(false);
+  const [gpsSuccessState, setGpsSuccessState] = useState(false);
+  const gpsTimersRef = useRef([]);
+  
   const isMounted = useRef(true);
   const abortControllerRef = useRef(null);
   const geocodeCache = useRef({});
@@ -113,8 +119,30 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      gpsTimersRef.current.forEach(clearTimeout);
     };
   }, []);
+
+  // Disable body scroll when modal is active with iOS/Safari support
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+    };
+  }, []);
+
+  // Disable body scroll when GPS overlay is active
+  useEffect(() => {
+    if (showGpsOverlay) {
+      document.body.style.overflow = "hidden";
+    }
+  }, [showGpsOverlay]);
 
   const token = localStorage.getItem("buyto_token");
 
@@ -492,6 +520,14 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
     console.log("Location button clicked");
     setGpsDetecting(true);
     setGpsProgressText("📍 Detecting location...");
+    
+    // Clear any previous GPS timers
+    gpsTimersRef.current.forEach(clearTimeout);
+    gpsTimersRef.current = [];
+    
+    setShowGpsOverlay(true);
+    setGpsOverlayFadeOut(false);
+    setGpsSuccessState(false);
 
     const flowStartTime = Date.now();
 
@@ -501,11 +537,6 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
 
       const lat = position.latitude;
       const lng = position.longitude;
-      const newPos = [lat, lng];
-
-      setMapCenter(newPos);
-      setMarkerPos(newPos);
-      setAddressForm(prev => ({ ...prev, latitude: lat, longitude: lng }));
 
       setGpsProgressText("🗺️ Finding address...");
       // Execute geocode and serviceability concurrently in parallel
@@ -515,106 +546,148 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
       ]);
       if (!isMounted.current) return;
 
-      setDetectedAddressText(addressLine);
-      setAddressForm(prev => ({ ...prev, addressLine: addressLine }));
+      // Calculate elapsed time
+      const elapsed = Date.now() - flowStartTime;
+      const remainingTime = Math.max(0, 1000 - elapsed);
 
-      if (autoSelectAndClose) {
-        setGpsProgressText("💾 Saving address...");
-        
-        const matchedAddr = addresses.find(addr => {
-          if (addr.addressLine === addressLine) return true;
-          if (addr.latitude !== undefined && addr.longitude !== undefined && addr.latitude !== null && addr.longitude !== null) {
-            const latDiff = Math.abs(Number(addr.latitude) - Number(lat));
-            const lngDiff = Math.abs(Number(addr.longitude) - Number(lng));
-            if (latDiff < 0.0005 && lngDiff < 0.0005) return true;
-          }
-          return false;
-        });
+      const successTimer = setTimeout(async () => {
+        if (!isMounted.current) return;
+        setGpsSuccessState(true);
 
-        if (matchedAddr) {
-          console.log("[GPS] Match found with existing address:", matchedAddr._id, "- Reusing instead of duplicating.");
-          showToast("📍 Delivery location updated successfully.");
-          setTimeout(() => {
-            if (isMounted.current) selectAddress(matchedAddr);
-          }, 800);
-        } else {
-          try {
-            const savedAddr = await saveCurrentLocation(lat, lng, addressLine, serviceableStatus);
+        const fadeOutTimer = setTimeout(() => {
+          if (!isMounted.current) return;
+          setGpsOverlayFadeOut(true);
+
+          const finalTimer = setTimeout(async () => {
             if (!isMounted.current) return;
-            showToast("📍 Delivery location updated successfully.");
-            setTimeout(() => {
-              if (isMounted.current) selectAddress(savedAddr);
-            }, 800);
-          } catch (saveErr) {
-            if (isMounted.current) {
-              showToast("❌ Unable to save your location.");
+            
+            // Post-fade state/map updates to prevent visual jumps
+            setMapCenter([lat, lng]);
+            setMarkerPos([lat, lng]);
+            setAddressForm(prev => ({ ...prev, latitude: lat, longitude: lng, addressLine: addressLine }));
+            setDetectedAddressText(addressLine);
+
+            if (autoSelectAndClose) {
+              setGpsProgressText("💾 Saving address...");
+              
+              const matchedAddr = addresses.find(addr => {
+                if (addr.addressLine === addressLine) return true;
+                if (addr.latitude !== undefined && addr.longitude !== undefined && addr.latitude !== null && addr.longitude !== null) {
+                  const latDiff = Math.abs(Number(addr.latitude) - Number(lat));
+                  const lngDiff = Math.abs(Number(addr.longitude) - Number(lng));
+                  if (latDiff < 0.0005 && lngDiff < 0.0005) return true;
+                }
+                return false;
+              });
+
+              if (matchedAddr) {
+                console.log("[GPS] Match found with existing address:", matchedAddr._id, "- Reusing instead of duplicating.");
+                showToast("📍 Delivery location updated successfully.");
+                const selectTimer = setTimeout(() => {
+                  if (isMounted.current) selectAddress(matchedAddr);
+                }, 800);
+                gpsTimersRef.current.push(selectTimer);
+              } else {
+                try {
+                  const savedAddr = await saveCurrentLocation(lat, lng, addressLine, serviceableStatus);
+                  if (!isMounted.current) return;
+                  showToast("📍 Delivery location updated successfully.");
+                  const selectTimer = setTimeout(() => {
+                    if (isMounted.current) selectAddress(savedAddr);
+                  }, 800);
+                  gpsTimersRef.current.push(selectTimer);
+                } catch (saveErr) {
+                  if (isMounted.current) {
+                    showToast("❌ Unable to save your location.");
+                  }
+                  throw saveErr;
+                }
+              }
+            } else {
+              setShowLocationConfirm(false);
+              setShowLocationConfirm(true);
             }
-            throw saveErr;
-          }
-        }
-      } else {
-        setShowLocationConfirm(false);
-        if (isMounted.current) {
-          setShowLocationConfirm(true);
-        }
-      }
+
+            setShowGpsOverlay(false);
+            setGpsDetecting(false);
+            setGpsProgressText("");
+          }, 220);
+          gpsTimersRef.current.push(finalTimer);
+        }, 150);
+        gpsTimersRef.current.push(fadeOutTimer);
+      }, remainingTime);
+      gpsTimersRef.current.push(successTimer);
 
       const totalDuration = Date.now() - flowStartTime;
       console.log(`[Total] Completed location flow in ${totalDuration}ms`);
-      if (totalDuration > 4000) {
-        console.warn(`[Total WARNING] Total flow took ${totalDuration}ms, exceeding 4s.`);
-      }
     } catch (err) {
       console.error("Location flow failed:", err);
       if (!isMounted.current) return;
 
-      if (err.code !== undefined) {
-        switch (err.code) {
-          case 1:
-            console.error("[GPS ERROR] Permission denied");
-            showToast("📍 Location permission denied.");
-            break;
-          case 2:
-            console.error("[GPS ERROR] Position unavailable");
-            showToast("📡 Unable to determine your location.");
-            break;
-          case 3:
-            console.error("[GPS ERROR] Timeout");
-            showToast("⏱️ Location request timed out. Please try again.");
-            break;
-          default:
-            console.error("[GPS ERROR] Unknown error code:", err.code);
-            showToast("Please try again.");
-            break;
-        }
-      } else if (err.message && err.message.includes("coordinates")) {
-        showToast("Invalid GPS coordinates received.");
-      } else if (err.message && err.message.includes("save")) {
-        // Handled inside try block
-      } else {
-        if (!navigator.onLine) {
-          console.error("[GPS ERROR] Network offline");
-          showToast("🌐 Please check your internet connection.");
-        } else {
-          showToast("Please try again.");
-        }
-      }
+      const elapsed = Date.now() - flowStartTime;
+      const remainingTime = Math.max(0, 1000 - elapsed);
 
-      const selectedAddressId = localStorage.getItem("buyto_selected_address_id");
-      if (selectedAddressId) {
-        const prevSelected = addresses.find(a => a._id === selectedAddressId);
-        if (prevSelected) {
-          setTimeout(() => {
-            if (isMounted.current) {
-              showToast("Using your previously selected delivery address.");
+      const errorTimer = setTimeout(() => {
+        if (!isMounted.current) return;
+        setGpsOverlayFadeOut(true);
+
+        const finalTimer = setTimeout(() => {
+          if (!isMounted.current) return;
+          setShowGpsOverlay(false);
+          setGpsDetecting(false);
+          setGpsProgressText("");
+
+          // Execute existing error toast logic
+          if (err.code !== undefined) {
+            switch (err.code) {
+              case 1:
+                console.error("[GPS ERROR] Permission denied");
+                showToast("📍 Location permission denied.");
+                break;
+              case 2:
+                console.error("[GPS ERROR] Position unavailable");
+                showToast("📡 Unable to determine your location.");
+                break;
+              case 3:
+                console.error("[GPS ERROR] Timeout");
+                showToast("⏱️ Location request timed out. Please try again.");
+                break;
+              default:
+                console.error("[GPS ERROR] Unknown error code:", err.code);
+                showToast("Please try again.");
+                break;
             }
-          }, 2000);
-        }
-      }
+          } else if (err.message && err.message.includes("coordinates")) {
+            showToast("Invalid GPS coordinates received.");
+          } else if (err.message && err.message.includes("save")) {
+            // Handled inside try block
+          } else {
+            if (!navigator.onLine) {
+              console.error("[GPS ERROR] Network offline");
+              showToast("🌐 Please check your internet connection.");
+            } else {
+              showToast("Please try again.");
+            }
+          }
+
+          const selectedAddressId = localStorage.getItem("buyto_selected_address_id");
+          if (selectedAddressId) {
+            const prevSelected = addresses.find(a => a._id === selectedAddressId);
+            if (prevSelected) {
+              const prevSelectTimer = setTimeout(() => {
+                if (isMounted.current) {
+                  showToast("Using your previously selected delivery address.");
+                }
+              }, 2000);
+              gpsTimersRef.current.push(prevSelectTimer);
+            }
+          }
+        }, 220);
+        gpsTimersRef.current.push(finalTimer);
+      }, remainingTime);
+      gpsTimersRef.current.push(errorTimer);
     } finally {
       if (isMounted.current) {
-        setGpsDetecting(false);
-        setGpsProgressText("");
         if (abortControllerRef.current) {
           abortControllerRef.current = null;
         }
@@ -795,21 +868,19 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
     }
   };
 
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: (closing || !mounted) ? "rgba(15, 23, 42, 0)" : "rgba(15, 23, 42, 0.6)",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        zIndex: 99999,
-        transition: "background 0.3s ease-in-out",
-        fontFamily: "'Outfit', 'Inter', sans-serif"
-      }}
-      onClick={handleClose}
-    >
+  return createPortal(
+    <>
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: (closing || !mounted) ? "rgba(15, 23, 42, 0)" : "rgba(15, 23, 42, 0.6)",
+          zIndex: 9998,
+          transition: "background 0.3s ease-in-out",
+          fontFamily: "'Outfit', 'Inter', sans-serif"
+        }}
+        onClick={handleClose}
+      />
       {toastMsg && (
         <div style={{
           position: "fixed",
@@ -849,10 +920,14 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
           flexDirection: "column",
           maxHeight: "90vh",
           height: windowWidth <= 768 ? "80vh" : "auto",
-          transform: (closing || !mounted) ? "translateY(100%)" : `translateY(${currentY}px)`,
+          transform: (closing || !mounted) ? "translate(-50%, 100%)" : `translate(-50%, ${currentY}px)`,
           transition: closing || !mounted || startY === null ? "transform 0.3s cubic-bezier(0.32, 0.94, 0.6, 1)" : "none",
           overflow: "hidden",
-          boxSizing: "border-box"
+          boxSizing: "border-box",
+          position: "fixed",
+          left: "50%",
+          bottom: 0,
+          zIndex: 9999
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1202,7 +1277,7 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {/* Quick Actions */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
                 <button
                   onClick={() => {
                     setAddressForm({
@@ -1238,26 +1313,6 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
                   }}
                 >
                   ➕ Add New Address
-                </button>
-                <button
-                  onClick={() => detectGpsLocation(true)}
-                  disabled={gpsDetecting}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: "14px",
-                    border: "1px solid rgba(255,255,255,0.25)",
-                    background: "rgba(255,255,255,0.15)",
-                    color: "#ffffff",
-                    fontWeight: "800",
-                    fontSize: "13px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px"
-                  }}
-                >
-                  {gpsDetecting ? `⏳ ${gpsProgressText || "GPS..."}` : "📍 Use Current Location"}
                 </button>
               </div>
 
@@ -1411,7 +1466,147 @@ export default function AddressSelectorModal({ onClose, onSelectAddress, isLogge
             </div>
           )}
         </div>
+
+        {/* Premium GPS Loading Overlay */}
+        {showGpsOverlay && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.18)",
+              backdropFilter: "blur(12px) brightness(0.9) saturate(0.9)",
+              WebkitBackdropFilter: "blur(12px) brightness(0.9) saturate(0.9)",
+              zIndex: 100000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              animation: gpsOverlayFadeOut ? "gpsOverlayFadeOut 220ms forwards ease-in-out" : "gpsOverlayFadeIn 180ms forwards ease-in-out",
+              pointerEvents: "auto",
+              borderRadius: "28px 28px 0 0"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <style>{`
+              @keyframes gpsPinFloat {
+                0% { transform: translateY(0); }
+                50% { transform: translateY(-8px); }
+                100% { transform: translateY(0); }
+              }
+              @keyframes gpsPinPulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+                100% { transform: scale(1); }
+              }
+              @keyframes gpsRipple {
+                0% { transform: scale(0.6); opacity: 0.8; }
+                100% { transform: scale(2.2); opacity: 0; }
+              }
+              @keyframes gpsOverlayFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes gpsOverlayFadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+              }
+              @keyframes gpsCardFadeIn {
+                from { opacity: 0; transform: scale(0.9); }
+                to { opacity: 1; transform: scale(1); }
+              }
+              @keyframes gpsCardFadeOut {
+                from { opacity: 1; transform: scale(1); }
+                to { opacity: 0; transform: scale(0.9); }
+              }
+              .gps-ripple {
+                position: absolute;
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                border: 2px solid rgba(49, 134, 22, 0.4);
+                animation: gpsRipple 1.5s infinite cubic-bezier(0.1, 0.8, 0.3, 1);
+              }
+              .gps-ripple-delay {
+                animation-delay: 0.75s;
+              }
+              @media (prefers-reduced-motion: reduce) {
+                .gps-ripple, .gps-pin-wrapper, .gps-pin-pulse {
+                  animation: none !important;
+                }
+              }
+            `}</style>
+            
+            <div
+              style={{
+                width: "85%",
+                maxWidth: "320px",
+                background: "rgba(255, 255, 255, 0.75)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                borderRadius: "22px",
+                padding: "32px 24px",
+                textAlign: "center",
+                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.15)",
+                border: "1px solid rgba(255, 255, 255, 0.4)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                animation: gpsOverlayFadeOut ? "gpsCardFadeOut 220ms forwards ease-in-out" : "gpsCardFadeIn 180ms forwards ease-in-out"
+              }}
+            >
+              {/* Icon Area */}
+              <div style={{ position: "relative", width: "120px", height: "120px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px" }}>
+                {/* Ripple effects */}
+                {!gpsSuccessState && (
+                  <>
+                    <div className="gps-ripple" />
+                    <div className="gps-ripple gps-ripple-delay" />
+                  </>
+                )}
+                
+                {/* Animated GPS Pin */}
+                <div
+                  className="gps-pin-wrapper"
+                  style={{
+                    zIndex: 2,
+                    animation: !gpsSuccessState ? "gpsPinFloat 2.8s infinite ease-in-out" : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "64px",
+                    height: "64px",
+                    borderRadius: "50%",
+                    background: gpsSuccessState ? "rgba(16, 185, 129, 0.15)" : "rgba(49, 134, 22, 0.12)",
+                    border: gpsSuccessState ? "1.5px solid rgba(16, 185, 129, 0.3)" : "1.5px solid rgba(49, 134, 22, 0.2)",
+                    transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
+                  }}
+                >
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    fill={gpsSuccessState ? "#10B981" : "#318616"}
+                    style={{
+                      transition: "fill 0.3s ease",
+                      animation: !gpsSuccessState ? "gpsPinPulse 1.2s infinite ease-in-out" : "none"
+                    }}
+                  >
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                  </svg>
+                </div>
+              </div>
+              
+              {/* Text Area */}
+              <h3 style={{ margin: "0 0 8px 0", color: "#1e293b", fontSize: "19px", fontWeight: "800", letterSpacing: "-0.3px" }}>
+                {gpsSuccessState ? "Location found!" : "Finding your location"}
+              </h3>
+              <p style={{ margin: 0, color: "#64748b", fontSize: "13px", fontWeight: "600", lineHeight: "1.5", padding: "0 8px" }}>
+                {gpsSuccessState ? "Successfully matched your GPS coordinates." : "Using GPS to locate your delivery address."}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </>,
+    document.body
   );
 }
