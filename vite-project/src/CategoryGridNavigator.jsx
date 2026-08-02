@@ -184,7 +184,7 @@ function CategoryGridNavigator({ setSelectedCategory, windowWidth }) {
                 style={{
                   background: item.bg,
                   width: windowWidth < 768 ? "110px" : "135px",
-                  height: windowWidth < 768 ? "130px" : "160px",
+                  height: windowWidth < 768 ? "110px" : "135px",
                   borderRadius: "20px",
                   padding: windowWidth < 768 ? "10px" : "14px",
                   display: "flex",

@@ -2147,6 +2147,7 @@ function AppContent({ onReady }) {
           locationError={locationError}
           bypassLocationFlow={bypassLocationFlow}
           retryLocationFlow={retryLocationFlow}
+          onSelectManually={() => setShowAddressModal(true)}
         />
       </div>
     );

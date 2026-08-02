@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAddress } from "../context/AddressContext";
 import { DRAWER_STATE } from "../constants/addressConstants";
@@ -12,6 +13,7 @@ import { useDrawerGesture } from "../hooks/useDrawerGesture";
 import { hasLocationServicesEnabled, requestLocationPermission, getCurrentLocation } from "../../../services/location/locationService";
 
 export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false }) {
+  const navigate = useNavigate();
   const {
     selectedAddress,
     savedAddresses,
@@ -26,6 +28,7 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
   const [isGpsOff, setIsGpsOff] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showShareBanner, setShowShareBanner] = useState(true);
 
   const { results: searchResults, loading: searchLoading } = useAddressSearch(searchQuery);
 
@@ -353,7 +356,80 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
                         }}
                       >
                         <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          ＋ Add new address
+                          <span style={{ color: "#318616", fontSize: "18px", fontWeight: "bold" }}>＋</span> Add new address
+                        </span>
+                        <span>❯</span>
+                      </button>
+
+                      {/* Request address from someone else */}
+                      <button
+                        onClick={() => {
+                          if (!restrictDismiss) onClose();
+                          navigate("/profile/request-address");
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "16px",
+                          borderRadius: "16px",
+                          border: "1.5px solid #e2e8f0",
+                          backgroundColor: "#ffffff",
+                          cursor: "pointer",
+                          fontWeight: "750",
+                          color: "#475569",
+                          fontSize: "14px",
+                          textAlign: "left"
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <img 
+                            src="https://img.icons8.com/?size=100&id=DUEq8l5qTqBE&format=png&color=000000" 
+                            alt="WhatsApp Icon"
+                            style={{ width: "24px", height: "24px", objectFit: "contain" }}
+                          />
+                          Request address from someone else
+                        </span>
+                        <span>❯</span>
+                      </button>
+
+                      {/* Import addresses from Zomato */}
+                      <button
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "16px",
+                          borderRadius: "16px",
+                          border: "1.5px solid #e2e8f0",
+                          backgroundColor: "#ffffff",
+                          cursor: "pointer",
+                          fontWeight: "750",
+                          color: "#475569",
+                          fontSize: "14px",
+                          textAlign: "left"
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{
+                            width: "24px",
+                            height: "24px",
+                            borderRadius: "6px",
+                            backgroundColor: "#CB202D",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#ffffff",
+                            fontFamily: "sans-serif",
+                            fontSize: "7px",
+                            fontWeight: "900",
+                            fontStyle: "italic"
+                          }}>
+                            zomato
+                          </div>
+                          Import your addresses from Zomato
                         </span>
                         <span>❯</span>
                       </button>
@@ -373,6 +449,51 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
                         setCurrentState(DRAWER_STATE.EDIT);
                       }}
                     />
+
+                    {/* Share Banner */}
+                    {showShareBanner && (
+                      <div 
+                        onClick={() => {
+                          if (!restrictDismiss) onClose();
+                          navigate("/profile/manage-shares");
+                        }}
+                        style={{
+                          marginTop: "20px",
+                          padding: "16px",
+                          backgroundColor: "#fdf8ee",
+                          border: "1px solid #fbd38d",
+                          borderRadius: "16px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          cursor: "pointer"
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", textAlign: "left" }}>
+                          <span style={{ fontSize: "20px" }}>📤</span>
+                          <span style={{ fontSize: "13px", fontWeight: "750", color: "#b7791f", lineHeight: "1.4" }}>
+                            Now share your addresses with friends and family
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowShareBanner(false);
+                          }}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            fontSize: "14px",
+                            fontWeight: "900",
+                            color: "#718096",
+                            cursor: "pointer",
+                            padding: "4px"
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </motion.div>

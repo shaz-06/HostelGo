@@ -1,12 +1,12 @@
 import React from "react";
 import { ChevronRight } from "lucide-react";
 
-const ProfileRow = React.memo(({ 
-  icon: Icon, 
-  label, 
+const ProfileRow = React.memo(({
+  icon: Icon,
+  label,
   subtitle,
-  rightContent, 
-  onClick, 
+  rightContent,
+  onClick,
   danger = false,
   isLast = false
 }) => {
@@ -14,15 +14,13 @@ const ProfileRow = React.memo(({
     <div className="w-full">
       <button
         onClick={onClick}
-        className={`w-full min-h-[58px] px-4 py-3.5 flex items-center justify-between text-left transition-all duration-150 focus:outline-none focus:bg-gray-50 active:bg-gray-100/80 ${
-          danger ? "text-red-600" : "text-gray-800"
-        }`}
+        className={`w-full min-h-[58px] px-4 py-3.5 flex items-center justify-between text-left transition-all duration-150 focus:outline-none focus:bg-gray-50 active:bg-gray-100/80 ${danger ? "text-red-600" : "text-gray-800"
+          }`}
       >
         <div className="flex items-center gap-3.5 flex-1 min-w-0">
           {Icon && (
-            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden ${
-              danger ? "bg-red-50 text-red-600" : "bg-gray-50 text-gray-500"
-            }`}>
+            <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center overflow-hidden ${danger ? "text-red-600" : "text-gray-500"
+              }`}>
               {typeof Icon === "string" ? (
                 <img src={Icon} alt={label} className="w-[18px] h-[18px] object-contain" />
               ) : (
@@ -31,7 +29,7 @@ const ProfileRow = React.memo(({
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <span className="text-[15px] font-semibold tracking-tight block truncate">
+            <span className="text-[15px] font-medium tracking-tight block truncate">
               {label}
             </span>
             {subtitle && (

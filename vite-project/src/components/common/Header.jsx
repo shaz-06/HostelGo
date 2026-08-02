@@ -55,9 +55,10 @@ const WalletButton = ({ balance, onClick, compact = false }) => {
         display: "flex",
         alignItems: "center",
         gap: "6px",
-        background: "rgba(255, 255, 255, 0.75)",
+        background: "rgba(255, 255, 255, 0.45)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
+        border: "1px solid rgba(255, 255, 255, 0.45)",
         padding: compact ? "6px 12px" : "8px 14px",
         borderRadius: "20px",
         boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)",
@@ -95,9 +96,10 @@ const ProfileButton = ({ onClick, compact = false }) => {
         width: compact ? "36px" : "44px",
         height: compact ? "36px" : "44px",
         borderRadius: "20px",
-        background: "rgba(255, 255, 255, 0.75)",
+        background: "rgba(255, 255, 255, 0.45)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
+        border: "1px solid rgba(255, 255, 255, 0.45)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -109,10 +111,15 @@ const ProfileButton = ({ onClick, compact = false }) => {
       onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
       title="Profile"
     >
-      <svg width={compact ? "18" : "20"} height={compact ? "18" : "20"} viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-        <circle cx="12" cy="7" r="4"></circle>
-      </svg>
+      <img
+        src="https://img.icons8.com/?size=100&id=42865&format=png&color=000000"
+        alt="Profile"
+        style={{
+          width: compact ? "22px" : "26px",
+          height: compact ? "22px" : "26px",
+          objectFit: "contain"
+        }}
+      />
     </div>
   );
 };

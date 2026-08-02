@@ -30,7 +30,7 @@ export function AddressBanner({ isGpsOff }) {
       <button
         onClick={openLocationSettings}
         style={{
-          backgroundColor: "#e11d48",
+          backgroundColor: "#318616",
           color: "#ffffff",
           border: "none",
           borderRadius: "8px",

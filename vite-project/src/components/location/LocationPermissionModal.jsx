@@ -26,28 +26,31 @@ export default function LocationPermissionModal({ isOpen, isPermanentlyDenied, o
             0% { transform: scale(0.92); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
           }
-          .modal-card-permission {
-            animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          .modal-card-permission,
+          .dark .modal-card-permission,
+          .dark div.modal-card-permission,
+          .dark div.modal-card-permission[style] {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+          }
+          .modal-card-permission h3,
+          .dark .modal-card-permission h3 {
+            color: #0f172a !important;
+          }
+          .modal-card-permission p,
+          .dark .modal-card-permission p {
+            color: #64748b !important;
           }
         `
       }} />
       <div className="modal-card-permission" style={cardStyle}>
         {/* Large Location Pin */}
         <div style={iconContainerStyle}>
-          <svg
-            width="86"
-            height="86"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#318616"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ filter: "drop-shadow(0 4px 6px rgba(49, 134, 22, 0.15))" }}
-          >
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-            <circle cx="12" cy="10" r="3" />
-          </svg>
+          <img
+            src="https://img.icons8.com/?size=100&id=RIGL9yeMfewz&format=png&color=000000"
+            alt="Location Pin"
+            style={{ width: "86px", height: "86px", objectFit: "contain" }}
+          />
         </div>
 
         <h3 style={titleStyle}>Location permission required</h3>
@@ -73,7 +76,7 @@ export default function LocationPermissionModal({ isOpen, isPermanentlyDenied, o
               Allow Location
             </button>
           )}
-          
+
           <button
             onClick={onSelectManually}
             style={secondaryBtnStyle}

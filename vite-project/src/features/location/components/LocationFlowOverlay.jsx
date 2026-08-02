@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import LocationDisabledModal from "../../../components/location/LocationDisabledModal";
 import LocationPermissionModal from "../../../components/location/LocationPermissionModal";
 import { LocationRetryDialog } from "./LocationRetryDialog";
-import { LocationBottomDrawer } from "./LocationBottomDrawer";
 
 export function LocationFlowOverlay({
   startupStatus,
@@ -10,13 +9,14 @@ export function LocationFlowOverlay({
   showPermissionModal,
   locationError,
   bypassLocationFlow,
-  retryLocationFlow
+  retryLocationFlow,
+  onSelectManually
 }) {
-  const [showDrawer, setShowDrawer] = useState(false);
-
   const handleSelectManually = () => {
     bypassLocationFlow();
-    setShowDrawer(true);
+    if (onSelectManually) {
+      onSelectManually();
+    }
   };
 
   return (
@@ -37,11 +37,6 @@ export function LocationFlowOverlay({
         isOpen={!!locationError}
         onRetry={retryLocationFlow}
         onSelectManually={handleSelectManually}
-      />
-
-      <LocationBottomDrawer
-        isOpen={showDrawer}
-        onClose={() => setShowDrawer(false)}
       />
     </>
   );

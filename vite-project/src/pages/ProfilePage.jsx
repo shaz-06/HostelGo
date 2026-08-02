@@ -151,11 +151,11 @@ export default function ProfilePage({ defaultTab = "" }) {
     if (showLogoutDialog) {
       window.dispatchEvent(new CustomEvent("hideBottomNav", { detail: true }));
       window.history.pushState({ dialog: "logout" }, "");
-      
+
       const handlePopState = (event) => {
         setShowLogoutDialog(false);
       };
-      
+
       const handleGlobalKeyDown = (e) => {
         if (e.key === "Escape") {
           setShowLogoutDialog(false);
@@ -288,7 +288,7 @@ export default function ProfilePage({ defaultTab = "" }) {
     setShowAddressModal(false);
   }, []);
 
-  const handleSelectAddressDummy = useCallback(() => {}, []);
+  const handleSelectAddressDummy = useCallback(() => { }, []);
 
   const handleAppUpdateDismiss = useCallback(() => {
     setIsAppUpdated(true);
@@ -319,18 +319,25 @@ export default function ProfilePage({ defaultTab = "" }) {
   const memoizedMenuConfig = useMemo(() => {
     return profileMenuConfig.map(section => {
       // Map and inject dynamic subtitles if needed (e.g. show active address name under Address Book)
-      const updatedItems = section.items.map(item => {
-        if (item.id === "address-book" && activeAddress) {
-          const addressDesc = activeAddress.houseNumber 
-            ? `${activeAddress.houseNumber}, ${activeAddress.buildingName || activeAddress.landmark}`
-            : activeAddress.addressLine1;
-          return { ...item, subtitle: addressDesc };
-        }
-        if (item.id === "buycoins" && isLoggedIn) {
-          return { ...item, subtitle: `${liveUser?.buyCoins ?? 0} Coins available` };
-        }
-        return item;
-      });
+      const updatedItems = section.items
+        .map(item => {
+          if (item.id === "address-book" && activeAddress) {
+            const addressDesc = activeAddress.houseNumber
+              ? `${activeAddress.houseNumber}, ${activeAddress.buildingName || activeAddress.landmark}`
+              : activeAddress.addressLine1;
+            return { ...item, subtitle: addressDesc };
+          }
+          if (item.id === "buycoins" && isLoggedIn) {
+            return { ...item, subtitle: `${liveUser?.buyCoins ?? 0} Coins available` };
+          }
+          return item;
+        })
+        .filter(item => {
+          if (item.id === "logout" && !isLoggedIn) {
+            return false;
+          }
+          return true;
+        });
       return { ...section, items: updatedItems };
     });
   }, [activeAddress, liveUser, isLoggedIn]);
@@ -338,7 +345,7 @@ export default function ProfilePage({ defaultTab = "" }) {
   return (
     <div className="page-with-bottom-nav min-h-screen bg-[#F6F7FB] pb-[100px] overflow-x-hidden font-sans">
       <SEO title={isLoggedIn ? "My Profile" : "Login"} description="Manage your account profile, addresses, and settings on Buyto." />
-      
+
       {/* Dynamic inline styles for micro-animations and custom styling */}
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -353,62 +360,28 @@ export default function ProfilePage({ defaultTab = "" }) {
       }} />
 
       {/* 1. Header */}
-      <ProfileHeader 
-        user={liveUser} 
-        isLoggedIn={isLoggedIn} 
-        onBack={handleBack} 
+      <ProfileHeader
+        user={liveUser}
+        isLoggedIn={isLoggedIn}
+        onBack={handleBack}
       />
 
       {/* 2. Profile Completion Banner */}
-      <ProfileBanner 
-        isLoggedIn={isLoggedIn} 
+      <ProfileBanner
+        isLoggedIn={isLoggedIn}
         user={liveUser}
-        onClick={handleBannerClick} 
+        onClick={handleBannerClick}
       />
 
       {/* 3. Quick Action Cards */}
-      <QuickActions 
+      <QuickActions
         onOrders={handleOrdersClick}
         onWallet={handleWalletClick}
         onHelp={handleHelpClick}
       />
 
       <div className="mt-5 space-y-5">
-        {/* 4. Update Card */}
-        {!isAppUpdated && (
-          <div className="mx-4">
-            <div className="bg-white rounded-[18px] border border-gray-100 p-4 flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-              <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-blue-50">
-                  <img 
-                    src="https://img.icons8.com/?size=100&id=L9ByuHGgbUNK&format=png&color=000000" 
-                    alt="Update" 
-                    className="w-[18px] h-[18px] object-contain" 
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[15px] font-semibold text-gray-800 block truncate">
-                    App update available
-                  </span>
-                  <span className="text-[11px] font-medium text-gray-400 block mt-0.5 leading-tight">
-                    Bug fixes and performance improvements
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="bg-blue-50 text-blue-600 text-[11px] font-extrabold px-2 py-1 rounded-md">
-                  v18.15.0
-                </span>
-                <button 
-                  onClick={handleAppUpdateDismiss}
-                  className="text-[12px] font-extrabold text-[#318616] hover:underline px-2 py-1"
-                >
-                  Update
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* 5. Appearance Card */}
         <div className="mx-4 relative">
@@ -421,10 +394,9 @@ export default function ProfilePage({ defaultTab = "" }) {
                   <span className="text-[12px] font-extrabold text-[#318616] tracking-wider uppercase">
                     {globalTheme}
                   </span>
-                  <ChevronDown 
-                    className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
-                      showAppearanceDropdown ? "rotate-180" : "rotate-0"
-                    }`}
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${showAppearanceDropdown ? "rotate-180" : "rotate-0"
+                      }`}
                   />
                 </div>
               }
@@ -438,11 +410,11 @@ export default function ProfilePage({ defaultTab = "" }) {
             {showAppearanceDropdown && (
               <>
                 {/* Click outside backdrop overlay */}
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={handleCloseAppearanceDropdown} 
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={handleCloseAppearanceDropdown}
                 />
-                
+
                 <motion.div
                   initial={{ opacity: 0, y: -8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -479,11 +451,11 @@ export default function ProfilePage({ defaultTab = "" }) {
         <div className="mx-4">
           <div className="bg-white rounded-[18px] border border-gray-100 p-4 flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
             <div className="flex items-center gap-3.5 flex-1 min-w-0">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+              <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-green-600">
                 <EyeOff className="w-[18px] h-[18px]" />
               </div>
               <div className="flex-1 min-w-0 pr-2">
-                <span className="text-[15px] font-semibold text-gray-800 block truncate">
+                <span className="text-[15px] font-medium text-gray-800 block truncate">
                   Hide sensitive products
                 </span>
                 <span className="text-[11px] font-medium text-gray-400 block mt-0.5 leading-tight">
@@ -491,19 +463,17 @@ export default function ProfilePage({ defaultTab = "" }) {
                 </span>
               </div>
             </div>
-            
+
             {/* Custom iOS-like Toggle Switch */}
             <button
               onClick={handleToggleSensitive}
-              className={`w-[46px] h-6 rounded-full transition-colors duration-200 focus:outline-none relative flex-shrink-0 ${
-                hideSensitive ? "bg-[#318616]" : "bg-gray-200"
-              }`}
+              className={`w-[46px] h-6 rounded-full transition-colors duration-200 focus:outline-none relative flex-shrink-0 ${hideSensitive ? "bg-[#318616]" : "bg-gray-200"
+                }`}
               role="switch"
               aria-checked={hideSensitive}
             >
-              <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-200 ${
-                hideSensitive ? "translate-x-[24px]" : "translate-x-0.5"
-              }`} />
+              <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-200 ${hideSensitive ? "translate-x-[24px]" : "translate-x-0.5"
+                }`} />
             </button>
           </div>
         </div>
@@ -565,11 +535,11 @@ export default function ProfilePage({ defaultTab = "" }) {
               aria-describedby="logout-dialog-desc"
             >
               {/* Illustration / Icon */}
-              <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-1">
-                <img 
-                  src="https://img.icons8.com/?size=100&id=j5sJqtadgqDL&format=png&color=000000" 
-                  alt="Logout" 
-                  className="w-8 h-8 object-contain" 
+              <div className="w-16 h-16 flex items-center justify-center mb-1">
+                <img
+                  src="https://img.icons8.com/?size=100&id=j5sJqtadgqDL&format=png&color=000000"
+                  alt="Logout"
+                  className="w-8 h-8 object-contain"
                 />
               </div>
 

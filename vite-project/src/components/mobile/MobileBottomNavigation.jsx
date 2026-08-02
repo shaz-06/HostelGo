@@ -196,54 +196,16 @@ const MobileBottomNavigation = React.memo(({ isVisible = true }) => {
           ...iconContainerStyle,
           transform: currentActive === "home" ? "scale(1.1)" : "scale(1)"
         }}>
-          <svg
-            width="26"
-            height="26"
-            viewBox="0 0 28 28"
-            fill="none"
-            filter="url(#clay-shadow)"
+          <img
+            src={currentActive === "home" ? "https://img.icons8.com/?size=100&id=42814&format=png&color=318616" : "https://img.icons8.com/?size=100&id=42814&format=png&color=6B7280"}
+            alt="Home"
             style={{
-              perspective: "100px",
-              overflow: "visible"
+              width: "26px",
+              height: "26px",
+              objectFit: "contain",
+              transition: "transform 0.2s ease"
             }}
-          >
-            {/* House body with clay yellow fill */}
-            <path
-              d="M5 12.5L14 4.5L23 12.5V22C23 23.1 22.1 24 21 24H7C5.9 24 5 23.1 5 22V12.5Z"
-              stroke={currentActive === "home" ? "#2F2F2F" : "#9CA3AF"}
-              strokeWidth="2.4"
-              strokeLinejoin="round"
-              fill={currentActive === "home" ? "url(#clay-yellow)" : "url(#clay-grey)"}
-            />
-            {/* Chimney */}
-            <path
-              d="M19.5 6.5V9.5"
-              stroke={currentActive === "home" ? "#2F2F2F" : "#9CA3AF"}
-              strokeWidth="2.4"
-              strokeLinecap="round"
-            />
-            {/* Static Dark Doorway Opening */}
-            <path
-              d="M11.5 24V18.5C11.5 17.1 12.6 16 14 16C15.4 16 16.5 17.1 16.5 18.5V24"
-              fill="#2F2F2F"
-            />
-            {/* Animated Door Panel */}
-            <g
-              style={{
-                transformOrigin: "11.5px 20px",
-                transform: currentActive === "home" ? "rotateY(-70deg)" : "rotateY(0deg)",
-                transition: "transform 280ms cubic-bezier(0.25, 1, 0.5, 1)",
-                transformStyle: "preserve-3d"
-              }}
-            >
-              <path
-                d="M11.5 24V18.5C11.5 17.1 12.6 16 14 16C15.4 16 16.5 17.1 16.5 18.5V24"
-                stroke={currentActive === "home" ? "#2F2F2F" : "#9CA3AF"}
-                strokeWidth="2.4"
-                fill={currentActive === "home" ? "url(#clay-yellow)" : "url(#clay-grey)"}
-              />
-            </g>
-          </svg>
+          />
         </div>
         <span style={{
           ...labelStyle,
@@ -266,52 +228,16 @@ const MobileBottomNavigation = React.memo(({ isVisible = true }) => {
           ...iconContainerStyle,
           transform: currentActive === "orders" ? "scale(1.1)" : "scale(1)"
         }}>
-          <svg
-            width="26"
-            height="26"
-            viewBox="0 0 28 28"
-            fill="none"
-            filter="url(#clay-shadow)"
-            style={{ overflow: "visible" }}
-          >
-            {/* Bag Body with clay fill and bounce animation */}
-            <g className={currentActive === "orders" && ordersAnimKey > 0 ? "bag-bounce-anim" : ""}>
-              {/* Animated fill layer */}
-              <rect
-                x="6"
-                y="10"
-                width="16"
-                height="13"
-                rx="4"
-                stroke={currentActive === "orders" ? "#2F2F2F" : "#9CA3AF"}
-                strokeWidth="2.4"
-                fill="none"
-                className={currentActive === "orders" && ordersAnimKey > 0 ? "bag-fill-anim" : ""}
-                style={{
-                  fill: currentActive === "orders" ? "url(#clay-green)" : "url(#clay-grey)"
-                }}
-              />
-              {/* Handle */}
-              <path
-                d="M10 10V8C10 5.8 11.8 4 14 4C16.2 4 18 5.8 18 8V10"
-                stroke={currentActive === "orders" ? "#2F2F2F" : "#9CA3AF"}
-                strokeWidth="2.4"
-                strokeLinecap="round"
-              />
-            </g>
-
-            {/* Heart Element - only visible when active with drop animation */}
-            {currentActive === "orders" && (
-              <path
-                key={`heart-${ordersAnimKey}`}
-                className="heart-drop-anim"
-                d="M14.5 18.5 C13.0 17.1 11.7 15.8 11.7 14.6 C11.7 13.5 12.5 12.7 13.6 12.7 C14.2 12.7 14.7 13.0 15.0 13.5 C15.3 13.0 15.8 12.7 16.4 12.7 C17.5 12.7 18.3 13.5 18.3 14.6 C18.3 15.8 17.0 17.1 15.5 18.5 Z"
-                fill="url(#clay-yellow)"
-                stroke="#2F2F2F"
-                strokeWidth="1.2"
-              />
-            )}
-          </svg>
+          <img
+            src={currentActive === "orders" ? "https://img.icons8.com/?size=100&id=55375&format=png&color=318616" : "https://img.icons8.com/?size=100&id=55375&format=png&color=6B7280"}
+            alt="Order Again"
+            style={{
+              width: "26px",
+              height: "26px",
+              objectFit: "contain",
+              transition: "transform 0.2s ease"
+            }}
+          />
         </div>
         <span style={{
           ...labelStyle,
@@ -334,60 +260,16 @@ const MobileBottomNavigation = React.memo(({ isVisible = true }) => {
           ...iconContainerStyle,
           transform: currentActive === "categories" ? "scale(1.1)" : "scale(1)"
         }}>
-          <svg
-            width="26"
-            height="26"
-            viewBox="0 0 28 28"
-            fill="none"
-            filter="url(#clay-shadow)"
-          >
-            <g className={categoriesAnimKey > 0 ? "clay-group-anim" : ""}>
-              {/* Top Left Circle - Yellow */}
-              <circle
-                key={`tl-${categoriesAnimKey}`}
-                className={categoriesAnimKey > 0 ? "shuffle-tl-anim-premium" : ""}
-                cx="9.5"
-                cy="9.5"
-                r="3.5"
-                stroke={currentActive === "categories" ? "#2F2F2F" : "#9CA3AF"}
-                strokeWidth="2.4"
-                fill="url(#clay-yellow)"
-              />
-              {/* Top Right Circle - Green */}
-              <circle
-                key={`tr-${categoriesAnimKey}`}
-                className={categoriesAnimKey > 0 ? "shuffle-tr-anim-premium" : ""}
-                cx="18.5"
-                cy="9.5"
-                r="3.5"
-                stroke={currentActive === "categories" ? "#2F2F2F" : "#9CA3AF"}
-                strokeWidth="2.4"
-                fill="url(#clay-green)"
-              />
-              {/* Bottom Left Circle - Green */}
-              <circle
-                key={`bl-${categoriesAnimKey}`}
-                className={categoriesAnimKey > 0 ? "shuffle-bl-anim-premium" : ""}
-                cx="9.5"
-                cy="18.5"
-                r="3.5"
-                stroke={currentActive === "categories" ? "#2F2F2F" : "#9CA3AF"}
-                strokeWidth="2.4"
-                fill="url(#clay-green)"
-              />
-              {/* Bottom Right Circle - Yellow */}
-              <circle
-                key={`br-${categoriesAnimKey}`}
-                className={categoriesAnimKey > 0 ? "shuffle-br-anim-premium" : ""}
-                cx="18.5"
-                cy="18.5"
-                r="3.5"
-                stroke={currentActive === "categories" ? "#2F2F2F" : "#9CA3AF"}
-                strokeWidth="2.4"
-                fill="url(#clay-yellow)"
-              />
-            </g>
-          </svg>
+          <img
+            src={currentActive === "categories" ? "https://img.icons8.com/?size=100&id=Vv26Jlx7etIU&format=png&color=318616" : "https://img.icons8.com/?size=100&id=Vv26Jlx7etIU&format=png&color=6B7280"}
+            alt="Categories"
+            style={{
+              width: "26px",
+              height: "26px",
+              objectFit: "contain",
+              transition: "transform 0.2s ease"
+            }}
+          />
         </div>
         <span style={{
           ...labelStyle,
@@ -410,31 +292,16 @@ const MobileBottomNavigation = React.memo(({ isVisible = true }) => {
           ...iconContainerStyle,
           transform: currentActive === "profile" ? "scale(1.1)" : "scale(1)"
         }}>
-          <svg
-            width="26"
-            height="26"
-            viewBox="0 0 28 28"
-            fill="none"
-            filter="url(#clay-shadow)"
-          >
-            {/* User Head with clay fill */}
-            <circle
-              cx="14"
-              cy="9"
-              r="4.5"
-              stroke={currentActive === "profile" ? "#2F2F2F" : "#9CA3AF"}
-              strokeWidth="2.4"
-              fill={currentActive === "profile" ? "url(#clay-green)" : "url(#clay-grey)"}
-            />
-            {/* User Shoulders with clay fill */}
-            <path
-              d="M5 22.5C5 18.9 7.9 16 11.5 16H16.5C20.1 16 23 18.9 23 22.5"
-              stroke={currentActive === "profile" ? "#2F2F2F" : "#9CA3AF"}
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              fill={currentActive === "profile" ? "url(#clay-green)" : "url(#clay-grey)"}
-            />
-          </svg>
+          <img
+            src={currentActive === "profile" ? "https://img.icons8.com/?size=100&id=42865&format=png&color=318616" : "https://img.icons8.com/?size=100&id=42865&format=png&color=6B7280"}
+            alt="Profile"
+            style={{
+              width: "26px",
+              height: "26px",
+              objectFit: "contain",
+              transition: "transform 0.2s ease"
+            }}
+          />
         </div>
         <span style={{
           ...labelStyle,

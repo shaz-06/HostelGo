@@ -500,14 +500,16 @@ function CategoryDiscovery({ products = [] }) {
           display: flex;
           flex-direction: column;
           align-items: center;
+          justify-content: center;
           cursor: pointer;
-          border-radius: 28px;
+          border-radius: 20px;
           border: 1px solid #DCECC7;
           transition: all 300ms ease;
-          padding: 16px;
-          gap: 12px;
+          padding: 12px;
+          gap: 8px;
           position: relative;
           box-sizing: border-box;
+          aspect-ratio: 1 / 1.05;
         }
 
         .category-discovery-card:hover {
@@ -569,6 +571,34 @@ function CategoryDiscovery({ products = [] }) {
           z-index: 2;
         }
 
+        @media (max-width: 767px) {
+          .category-discovery-card {
+            padding: 8px 4px !important;
+            gap: 6px !important;
+            border-radius: 18px !important;
+          }
+          .category-discovery-image-wrapper {
+            width: 46px !important;
+            height: 46px !important;
+            border-radius: 10px !important;
+          }
+          .category-discovery-img {
+            width: 34px !important;
+            height: 34px !important;
+          }
+          .category-discovery-text {
+            font-size: 9.5px !important;
+            min-height: 24px !important;
+            line-height: 1.15 !important;
+          }
+          .category-discovery-badge {
+            font-size: 7px !important;
+            padding: 1px 4px !important;
+            top: 4px !important;
+            right: 4px !important;
+          }
+        }
+
         @media (min-width: 768px) {
           .category-discovery-grid {
             grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -580,7 +610,7 @@ function CategoryDiscovery({ products = [] }) {
         }
 
         .premium-collection-card {
-          border-radius: 32px !important;
+          border-radius: 20px !important;
           transition: transform .3s ease, box-shadow .3s ease, background .3s ease !important;
         }
 
@@ -599,7 +629,7 @@ function CategoryDiscovery({ products = [] }) {
         .premium-image-wrapper {
           background: linear-gradient(135deg, #FFFFFF, #F8FAFC) !important;
           box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05) !important;
-          border-radius: 24px !important;
+          border-radius: 14px !important;
         }
       `}</style>
     </div>
