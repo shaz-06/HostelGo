@@ -2,13 +2,13 @@ import React, { useEffect } from "react";
 import { App as CapApp } from "@capacitor/app";
 import { openLocationSettings } from "../../services/location/locationService";
 
-export default function LocationPermissionModal({ isOpen, isPermanentlyDenied, onAllow, onSelectManually }) {
+export default function LocationDisabledModal({ isOpen, onSelectManually }) {
   // Prevent Capacitor hardware back button when modal is open
   useEffect(() => {
     if (!isOpen) return;
 
     const backButtonHandler = CapApp.addListener("backButton", () => {
-      console.log("[LocationPermissionModal] Back button blocked while permission is required.");
+      console.log("[LocationDisabledModal] Back button blocked while location services are disabled.");
     });
 
     return () => {
@@ -26,53 +26,43 @@ export default function LocationPermissionModal({ isOpen, isPermanentlyDenied, o
             0% { transform: scale(0.92); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
           }
-          .modal-card-permission {
+          .modal-card-disabled {
             animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           }
         `
       }} />
-      <div className="modal-card-permission" style={cardStyle}>
-        {/* Large Location Pin */}
+      <div className="modal-card-disabled" style={cardStyle}>
+        {/* Large Location Pin with red diagonal slash */}
         <div style={iconContainerStyle}>
           <svg
             width="86"
             height="86"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#318616"
+            stroke="#e11d48"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ filter: "drop-shadow(0 4px 6px rgba(49, 134, 22, 0.15))" }}
+            style={{ filter: "drop-shadow(0 4px 6px rgba(225, 29, 72, 0.15))" }}
           >
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
+            <line x1="3" y1="3" x2="21" y2="21" stroke="#e11d48" strokeWidth="2" />
           </svg>
         </div>
 
-        <h3 style={titleStyle}>Location permission required</h3>
+        <h3 style={titleStyle}>Location is turned off</h3>
         <p style={descriptionStyle}>
-          {isPermanentlyDenied
-            ? "To detect nearby stores and offer accurate delivery estimates, please enable Location permission in Settings."
-            : "Turn on your location permission for a better delivery experience and to show products and delivery estimates available in your area."}
+          Turn on your device location for a better delivery experience and accurate nearby store availability.
         </p>
 
         <div style={btnContainerStyle}>
-          {isPermanentlyDenied ? (
-            <button
-              onClick={openLocationSettings}
-              style={primaryBtnStyle}
-            >
-              Open Settings
-            </button>
-          ) : (
-            <button
-              onClick={onAllow}
-              style={primaryBtnStyle}
-            >
-              Allow Location
-            </button>
-          )}
+          <button
+            onClick={openLocationSettings}
+            style={primaryBtnStyle}
+          >
+            Enable device location
+          </button>
           
           <button
             onClick={onSelectManually}

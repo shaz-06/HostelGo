@@ -1129,7 +1129,7 @@ const Header = React.memo(({
           {/* Row 2: Location */}
           <div style={{ display: "flex", flexDirection: "column", width: "100%", margin: "1px 0" }}>
             <div
-              onClick={() => setAddressExpanded(!addressExpanded)}
+              onClick={onOpenAddressModal}
               style={{
                 display: "inline-flex",
                 alignItems: "center",

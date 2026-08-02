@@ -138,11 +138,15 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
   const productIds = products.map(p => p.productId ? p.productId.toString() : p._id ? p._id.toString() : "");
   for (const id of productIds) {
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error(`Invalid product ID format: "${id}". Must be a valid 24-character hexadecimal ObjectId.`);
+      throw new Error("One or more products are invalid, unavailable, or no longer exist. Please refresh your cart and try again.");
     }
   }
   const dbProducts = await Product.find({ _id: { $in: productIds } }).lean();
-  const priceMap = new Map(dbProducts.map(p => [p._id.toString(), p.price]));
+
+  // Ensure every submitted product exists in MongoDB
+  if (dbProducts.length !== new Set(productIds).size) {
+    throw new Error("One or more products are invalid, unavailable, or no longer exist. Please refresh your cart and try again.");
+  }
 
   const { calculateSellingPrice } = require("../services/pricingEngine");
 
@@ -152,15 +156,22 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
     const pId = item.productId ? item.productId.toString() : item._id ? item._id.toString() : "";
     const dbProd = dbProducts.find(p => p._id.toString() === pId);
     if (!dbProd) {
-      throw new Error(`Product with ID ${pId} not found`);
+      throw new Error("One or more products are invalid, unavailable, or no longer exist. Please refresh your cart and try again.");
     }
 
     const priceCalc = await calculateSellingPrice(dbProd);
     const dbPrice = priceCalc.finalPrice;
 
     subtotal += dbPrice * item.quantity;
+    
+    // Ignore all client-supplied prices/metadata. Derive solely from database.
     recalculatedProducts.push({
-      ...item,
+      productId: pId,
+      name: dbProd.name,
+      quantity: item.quantity,
+      weight: item.selectedWeight || item.weight || dbProd.weight,
+      image: dbProd.image || "",
+      imageUrl: dbProd.image || "",
       price: dbPrice,
       basePrice: priceCalc.originalBasePrice,
       pricingRuleId: priceCalc.activeRule ? priceCalc.activeRule._id : null,
@@ -503,7 +514,15 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
         paymentMethod: "razorpay"
       });
     } catch (err) {
-      console.error("Server-side recalculation failed:", err.message);
+      const invalidProductIds = products.map(p => p.productId || p._id).filter(id => !mongoose.Types.ObjectId.isValid(id));
+      console.error("[VALIDATION ERROR] Razorpay Order Creation Failed:", {
+        requestId: req.headers["x-request-id"] || "N/A",
+        userId: req.user?._id || "anonymous",
+        invalidProductIds,
+        submittedProducts: products.map(p => ({ productId: p.productId || p._id, quantity: p.quantity })),
+        cartSize: products.length,
+        errorMessage: err.message
+      });
       return res.status(400).json({ success: false, requiresRefresh: true, message: err.message });
     }
 
@@ -553,7 +572,7 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
       orderId,
       user,
       userId: req.user._id,
-      products,
+      products: recalculated.products,
       totalAmount: numericAmount,
       paymentMethod: "razorpay",
       paymentStatus: "Pending",
@@ -856,7 +875,15 @@ router.post("/orders", authMiddleware, async (req, res) => {
         paymentMethod: "cod"
       });
     } catch (err) {
-      console.error("Server-side recalculation failed:", err.message);
+      const invalidProductIds = products.map(p => p.productId || p._id).filter(id => !mongoose.Types.ObjectId.isValid(id));
+      console.error("[VALIDATION ERROR] COD Order Creation Failed:", {
+        requestId: req.headers["x-request-id"] || "N/A",
+        userId: req.user?._id || "anonymous",
+        invalidProductIds,
+        submittedProducts: products.map(p => ({ productId: p.productId || p._id, quantity: p.quantity })),
+        cartSize: products.length,
+        errorMessage: err.message
+      });
       return res.status(400).json({ success: false, requiresRefresh: true, message: err.message });
     }
 
@@ -892,7 +919,7 @@ router.post("/orders", authMiddleware, async (req, res) => {
       orderId,
       user,
       userId: req.user._id,
-      products,
+      products: recalculated.products,
       totalAmount: numericAmount,
       paymentMethod: "cod",
       paymentStatus: "Pending", // COD remains pending until hand-delivered
@@ -1335,7 +1362,13 @@ router.get("/orders/track/:orderId", authMiddleware, async (req, res) => {
   console.log("Customer Phone:", req.user.phone);
 
   try {
-    const order = await Order.findOne({ orderId: req.params.orderId });
+    let query = {};
+    if (mongoose.isValidObjectId(req.params.orderId)) {
+      query = { $or: [{ _id: req.params.orderId }, { orderId: req.params.orderId }] };
+    } else {
+      query = { orderId: req.params.orderId };
+    }
+    const order = await Order.findOne(query);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -1709,10 +1742,13 @@ router.put("/orders/:id/instructions", authMiddleware, async (req, res) => {
   console.log("=== UPDATE ORDER INSTRUCTIONS ===");
   try {
     const { instructions } = req.body;
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ message: "Invalid order id" });
+    let query = {};
+    if (mongoose.isValidObjectId(req.params.id)) {
+      query = { $or: [{ _id: req.params.id }, { orderId: req.params.id }] };
+    } else {
+      query = { orderId: req.params.id };
     }
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findOne(query);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -1734,4 +1770,5 @@ router.put("/orders/:id/instructions", authMiddleware, async (req, res) => {
   }
 });
 
+router.recalculateOrderSummary = recalculateOrderSummary;
 module.exports = router;

@@ -10,9 +10,12 @@ import android.content.Intent;
 import android.net.Uri;
 import android.util.Log;
 
+import com.buyto.app.plugins.LocationSettingsPlugin;
+
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(LocationSettingsPlugin.class);
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
 

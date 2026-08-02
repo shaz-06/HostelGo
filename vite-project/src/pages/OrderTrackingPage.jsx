@@ -28,7 +28,7 @@ function MapController({ route, scooterPos, followRider }) {
   useEffect(() => {
     if (!scooterPos || !followRider) return;
     const now = Date.now();
-    
+
     // Auto-center if follow rider is true OR if the marker leaves the visible bounds
     const isWithinBounds = map.getBounds().contains([scooterPos.lat, scooterPos.lng]);
     if (followRider || !isWithinBounds) {
@@ -89,7 +89,14 @@ const OrderDetailsLeftColumn = React.memo(({ order, subtotal, deliveryFee, platf
 
       {/* Ordered Items */}
       <div style={panelStyle}>
-        <h3 style={panelTitleStyle}>🛍️ Items Ordered</h3>
+        <h3 style={{ ...panelTitleStyle, display: "flex", alignItems: "center", gap: "6px" }}>
+          <img
+            src="https://img.icons8.com/?size=100&id=TquBfvAjccPc&format=png&color=000000"
+            alt="Items Ordered"
+            style={{ width: "18px", height: "18px", objectFit: "contain" }}
+          />
+          Items Ordered
+        </h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {order?.products?.map((item) => (
             <div key={`${item.productId}-${item.name}`} style={itemRowStyle}>
@@ -187,7 +194,14 @@ const OrderDetailsLeftColumn = React.memo(({ order, subtotal, deliveryFee, platf
 
       {/* Delivery Instructions */}
       <div style={panelStyle}>
-        <h3 style={panelTitleStyle}>🛵 Delivery Instructions</h3>
+        <h3 style={{ ...panelTitleStyle, display: "flex", alignItems: "center", gap: "6px" }}>
+          <img 
+            src="https://img.icons8.com/?size=100&id=uTI4SjCIkNJp&format=png&color=000000" 
+            alt="Delivery Instructions" 
+            style={{ width: "20px", height: "20px", objectFit: "contain" }} 
+          /> 
+          Delivery Instructions
+        </h3>
         <p style={{ margin: "4px 0 12px", fontSize: 12, color: "#64748b", fontWeight: 700 }}>
           Let the rider know where or how to drop off your order.
         </p>
@@ -245,7 +259,11 @@ const ETASection = React.memo(({ etaMinutesVal, orderStatus, estimatedDeliveryTi
 
   return (
     <div style={etaCardStyle}>
-      <span style={{ fontSize: 32 }}>🚴</span>
+      <img
+        src="https://img.icons8.com/?size=100&id=5CgxfgEq7mBc&format=png&color=000000"
+        alt="Estimated Arrival"
+        style={{ width: "32px", height: "32px", objectFit: "contain" }}
+      />
       <div style={{ flex: 1 }}>
         <span style={{ fontSize: 11, fontWeight: "950", color: "#1e40af", textTransform: "uppercase", letterSpacing: 0.5 }}>
           Estimated Arrival
@@ -280,13 +298,13 @@ const TimelineSection = React.memo(({ orderStatus, statusTimestamps, assignedRid
     };
 
     let currentNormalized = STATUS_MAP[orderStatus] || orderStatus || "ORDER_PLACED";
-    
+
     // Fallback: If rider status is Rider Assigned but rider details are missing, demote to Packing stage
     const isAssigned = Boolean(assignedRiderId || rider);
     if (currentNormalized === "RIDER_ASSIGNED" && !isAssigned) {
       currentNormalized = "PACKING";
     }
-    
+
     const timelineOrder = [
       "ORDER_PLACED",
       "PAYMENT_RECEIVED",
@@ -304,13 +322,20 @@ const TimelineSection = React.memo(({ orderStatus, statusTimestamps, assignedRid
 
   return (
     <div style={panelStyle}>
-      <h3 style={panelTitleStyle}>📍 Order Status</h3>
+      <h3 style={{ ...panelTitleStyle, display: "flex", alignItems: "center", gap: "6px" }}>
+        <img
+          src="https://img.icons8.com/?size=100&id=AefXIkx4A693&format=png&color=000000"
+          alt="Order Status"
+          style={{ width: "18px", height: "18px", objectFit: "contain" }}
+        />
+        Order Status
+      </h3>
       <div style={timelineList}>
         <div style={timelineTrackLine} />
         {timelineStages.map((stage, idx) => {
           const isCompleted = idx < activeTimelineIndex;
           const isCurrent = idx === activeTimelineIndex;
-          
+
           // Timestamp matching
           const tsRaw = statusTimestamps?.[stage.key];
           const formattedTime = tsRaw ? new Date(tsRaw).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : "";
@@ -342,19 +367,23 @@ const TimelineSection = React.memo(({ orderStatus, statusTimestamps, assignedRid
 const RiderWaitingCard = () => {
   return (
     <div style={{
-      display: "flex", 
-      gap: 14, 
-      alignItems: "center", 
+      display: "flex",
+      gap: 14,
+      alignItems: "center",
       background: "#f0fdf4", // soft green background
       border: "1.5px solid #bbf7d0", // soft green border
-      padding: "16px", 
+      padding: "16px",
       borderRadius: "20px",
       fontFamily: "'Outfit', 'Inter', sans-serif"
     }}>
       <BuytoRiderAvatar isWaiting={true} size={50} />
       <div style={{ flex: 1 }}>
         <strong style={{ fontSize: 15, fontWeight: 900, color: "#166534" }}>
-          🚚 Searching for rider...
+          <img
+            src="https://img.icons8.com/?size=100&id=mMHLa0MxLXb2&format=png&color=000000"
+            alt="Searching for rider"
+            style={{ width: "18px", height: "18px", objectFit: "contain", verticalAlign: "middle", marginRight: "4px" }}
+          /> Searching for rider...
         </strong>
         <p style={{ margin: "2px 0 0", fontSize: 12, color: "#15803d", fontWeight: 700, lineHeight: "1.4" }}>
           We're assigning the best available rider. We'll notify you as soon as your rider is assigned.
@@ -440,19 +469,19 @@ const RiderSection = React.memo(({ rider, orderStatus, progress, assignedRiderId
 export default function OrderTrackingPage({ orderId }) {
   const navigate = useNavigate();
   const { token, refreshUser } = useContext(AuthContext);
-  
+
   // Authoritative server states
   const [order, setOrder] = useState(null);
   const [rider, setRider] = useState(null);
   const [trackingInfo, setTrackingInfo] = useState(null);
-  
+
   const [loading, setLoading] = useState(true);
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState("");
   const [connectionStatus, setConnectionStatus] = useState("connecting"); // 'connecting', 'connected', 'reconnecting', 'polling'
   const [followRider, setFollowRider] = useState(true);
   const [toastMessage, setToastMessage] = useState("");
-  
+
   // Local state for delivery instructions
   const [instructionsText, setInstructionsText] = useState("");
   const [isUpdatingInstructions, setIsUpdatingInstructions] = useState(false);
@@ -486,7 +515,7 @@ export default function OrderTrackingPage({ orderId }) {
           blocking: true
         });
         const data = await res.json();
-        
+
         if (!res.ok) {
           throw new Error(data.message || "Order tracking not ready yet");
         }
@@ -598,11 +627,11 @@ export default function OrderTrackingPage({ orderId }) {
         }));
       }
       triggerToast(`📦 Status Update: ${event.status}`);
-    } 
+    }
     else if (event.type === "rider") {
       const riderObj = event.rider || event;
       const assignedRiderId = riderObj.riderId || "assigned-placeholder";
-      
+
       setRider({
         name: riderObj.riderName || riderObj.name,
         rating: riderObj.rating,
@@ -635,7 +664,7 @@ export default function OrderTrackingPage({ orderId }) {
       }
 
       triggerToast(`🛵 Rider assigned to your order!`);
-    } 
+    }
     else if (event.type === "location") {
       setTrackingInfo(prev => {
         const route = prev?.route || [];
@@ -653,7 +682,7 @@ export default function OrderTrackingPage({ orderId }) {
           version: eventVersion
         };
       });
-    } 
+    }
     else if (event.type === "delivered") {
       setOrder(prev => prev ? {
         ...prev,
@@ -678,7 +707,7 @@ export default function OrderTrackingPage({ orderId }) {
     let active = true;
     loadInitialTracking().then((success) => {
       if (!success || !active) return;
-      
+
       // Connect to Socket.IO immediately after initial load
       const socket = io(window.API_BASE_URL, {
         reconnectionDelayMax: 10000,
@@ -794,10 +823,10 @@ export default function OrderTrackingPage({ orderId }) {
   const route = trackingInfo?.route || [];
   const progressPercent = trackingInfo?.progress || 0;
   const progressFraction = progressPercent / 100;
-  
+
   const storeLat = order?.fulfillmentStore?.latitude || 13.0835363;
   const storeLng = order?.fulfillmentStore?.longitude || 77.6403678;
-  
+
   const completedRoute = useMemo(() => {
     if (route.length === 0) return [];
     const index = Math.floor(progressFraction * (route.length - 1));
@@ -1010,7 +1039,7 @@ export default function OrderTrackingPage({ orderId }) {
           </h1>
           <p style={mutedStyle}>Buyto Express Delivery</p>
         </div>
-        
+
         {/* Dynamic connection indicator badge */}
         <div className="live-pulse-badge" style={headerStatusBadge(order?.orderStatus, connectionStatus)}>
           {connectionLabel()}
@@ -1019,7 +1048,7 @@ export default function OrderTrackingPage({ orderId }) {
 
       {/* DESKTOP 3-COLUMN LAYOUT */}
       <div className="tracking-desktop-layout">
-        
+
         {/* LEFT COLUMN: Success Banner, Items, Payment, Address, Delivery Instructions */}
         <OrderDetailsLeftColumn
           order={order}
@@ -1049,7 +1078,7 @@ export default function OrderTrackingPage({ orderId }) {
 
         {/* RIGHT COLUMN: ETA, Live Map, Rider Details, Shopping Actions */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          
+
           <ETASection
             etaMinutesVal={trackingInfo?.etaMinutes ?? order?.estimatedArrivalMinutes}
             orderStatus={order?.orderStatus}
@@ -1098,7 +1127,7 @@ export default function OrderTrackingPage({ orderId }) {
               {scooterPos && (
                 <Marker position={[scooterPos.lat, scooterPos.lng]} icon={scooterMarkerIcon} />
               )}
-              
+
               {/* Colored solid completed route vs gray/dashed remaining route */}
               {completedRoute.length > 0 && (
                 <Polyline positions={completedRoute.map(pt => [pt.lat, pt.lng])} color="#10b981" weight={6} opacity={0.9} />
@@ -1119,8 +1148,8 @@ export default function OrderTrackingPage({ orderId }) {
           />
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <button onClick={() => navigate("/")} style={primaryActionBtn}>
-              🛒 Continue Shopping
+            <button onClick={() => navigate("/")} style={{ ...primaryActionBtn, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+              <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=ffffff" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
             </button>
             <button onClick={() => navigate("/help")} style={secondaryActionBtn}>
               💬 Contact Support
@@ -1200,8 +1229,8 @@ export default function OrderTrackingPage({ orderId }) {
         />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button onClick={() => navigate("/")} style={primaryActionBtn}>
-            🛒 Continue Shopping
+          <button onClick={() => navigate("/")} style={{ ...primaryActionBtn, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+            <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=ffffff" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
           </button>
           <button onClick={() => navigate("/help")} style={secondaryActionBtn}>
             💬 Contact Support

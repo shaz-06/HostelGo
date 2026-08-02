@@ -27,7 +27,7 @@ const HIDE_LAYOUT_ROUTES = [
   "/track-order",
 ];
 
-export default function BuytoLoader({ mode = "fullscreen" }) {
+export default function BuytoLoader({ mode = "fullscreen", forceShow = false, statusMessage = "" }) {
   const { pathname } = useLocation();
 
   const {
@@ -73,7 +73,7 @@ export default function BuytoLoader({ mode = "fullscreen" }) {
 
   // Rotate messages
   useEffect(() => {
-    if ((mode !== "inline" && !showLoader) || errorState) return;
+    if ((mode !== "inline" && !showLoader && !forceShow) || errorState) return;
 
     const interval = setInterval(() => {
       setFade(false);
@@ -84,10 +84,10 @@ export default function BuytoLoader({ mode = "fullscreen" }) {
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [showLoader, errorState, mode]);
+  }, [showLoader, errorState, mode, forceShow]);
 
   if (isAdminRoute) return null;
-  if (mode !== "inline" && (!showLoader || isNavigating) && !errorState) return null;
+  if (!forceShow && mode !== "inline" && (!showLoader || isNavigating) && !errorState) return null;
 
   const isInline = mode === "inline";
 
@@ -165,8 +165,12 @@ export default function BuytoLoader({ mode = "fullscreen" }) {
         {errorState ? (
           // Connection Error / Offline View
           <div style={errorContainerStyle}>
-            <div style={errorIconStyle}>
-              {errorState.type === "offline" ? "📶" : "⚠️"}
+            <div style={{ ...errorIconStyle, display: "flex", justifyContent: "center" }}>
+              <img
+                src="https://img.icons8.com/?size=100&id=5WJ8Ormzze2Z&format=png&color=000000"
+                alt="Connection Trouble"
+                style={{ width: "64px", height: "64px", objectFit: "contain" }}
+              />
             </div>
             <h2 style={errorTitleStyle}>
               {errorState.type === "offline"
@@ -208,7 +212,7 @@ export default function BuytoLoader({ mode = "fullscreen" }) {
               className={`message-transition ${fade ? "message-fade-in" : ""}`}
               style={messageStyle}
             >
-              {MESSAGES[messageIndex]}
+              {statusMessage || MESSAGES[messageIndex]}
             </div>
 
             {/* Time stage subtexts */}

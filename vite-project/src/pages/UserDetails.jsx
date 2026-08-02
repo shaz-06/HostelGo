@@ -241,7 +241,11 @@ export default function UserDetails() {
         {showUnserviceableModal ? (
           <div>
             <div style={{ textAlign: "center", marginBottom: "24px" }}>
-              <span style={{ fontSize: "48px" }}>📍</span>
+              <img
+                src="https://img.icons8.com/?size=100&id=9AhyKkN9bsLy&format=png&color=000000"
+                alt="Service Unavailable"
+                style={{ width: "48px", height: "48px", objectFit: "contain", margin: "0 auto 16px auto", display: "block" }}
+              />
               <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#ef4444", margin: "16px 0 8px 0" }}>Service Unavailable</h2>
               <p style={{ color: "#6b7280", fontSize: "15px", lineHeight: "1.6", margin: 0 }}>
                 We're currently expanding our services.<br />
@@ -356,9 +360,17 @@ export default function UserDetails() {
               color: "#111827",
               margin: 0,
               letterSpacing: "-0.5px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
             }}
           >
-            Delivery Details ⚡
+            Delivery Details
+            <img
+              src="https://img.icons8.com/?size=100&id=vrI1gCwXbDPx&format=png&color=000000"
+              alt="Delivery Details"
+              style={{ width: "28px", height: "28px", objectFit: "contain" }}
+            />
           </h1>
           <p style={{ color: "#6b7280", fontSize: "14px", marginTop: "6px", margin: 0 }}>
             Where should we deliver your instant order?

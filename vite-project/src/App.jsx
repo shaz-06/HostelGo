@@ -9,6 +9,10 @@ import ProductDetailsSkeleton from "./components/common/ProductDetailsSkeleton";
 import BuytoLogo from "./components/common/BuytoLogo";
 import { Geolocation } from "@capacitor/geolocation";
 import LocationPermissionModal from "./components/location/LocationPermissionModal";
+import LocationDisabledModal from "./components/location/LocationDisabledModal";
+import { useStartupLocationFlow } from "./hooks/useStartupLocationFlow";
+import { LocationFlowOverlay } from "./features/location/components/LocationFlowOverlay";
+import { STARTUP_STATUS } from "./startup/startupConstants";
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
@@ -24,6 +28,7 @@ import DynamicNewBanners from "./components/DynamicNewBanners";
 import { classifyProduct, canonicalCategory } from "./utils/productClassifier";
 import Footer from "./components/Footer";
 import HorizontalProductSection from "./HorizontalProductSection";
+import { cartDebug } from "./utils/cartDebug";
 import TrendingThisWeek from "./components/TrendingThisWeek";
 import MobileBannerCarousel from "./components/mobile/MobileBannerCarousel";
 import Header, { CategoryStrip } from "./components/common/Header";
@@ -380,6 +385,8 @@ function SuspenseFallbackLoader() {
   );
 }
 
+import { AddressProvider } from "./features/location/context/AddressContext";
+
 function App() {
   const [appReady, setAppReady] = useState(false);
 
@@ -402,28 +409,42 @@ function App() {
   }, [appReady]);
 
   return (
-    <LoaderProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <GTMRouteTracker />
-          <ScrollToTop />
-          <GlobalLayout>
-            <Suspense fallback={<SuspenseFallbackLoader />}>
-              <AppContent onReady={() => setAppReady(true)} />
-            </Suspense>
-          </GlobalLayout>
-          <BuytoLoader />
-        </BrowserRouter>
-      </AuthProvider>
-    </LoaderProvider>
+    <AddressProvider>
+      <LoaderProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <GTMRouteTracker />
+            <ScrollToTop />
+            <GlobalLayout>
+              <Suspense fallback={<SuspenseFallbackLoader />}>
+                <AppContent onReady={() => setAppReady(true)} />
+              </Suspense>
+            </GlobalLayout>
+            <BuytoLoader />
+          </BrowserRouter>
+        </AuthProvider>
+      </LoaderProvider>
+    </AddressProvider>
   );
 }
+
 
 
 
 function AppContent({ onReady }) {
   usePerfLogger("AppContent");
   useHeaderTheme();
+
+  const {
+    startupComplete,
+    startupStatus,
+    showGpsModal,
+    showPermissionModal,
+    locationError,
+    bypassLocationFlow,
+    retryLocationFlow
+  } = useStartupLocationFlow();
+
   const [bottomNavVisible, setBottomNavVisible] = useState(true);
   const [hideNavOverride, setHideNavOverride] = useState(false);
 
@@ -670,14 +691,12 @@ function AppContent({ onReady }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        } else {
-          return Object.values(parsed).map((item) => ({
-            ...item.product,
-            quantity: item.quantity,
-          }));
-        }
+        const restored = Array.isArray(parsed) ? parsed : Object.values(parsed).map((item) => ({
+          ...item.product,
+          quantity: item.quantity,
+        }));
+        restored.forEach(item => cartDebug.logLifecycle("Cart restoration / LocalStorage read", item));
+        return restored;
       } catch (e) {
         return [];
       }
@@ -696,29 +715,78 @@ function AppContent({ onReady }) {
 
   const [pushToast, setPushToast] = useState({ title: "", body: "", deepLink: null, visible: false });
 
-  // Enrich legacy or mock products loaded from localStorage with their Mongo _id when products catalog is loaded
+  // Versioned LocalStorage cart migration to resolve legacy products to MongoDB _ids
   useEffect(() => {
-    if (products && products.length > 0 && cartItems && cartItems.length > 0) {
+    const runMigration = async () => {
+      const CART_SCHEMA_VERSION = 4;
+      const storedVersion = Number(localStorage.getItem("buyto_cart_version") || 0);
+
+      if (storedVersion >= CART_SCHEMA_VERSION) return;
+      
+      // Defer migration if catalog is still loading or loading failed due to a network issue
+      if (loading || apiError) return;
+      if (!products || products.length === 0 || cartItems.length === 0) return;
+
       let updated = false;
-      const enrichedItems = cartItems.map(item => {
-        if (!item._id && item.id) {
-          const matched = products.find(p => p.id === item.id || (p.name && item.name && p.name.toLowerCase().trim() === item.name.toLowerCase().trim()));
-          if (matched && matched._id) {
-            updated = true;
-            return { ...item, _id: matched._id };
-          }
+      const migratedItems = [];
+      const removedItemsNames = [];
+
+      for (const item of cartItems) {
+        if (item._id) {
+          migratedItems.push(item);
+          continue;
         }
-        return item;
-      });
-      if (updated) {
-        setCartItems(enrichedItems);
+
+        if (item.id) {
+          // 1. Try to find in currently loaded products catalog
+          let matched = products.find(p => p.id === item.id || (p.name && item.name && p.name.toLowerCase().trim() === item.name.toLowerCase().trim()));
+
+          // 2. If not found in loaded products, query backend detail API
+          if (!matched) {
+            try {
+              const res = await fetch(`${window.API_BASE_URL}/api/products/${item.id}`);
+              if (res.ok) {
+                const pData = await res.json();
+                if (pData && pData._id) {
+                  matched = pData;
+                }
+              }
+            } catch (err) {
+              console.error("Failed to fetch product during cart migration:", err);
+            }
+          }
+
+          if (matched && matched._id) {
+            migratedItems.push({ ...item, _id: matched._id });
+            updated = true;
+          } else {
+            removedItemsNames.push(item.name || item.id);
+            updated = true;
+          }
+        } else {
+          // No id or _id; malformed item
+          updated = true;
+        }
       }
-    }
-  }, [products, cartItems]);
+
+      if (updated) {
+        setCartItems(migratedItems);
+        localStorage.setItem("buyto_cart", JSON.stringify(migratedItems));
+        localStorage.setItem("cart", JSON.stringify(migratedItems));
+        if (removedItemsNames.length > 0) {
+          alert(`Some unavailable items were removed from your cart: ${removedItemsNames.join(", ")}`);
+        }
+      }
+      localStorage.setItem("buyto_cart_version", String(CART_SCHEMA_VERSION));
+    };
+
+    runMigration();
+  }, [products, cartItems, loading, apiError]);
 
 
   // Sync cartItems state with localStorage & sync with backend
   useEffect(() => {
+    cartItems.forEach(item => cartDebug.logLifecycle("LocalStorage write", item));
     localStorage.setItem("buyto_cart", JSON.stringify(cartItems));
     localStorage.setItem("cart", JSON.stringify(cartItems));
 
@@ -1009,6 +1077,11 @@ function AppContent({ onReady }) {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
 
+  const isAdminOrRiderRoute = location.pathname.startsWith("/admin") || 
+                              location.pathname.startsWith("/rider") || 
+                              location.pathname === "/admin-verify";
+
+
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
@@ -1229,10 +1302,13 @@ function AppContent({ onReady }) {
     cachedFetch(window.API_BASE_URL + "/api/products?limit=40", { minDelay: 700 })
       .then((data) => {
         console.log("=== API FETCH SUCCESS ===", data.length, "products loaded");
-        const preClassified = (data || []).map(p => ({
-          ...p,
-          _classifiedCategory: canonicalCategory(classifyProduct(p))
-        }));
+        const preClassified = (data || []).map(p => {
+          cartDebug.validateProductResponse(p);
+          return {
+            ...p,
+            _classifiedCategory: canonicalCategory(classifyProduct(p))
+          };
+        });
         setProducts(preClassified);
         setApiError(null);
         setLoading(false);
@@ -1325,6 +1401,8 @@ function AppContent({ onReady }) {
         enriched._id = matched._id;
       }
     }
+
+    cartDebug.logLifecycle("addToCart", enriched);
 
     setCartItems((prevItems) => {
       const productId = getProductId(enriched);
@@ -2037,9 +2115,23 @@ function AppContent({ onReady }) {
         {/* LOCATION PERMISSION MODAL */}
         <LocationPermissionModal
           isOpen={showLocationPermissionModal}
-          onLocationResolved={(address) => {
-            setUserLocation(address);
-            setShowLocationPermissionModal(false);
+          onAllow={async () => {
+            try {
+              const perm = await Geolocation.requestPermissions({ permissions: ["location"] });
+              if (perm.location === "granted") {
+                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  const addressLineText = data.display_name || `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+                  localStorage.setItem("userLocation", addressLineText);
+                  setUserLocation(addressLineText);
+                  setShowLocationPermissionModal(false);
+                }
+              }
+            } catch (e) {
+              console.error("[App] Failed to request permissions inline:", e);
+            }
           }}
           onSelectManually={() => {
             setShowLocationPermissionModal(false);
@@ -2048,6 +2140,14 @@ function AppContent({ onReady }) {
         />
         <OtpLoginBottomSheet />
         <OnboardingBottomSheet />
+        <LocationFlowOverlay
+          startupStatus={startupStatus}
+          showGpsModal={showGpsModal}
+          showPermissionModal={showPermissionModal}
+          locationError={locationError}
+          bypassLocationFlow={bypassLocationFlow}
+          retryLocationFlow={retryLocationFlow}
+        />
       </div>
     );
   };
@@ -3041,7 +3141,9 @@ function AppContent({ onReady }) {
                               }
                             }
                           `}</style>
-                          <h2 className="premium-footer-heading">💚 Thank you for choosing Buyto</h2>
+                          <h2 className="premium-footer-heading" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                            <img src="https://img.icons8.com/?size=100&id=49fnBL9r0HmF&format=png&color=318616" alt="Thank You" style={{ width: "28px", height: "28px", objectFit: "contain" }} /> Thank you for choosing Buyto
+                          </h2>
                           <p className="premium-footer-subtitle">Built by Students, for Students.</p>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "center" }}>
                             <button
@@ -3071,7 +3173,7 @@ function AppContent({ onReady }) {
                                 }, 800);
                               }}
                             >
-                              <span>🛒</span> Continue Shopping
+                              <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=318616" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
                             </button>
                             
                             <button
@@ -3091,7 +3193,7 @@ function AppContent({ onReady }) {
                                 }
                               }}
                             >
-                              <span>🔥</span> Best Deals
+                              <img src="https://img.icons8.com/?size=100&id=pHehIn4Wlp05&format=png&color=318616" alt="Best Deals" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Best Deals
                             </button>
 
                             <button
@@ -3111,7 +3213,7 @@ function AppContent({ onReady }) {
                                 }
                               }}
                             >
-                              <span>🍎</span> Fresh Fruits
+                              <img src="https://img.icons8.com/?size=100&id=tgmqacLfjsi4&format=png&color=318616" alt="Fresh Fruits" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Fresh Fruits
                             </button>
 
                             <button
@@ -3177,7 +3279,7 @@ function AppContent({ onReady }) {
                                 }
                               }}
                             >
-                              <span>🎲</span> Surprise Me
+                              <img src="https://img.icons8.com/?size=100&id=EJGyTkY9EhhZ&format=png&color=318616" alt="Surprise Me" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Surprise Me
                             </button>
                           </div>
                         </div>
@@ -3414,9 +3516,23 @@ function AppContent({ onReady }) {
       {/* LOCATION PERMISSION MODAL */}
       <LocationPermissionModal
         isOpen={showLocationPermissionModal}
-        onLocationResolved={(address) => {
-          setUserLocation(address);
-          setShowLocationPermissionModal(false);
+        onAllow={async () => {
+          try {
+            const perm = await Geolocation.requestPermissions({ permissions: ["location"] });
+            if (perm.location === "granted") {
+              const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+              if (res.ok) {
+                const data = await res.json();
+                const addressLineText = data.display_name || `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+                localStorage.setItem("userLocation", addressLineText);
+                setUserLocation(addressLineText);
+                setShowLocationPermissionModal(false);
+              }
+            }
+          } catch (e) {
+            console.error("[App] Failed to request permissions inline:", e);
+          }
         }}
         onSelectManually={() => {
           setShowLocationPermissionModal(false);
@@ -3559,6 +3675,14 @@ function AppContent({ onReady }) {
       <div>Platform: {Capacitor.getPlatform()}</div>
     </div>
   );
+
+  if (!isAdminOrRiderRoute && loading) {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <BuytoLoader forceShow={true} statusMessage="Initializing Buyto..." />
+      </div>
+    );
+  }
 
   return wrapCustomerLayout(<>{desktopEl}{debugPanel}</>, true);
 }

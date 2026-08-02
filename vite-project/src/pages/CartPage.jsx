@@ -14,6 +14,7 @@ import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { cartDebug } from "../utils/cartDebug";
 
 // Resolve default marker icon bug in Vite/Webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -450,7 +451,7 @@ export default function CartPage({
             if (!isLoggedIn || !token) return;
             try {
                 const cartArray = cartItems.map(item => {
-                    let pId = item._id;
+                    let pId = item._id || item.product?._id;
                     if (!pId && item.id && products && products.length > 0) {
                         const matched = products.find(p => p.id === item.id || (p.name && item.name && p.name.toLowerCase().trim() === item.name.toLowerCase().trim()));
                         if (matched && matched._id) {
@@ -461,6 +462,10 @@ export default function CartPage({
                         productId: pId || item.id,
                         quantity: item.quantity
                     };
+                });
+
+                cartArray.forEach(item => {
+                    cartDebug.logLifecycle("Cart API sync", { _id: item.productId, id: item.productId, name: "sync-item", quantity: item.quantity });
                 });
 
                 if (cartArray.length === 0) return;
@@ -511,7 +516,7 @@ export default function CartPage({
                     setAvailableCoins(data.buyCoinsBalance || 0);
                     setAppliedCoinsState(data.appliedCoins || 0);
                     setBuyCoinsDiscountState(data.discount || 0);
-                    
+
                     console.log({
                         subtotal: data.subtotal,
                         balance: data.buyCoinsBalance,
@@ -529,7 +534,7 @@ export default function CartPage({
                         setAppliedCoinsState(0);
                         setBuyCoinsDiscountState(0);
                         localStorage.removeItem("buyto_coins_redeem");
-                        
+
                         const minOrder = appConfig?.buyCoins?.minBuyCoinsOrder || 99;
                         setToast({
                             couponCode: `msg:BuyCoins have been removed because they can only be redeemed on orders above ₹${minOrder}.`,
@@ -822,11 +827,11 @@ export default function CartPage({
 
     // Construct a simulated coupon object for billCalculator
     const simulatedCoupon = appliedCouponCode ? {
-      _id: "simulated_coupon_id",
-      couponCode: appliedCouponCode,
-      code: appliedCouponCode,
-      discountAmount: couponDiscount,
-      minimumOrderValue: 0 // already validated
+        _id: "simulated_coupon_id",
+        couponCode: appliedCouponCode,
+        code: appliedCouponCode,
+        discountAmount: couponDiscount,
+        minimumOrderValue: 0 // already validated
     } : null;
 
     // Apply calculated coins to bill
@@ -1005,9 +1010,18 @@ export default function CartPage({
     };
 
     const renderProductCarousel = (title, icon, list, onAddEventName) => {
+        const renderIcon = () => {
+            if (typeof icon === "string" && icon.startsWith("http")) {
+                return <img src={icon} alt="" style={{ width: "18px", height: "18px", objectFit: "contain" }} />;
+            }
+            return <span>{icon}</span>;
+        };
+
         if (!lazyLoaded) return (
             <div style={{ marginBottom: "24px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#1f2937", marginBottom: "8px" }}>{icon} {title}</h3>
+                <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#1f2937", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    {renderIcon()} {title}
+                </h3>
                 {renderShimmer()}
             </div>
         );
@@ -1015,7 +1029,7 @@ export default function CartPage({
         return (
             <div style={{ marginBottom: "24px" }}>
                 <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#1f2937", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span>{icon}</span> {title}
+                    {renderIcon()} {title}
                 </h3>
                 <div style={{
                     display: "flex",
@@ -1197,7 +1211,11 @@ export default function CartPage({
         cartItems.length > 0 && (
             <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", marginBottom: "20px" }}>
                 <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#1f2937", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span>🛒</span> Did You Forget?
+                    <img
+                        src="https://img.icons8.com/?size=100&id=uzcB98XMy9YL&format=png&color=000000"
+                        alt="Cart"
+                        style={{ width: "18px", height: "18px", objectFit: "contain" }}
+                    /> Did You Forget?
                 </h3>
 
                 {/* Tabs */}
@@ -1295,7 +1313,14 @@ export default function CartPage({
     const renderAddressSection = () => (
         <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", marginBottom: "20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937" }}>📍 Delivery Address</h3>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <img
+                        src="https://img.icons8.com/?size=100&id=4cQ415HSv4Xx&format=png&color=000000"
+                        alt="Location"
+                        style={{ width: "18px", height: "18px", objectFit: "contain" }}
+                    />
+                    Delivery Address
+                </h3>
                 <button onClick={openAddModal} style={{ border: "none", background: "transparent", color: "#318616", fontSize: "12px", fontWeight: "800", cursor: "pointer" }}>
                     + Add New
                 </button>
@@ -1304,7 +1329,11 @@ export default function CartPage({
             {/* Address List */}
             {addresses.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "24px 16px", color: "#6b7280", border: "2px dashed #cbd5e1", borderRadius: "18px", marginBottom: "14px", background: "#f8fafc" }}>
-                    <span style={{ fontSize: "36px", display: "block", marginBottom: "8px" }}>📍</span>
+                    <img
+                        src="https://img.icons8.com/?size=100&id=4cQ415HSv4Xx&format=png&color=000000"
+                        alt="Location"
+                        style={{ width: "36px", height: "36px", objectFit: "contain", margin: "0 auto 8px auto", display: "block" }}
+                    />
                     <h4 style={{ margin: "0 0 4px 0", fontSize: "14px", fontWeight: "900", color: "#334155" }}>Where should we deliver?</h4>
                     <p style={{ margin: "0 0 16px 0", fontSize: "12px", color: "#64748b", fontWeight: "600" }}>Add your hostel, PG, or home address.</p>
                     <button onClick={openAddModal} style={{ background: "#318616", color: "white", border: "none", padding: "8px 18px", borderRadius: "10px", fontSize: "12px", fontWeight: "800", cursor: "pointer", boxShadow: "0 2px 6px rgba(49,134,22,0.15)" }}>
@@ -1379,8 +1408,13 @@ export default function CartPage({
         }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                    <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "800", color: noBagPledge ? "#065f46" : "#1f2937" }}>
-                        🌱 No Bag Pledge
+                    <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "800", color: noBagPledge ? "#065f46" : "#1f2937", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <img
+                            src="https://img.icons8.com/?size=100&id=QZr1VQf282fA&format=png&color=000000"
+                            alt="No Bag Pledge"
+                            style={{ width: "18px", height: "18px", objectFit: "contain" }}
+                        />
+                        No Bag Pledge
                     </h4>
                     <span style={{ fontSize: "12px", fontWeight: "800", color: "#059669", display: "block", marginTop: "2px" }}>
                         Earn +2 BuyCoins Reward
@@ -1420,7 +1454,14 @@ export default function CartPage({
     const renderCoupons = () => (
         <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", marginBottom: "20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937" }}>🎁 Coupons</h3>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#1f2937", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <img
+                        src="https://img.icons8.com/?size=100&id=him5M4Ysliro&format=png&color=000000"
+                        alt="Coupons"
+                        style={{ width: "18px", height: "18px", objectFit: "contain" }}
+                    />
+                    Coupons
+                </h3>
                 {localActiveCoupons.length > 0 && (
                     <span style={{ fontSize: "11px", background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)", color: "#d97706", padding: "2px 8px", borderRadius: "6px", fontWeight: "800" }}>
                         {localActiveCoupons.length} Available
@@ -1431,7 +1472,11 @@ export default function CartPage({
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
                 {localActiveCoupons.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "16px", border: "1.5px dashed #e2e8f0", borderRadius: "16px", background: "#f8fafc" }}>
-                        <span style={{ fontSize: "28px", display: "block", marginBottom: "4px" }}>🏷️</span>
+                        <img
+                            src="https://img.icons8.com/?size=100&id=7D1QnYu21dDd&format=png&color=000000"
+                            alt="No coupon available"
+                            style={{ width: "28px", height: "28px", objectFit: "contain", margin: "0 auto 4px auto", display: "block" }}
+                        />
                         <p style={{ margin: "0 0 2px 0", fontSize: "13px", fontWeight: "900", color: "#475569" }}>No coupon available today</p>
                         <p style={{ margin: 0, fontSize: "11px", color: "#94a3b8", fontWeight: "600" }}>We'll automatically apply the best offer.</p>
                     </div>
@@ -1441,14 +1486,14 @@ export default function CartPage({
                         const isEligible = subtotal >= minVal;
                         const code = coupon.couponCode || coupon.code;
                         const isApplied = appliedCouponCode === code;
-                        
+
                         let discountText = "";
                         if (coupon.couponType === "percentage") {
-                          discountText = `${coupon.discountValue}% OFF`;
+                            discountText = `${coupon.discountValue}% OFF`;
                         } else if (coupon.couponType === "free_delivery") {
-                          discountText = "Free Delivery";
+                            discountText = "Free Delivery";
                         } else {
-                          discountText = `₹${coupon.discountValue || coupon.discountAmount} OFF`;
+                            discountText = `₹${coupon.discountValue || coupon.discountAmount} OFF`;
                         }
 
                         return (
@@ -1556,14 +1601,14 @@ export default function CartPage({
                 )}
             </div>
             <div style={{ display: "flex", gap: "8px", marginTop: "12px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
-                <input 
-                    placeholder="Enter Coupon (e.g. SAVE50)" 
+                <input
+                    placeholder="Enter Coupon (e.g. SAVE50)"
                     value={typedCouponCode}
                     onChange={(e) => setTypedCouponCode(e.target.value)}
                     style={{ flexGrow: 1, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "10px", fontSize: "13px", fontWeight: "750", outline: "none" }}
                     id="coupon-input-manual"
                 />
-                <button 
+                <button
                     onClick={() => {
                         const code = typedCouponCode?.trim()?.toUpperCase();
                         if (code) {
@@ -1607,7 +1652,7 @@ export default function CartPage({
                                     Level 1: Starter
                                 </span>
                             </div>
-                            
+
                             {/* Stats Section */}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px", background: "#f9fafb", padding: "10px", borderRadius: "16px" }}>
                                 <div style={{ textAlign: "center" }}>
@@ -1619,7 +1664,7 @@ export default function CartPage({
                                     <div style={{ fontSize: "15px", fontWeight: "800", color: "#ef4444" }}>{walletData?.lifetimeRedeemed || 0} 🪙</div>
                                 </div>
                             </div>
-    
+
                             {/* Progress to Next Milestone */}
                             <div style={{ marginBottom: "16px" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#4b5563", fontWeight: "700", marginBottom: "6px" }}>
@@ -1630,7 +1675,7 @@ export default function CartPage({
                                     <div style={{ height: "100%", width: `${Math.min(100, ((walletData?.lifetimeEarned || 0) / 50) * 100)}%`, background: "linear-gradient(90deg, #fbbf24, #d97706)", borderRadius: "4px" }} />
                                 </div>
                             </div>
-    
+
                             <div style={{ borderTop: "1px dashed #e5e7eb", paddingTop: "14px" }}>
                                 <h4 style={{ margin: "0 0 6px 0", fontSize: "12px", fontWeight: "750", color: "#374151" }}>⚡ How to Earn BuyCoins Today:</h4>
                                 <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#6b7280", fontWeight: "600", display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -1638,7 +1683,7 @@ export default function CartPage({
                                     <li>🌱 Choose **No Bag Pledge** at checkout to earn **+2 bonus coins**</li>
                                 </ul>
                             </div>
-    
+
                             {/* Dev capability check */}
                             {import.meta.env.DEV && (
                                 <button
@@ -1670,7 +1715,7 @@ export default function CartPage({
                                 </span>
                             </div>
                             <p style={{ margin: "0 0 12px 0", fontSize: "11px", color: "#6b7280" }}>Maximum redeemable: {maxRedeemableCoins} BuyCoins (20% of subtotal)</p>
-    
+
                             {subtotal <= minOrder ? (
                                 <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "14px", padding: "12px", color: "#b45309", fontSize: "12px", fontWeight: "600", textAlign: "center" }}>
                                     ⚠️ Add ₹{minOrder - subtotal + 1} more to unlock BuyCoins redemption.
@@ -1731,7 +1776,7 @@ export default function CartPage({
                                     </div>
                                 </div>
                             )}
-    
+
                             {coinsToRedeem > 0 && subtotal > minOrder && (
                                 <div style={{ marginTop: "10px", background: "#d1fae5", color: "#065f46", padding: "8px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", textAlign: "center" }}>
                                     🎉 Applied! You Save ₹{coinsToRedeem}
@@ -1838,9 +1883,9 @@ export default function CartPage({
             {renderProductCarousel("Emergency Essentials", "🚨", emergencyEssentials, "upsell_added")}
 
             {/* OTHER CAROUSELS */}
-            {renderProductCarousel("Recommended For You", "✨", recommendedList, "recommendation_add_to_cart")}
-            {renderProductCarousel("Trending Near You", "🔥", trendingList, "recommendation_add_to_cart")}
-            {renderProductCarousel("Best Deals Today", "⚡", bestDeals, "recommendation_add_to_cart")}
+            {renderProductCarousel("Recommended For You", "https://img.icons8.com/?size=100&id=JCDjQ3zAwdDu&format=png&color=000000", recommendedList, "recommendation_add_to_cart")}
+            {renderProductCarousel("Trending Near You", "https://img.icons8.com/?size=100&id=thDPmK2QzHU8&format=png&color=000000", trendingList, "recommendation_add_to_cart")}
+            {renderProductCarousel("Best Deals Today", "https://img.icons8.com/?size=100&id=pHehIn4Wlp05&format=png&color=000000", bestDeals, "recommendation_add_to_cart")}
         </div>
     );
 
@@ -1870,7 +1915,11 @@ export default function CartPage({
                         </h1>
                     </div>
                     <div style={{ padding: "10px 14px", borderRadius: "14px", background: "white", boxShadow: "0 4px 12px rgba(0,0,0,0.03)", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span style={{ fontSize: "18px" }}>🛒</span>
+                        <img
+                            src="https://img.icons8.com/?size=100&id=lMhEFosNBRbT&format=png&color=000000"
+                            alt="Cart"
+                            style={{ width: "18px", height: "18px", objectFit: "contain" }}
+                        />
                         <b style={{ color: "#318616" }}>{cartItems.length} Items</b>
                     </div>
                 </div>
@@ -1878,12 +1927,20 @@ export default function CartPage({
                 {/* CHECKOUT PROGRESS INDICATOR */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "16px 0 24px 0", padding: "14px 20px", background: "white", borderRadius: "16px", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span style={{ fontSize: "15px", color: "#318616" }}>🛒</span>
+                        <img
+                            src="https://img.icons8.com/?size=100&id=lMhEFosNBRbT&format=png&color=000000"
+                            alt="Cart"
+                            style={{ width: "15px", height: "15px", objectFit: "contain" }}
+                        />
                         <span style={{ fontSize: "12px", fontWeight: "800", color: "#318616" }}>Cart ✓</span>
                     </div>
                     <div style={{ flexGrow: 1, height: "2px", background: selectedAddressId ? "#318616" : "#e5e7eb", margin: "0 8px" }}></div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span style={{ fontSize: "15px", color: selectedAddressId ? "#318616" : "#9ca3af" }}>📍</span>
+                        <img
+                            src="https://img.icons8.com/?size=100&id=4cQ415HSv4Xx&format=png&color=000000"
+                            alt="Location"
+                            style={{ width: "15px", height: "15px", objectFit: "contain" }}
+                        />
                         <span style={{ fontSize: "12px", fontWeight: "800", color: selectedAddressId ? "#318616" : "#6b7280" }}>Address {selectedAddressId ? "✓" : ""}</span>
                     </div>
                     <div style={{ flexGrow: 1, height: "2px", background: "#e5e7eb", margin: "0 8px" }}></div>
@@ -1933,7 +1990,11 @@ export default function CartPage({
                             {/* Estimated Delivery Card */}
                             {selectedAddressId && (
                                 <div style={{ background: "white", padding: "16px", borderRadius: "20px", boxShadow: "0 4px 16px rgba(0,0,0,0.03)", border: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: "12px" }}>
-                                    <span style={{ fontSize: "24px" }}>🚚</span>
+                                    <img
+                                        src="https://img.icons8.com/?size=100&id=pt5RU2ksbVFL&format=png&color=000000"
+                                        alt="Estimated Delivery"
+                                        style={{ width: "24px", height: "24px", objectFit: "contain" }}
+                                    />
                                     <div>
                                         <h4 style={{ margin: 0, fontSize: "13px", color: "#64748B", fontWeight: "800", textTransform: "uppercase" }}>Estimated Delivery</h4>
                                         <p style={{ margin: "2px 0 0 0", fontSize: "14px", fontWeight: "900", color: "#1E293B" }}>Expected Today, 25-30 mins</p>
@@ -1966,7 +2027,11 @@ export default function CartPage({
                         {/* Estimated Delivery Card */}
                         {selectedAddressId && (
                             <div style={{ background: "white", padding: "14px 16px", borderRadius: "18px", boxShadow: "0 4px 12px rgba(0,0,0,0.02)", display: "flex", alignItems: "center", gap: "10px" }}>
-                                <span style={{ fontSize: "22px" }}>🚚</span>
+                                <img
+                                    src="https://img.icons8.com/?size=100&id=pt5RU2ksbVFL&format=png&color=000000"
+                                    alt="Estimated Delivery"
+                                    style={{ width: "22px", height: "22px", objectFit: "contain" }}
+                                />
                                 <div>
                                     <h4 style={{ margin: 0, fontSize: "11px", color: "#64748B", fontWeight: "800", textTransform: "uppercase" }}>Estimated Delivery</h4>
                                     <p style={{ margin: "2px 0 0 0", fontSize: "13px", fontWeight: "900", color: "#1E293B" }}>Expected Today, 25-30 mins</p>

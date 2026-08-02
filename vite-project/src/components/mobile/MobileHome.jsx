@@ -9,7 +9,7 @@ import TrendingThisWeek from "../TrendingThisWeek";
 import DynamicNewBanners from "../DynamicNewBanners";
 import PromoBannerCarousel from "../PromoBannerCarousel";
 import OffersBottomDrawer from "../common/OffersBottomDrawer";
-import DeliveryIllustration from "../../assets/illustrations/free_delivery_illustration.png";
+const DeliveryIllustration = "https://img.icons8.com/?size=100&id=uTI4SjCIkNJp&format=png&color=000000";
 const SearchResultsView = React.lazy(() => import("../SearchResultsView"));
 
 function MobileHome({
@@ -456,32 +456,29 @@ function MobileHome({
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
               }}
             >
-              {/* Left side: Scalloped Badge */}
+              {/* Left side: Discount Illustration */}
               <div style={{
                 flexShrink: 0,
                 width: "48px",
                 height: "48px",
-                backgroundColor: "#fffdf9",
-                borderRadius: "50%",
+                backgroundColor: "#ffffff",
+                borderRadius: "14px",
+                border: "1px solid #f1f5f9",
                 boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center"
+                justifyContent: "center",
+                overflow: "hidden"
               }}>
-                <div style={{
-                  width: "40px",
-                  height: "40px",
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fef3c7'%3E%3Cpath d='M12 1.5l1.6 2.1 2.6-.6.5 2.6 2.4.9-.7 2.5 1.9 1.8-1.8 1.9.8 2.5-2.4.9-.6 2.6-2.6-.5L12 22.5l-1.6-2.1-2.6.6-.5-2.6-2.4-.9.7-2.5-1.9-1.8 1.8-1.9-.8-2.5 2.4-.9.6-2.6 2.6.5L12 1.5z'/%3E%3C/svg%3E")`,
-                  backgroundSize: "cover",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "20px",
-                  fontWeight: "900",
-                  color: "#2a1a08"
-                }}>
-                  %
-                </div>
+                <img
+                  src="https://img.icons8.com/?size=100&id=mnqCs95ap07K&format=png&color=000000"
+                  alt="Discount Offer"
+                  style={{
+                    width: "46px",
+                    height: "46px",
+                    objectFit: "contain"
+                  }}
+                />
               </div>
               {/* Right side: Texts */}
               <div style={{ display: "flex", flexDirection: "column" }}>
@@ -633,7 +630,9 @@ function MobileHome({
                 transform: scale(0.95) translateY(0);
               }
             `}</style>
-            <h2 className="premium-footer-heading-mobile">💚 Thank you for choosing Buyto</h2>
+            <h2 className="premium-footer-heading-mobile" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+              <img src="https://img.icons8.com/?size=100&id=49fnBL9r0HmF&format=png&color=318616" alt="Thank You" style={{ width: "24px", height: "24px", objectFit: "contain" }} /> Thank you for choosing Buyto
+            </h2>
             <p className="premium-footer-subtitle-mobile">Built by Students, for Students.</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
               <button
@@ -663,7 +662,7 @@ function MobileHome({
                   }, 800);
                 }}
               >
-                <span>🛒</span> Continue Shopping
+                <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=318616" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
               </button>
 
               <button
@@ -683,7 +682,7 @@ function MobileHome({
                   }
                 }}
               >
-                <span>🔥</span> Best Deals
+                <img src="https://img.icons8.com/?size=100&id=pHehIn4Wlp05&format=png&color=318616" alt="Best Deals" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Best Deals
               </button>
 
               <button
@@ -703,7 +702,7 @@ function MobileHome({
                   }
                 }}
               >
-                <span>🍎</span> Fresh Fruits
+                <img src="https://img.icons8.com/?size=100&id=tgmqacLfjsi4&format=png&color=318616" alt="Fresh Fruits" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Fresh Fruits
               </button>
 
               <button
@@ -769,7 +768,7 @@ function MobileHome({
                   }
                 }}
               >
-                <span>🎲</span> Surprise Me
+                <img src="https://img.icons8.com/?size=100&id=EJGyTkY9EhhZ&format=png&color=318616" alt="Surprise Me" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Surprise Me
               </button>
             </div>
           </div>

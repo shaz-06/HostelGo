@@ -1,5 +1,5 @@
 import React from "react";
-import riderIllustration from "../../assets/buyto-rider-illustration.png";
+const riderIllustration = "/images/courier.png";
 
 export default function BuytoRiderAvatar({ isWaiting = false, size = 64, className = "" }) {
   const containerStyle = {
@@ -29,7 +29,7 @@ export default function BuytoRiderAvatar({ isWaiting = false, size = 64, classNa
           objectFit: "contain"
         }}
       />
-      
+
       {/* Golden 'B' Helmet Emblem/Badge */}
       <div style={{
         position: "absolute",

@@ -467,8 +467,8 @@ app.get("/api/products", async (req, res) => {
         products = await Product.find(filter, "id name category subCategory brand price originalPrice weight image stock eta rating isAd variants tags").lean();
       }
 
-      // Merge fallback mock products only if searching/fetching returned no results or in offline dev fallback
-      if (!searchQuery && !categoryQuery) {
+      // Merge fallback mock products only if MongoDB returned no results (unseeded or empty database)
+      if (products.length === 0 && !searchQuery && !categoryQuery) {
         const productIds = new Set(products.map((product) => product.id || String(product._id)));
         let missingFallbackProducts = mockProducts.filter((product) => !productIds.has(product.id));
         if (limit > 0) {

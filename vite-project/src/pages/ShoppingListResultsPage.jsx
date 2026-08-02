@@ -156,8 +156,8 @@ export default function ShoppingListResultsPage({
         <button onClick={handleAddAll} style={addAllBtnStyle}>
           Add All Matching Products to Cart
         </button>
-        <button onClick={() => navigate("/")} style={continueShoppingBtnStyle}>
-          Continue Shopping
+        <button onClick={() => navigate("/")} style={{ ...continueShoppingBtnStyle, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+          <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=475569" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
         </button>
       </div>
 

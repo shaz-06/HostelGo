@@ -3112,7 +3112,7 @@ export default function SectionProductsPage({
     if (!item.product) return null;
     const variant = item.product.variants?.find(v => v.weight === item.product.selectedWeight);
     const originalPrice = variant ? variant.originalPrice : (item.product.originalPrice || item.product.price);
-    const productId = item.product._id || item.product.id;
+    const productId = item.product._id;
     return {
       ...item.product,
       id: productId + (item.product.selectedWeight ? `_${item.product.selectedWeight}` : ""),

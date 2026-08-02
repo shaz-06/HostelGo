@@ -8,7 +8,7 @@ import SEO from "../components/common/SEO";
 import BuyCoin from "../components/common/BuyCoin";
 import { calculateBill } from "../utils/billCalculator";
 import CartBillDetails from "../components/CartBillDetails";
-import { Capacitor } from "@capacitor/core";
+import { cartDebug } from "../utils/cartDebug";
 
 let razorpayPromise;
 
@@ -272,15 +272,28 @@ export default function PaymentPage({
     };
   }, []);
 
+  // Trace PaymentPage input
+  useEffect(() => {
+    Object.values(cart || {}).forEach(item => {
+      if (item.product) {
+        cartDebug.logLifecycle("PaymentPage input", item.product, { quantity: item.quantity });
+      }
+    });
+  }, [cart]);
+
   // Synchronize cart and calculate redemption limit on checkout
   useEffect(() => {
     const syncAndCalculate = async () => {
       if (!token) return;
       try {
         const cartArray = Object.values(cart || {}).map(item => ({
-          productId: item.product._id || item.product.id,
+          productId: item.product._id || item._id,
           quantity: item.quantity
         }));
+
+        cartArray.forEach(item => {
+          cartDebug.logLifecycle("Cart API sync", { _id: item.productId, id: item.productId, name: "sync-item", quantity: item.quantity });
+        });
 
         if (cartArray.length === 0) return;
 
@@ -379,13 +392,53 @@ export default function PaymentPage({
       return;
     }
 
-    const products = Object.values(cart).map((item) => ({
-      productId: item.product._id || item.product.id,
-      name: item.product.name,
-      quantity: item.quantity,
-      weight: item.product.selectedWeight || item.product.weight,
-      price: item.product.price
-    }));
+    // Resolve products using _id and validate before checkout
+    const isValidObjectId = id => /^[a-fA-F0-9]{24}$/.test(id);
+
+    const products = Object.values(cart).map((item) => {
+      const resolvedProductId = item.product?._id || item._id;
+      const mapped = {
+        productId: resolvedProductId,
+        name: item.product?.name || item.name,
+        quantity: item.quantity,
+        weight: item.product?.selectedWeight || item.product?.weight || item.weight,
+        price: item.product?.price || item.price
+      };
+      cartDebug.logLifecycle("Order payload mapping", { ...mapped, _id: mapped.productId, id: mapped.productId });
+      return mapped;
+    });
+
+    if (import.meta.env.DEV) {
+      const debugTable = Object.values(cart).map((item) => {
+        const prod = item.product || item;
+        const resolvedId = prod._id || item._id;
+        const isValid = resolvedId ? isValidObjectId(resolvedId) : false;
+        let source = "LocalStorage / State";
+        if (prod.addedFromShoppingList) {
+          source = "Shopping List Smart Match";
+        } else if (prod.isAd) {
+          source = "Promotional Ad";
+        }
+        return {
+          Name: prod.name || "N/A",
+          id: prod.id || "N/A",
+          _id: resolvedId || "N/A",
+          "Valid ObjectId": isValid,
+          Source: source
+        };
+      });
+      console.log("=== PRE-CHECKOUT CART AUDIT ===");
+      console.table(debugTable);
+    }
+
+    const invalidProducts = products.filter(p => !isValidObjectId(p.productId));
+    if (invalidProducts.length > 0) {
+      console.error("Invalid product ObjectIds detected:", invalidProducts);
+      alert("One or more items in your cart have an invalid format. Please refresh the page and try again.");
+      isProcessingRef.current = false;
+      setIsProcessing(false);
+      return;
+    }
 
     const actualLocation = user.location || "Central Address";
     const actualRoom = user.room || user.roomNumber || "";
@@ -415,7 +468,17 @@ export default function PaymentPage({
           noBagPledge: localStorage.getItem("buyto_no_bag_pledge") === "true",
           addressId: localStorage.getItem("buyto_selected_address_id") || null
         };
-        console.log("Create Order Payload", payload);
+        if (import.meta.env.DEV) {
+          console.log("Order Payload:", payload);
+          payload.products.forEach(p => {
+            console.log(
+              "Product ID:",
+              p.productId || p.product,
+              "Valid:",
+              /^[a-fA-F0-9]{24}$/.test(p.productId || p.product)
+            );
+          });
+        }
 
         const response = await apiFetch(window.API_BASE_URL + "/api/orders", {
           method: "POST",
@@ -514,7 +577,17 @@ export default function PaymentPage({
           noBagPledge: localStorage.getItem("buyto_no_bag_pledge") === "true",
           addressId: localStorage.getItem("buyto_selected_address_id") || null
         };
-        console.log("Create Order Payload", payload);
+        if (import.meta.env.DEV) {
+          console.log("Order Payload:", payload);
+          payload.products.forEach(p => {
+            console.log(
+              "Product ID:",
+              p.productId || p.product,
+              "Valid:",
+              /^[a-fA-F0-9]{24}$/.test(p.productId || p.product)
+            );
+          });
+        }
 
         const response = await fetch(window.API_BASE_URL + "/api/payment/create-order", {
           method: "POST",
@@ -794,7 +867,11 @@ export default function PaymentPage({
         ) : !isAddressServiceable ? (
           <div>
             <div style={{ textAlign: "center", marginBottom: "24px" }}>
-              <span style={{ fontSize: "48px" }}>📍</span>
+              <img
+                src="https://img.icons8.com/?size=100&id=9AhyKkN9bsLy&format=png&color=000000"
+                alt="Service Unavailable"
+                style={{ width: "48px", height: "48px", objectFit: "contain", margin: "0 auto 16px auto", display: "block" }}
+              />
               <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#ef4444", margin: "16px 0 8px 0" }}>Service Unavailable</h2>
               <p style={{ color: "#6b7280", fontSize: "15px", lineHeight: "1.6", margin: 0 }}>
                 We're currently expanding our services.<br />
@@ -911,9 +988,17 @@ export default function PaymentPage({
               color: "#111827",
               margin: 0,
               letterSpacing: "-0.5px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
             }}
           >
-            Choose Payment Method 💳
+            Choose Payment Method
+            <img
+              src="https://img.icons8.com/?size=100&id=nBI1rs9Fp9Lm&format=png&color=000000"
+              alt="Payment Card"
+              style={{ width: "26px", height: "26px", objectFit: "contain" }}
+            />
           </h1>
         </div>
 
@@ -960,7 +1045,11 @@ export default function PaymentPage({
                 style={optionStyle(paymentMethod === "cod")}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "20px" }}>💵</span>
+                  <img
+                    src="https://img.icons8.com/?size=100&id=gBBz37tfEnaj&format=png&color=000000"
+                    alt="Cash on Delivery"
+                    style={{ width: "20px", height: "20px", objectFit: "contain" }}
+                  />
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ fontWeight: "700", fontSize: "15px", color: "#1f2937" }}>Cash on Delivery</span>
                     <span style={{ fontSize: "12px", color: "#6b7280" }}>Pay when your delivery arrives</span>
@@ -1038,7 +1127,11 @@ export default function PaymentPage({
           {/* Coupon Section */}
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-              <span style={{ fontSize: "18px" }}>🎁</span>
+              <img
+                src="https://img.icons8.com/?size=100&id=kDoECY9R350U&format=png&color=000000"
+                alt="Coupons"
+                style={{ width: "18px", height: "18px", objectFit: "contain" }}
+              />
               <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "750", color: "#374151" }}>
                 Apply Coupon
               </h3>
