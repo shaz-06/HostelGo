@@ -36,6 +36,7 @@ export default function ProfilePage({ defaultTab = "" }) {
   const logoutBtnRef = React.useRef(null);
   const lightOptionRef = React.useRef(null);
   const darkOptionRef = React.useRef(null);
+  const systemOptionRef = React.useRef(null);
 
   // Redesign Feature States (persisted locally)
   const [isAppUpdated, setIsAppUpdated] = useState(() => {
@@ -238,16 +239,18 @@ export default function ProfilePage({ defaultTab = "" }) {
           setShowAppearanceDropdown(false);
         } else if (e.key === "ArrowDown") {
           e.preventDefault();
-          setActiveDropdownIndex(prev => (prev === -1 || prev === 1) ? 0 : 1);
+          setActiveDropdownIndex(prev => (prev === -1 || prev === 2) ? 0 : prev + 1);
         } else if (e.key === "ArrowUp") {
           e.preventDefault();
-          setActiveDropdownIndex(prev => (prev === -1 || prev === 0) ? 1 : 0);
+          setActiveDropdownIndex(prev => (prev === -1 || prev === 0) ? 2 : prev - 1);
         } else if (e.key === "Enter") {
           e.preventDefault();
           if (activeDropdownIndex === 0) {
             handleSelectTheme("light");
           } else if (activeDropdownIndex === 1) {
             handleSelectTheme("dark");
+          } else if (activeDropdownIndex === 2) {
+            handleSelectTheme("system");
           }
         }
       };
@@ -264,6 +267,8 @@ export default function ProfilePage({ defaultTab = "" }) {
         lightOptionRef.current?.focus();
       } else if (activeDropdownIndex === 1) {
         darkOptionRef.current?.focus();
+      } else if (activeDropdownIndex === 2) {
+        systemOptionRef.current?.focus();
       }
     }
   }, [activeDropdownIndex, showAppearanceDropdown]);
@@ -282,6 +287,10 @@ export default function ProfilePage({ defaultTab = "" }) {
 
   const handleSelectDark = useCallback(() => {
     handleSelectTheme("dark");
+  }, [handleSelectTheme]);
+
+  const handleSelectSystem = useCallback(() => {
+    handleSelectTheme("system");
   }, [handleSelectTheme]);
 
   const handleCloseAddressModal = useCallback(() => {
@@ -440,6 +449,15 @@ export default function ProfilePage({ defaultTab = "" }) {
                   >
                     <span>Dark</span>
                     {globalTheme.toLowerCase() === "dark" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                  </button>
+                  <button
+                    ref={systemOptionRef}
+                    onClick={handleSelectSystem}
+                    className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                    role="menuitem"
+                  >
+                    <span>System</span>
+                    {globalTheme.toLowerCase() === "system" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
                   </button>
                 </motion.div>
               </>

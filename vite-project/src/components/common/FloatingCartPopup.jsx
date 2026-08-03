@@ -301,8 +301,12 @@ export default function FloatingCartPopup({
 
                 {/* Finish Flag at the right end of the bar */}
                 {!isFree && (
-                  <div style={{ position: "absolute", right: "-2px", top: "-3px", zIndex: 1, fontSize: "11px" }}>
-                    🏁
+                  <div style={{ position: "absolute", right: "-3px", top: "-4px", zIndex: 1 }}>
+                    <img
+                      src="https://img.icons8.com/?size=100&id=58905&format=png&color=000000"
+                      alt="Flag"
+                      style={{ width: "15px", height: "15px", display: "block" }}
+                    />
                   </div>
                 )}
               </div>

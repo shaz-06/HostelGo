@@ -1299,8 +1299,21 @@ function AppContent({ onReady }) {
 
   useEffect(() => {
     console.log("=== API FETCH INITIATED ===", window.API_BASE_URL + "/api/products?limit=40");
+    let active = true;
+
+    // Set a timeout to dismiss the initial loading screen if the API is slow (e.g. after 1.5 seconds)
+    const timer = setTimeout(() => {
+      if (active) {
+        console.log("=== API FETCH TIMEOUT EXCEEDED, DISMISSING LOADER ===");
+        setLoading(false);
+        if (onReady) onReady();
+      }
+    }, 1500);
+
     cachedFetch(window.API_BASE_URL + "/api/products?limit=40", { minDelay: 700 })
       .then((data) => {
+        clearTimeout(timer);
+        if (!active) return;
         console.log("=== API FETCH SUCCESS ===", data.length, "products loaded");
         const preClassified = (data || []).map(p => {
           cartDebug.validateProductResponse(p);
@@ -1315,11 +1328,18 @@ function AppContent({ onReady }) {
         if (onReady) onReady();
       })
       .catch((err) => {
+        clearTimeout(timer);
+        if (!active) return;
         console.error("=== API FETCH FAILED ===", err);
         setApiError(`Failed to load products: ${err.message}. Resolved URL: ${window.API_BASE_URL}/api/products`);
         setLoading(false);
         if (onReady) onReady();
       });
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [onReady]);
 
   useEffect(() => {

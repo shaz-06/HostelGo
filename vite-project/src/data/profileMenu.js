@@ -62,7 +62,7 @@ export const profileMenuConfig = [
       {
         id: "order-history",
         label: "Order History",
-        icon: "https://img.icons8.com/?size=100&id=ipCQ1zFXbRzl&format=png&color=000000",
+        icon: "https://img.icons8.com/?size=100&id=TGsUUNBPyMx1&format=png&color=000000",
         actionType: "navigate",
         path: "/orders"
       },

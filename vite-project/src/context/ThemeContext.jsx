@@ -1,14 +1,21 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 
 const ThemeContext = createContext({
-  theme: "SYSTEM",
+  theme: "LIGHT",
   isDark: false,
   setTheme: () => {}
 });
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setThemeState] = useState(() => {
-    return localStorage.getItem("buyto_theme") || "SYSTEM";
+    const saved = localStorage.getItem("buyto_theme");
+    if (saved) return saved;
+    try {
+      localStorage.setItem("buyto_theme", "LIGHT");
+    } catch (e) {
+      console.error("Failed to persist default theme:", e);
+    }
+    return "LIGHT";
   });
 
   const [isDark, setIsDark] = useState(() => {

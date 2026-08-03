@@ -6,12 +6,20 @@
   <script>
     (function() {
       try {
-        const theme = localStorage.getItem("buyto_theme") || "SYSTEM";
+        let theme = localStorage.getItem("buyto_theme");
+        if (!theme) {
+          theme = "LIGHT";
+          localStorage.setItem("buyto_theme", "LIGHT");
+        }
         const isDark = theme === "DARK" || (theme === "SYSTEM" && window.matchMedia("(prefers-color-scheme: dark)").matches);
         if (isDark) {
           document.documentElement.classList.add("dark");
           document.documentElement.style.background = "#0F1115";
           document.documentElement.style.colorScheme = "dark";
+        } else {
+          document.documentElement.classList.remove("dark");
+          document.documentElement.style.background = "#f7f8fa";
+          document.documentElement.style.colorScheme = "light";
         }
       } catch (e) {
         console.error("Theme preload failed:", e);
