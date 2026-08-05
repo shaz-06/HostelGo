@@ -25,6 +25,8 @@ const Order = require("./models/Order");
 const Config = require("./models/Config");
 const DeliverySettings = require("./models/DeliverySettings");
 const Category = require("./models/Category");
+const GiftCard = require("./models/GiftCard");
+const bcrypt = require("bcrypt");
 const paymentRoutes = require("./routes/paymentRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -307,51 +309,18 @@ if (process.env.MONGODB_URI) {
 
       // Auto-seed Categories if missing
       try {
+        const defaultCategories = [
+          { name: "All", icon: "🍎", image: "https://img.icons8.com/?size=100&id=AIuc7Bz9E3LA&format=png&color=000000", priority: 10 },
+          { name: "Electronics", icon: "🎧", image: "https://img.icons8.com/?size=100&id=8ftcmh3OgI9D&format=png&color=000000", priority: 9 },
+          { name: "Beauty", icon: "💄", image: "/images/cosmetics.png", priority: 8 },
+          { name: "Pharmacy", icon: "🥩", image: "https://img.icons8.com/?size=100&id=14RbGHKRk5fv&format=png&color=000000", priority: 7 },
+          { name: "Kids", icon: "🍿", image: "https://img.icons8.com/?size=100&id=gXvvFM28Mjvd&format=png&color=000000", priority: 6 },
+          { name: "Gift", icon: "🥤", image: "https://img.icons8.com/?size=100&id=_fo_sHSTUNz-&format=png&color=000000", priority: 5 },
+        ];
+
         let categoryCount = await Category.countDocuments();
         if (categoryCount === 0) {
           console.log("Creating default category list...");
-          const defaultCategories = [
-            { name: "The Fruit Store", icon: "🍎", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243231/09a3ae13-6792-479b-a564-bf116f84b317_068761a9-938f-4c18-bb9e-8e190bf57a45_wucu2q.png", priority: 10 },
-            { name: "The Veggie Store", icon: "🥬", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243224/323b2564-9fa9-43dd-9755-b5df299797d7_a7f60fc5-47fa-429d-9fd1-5f0644c0d4e3_qoyjgq.png", priority: 9 },
-            { name: "Dairy, Bread & Eggs", icon: "🥛", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243236/ceb53190-72a3-466b-a892-8989615788c9_fe00456c-3b5a-4e74-80e2-c274a4c9f818_gxviej.png", priority: 8 },
-            { name: "Meat and Seafood", icon: "🥩", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243317/9c48b537-eef1-4047-becb-ddb7e79c373d_72aac542-4cef-4cf9-a9dd-5f1b862165c1_dxk14f.png", priority: 7 },
-            { name: "Snacks", icon: "🍿", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243360/b654b666-43b5-4599-9919-98f9c7a924e9_cf31e6c0-a70b-4415-b702-3a622d866898_mijtiv.png", priority: 6 },
-            { name: "Beverages", icon: "🥤", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243351/5bec1f84-4aa5-49ae-9c3d-9a0dcb9fe2ad_d990b4fc-4629-4cc6-bc7a-ace787fb378a_uftkev.png", priority: 5 },
-            { name: "Atta, Rice and Dal", icon: "🌾", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243324/c65894e4-5b70-4b9d-9d87-baba38e0ef6e_0cdf10e3-6c7c-4deb-9dbc-dcf24cd11fca_dxfezf.png", priority: 4 },
-            { name: "Masalas", icon: "🔥", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243329/e67eb511-3e25-460d-88ff-ca465b971a2b_874d876f-7cf8-433f-a960-ab659b9ef4a7_m6pusm.png", priority: 3 },
-            { name: "Oil & Ghee", icon: "🥃", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243336/3bb2b2b7-d74b-4a29-825a-e94c6e1d86d5_52ee9f70-9928-46ee-804d-2f536fe1155c_jktwxe.png", priority: 2 },
-            { name: "Breakfast", icon: "🥣", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243343/fe86cf80-90b0-49ea-b982-32c0e0373463_06d3ea4c-76e4-4a8e-b6c9-1917092bc0e7_opxeqt.png", priority: 1 },
-            { name: "Ice-Cream", icon: "🍦", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243355/5b0984b8-303b-4a80-81b7-9656f1950b67_63aaae7c-1add-4357-8ae1-5a9662d6b240_jnbnil.png", priority: 0 },
-            { name: "Chocolates", icon: "🍫", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243365/405730cd-115c-4530-8f32-74e50c09f378_1dab5493-a168-4485-a66f-da4bc7510de3_sr2cdg.png", priority: -1 },
-            { name: "Noodles & Pasta", icon: "🍜", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243370/6a51d704-b2cc-4787-aced-162fae80a0ce_042fb322-f6db-412d-ba43-f83d090aa463_wiaglo.png", priority: -2 },
-            { name: "Frozen Foods", icon: "❄️", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243375/bf978cbc-ab49-4a43-b23e-41352f4fe33d_dd569df9-8e7b-4e55-bc88-ef692b4d471f_juxpmp.png", priority: -3 },
-            { name: "Cake Corner", icon: "🥮", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243380/baa03922-9920-4588-b397-a5faad7f4ff5_b2be157f-a054-402a-b5e6-dbb8eff8ae4a_f7elox.png", priority: -4 },
-            { name: "Pan Centre", icon: "🥘", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243385/822a816f-42b1-44ea-a605-98936352f195_2cf4e5c9-61eb-4c20-91d3-5a3b04af44e8_b07nhs.png", priority: -5 },
-            { name: "Bath & Body", icon: "🫧", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243391/46b1b550-1e5f-423e-967b-e1cf3a608bb8_13bc4f93-eab7-4263-a592-54f144d0eec6_ch3gzv.png", priority: -6 },
-            { name: "Hair Care", icon: "🪮", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243395/73dd2be1-fd81-4540-8286-02db395de0e5_5da6d646-978e-4b00-bfd4-63cbe897c0b2_swk6ti.png", priority: -7 },
-            { name: "Skin Care", icon: "🧴", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243400/d6930a4e-6a3c-44c9-8b6b-86f63e20434a_0c08d4e2-6423-4a9e-ad4b-35b339a149b0_jgix4i.png", priority: -8 },
-            { name: "Makeups", icon: "💄", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243405/7c05fd2b-1ea8-4ce4-9b9e-0ba402d3f698_b802ea7a-3d08-44f0-ac8e-4793e4806f67_umsbw1.png", priority: -9 },
-            { name: "Oral Care", icon: "🪥", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243410/d753ff8d-4cdb-4548-bba2-b10e480cc6b2_28cfcd55-1e7f-4333-a5d5-15c023b8b58d_dnl5uz.png", priority: -10 },
-            { name: "Grooming", icon: "🪮", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243416/6fd76e5f-016b-4810-94fd-252eab4245a6_2edc9535-9e14-49cf-a05e-25fa4ca45cb8_cme6hr.png", priority: -11 },
-            { name: "Baby Care", icon: "👶", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243421/838ef0d0-8687-447a-8520-95b6700b70f6_a08f1496-3e1f-425f-bdd5-90d1e2bfce5d_qgcvpf.png", priority: -12 },
-            { name: "Perfumes", icon: "🍃", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243426/d0f1c0f3-5dc4-422e-9120-222c0afc4043_2588dd56-663e-43f0-a14b-1a537b8301a9_o6xokw.png", priority: -13 },
-            { name: "Proteins", icon: "💪🏻", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243431/15c3c8f7-74df-4077-b436-bf499ddc1987_1472c5c1-badd-4a53-adef-74be13e84abc_n2qzfr.png", priority: -14 },
-            { name: "Female Hygiene", icon: "👩🏻‍🦰", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243436/f9937881-a78c-4f8e-a381-e10a4fa26fde_b49bb726-58bd-4d38-b4d4-252d152c0b3e_qgzslz.png", priority: -15 },
-            { name: "Health & Pharmacy", icon: "💊", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243445/e0c08b1d-acf8-4f07-b8b6-5195392cda43_2f75a368-330a-4237-afb8-30571efe666a_qztp09.png", priority: -16 },
-            { name: "The Bread Store", icon: "🍞", image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&auto=format&fit=crop&q=80", priority: -18 },
-            { name: "Premium Pickles", icon: "🥒", image: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=200&auto=format&fit=crop&q=80", priority: -19 },
-            { name: "Sexual Wellness", icon: "❤️", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783243440/9961e13f-8231-419b-b36f-5a07bd1ddaed_4b1fd87f-e585-494a-88d0-fc87bdc10a6e_ivc8p1.png", priority: -21 },
-            { name: "House Holds", icon: "🪷", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245595/28f9da5d-40d0-4791-9ad7-824e041320ff_dbef4796-189f-4a9f-86f7-f896aa5fddb2_sbqlin.png", priority: -22 },
-            { name: "Kitchen & Cooking", icon: "🫙", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245601/66ea9503-f944-4f5f-bb44-8608a0355e3a_ee7d3d13-c857-4e5a-96b1-3c79da306b9e_j6uscb.png", priority: -23 },
-            { name: "Cleaning Essentials", icon: "🪣", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245604/b332fa4a-4a15-4c32-8bb8-f46b34ef13d5_ff40260d-3a00-40e7-b019-69ecebed8a91_oio0of.png", priority: -24 },
-            { name: "Clothing Section", icon: "🩳", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245609/93cce7bf-96cc-4ff6-adfc-a248c2a8cb94_783cd072-3e52-4daf-996a-4652d000d943_nuejlo.png", priority: -25 },
-            { name: "Stationary", icon: "🧷", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245625/e1e37212-1b34-4711-927e-bce563247de7_60934c30-e762-4a81-ba56-8bf6f30b6766_aypair.png", priority: -26 },
-            { name: "Pooja Essentials", icon: "🕉️", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245634/965c898a-bc67-4fe8-8fd4-d13e1eb79772_c38285f9-727d-422b-ad77-e1e22d4d251d_us2el2.png", priority: -27 },
-            { name: "Toys and Games", icon: "🎲", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245639/79f943d8-2977-4753-bab0-1a74f582d6b8_7a341dcf-099f-4617-a44f-d28c55de560a_sjvrrs.png", priority: -28 },
-            { name: "Sports Equipment", icon: "⚽", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245644/06414bae-6149-4a26-8ca5-a5afffb3f753_171a212b-1edd-4a68-a424-46e240270a3b_grkd9i.png", priority: -29 },
-            { name: "Pet Shop", icon: "🐕", image: "https://res.cloudinary.com/dshelwy43/image/upload/v1783245650/b936925b-340a-4d1a-a423-0ecbc989d8ee_f70daa6c-8b2f-45d5-86e5-ced16b437ce4_axdbed.png", priority: -30 },
-          ];
-
           // Also check existing products for other categories not in default list
           const products = await Product.find({}, "category").lean();
           const existingCatNames = new Set(products.map(p => p.category).filter(Boolean));
@@ -373,9 +342,55 @@ if (process.env.MONGODB_URI) {
         } else {
           console.log("=== CATEGORY SEED CHECK ===");
           console.log("Categories exist count:", categoryCount);
+          for (const cat of defaultCategories) {
+            await Category.updateOne(
+              { name: cat.name },
+              { $set: { image: cat.image, icon: cat.icon, priority: cat.priority } }
+            );
+          }
+          console.log("=== CATEGORY SYNC SUCCESS ===");
         }
       } catch (catSeedErr) {
         console.error("❌ Mongoose: Failed to seed categories:", catSeedErr.message);
+      }
+
+      // Seeding Gift Cards for testing
+      try {
+        const giftCardCount = await GiftCard.countDocuments();
+        if (giftCardCount === 0) {
+          console.log("Seeding test gift cards...");
+          const saltRounds = 10;
+          const cardsToSeed = [
+            {
+              code: "9999888899998888",
+              pinHash: await bcrypt.hash("123456", saltRounds),
+              amount: 500,
+              status: "ACTIVE",
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+            },
+            {
+              code: "1111222233334444",
+              pinHash: await bcrypt.hash("111111", saltRounds),
+              amount: 1000,
+              status: "REDEEMED",
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            },
+            {
+              code: "5555666677778888",
+              pinHash: await bcrypt.hash("222222", saltRounds),
+              amount: 250,
+              status: "EXPIRED",
+              expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // expired yesterday
+            }
+          ];
+          await GiftCard.insertMany(cardsToSeed);
+          console.log("=== GIFT CARD SEED SUCCESS ===");
+        } else {
+          console.log("=== GIFT CARD SEED CHECK ===");
+          console.log("Gift cards exist count:", giftCardCount);
+        }
+      } catch (gcSeedErr) {
+        console.error("❌ Mongoose: Failed to seed gift cards:", gcSeedErr.message);
       }
     })
     .catch((err) => {
@@ -785,6 +800,19 @@ app.use("/api/save-for-later", saveForLaterRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", userRoutes);
 
+// Initialize Refer & Earn EventBus subscriptions
+const EventBus = require("./services/EventBus");
+const referralService = require("./services/referralService");
+EventBus.subscribe("order.delivered", async (payload) => {
+  console.log(`[EventBus] Processing order.delivered event for Order: ${payload.orderId}, User: ${payload.userId}`);
+  await referralService.processOrderDelivery(payload);
+});
+EventBus.subscribe("order.cancelled", async (payload) => {
+  console.log(`[EventBus] Processing order.cancelled event for Order: ${payload.orderId}`);
+  await referralService.processOrderCancellation(payload);
+});
+
+
 // Global Error Handler (Production Error Shield)
 app.use((err, req, res, next) => {
   const crypto = require("crypto");
@@ -900,6 +928,17 @@ server.listen(PORT, "0.0.0.0", () => {
       }
     } catch (err) {
       console.error("[Cron Error] Address share expiry job failed:", err.message);
+    }
+  });
+
+  // Schedule Referral Expiry & Retry cleanup daily at midnight
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      console.log("[Cron] Running Referral Expiry & retry cleanup job...");
+      const referralService = require("./services/referralService");
+      await referralService.runDailyCleanup();
+    } catch (err) {
+      console.error("[Cron Error] Daily referral cleanup failed:", err.message);
     }
   });
 

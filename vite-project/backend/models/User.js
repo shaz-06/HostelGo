@@ -267,7 +267,9 @@ const userSchema = new mongoose.Schema(
       newOrderAlerts: { type: Boolean, default: true },
       riderAlerts: { type: Boolean, default: true },
       lowStockAlerts: { type: Boolean, default: true },
-      newUserRegistrations: { type: Boolean, default: true }
+      newUserRegistrations: { type: Boolean, default: true },
+      promotionalWhatsApp: { type: Boolean, default: true },
+      promotionalSMS: { type: Boolean, default: true }
     },
     cartHasItems: {
       type: Boolean,
@@ -280,6 +282,34 @@ const userSchema = new mongoose.Schema(
     cartReminderSent: {
       type: Boolean,
       default: false
+    },
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true
+    },
+    referralRewardClaimed: {
+      type: Boolean,
+      default: false
+    },
+    successfulReferrals: {
+      type: Number,
+      default: 0
+    },
+    pendingReferrals: {
+      type: Number,
+      default: 0
+    },
+    referralWalletEarned: {
+      type: Number,
+      default: 0
     },
     isFounder: {
       type: Boolean,

@@ -81,6 +81,9 @@ const EditProfilePage = safeLazy(() => import("./pages/EditProfilePage"));
 const MyOrdersPage = safeLazy(() => import("./pages/MyOrdersPage"));
 const SettingsPage = safeLazy(() => import("./pages/SettingsPage"));
 const WalletPage = safeLazy(() => import("./pages/WalletPage"));
+const ClaimGiftCardsPage = safeLazy(() => import("./pages/ClaimGiftCardsPage"));
+const NotificationPreferencesPage = safeLazy(() => import("./pages/NotificationPreferencesPage"));
+const ReferEarnPage = safeLazy(() => import("./pages/ReferEarnPage"));
 const BuyCoinsTransactionsPage = safeLazy(() => import("./pages/BuyCoinsTransactionsPage"));
 const BuyCoinsRewardsPage = safeLazy(() => import("./pages/BuyCoinsRewardsPage"));
 const NotificationsPage = safeLazy(() => import("./pages/NotificationsPage"));
@@ -284,6 +287,15 @@ function SuspenseFallbackLoader() {
     return () => media.removeEventListener("change", handleChange);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get("ref");
+    if (refCode) {
+      sessionStorage.setItem("refCode", refCode.toUpperCase().trim());
+      console.log(`[Referral] Captured referral code from link: ${refCode}`);
+    }
+  }, []);
+
   const HIDE_LAYOUT_ROUTES = [
     "/login",
     "/signup",
@@ -387,6 +399,51 @@ function SuspenseFallbackLoader() {
 
 import { AddressProvider } from "./features/location/context/AddressContext";
 
+const HEADER_CATEGORIES = [
+  {
+    name: "All",
+    icon: "🍎",
+    image: "https://img.icons8.com/?size=100&id=YNYZM0o5w67u&format=png&color=FFFFFF",
+    priority: 10,
+  },
+  {
+    name: "Electronics",
+    icon: "🎧",
+    image: "https://img.icons8.com/?size=100&id=jHA4xCsqov4P&format=png&color=FFFFFF",
+    priority: 9,
+  },
+  {
+    name: "Beauty",
+    icon: "💄",
+    image: "https://img.icons8.com/?size=100&id=cuWn3v7ZuRa1&format=png&color=FFFFFF",
+    priority: 8,
+  },
+  {
+    name: "Pharmacy",
+    icon: "💊",
+    image: "https://img.icons8.com/?size=100&id=NpuAKNmtnmkX&format=png&color=FFFFFF",
+    priority: 7,
+  },
+  {
+    name: "Decor",
+    icon: "🧸",
+    image: "https://img.icons8.com/?size=100&id=9rWlvh2rz07g&format=png&color=FFFFFF",
+    priority: 6,
+  },
+  {
+    name: "Kids",
+    icon: "🧸",
+    image: "https://img.icons8.com/?size=100&id=FYp39l5HPETr&format=png&color=FFFFFF",
+    priority: 6,
+  },
+  {
+    name: "Gift",
+    icon: "🎁",
+    image: "https://img.icons8.com/?size=100&id=x9gD2am0uGsn&format=png&color=FFFFFF",
+    priority: 5,
+  },
+];
+
 function App() {
   const [appReady, setAppReady] = useState(false);
 
@@ -457,7 +514,7 @@ function AppContent({ onReady }) {
   useEffect(() => {
     if (isLoggedIn && user && user._id) {
       const socket = io(window.API_BASE_URL);
-      
+
       socket.emit("registerUser", user._id);
 
       socket.on("address-share-request", (data) => {
@@ -722,7 +779,7 @@ function AppContent({ onReady }) {
       const storedVersion = Number(localStorage.getItem("buyto_cart_version") || 0);
 
       if (storedVersion >= CART_SCHEMA_VERSION) return;
-      
+
       // Defer migration if catalog is still loading or loading failed due to a network issue
       if (loading || apiError) return;
       if (!products || products.length === 0 || cartItems.length === 0) return;
@@ -913,7 +970,7 @@ function AppContent({ onReady }) {
       const slug = c.slug || generateSlug(c.name);
       const id = c._id || c.id || slug;
       return { ...c, id, slug };
-    }).filter(c => 
+    }).filter(c =>
       c.showInHeader !== false &&
       c.image &&
       c.image.trim() !== "" &&
@@ -927,7 +984,7 @@ function AppContent({ onReady }) {
       return a.name.localeCompare(b.name);
     });
 
-    const allCat = { id: "all", name: "All", icon: "🧺", image: "", slug: "all", showInHeader: true };
+    const allCat = { id: "all", name: "All", icon: "🧺", image: "https://img.icons8.com/?size=100&id=123620&format=png&color=000000", slug: "all", showInHeader: true };
     return [allCat, ...filtered];
   }, [categories]);
 
@@ -1077,9 +1134,9 @@ function AppContent({ onReady }) {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
 
-  const isAdminOrRiderRoute = location.pathname.startsWith("/admin") || 
-                              location.pathname.startsWith("/rider") || 
-                              location.pathname === "/admin-verify";
+  const isAdminOrRiderRoute = location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/rider") ||
+    location.pathname === "/admin-verify";
 
 
   useEffect(() => {
@@ -1348,7 +1405,7 @@ function AppContent({ onReady }) {
       const runCheck = () => {
         const width = window.innerWidth;
         const elements = document.querySelectorAll('*');
-        
+
         const hasClippingAncestor = (el) => {
           let parent = el.parentElement;
           while (parent) {
@@ -1933,15 +1990,15 @@ function AppContent({ onReady }) {
         {location.pathname === "/" && <SEO isHome={true} />}
         {location.pathname === "/login" && <SEO title="Login" description="Login to your Buyto account." />}
         {location.pathname === "/signup" && <SEO title="Create Account" description="Create a new Buyto account." />}
-        {!["/", "/login", "/signup", "/search", "/categories", "/cart", "/payment", "/success", "/profile/edit", "/profile", "/orders", "/my-orders", "/address", "/wishlist", "/buycoins", "/wallet", "/notifications", "/help", "/about", "/contact", "/settings", "/buycoins/transactions", "/buycoins/rewards", "/privacy-policy", "/terms", "/refund-policy", "/shipping-policy", "/faq", "/support/chat", "/shopping-list", "/shopping-list/results", "/shopping-list/smart-matching", "/save-for-later", "/saved-lists", "/payment-settings", "/profile/request-address", "/profile/manage-shares"].includes(location.pathname) && 
-          !location.pathname.startsWith("/category/") && 
-          !location.pathname.startsWith("/products/") && 
-          !location.pathname.startsWith("/product/") && 
-          !location.pathname.startsWith("/track-order/") && 
-          !location.pathname.startsWith("/orders/") && 
-          !location.pathname.startsWith("/section/") && 
-          !location.pathname.startsWith("/admin") && 
-          !location.pathname.startsWith("/rider") && 
+        {!["/", "/login", "/signup", "/search", "/categories", "/cart", "/payment", "/success", "/profile/edit", "/profile", "/orders", "/my-orders", "/address", "/wishlist", "/buycoins", "/wallet", "/notifications", "/help", "/about", "/contact", "/settings", "/buycoins/transactions", "/buycoins/rewards", "/privacy-policy", "/terms", "/refund-policy", "/shipping-policy", "/faq", "/support/chat", "/shopping-list", "/shopping-list/results", "/shopping-list/smart-matching", "/save-for-later", "/saved-lists", "/payment-settings", "/profile/request-address", "/profile/manage-shares", "/gift-cards", "/notification-preferences", "/refer-earn"].includes(location.pathname) &&
+          !location.pathname.startsWith("/category/") &&
+          !location.pathname.startsWith("/products/") &&
+          !location.pathname.startsWith("/product/") &&
+          !location.pathname.startsWith("/track-order/") &&
+          !location.pathname.startsWith("/orders/") &&
+          !location.pathname.startsWith("/section/") &&
+          !location.pathname.startsWith("/admin") &&
+          !location.pathname.startsWith("/rider") &&
           <SEO title="404 - Page Not Found" description="Page not found." />
         }
 
@@ -1956,7 +2013,7 @@ function AppContent({ onReady }) {
               isLoggedIn={isLoggedIn}
               onOpenAddressModal={() => setShowAddressModal(true)}
               eta={7}
-              displayCats={memoizedDisplayCats}
+              displayCats={HEADER_CATEGORIES}
               selectedCategory={selectedCategory}
               onCategoryClick={handleCategoryClick}
             />
@@ -2131,7 +2188,7 @@ function AppContent({ onReady }) {
             />
           </Suspense>
         )}
-        
+
         {/* LOCATION PERMISSION MODAL */}
         <LocationPermissionModal
           isOpen={showLocationPermissionModal}
@@ -2383,6 +2440,33 @@ function AppContent({ onReady }) {
     );
   }
 
+  if (location.pathname === "/gift-cards") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <ClaimGiftCardsPage />
+      </ProtectedRoute>,
+      false
+    );
+  }
+
+  if (location.pathname === "/notification-preferences") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <NotificationPreferencesPage />
+      </ProtectedRoute>,
+      false
+    );
+  }
+
+  if (location.pathname === "/refer-earn") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <ReferEarnPage />
+      </ProtectedRoute>,
+      false
+    );
+  }
+
   if (location.pathname === "/notifications") {
     return wrapCustomerLayout(
       <ProtectedRoute>
@@ -2559,7 +2643,7 @@ function AppContent({ onReady }) {
               <div>
                 <div style={{ position: "sticky", top: "var(--header-height, 60px)", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "clip", boxSizing: "border-box" }}>
                   <CategoryStrip
-                    displayCats={memoizedDisplayCats}
+                    displayCats={HEADER_CATEGORIES}
                     selectedCategory={selectedCategory}
                     onCategoryClick={handleCategoryClick}
                   />
@@ -2591,7 +2675,7 @@ function AppContent({ onReady }) {
               <div>
                 <div style={{ position: "sticky", top: "var(--header-height, 60px)", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "clip", boxSizing: "border-box" }}>
                   <CategoryStrip
-                    displayCats={memoizedDisplayCats}
+                    displayCats={HEADER_CATEGORIES}
                     selectedCategory={selectedCategory}
                     onCategoryClick={handleCategoryClick}
                   />
@@ -3196,7 +3280,7 @@ function AppContent({ onReady }) {
                             >
                               <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=318616" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
                             </button>
-                            
+
                             <button
                               className="premium-action-btn"
                               onClick={() => {
@@ -3258,12 +3342,12 @@ function AppContent({ onReady }) {
                                   toast.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
                                   toast.style.opacity = "0";
                                   document.body.appendChild(toast);
-                                  
+
                                   requestAnimationFrame(() => {
                                     toast.style.transform = "translateX(-50%) translateY(0)";
                                     toast.style.opacity = "1";
                                   });
-                                  
+
                                   setTimeout(() => {
                                     toast.style.transform = "translateX(-50%) translateY(-20px)";
                                     toast.style.opacity = "0";
@@ -3624,16 +3708,15 @@ function AppContent({ onReady }) {
               <p className="text-[12px] font-bold text-gray-400">
                 Select which of your saved addresses you want to share with {activeNotification?.senderName || "the requestor"}.
               </p>
-              
+
               <div className="flex flex-col gap-2 max-h-48 overflow-y-auto mt-2 text-left">
                 {myAddresses.map(addr => (
-                  <label 
+                  <label
                     key={addr._id}
-                    className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all duration-150 ${
-                      selectedAddressToShare === addr._id
-                        ? "border-[#318616] bg-green-50/30"
-                        : "border-gray-100 hover:border-gray-200"
-                    }`}
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all duration-150 ${selectedAddressToShare === addr._id
+                      ? "border-[#318616] bg-green-50/30"
+                      : "border-gray-100 hover:border-gray-200"
+                      }`}
                   >
                     <div className="flex flex-col gap-0.5 min-w-0">
                       <span className="text-[14px] font-extrabold text-gray-800 truncate">{addr.label || addr.addressType}</span>

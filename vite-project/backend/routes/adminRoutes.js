@@ -1013,6 +1013,256 @@ router.put("/config/fees", async (req, res) => {
   }
 });
 
+// GET /api/admin/config/referral
+router.get("/config/referral", async (req, res) => {
+  try {
+    const { getReferralConfig } = require("../services/referralService");
+    const config = await getReferralConfig();
+    return res.json({ success: true, config });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch referral settings", error: error.message });
+  }
+});
+
+// PUT /api/admin/config/referral
+router.put("/config/referral", async (req, res) => {
+  try {
+    const { referralEnabled, referralMinOrder, referrerReward, referredUserReward, referralExpiryDays } = req.body;
+    
+    if (referralMinOrder !== undefined && Number(referralMinOrder) <= 0) {
+      return res.status(400).json({ success: false, message: "Minimum qualifying order must be greater than zero" });
+    }
+    if (referrerReward !== undefined && Number(referrerReward) < 0) {
+      return res.status(400).json({ success: false, message: "Referrer reward cannot be negative" });
+    }
+    if (referredUserReward !== undefined && Number(referredUserReward) < 0) {
+      return res.status(400).json({ success: false, message: "Referred user reward cannot be negative" });
+    }
+    if (referralExpiryDays !== undefined && Number(referralExpiryDays) <= 0) {
+      return res.status(400).json({ success: false, message: "Expiry days must be greater than zero" });
+    }
+
+    let config = await Config.findOne({ key: "referral_config" });
+    if (!config) {
+      config = new Config({ key: "referral_config" });
+    }
+
+    const prevValues = {
+      referralEnabled: config.referralEnabled,
+      referralMinOrder: config.referralMinOrder,
+      referrerReward: config.referrerReward,
+      referredUserReward: config.referredUserReward,
+      referralExpiryDays: config.referralExpiryDays
+    };
+
+    if (referralEnabled !== undefined) config.referralEnabled = Boolean(referralEnabled);
+    if (referralMinOrder !== undefined) config.referralMinOrder = Number(referralMinOrder);
+    if (referrerReward !== undefined) config.referrerReward = Number(referrerReward);
+    if (referredUserReward !== undefined) config.referredUserReward = Number(referredUserReward);
+    if (referralExpiryDays !== undefined) config.referralExpiryDays = Number(referralExpiryDays);
+    
+    config.referralConfigVersion = (config.referralConfigVersion || 1) + 1;
+
+    const savedConfig = await config.save();
+
+    const ReferralAuditLog = require("../models/ReferralAuditLog");
+    const crypto = require("crypto");
+    const correlationId = crypto.randomUUID();
+    
+    const auditLog = new ReferralAuditLog({
+      action: "CONFIG_UPDATED",
+      userId: req.user._id,
+      correlationId,
+      details: {
+        prev: prevValues,
+        next: {
+          referralEnabled: savedConfig.referralEnabled,
+          referralMinOrder: savedConfig.referralMinOrder,
+          referrerReward: savedConfig.referrerReward,
+          referredUserReward: savedConfig.referredUserReward,
+          referralExpiryDays: savedConfig.referralExpiryDays
+        },
+        author: req.user.email
+      }
+    });
+    await auditLog.save();
+
+    const { clearConfigCache } = require("../services/referralService");
+    clearConfigCache();
+
+    return res.json({ success: true, config: savedConfig });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to update referral configuration", error: error.message });
+  }
+});
+
+// GET /api/admin/referrals
+router.get("/referrals", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const { search, status } = req.query;
+
+    const Referral = require("../models/Referral");
+    const User = require("../models/User");
+
+    let filter = {};
+    if (status) {
+      filter.status = status;
+    }
+
+    if (search) {
+      const matchedUsers = await User.find({
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { phone: { $regex: search, $options: "i" } }
+        ]
+      }).select("_id");
+      const matchedUserIds = matchedUsers.map(u => u._id);
+      
+      filter.$or = [
+        { referrer: { $in: matchedUserIds } },
+        { referredUser: { $in: matchedUserIds } },
+        { referralCode: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const total = await Referral.countDocuments(filter);
+    const referrals = await Referral.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("referrer", "name email phone")
+      .populate("referredUser", "name email phone")
+      .lean();
+
+    const totalCount = await Referral.countDocuments({});
+    const completedCount = await Referral.countDocuments({ status: "COMPLETED" });
+    const pendingCount = await Referral.countDocuments({ status: "PENDING" });
+    const cancelledCount = await Referral.countDocuments({ status: "CANCELLED" });
+    const expiredCount = await Referral.countDocuments({ status: "EXPIRED" });
+
+    const rewardSum = await Referral.aggregate([
+      { $match: { status: "COMPLETED" } },
+      { $group: { _id: null, totalIssued: { $sum: { $add: ["$rewardAmountReferrer", "$rewardAmountReferred"] } } } }
+    ]);
+    const totalRewardsIssued = rewardSum.length > 0 ? rewardSum[0].totalIssued : 0;
+
+    const conversionRate = totalCount > 0 ? ((completedCount / totalCount) * 100).toFixed(1) : 0;
+
+    const topReferrers = await User.find({ successfulReferrals: { $gt: 0 } })
+      .sort({ successfulReferrals: -1 })
+      .limit(5)
+      .select("name email successfulReferrals referralWalletEarned")
+      .lean();
+
+    const totalPages = Math.ceil(total / limit);
+
+    return res.json({
+      success: true,
+      referrals,
+      analytics: {
+        totalReferrals: totalCount,
+        completed: completedCount,
+        pending: pendingCount,
+        cancelled: cancelledCount,
+        expired: expiredCount,
+        conversionRate: Number(conversionRate),
+        totalRewardsIssued
+      },
+      topReferrers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrevious: page > 1
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch admin referrals", error: error.message });
+  }
+});
+
+// POST /api/admin/referrals/reconcile
+router.post("/referrals/reconcile", async (req, res) => {
+  try {
+    const Referral = require("../models/Referral");
+    const User = require("../models/User");
+    const ReferralAuditLog = require("../models/ReferralAuditLog");
+    const { rebuildUserStats } = require("../services/referralService");
+    const crypto = require("crypto");
+    const correlationId = crypto.randomUUID();
+
+    const activeReferrers = await Referral.distinct("referrer");
+    let repairedUsersCount = 0;
+    const repairsReport = [];
+
+    for (const refId of activeReferrers) {
+      const user = await User.findById(refId);
+      if (!user) continue;
+
+      const completed = await Referral.countDocuments({ referrer: refId, status: "COMPLETED" });
+      const pending = await Referral.countDocuments({ referrer: refId, status: "PENDING" });
+      
+      const rewardSum = await Referral.aggregate([
+        { $match: { referrer: refId, status: "COMPLETED" } },
+        { $group: { _id: null, totalEarned: { $sum: "$rewardAmountReferrer" } } }
+      ]);
+      const walletEarned = (rewardSum.length > 0) ? rewardSum[0].totalEarned : 0;
+
+      const hasDiff = 
+        user.successfulReferrals !== completed ||
+        user.pendingReferrals !== pending ||
+        user.referralWalletEarned !== walletEarned;
+
+      if (hasDiff) {
+        repairsReport.push({
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+          prev: {
+            successfulReferrals: user.successfulReferrals,
+            pendingReferrals: user.pendingReferrals,
+            referralWalletEarned: user.referralWalletEarned
+          },
+          repaired: {
+            successfulReferrals: completed,
+            pendingReferrals: pending,
+            referralWalletEarned: walletEarned
+          }
+        });
+
+        await rebuildUserStats(refId);
+        repairedUsersCount++;
+      }
+    }
+
+    const auditLog = new ReferralAuditLog({
+      action: "RECONCILED",
+      userId: req.user._id,
+      correlationId,
+      details: {
+        repairedUsersCount,
+        repairsReport,
+        author: req.user.email
+      }
+    });
+    await auditLog.save();
+
+    return res.json({
+      success: true,
+      repairedUsersCount,
+      repairsReport
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Reconciliation failed", error: error.message });
+  }
+});
+
 // GET /api/admin/delivery-settings
 // Returns current delivery settings for admin panel
 router.get("/delivery-settings", async (req, res) => {

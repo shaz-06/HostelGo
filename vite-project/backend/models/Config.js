@@ -17,7 +17,13 @@ const ConfigSchema = new mongoose.Schema({
   gstPercentage: { type: Number, default: 5 },
   gstFixedCharges: { type: Number, default: 2 },
   codConvenienceFee: { type: Number, default: 14 },
-  codConvenienceFeeEnabled: { type: Boolean, default: true }
+  codConvenienceFeeEnabled: { type: Boolean, default: true },
+  referralEnabled: { type: Boolean, default: true },
+  referralMinOrder: { type: Number, default: 199 },
+  referrerReward: { type: Number, default: 75 },
+  referredUserReward: { type: Number, default: 50 },
+  referralConfigVersion: { type: Number, default: 1 },
+  referralExpiryDays: { type: Number, default: 90 }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Config", ConfigSchema);

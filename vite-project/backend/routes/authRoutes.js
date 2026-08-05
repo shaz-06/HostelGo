@@ -60,7 +60,7 @@ router.post("/signup", [
 ], async (req, res) => {
   console.log("=== [AUTH SIGNUP] ===");
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, referralCode } = req.body;
 
     // Check duplicate accounts
     const existingEmail = await User.findOne({ email: email.toLowerCase() });
@@ -75,6 +75,18 @@ router.post("/signup", [
       return res.status(400).json({ message: "Phone number is already registered" });
     }
 
+    // Optional early validation for referralCode
+    if (referralCode) {
+      const cleanCode = referralCode.toUpperCase().trim();
+      const referrerUser = await User.findOne({ referralCode: cleanCode });
+      if (!referrerUser) {
+        return res.status(400).json({ message: "Invalid referral code" });
+      }
+      if (referrerUser.phone === phone || referrerUser.email === email.toLowerCase()) {
+        return res.status(400).json({ message: "You cannot refer yourself" });
+      }
+    }
+
     // Create new User (password is hashed in pre-save hook)
     const user = new User({
       name,
@@ -83,9 +95,23 @@ router.post("/signup", [
       password
     });
 
+    const { generateUniqueCode } = require("../services/referralCodeService");
+    user.referralCode = await generateUniqueCode(name);
+
     const savedUser = await user.save();
     console.log("=== [AUTH SIGNUP SUCCESS] ===");
     console.log("Saved User Document ID:", savedUser._id);
+
+    if (referralCode) {
+      try {
+        const crypto = require("crypto");
+        const correlationId = crypto.randomUUID();
+        const referralService = require("../services/referralService");
+        await referralService.linkReferral(savedUser, referralCode, correlationId);
+      } catch (linkErr) {
+        console.error("❌ Failed to link referral on signup:", linkErr.message);
+      }
+    }
 
     // Generate FIRST20 Coupon for newly registered user
     try {
@@ -914,7 +940,7 @@ router.post("/msg91-login", async (req, res) => {
 // PUT /api/auth/update-profile
 router.put("/update-profile", authMiddleware, async (req, res) => {
   try {
-    const { name, gender } = req.body;
+    const { name, gender, referralCode } = req.body;
     if (!name) {
       return res.status(400).json({ success: false, message: "Full Name is required" });
     }
@@ -924,6 +950,17 @@ router.put("/update-profile", authMiddleware, async (req, res) => {
     if (gender) {
       user.gender = gender;
     }
+
+    if (referralCode) {
+      const referralService = require("../services/referralService");
+      const crypto = require("crypto");
+      const correlationId = crypto.randomUUID();
+      const linkResult = await referralService.linkReferral(user, referralCode, correlationId);
+      if (!linkResult.success) {
+        return res.status(400).json({ success: false, message: linkResult.message });
+      }
+    }
+
     await user.save();
 
     return res.status(200).json({
@@ -937,7 +974,8 @@ router.put("/update-profile", authMiddleware, async (req, res) => {
         role: user.role,
         gender: user.gender || "",
         profileCompleted: !!user.profileCompleted,
-        addresses: user.addresses
+        addresses: user.addresses,
+        referralCode: user.referralCode
       }
     });
   } catch (error) {

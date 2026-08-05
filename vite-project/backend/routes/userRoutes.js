@@ -191,34 +191,123 @@ router.post("/cart-activity", authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/users/preferences
+router.get("/preferences", authMiddleware, async (req, res) => {
+  try {
+    return res.status(200).json({ 
+      success: true, 
+      preferences: req.user.notificationPreferences || {} 
+    });
+  } catch (error) {
+    console.error("Error fetching preferences:", error);
+    return res.status(500).json({ success: false, message: "Server error fetching preferences" });
+  }
+});
+
 // PUT /api/users/preferences
 router.put("/preferences", authMiddleware, async (req, res) => {
   try {
-    const { 
-      orderUpdates, 
-      promotions, 
-      cartReminders, 
-      newOrderAlerts, 
-      riderAlerts, 
-      lowStockAlerts, 
-      newUserRegistrations 
-    } = req.body;
+    const allowedKeys = [
+      "orderUpdates",
+      "promotions",
+      "cartReminders",
+      "newOrderAlerts",
+      "riderAlerts",
+      "lowStockAlerts",
+      "newUserRegistrations",
+      "promotionalWhatsApp",
+      "promotionalSMS"
+    ];
 
-    req.user.notificationPreferences = {
-      orderUpdates: orderUpdates !== undefined ? Boolean(orderUpdates) : req.user.notificationPreferences?.orderUpdates ?? true,
-      promotions: promotions !== undefined ? Boolean(promotions) : req.user.notificationPreferences?.promotions ?? true,
-      cartReminders: cartReminders !== undefined ? Boolean(cartReminders) : req.user.notificationPreferences?.cartReminders ?? true,
-      newOrderAlerts: newOrderAlerts !== undefined ? Boolean(newOrderAlerts) : req.user.notificationPreferences?.newOrderAlerts ?? true,
-      riderAlerts: riderAlerts !== undefined ? Boolean(riderAlerts) : req.user.notificationPreferences?.riderAlerts ?? true,
-      lowStockAlerts: lowStockAlerts !== undefined ? Boolean(lowStockAlerts) : req.user.notificationPreferences?.lowStockAlerts ?? true,
-      newUserRegistrations: newUserRegistrations !== undefined ? Boolean(newUserRegistrations) : req.user.notificationPreferences?.newUserRegistrations ?? true
-    };
+    const bodyKeys = Object.keys(req.body);
+    const hasInvalidKey = bodyKeys.some(key => !allowedKeys.includes(key));
+    if (hasInvalidKey) {
+      return res.status(400).json({ success: false, message: "Invalid preference field" });
+    }
 
-    await req.user.save();
+    if (!req.user.notificationPreferences) {
+      req.user.notificationPreferences = {};
+    }
+
+    let hasChanged = false;
+    for (const key of allowedKeys) {
+      if (req.body[key] !== undefined) {
+        const newVal = Boolean(req.body[key]);
+        const oldVal = req.user.notificationPreferences[key];
+        if (oldVal !== newVal) {
+          req.user.notificationPreferences[key] = newVal;
+          hasChanged = true;
+        }
+      }
+    }
+
+    if (hasChanged) {
+      req.user.markModified("notificationPreferences");
+      await req.user.save();
+    }
+
     return res.status(200).json({ success: true, preferences: req.user.notificationPreferences });
   } catch (error) {
     console.error("Error updating preferences:", error);
     return res.status(500).json({ success: false, message: "Server error updating preferences" });
+  }
+});
+
+// GET /api/users/referrals
+router.get("/referrals", authMiddleware, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const Referral = require("../models/Referral");
+
+    const total = await Referral.countDocuments({ referrer: req.user._id });
+    const completed = await Referral.countDocuments({ referrer: req.user._id, status: "COMPLETED" });
+    const pending = await Referral.countDocuments({ referrer: req.user._id, status: "PENDING" });
+
+    const earnedAggregate = await Referral.aggregate([
+      { $match: { referrer: req.user._id, status: "COMPLETED" } },
+      { $group: { _id: null, totalEarned: { $sum: "$rewardAmountReferrer" } } }
+    ]);
+    const earned = earnedAggregate.length > 0 ? earnedAggregate[0].totalEarned : 0;
+
+    const history = await Referral.find({ referrer: req.user._id })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("referredUser", "name")
+      .lean();
+
+    const totalPages = Math.ceil(total / limit);
+
+    return res.status(200).json({
+      success: true,
+      stats: {
+        total,
+        completed,
+        pending,
+        earned
+      },
+      history: history.map(item => ({
+        id: item._id,
+        friendName: item.referredUser ? item.referredUser.name : "Friend",
+        status: item.status,
+        reward: item.rewardAmountReferrer,
+        date: item.createdAt
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrevious: page > 1
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching user referrals:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch referral history" });
   }
 });
 

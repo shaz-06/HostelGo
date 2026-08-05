@@ -7,6 +7,7 @@ const User = require("../models/User");
 const BuyCoinWallet = require("../models/BuyCoinWallet");
 const BuyCoinTransaction = require("../models/BuyCoinTransaction");
 const WalletService = require("../services/WalletService");
+const GiftCardService = require("../services/giftCardService");
 
 // Scope Check Middleware
 function checkScope(requiredScope) {
@@ -510,6 +511,94 @@ router.post("/dev-grant", authMiddleware, async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   } finally {
     await session.endSession();
+  }
+});
+
+// Failed attempts storage for rate limiting
+const giftCardFailures = new Map();
+
+// Periodic cleanup of expired rate limit blocks
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of giftCardFailures.entries()) {
+    if (val.cooldownUntil < now) {
+      giftCardFailures.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// POST /api/buycoins/claim-gift-card - Claim a gift card
+router.post("/claim-gift-card", authMiddleware, async (req, res) => {
+  try {
+    const { code, pin } = req.body;
+    const userId = req.user._id.toString();
+    const ip = req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress || "";
+    const rateLimitKey = `${userId}:${ip}`;
+
+    // 1. Rate Limiting Check
+    const now = Date.now();
+    const limitRecord = giftCardFailures.get(rateLimitKey);
+    if (limitRecord && limitRecord.count >= 5 && limitRecord.cooldownUntil > now) {
+      const minutesRemaining = Math.ceil((limitRecord.cooldownUntil - now) / (60 * 1000));
+      return res.status(429).json({
+        success: false,
+        code: "RATE_LIMIT_EXCEEDED",
+        message: `Too many failed attempts. Please try again in ${minutesRemaining} minutes.`
+      });
+    }
+
+    // 2. Strict Request Validations
+    if (!code || typeof code !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_CODE_OR_PIN",
+        message: "Gift card code is required."
+      });
+    }
+    
+    // Normalize code by removing whitespace/spaces
+    const normalizedCode = code.replace(/\s+/g, "").trim();
+    if (normalizedCode.length !== 16 || isNaN(normalizedCode)) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_CODE_OR_PIN",
+        message: "Invalid gift card code. Must be exactly 16 digits."
+      });
+    }
+
+    if (!pin || typeof pin !== "string" || pin.length !== 6 || isNaN(pin)) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_CODE_OR_PIN",
+        message: "Invalid PIN. Must be exactly 6 digits."
+      });
+    }
+
+    // 3. Invoke Service
+    const result = await GiftCardService.redeemCard(req.user._id, req.user.email || "", normalizedCode, pin);
+
+    // 4. Handle Service Response & Adjust Rate Limiter
+    if (!result.success) {
+      // Record failure for rate limiting
+      const record = giftCardFailures.get(rateLimitKey) || { count: 0, cooldownUntil: 0 };
+      record.count += 1;
+      // Lock for 15 minutes if limit reached
+      record.cooldownUntil = Date.now() + 15 * 60 * 1000;
+      giftCardFailures.set(rateLimitKey, record);
+
+      return res.status(400).json(result);
+    }
+
+    // Reset rate limiter upon success
+    giftCardFailures.delete(rateLimitKey);
+    return res.json(result);
+  } catch (error) {
+    console.error("❌ Error in claim-gift-card route:", error);
+    return res.status(500).json({
+      success: false,
+      code: "SERVER_ERROR",
+      message: "Internal server error. Please try again."
+    });
   }
 });
 

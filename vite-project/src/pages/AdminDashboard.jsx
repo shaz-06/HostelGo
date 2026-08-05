@@ -8,6 +8,7 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import AdminNotificationQueue from "./AdminNotificationQueue";
 import PricingRulesAdminPanel from "../components/admin/PricingRulesAdminPanel";
+import ReferralsAdminPanel from "../components/admin/ReferralsAdminPanel";
 
 // Resolve default marker icon bug
 delete L.Icon.Default.prototype._getIconUrl;
@@ -940,6 +941,9 @@ export default function AdminDashboard() {
             <button onClick={() => setActiveView("categories")} style={activeView === "categories" ? activeNavLinkStyle : navLinkStyle}>
               🗂️ Navigation Categories
             </button>
+            <button onClick={() => setActiveView("referrals")} style={activeView === "referrals" ? activeNavLinkStyle : navLinkStyle}>
+              👥 Referral Campaign
+            </button>
             <button onClick={() => setActiveView("settings")} style={activeView === "settings" ? activeNavLinkStyle : navLinkStyle}>
               ⚙️ Admin Settings
             </button>
@@ -1807,6 +1811,7 @@ export default function AdminDashboard() {
           {activeView === "notifications" && renderNotificationsView()}
           {activeView === "notificationQueue" && <AdminNotificationQueue />}
           {activeView === "coupons" && <CouponsPanel isMobile={isMobile} />}
+          {activeView === "referrals" && <ReferralsAdminPanel />}
           {activeView === "settings" && renderSettingsView()}
         </main>
       </div>

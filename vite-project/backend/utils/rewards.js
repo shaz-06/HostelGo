@@ -17,6 +17,27 @@ async function recalculateWallet(userId, email) {
 
 async function handleOrderCheckoutRewards(order) {
   try {
+    // Publish order.delivered event post-commit
+    try {
+      const EventBus = require("../services/EventBus");
+      const crypto = require("crypto");
+      const eventId = crypto.randomUUID();
+      const correlationId = order.correlationId || crypto.randomUUID();
+      
+      EventBus.publish("order.delivered", {
+        eventId,
+        eventType: "order.delivered",
+        correlationId,
+        occurredAt: new Date().toISOString(),
+        orderId: order._id ? order._id.toString() : "",
+        userId: order.userId ? order.userId.toString() : "",
+        orderTotal: Number(order.totalAmount || 0)
+      });
+      console.log(`[EventBus] Published order.delivered event for Order ID: ${order._id}`);
+    } catch (eventErr) {
+      console.error("Failed to publish order.delivered event:", eventErr);
+    }
+
     await WalletService.rewardOrder(order);
 
     // After rewarding, we need to handle generation of AGAIN15 Coupon for the first successfully placed/paid order
@@ -132,6 +153,26 @@ async function consumeOrderDiscounts(order) {
 
 async function handleOrderCancellationReversal(order) {
   if (!order || !["Cancelled", "Delivery Failed"].includes(order.orderStatus)) return;
+
+  // Publish order.cancelled event post-commit
+  try {
+    const EventBus = require("../services/EventBus");
+    const crypto = require("crypto");
+    const eventId = crypto.randomUUID();
+    const correlationId = order.correlationId || crypto.randomUUID();
+    
+    EventBus.publish("order.cancelled", {
+      eventId,
+      eventType: "order.cancelled",
+      correlationId,
+      occurredAt: new Date().toISOString(),
+      orderId: order._id ? order._id.toString() : "",
+      userId: order.userId ? order.userId.toString() : ""
+    });
+    console.log(`[EventBus] Published order.cancelled event for Order ID: ${order._id}`);
+  } catch (eventErr) {
+    console.error("Failed to publish order.cancelled event:", eventErr);
+  }
 
   const userId = order.userId;
   if (!userId) return;

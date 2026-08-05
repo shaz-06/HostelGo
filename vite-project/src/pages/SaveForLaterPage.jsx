@@ -15,7 +15,7 @@ export default function SaveForLaterPage({
   setSelectedProduct
 }) {
   const navigate = useNavigate();
-  const { token, isLoggedIn } = useContext(AuthContext);
+  const { token, isLoggedIn, saveForLaterIds } = useContext(AuthContext);
 
   const [savedItems, setSavedItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +72,7 @@ export default function SaveForLaterPage({
     };
 
     loadSavedProducts();
-  }, [token, products]);
+  }, [token, products, saveForLaterIds]);
 
   // Search and Sort logic
   const processedItems = useMemo(() => {
@@ -121,60 +121,74 @@ export default function SaveForLaterPage({
       </header>
 
       <main style={{ maxWidth: "800px", margin: "0 auto", paddingBottom: "80px" }}>
-        {/* Search & Sort Controls */}
-        <div style={controlsContainerStyle}>
-          <input
-            type="text"
-            placeholder="Search saved products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={searchStyle}
-          />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="recently-saved">Recently Saved</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-          </select>
-        </div>
-
-        {/* Product Grid */}
         {loading ? (
           <div style={{ textAlign: "center", padding: "40px 0" }}>
             <p style={{ color: "#64748b", fontWeight: "600" }}>Loading saved items...</p>
           </div>
-        ) : processedItems.length === 0 ? (
+        ) : savedItems.length === 0 ? (
           <div style={emptyStateStyle}>
-            <span style={{ fontSize: "48px" }}>📌</span>
-            <h3 style={{ margin: "12px 0 6px 0", fontSize: "16px", fontWeight: "800", color: "#1e293b" }}>
-              No saved products
+            <img
+              src="/images/wishlist.svg"
+              alt="Empty Wishlist"
+              style={{
+                width: "250px",
+                height: "auto",
+                objectFit: "contain",
+                marginBottom: "24px"
+              }}
+            />
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "20px", fontWeight: "800", color: "#1e293b" }}>
+              Do you know?
             </h3>
-            <p style={{ margin: 0, color: "#64748b", fontSize: "13px" }}>
-              Bookmark items across our catalog to view them here later!
+            <p style={{ margin: "0", color: "#64748b", fontSize: "14px", fontWeight: "500" }}>
+              When you tap on the heart icon on an item, you'll see it here.
             </p>
-            <button onClick={() => navigate("/")} style={browseBtnStyle}>
-              Browse Products
-            </button>
           </div>
         ) : (
-          <div style={gridStyle}>
-            {processedItems.map(item => (
-              <ProductCard
-                key={item.productId._id || item.productId.id}
-                product={item.productId}
-                addToCart={addToCart}
-                removeFromCart={removeFromCart}
-                cart={cart}
-                cartItems={cartItems}
-                windowWidth={windowWidth}
-                getCartKey={getCartKey}
-                setSelectedProduct={setSelectedProduct}
+          <>
+            {/* Search & Sort Controls */}
+            <div style={controlsContainerStyle}>
+              <input
+                type="text"
+                placeholder="Search saved products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={searchStyle}
               />
-            ))}
-          </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                style={selectStyle}
+              >
+                <option value="recently-saved">Recently Saved</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+              </select>
+            </div>
+
+            {/* Product Grid */}
+            {processedItems.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px 24px" }}>
+                <p style={{ color: "#64748b", fontSize: "14px", fontWeight: "600" }}>No matching products found.</p>
+              </div>
+            ) : (
+              <div style={gridStyle}>
+                {processedItems.map(item => (
+                  <ProductCard
+                    key={item.productId._id || item.productId.id}
+                    product={item.productId}
+                    addToCart={addToCart}
+                    removeFromCart={removeFromCart}
+                    cart={cart}
+                    cartItems={cartItems}
+                    windowWidth={windowWidth}
+                    getCartKey={getCartKey}
+                    setSelectedProduct={setSelectedProduct}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
@@ -257,21 +271,27 @@ const gridStyle = {
 const emptyStateStyle = {
   background: "white",
   borderRadius: "24px",
-  padding: "48px 24px",
+  padding: "64px 24px",
   textAlign: "center",
   border: "1px solid #e2e8f0",
-  boxShadow: "0 4px 20px rgba(0,0,0,0.02)"
+  boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "480px"
 };
 
 const browseBtnStyle = {
-  marginTop: "16px",
+  marginTop: "8px",
   background: "#10b981",
   color: "white",
   border: "none",
-  borderRadius: "12px",
-  padding: "10px 20px",
-  fontSize: "13px",
+  borderRadius: "14px",
+  padding: "12px 28px",
+  fontSize: "14px",
   fontWeight: "800",
   cursor: "pointer",
-  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)"
+  boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
+  transition: "transform 0.2s ease"
 };

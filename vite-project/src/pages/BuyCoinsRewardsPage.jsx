@@ -10,12 +10,12 @@ export default function BuyCoinsRewardsPage() {
   const [availableCoins, setAvailableCoins] = useState(user?.buyCoins || 0);
   const [redeemingId, setRedeemingId] = useState(null);
 
-  const rewards = [
+  const [rewardsList, setRewardsList] = useState([
     { id: "coffee", name: "☕ Free Coffee Coupon", cost: 50, desc: "Get a free fresh brewed hot coffee at any partner cafe." },
     { id: "fifty_off", name: "🍕 ₹50 Off Coupon", cost: 100, desc: "Get flat ₹50 off on your next purchase (min order ₹150)." },
     { id: "free_deliv", name: "🛵 Free Delivery Pass", cost: 150, desc: "Unlock 3 free deliveries with no minimum purchase requirement." },
     { id: "merch", name: "🎁 Buyto Merchandise", cost: 500, desc: "Get an exclusive Buyto branded t-shirt or hoodie." }
-  ];
+  ]);
 
   useEffect(() => {
     // Sync available coins from user context or backend
@@ -101,37 +101,56 @@ export default function BuyCoinsRewardsPage() {
         </div>
 
         {/* Catalog */}
-        <h3 style={sectionTitleStyle}>Catalog</h3>
-        <div style={catalogGridStyle}>
-          {rewards.map((reward) => {
-            const hasEnough = availableCoins >= reward.cost;
-            const isRedeeming = redeemingId === reward.id;
+        {rewardsList.length === 0 ? (
+          <div style={emptyStateStyle}>
+            <img
+              src="/images/Not Found Reward.svg"
+              alt="No Rewards Found"
+              style={emptyImageStyle}
+            />
+            <h3 style={emptyTitleStyle}>No Rewards Found</h3>
+            <p style={emptySubtitleStyle}>
+              You haven't earned any rewards yet. Start shopping to unlock exciting rewards.
+            </p>
+            <button onClick={() => navigate("/")} style={ctaButtonStyle}>
+              Start Shopping
+            </button>
+          </div>
+        ) : (
+          <>
+            <h3 style={sectionTitleStyle}>Catalog</h3>
+            <div style={catalogGridStyle}>
+              {rewardsList.map((reward) => {
+                const hasEnough = availableCoins >= reward.cost;
+                const isRedeeming = redeemingId === reward.id;
 
-            return (
-              <div key={reward.id} style={rewardCardStyle}>
-                <div>
-                  <h4 style={rewardNameStyle}>{reward.name}</h4>
-                  <p style={rewardDescStyle}>{reward.desc}</p>
-                </div>
+                return (
+                  <div key={reward.id} style={rewardCardStyle}>
+                    <div>
+                      <h4 style={rewardNameStyle}>{reward.name}</h4>
+                      <p style={rewardDescStyle}>{reward.desc}</p>
+                    </div>
 
-                <div style={rewardFooterStyle}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <span style={costStyle(hasEnough)}>{reward.cost}</span>
-                    <BuyCoin size={14} />
+                    <div style={rewardFooterStyle}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={costStyle(hasEnough)}>{reward.cost}</span>
+                        <BuyCoin size={14} />
+                      </div>
+
+                      <button
+                        onClick={() => handleRedeem(reward)}
+                        disabled={isRedeeming}
+                        style={redeemBtnStyle(hasEnough, isRedeeming)}
+                      >
+                        {isRedeeming ? "Processing..." : hasEnough ? "Redeem" : "Locked 🔒"}
+                      </button>
+                    </div>
                   </div>
-
-                  <button
-                    onClick={() => handleRedeem(reward)}
-                    disabled={isRedeeming}
-                    style={redeemBtnStyle(hasEnough, isRedeeming)}
-                  >
-                    {isRedeeming ? "Processing..." : hasEnough ? "Redeem" : "Locked 🔒"}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
       </div>
     </div>
@@ -272,3 +291,49 @@ const redeemBtnStyle = (hasEnough, isRedeeming) => ({
   boxShadow: (hasEnough && !isRedeeming) ? "0 4px 10px rgba(245, 158, 11, 0.2)" : "none",
   transition: "all 0.15s ease"
 });
+
+const emptyStateStyle = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  textAlign: "center",
+  padding: "40px 16px",
+  boxSizing: "border-box"
+};
+
+const emptyImageStyle = {
+  width: "250px",
+  height: "auto",
+  objectFit: "contain",
+  marginBottom: "24px"
+};
+
+const emptyTitleStyle = {
+  fontSize: "20px",
+  fontWeight: "800",
+  color: "#1f2937",
+  margin: "0 0 8px 0"
+};
+
+const emptySubtitleStyle = {
+  fontSize: "14px",
+  color: "#6b7280",
+  lineHeight: "1.6",
+  fontWeight: "500",
+  margin: "0 0 24px 0",
+  maxWidth: "320px"
+};
+
+const ctaButtonStyle = {
+  background: "#10b981",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: "12px",
+  padding: "12px 24px",
+  fontSize: "14px",
+  fontWeight: "800",
+  cursor: "pointer",
+  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+  transition: "all 0.2s ease"
+};

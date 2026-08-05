@@ -22,7 +22,7 @@ const searchSuggestions = [
 ];
 
 const LogoArea = ({ brandText = "Buyto", whiteText = false }) => {
-  const parts = brandText === "LetsBuyto" ? ["LetsBuy", "to"] : ["Buy", "to"];
+  const parts = brandText === "LetsBuyto" ? ["lets buy it ", "to"] : ["Buy", "to"];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
       <div className="premium-logo-container">
@@ -33,16 +33,46 @@ const LogoArea = ({ brandText = "Buyto", whiteText = false }) => {
           style={{ display: "flex" }}
         />
       </div>
-      <span className="premium-wordmark">
-        <span style={{ 
-          color: whiteText ? "var(--logo-part1-color, #FFFFFF)" : "#F59E0B",
-          transition: "color 350ms ease-in-out"
-        }}>{parts[0]}</span>
-        <span style={{ 
-          color: whiteText ? "var(--logo-part2-color, #FFFFFF)" : "#318616",
-          transition: "color 350ms ease-in-out"
-        }}>{parts[1]}</span>
-      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <span className="premium-wordmark">
+          <span style={{
+            color: whiteText ? "var(--logo-part1-color, #FFFFFF)" : "#F59E0B",
+            transition: "color 350ms ease-in-out",
+            marginRight: brandText === "LetsBuyto" ? "5px" : "0px"
+          }}>{parts[0]}</span>
+          <span style={{
+            color: whiteText ? "var(--logo-part2-color, #FFFFFF)" : "#318616",
+            transition: "color 350ms ease-in-out"
+          }}>{parts[1]}</span>
+        </span>
+        {brandText === "LetsBuyto" && (
+          <>
+            <style dangerouslySetInnerHTML={{
+              __html: `
+                .header-brand-icon {
+                  width: 30px;
+                  height: 30px;
+                }
+                @media (min-width: 768px) {
+                  .header-brand-icon {
+                    width: 38px;
+                    height: 38px;
+                  }
+                }
+              `
+            }} />
+            <img
+              src="https://img.icons8.com/?size=100&id=cy1AaYX56tTk&format=png&color=FFFFFF"
+              alt="LetsBuyto Icon"
+              className="header-brand-icon"
+              style={{
+                objectFit: "contain",
+                flexShrink: 0
+              }}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 };
@@ -73,15 +103,15 @@ const WalletButton = ({ balance, onClick, compact = false }) => {
       onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
       onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
     >
-      <img 
-        src="https://img.icons8.com/?size=100&id=MjAYkOMsbYOO&format=png&color=000000" 
-        alt="Wallet" 
-        style={{ 
-          width: compact ? "18px" : "22px", 
-          height: compact ? "18px" : "22px", 
+      <img
+        src="https://img.icons8.com/?size=100&id=MjAYkOMsbYOO&format=png&color=000000"
+        alt="Wallet"
+        style={{
+          width: compact ? "18px" : "22px",
+          height: compact ? "18px" : "22px",
           objectFit: "contain",
-          flexShrink: 0 
-        }} 
+          flexShrink: 0
+        }}
       />
       <span>₹{balance}</span>
     </div>
@@ -135,14 +165,14 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
       className="hide-scrollbar"
       style={{
         display: "flex",
-        gap: whiteText ? "16px" : "22px",
+        gap: "16px",
         overflowX: "auto",
         overflowY: "hidden",
         scrollBehavior: "smooth",
         width: "100%",
         maxWidth: "100%",
         boxSizing: "border-box",
-        padding: whiteText ? "4px 0 2px 0" : "8px 0 10px 0",
+        padding: "4px 0 2px 0",
         transform: "translate3d(0, 0, 0)",
         willChange: "transform",
         userSelect: "none",
@@ -167,18 +197,22 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
           >
             <div
               style={{
-                width: "64px",
-                height: "64px",
+                width: "40px",
+                height: "40px",
                 borderRadius: "50%",
-                border: isActive ? "2px solid #589f42ff" : "1px solid #e5e7eb",
-                background: isActive ? "#f0fdf4" : "#ffffff",
+                border: isActive
+                  ? "2px solid #589f42ff"
+                  : "none",
+                background: isActive
+                  ? (whiteText ? "rgba(255, 255, 255, 0.25)" : "rgba(88, 159, 66, 0.12)")
+                  : "transparent",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden",
                 transition: "all 0.2s ease",
                 transform: isActive ? "scale(1.08)" : "scale(1)",
-                boxShadow: isActive ? "0 8px 24px rgba(49,134,22,0.25)" : "none"
+                boxShadow: isActive ? (whiteText ? "0 8px 24px rgba(255,255,255,0.15)" : "0 4px 12px rgba(88,159,66,0.15)") : "none"
               }}
             >
               {cat.image ? (
@@ -186,15 +220,17 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
                   src={cat.image}
                   alt={cat.name}
                   style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover"
+                    width: "90%",
+                    height: "90%",
+                    objectFit: "contain",
+                    filter: whiteText ? "var(--category-icon-filter, none)" : "brightness(0)",
+                    transition: "filter 350ms ease-in-out"
                   }}
                   loading="lazy"
                   decoding="async"
                 />
               ) : (
-                <span style={{ fontSize: "24px" }}>{cat.icon || "🛍️"}</span>
+                <span style={{ fontSize: "20px" }}>{cat.icon || "🛍️"}</span>
               )}
             </div>
             <span
@@ -209,8 +245,8 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
                 overflow: "hidden",
-                marginTop: whiteText ? "3px" : "6px",
-                transition: "color 150ms ease, font-weight 150ms ease, transform 150ms ease"
+                marginTop: "3px",
+                transition: "color 300ms ease-in-out, font-weight 150ms ease, transform 150ms ease"
               }}
             >
               {cat.name}
@@ -319,7 +355,7 @@ const Header = React.memo(({
   if (fullAddressJson) {
     try {
       addressDetails = JSON.parse(fullAddressJson);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   const renderExpandedAddress = () => {
@@ -521,7 +557,7 @@ const Header = React.memo(({
 
       const rect = heroEl.getBoundingClientRect();
       const headerRect = headerRef.current ? headerRef.current.getBoundingClientRect() : { height: 116 };
-      
+
       const visibleHeight = Math.max(0, rect.bottom - headerRect.height);
       const progress = Math.min(1, Math.max(0, visibleHeight / rect.height));
 
@@ -533,11 +569,13 @@ const Header = React.memo(({
           headerRef.current.style.setProperty("--logo-part1-color", "#FFFFFF");
           headerRef.current.style.setProperty("--logo-part2-color", "#FFFFFF");
           headerRef.current.style.setProperty("--category-text-color", "#FFFFFF");
+          headerRef.current.style.setProperty("--category-icon-filter", "none");
         } else {
           headerRef.current.style.setProperty("--header-text-color", "#000000");
           headerRef.current.style.setProperty("--logo-part1-color", "#F59E0B");
           headerRef.current.style.setProperty("--logo-part2-color", "#318616");
           headerRef.current.style.setProperty("--category-text-color", "#000000");
+          headerRef.current.style.setProperty("--category-icon-filter", "brightness(0)");
         }
       }
       ticking = false;
@@ -659,12 +697,12 @@ const Header = React.memo(({
             padding: "4px"
           }}
         >
-          <img 
+          <img
             src="https://img.icons8.com/?size=100&id=IUGIR3D9OImC&format=png&color=000000"
             alt="Mic"
-            style={{ 
-              width: "18px", 
-              height: "18px", 
+            style={{
+              width: "18px",
+              height: "18px",
               objectFit: "contain",
               opacity: isListening ? 0.6 : 1
             }}
@@ -875,7 +913,7 @@ const Header = React.memo(({
                 }
                 .premium-wordmark {
                   font-family: 'Outfit', sans-serif;
-                  font-weight: 900;
+                  font-weight: 600;
                   font-size: 22px;
                   line-height: 1;
                   letter-spacing: -0.5px;
@@ -1093,7 +1131,7 @@ const Header = React.memo(({
           }
           .premium-wordmark {
             font-family: 'Outfit', sans-serif;
-            font-weight: 900;
+            font-weight: 600;
             font-size: 18px;
             line-height: 1;
             letter-spacing: -0.5px;
@@ -1208,8 +1246,8 @@ const Header = React.memo(({
         position: "sticky",
         top: 0,
         zIndex: 1000,
-        backgroundImage: isHomepage 
-          ? "linear-gradient(180deg, #FAF8F6 0%, #F5EDE3 100%)" 
+        backgroundImage: isHomepage
+          ? "linear-gradient(180deg, #FAF8F6 0%, #F5EDE3 100%)"
           : "linear-gradient(135deg, #D8F0B4 0%, #BEE08A 100%)",
         boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
         fontFamily: "'Outfit', 'Inter', sans-serif",

@@ -13,6 +13,7 @@ export default function OnboardingBottomSheet() {
   // Step 1 states
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
+  const [referralCode, setReferralCode] = useState(sessionStorage.getItem("refCode") || "");
 
   // Step 2 states
   const [apartment, setApartment] = useState("");
@@ -39,7 +40,7 @@ export default function OnboardingBottomSheet() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ name, gender })
+        body: JSON.stringify({ name, gender, referralCode: referralCode.toUpperCase().trim() })
       });
 
       const data = await res.json();
@@ -130,6 +131,18 @@ export default function OnboardingBottomSheet() {
                   style={inputStyle}
                   disabled={loading}
                   required
+                />
+              </div>
+
+              <div style={inputGroupStyle}>
+                <label style={labelStyle}>Referral Code (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Have a referral code? Enter here"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  style={inputStyle}
+                  disabled={loading}
                 />
               </div>
 

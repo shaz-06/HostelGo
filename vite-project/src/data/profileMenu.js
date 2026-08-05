@@ -104,7 +104,7 @@ export const profileMenuConfig = [
         label: "Claim Gift Cards",
         icon: "https://img.icons8.com/?size=100&id=aPAHTIQEcgiq&format=png&color=000000",
         actionType: "navigate",
-        path: "/wallet"
+        path: "/gift-cards"
       },
       {
         id: "rewards",
@@ -126,30 +126,16 @@ export const profileMenuConfig = [
     title: "Buyto",
     items: [
       {
-        id: "become-seller",
-        label: "Become Seller",
-        icon: "https://img.icons8.com/?size=100&id=WBGSDb5LN2fp&format=png&color=000000",
-        actionType: "navigate",
-        path: "/rider/signup"
-      },
-      {
         id: "refer-earn",
         label: "Refer & Earn",
         icon: "https://img.icons8.com/?size=100&id=8VXh2TzKXNG8&format=png&color=000000",
         actionType: "navigate",
-        path: "/buycoins/rewards"
+        path: "/refer-earn"
       },
       {
         id: "partner-with-buyto",
         label: "Partner with Buyto",
         icon: "https://img.icons8.com/?size=100&id=80676&format=png&color=000000",
-        actionType: "navigate",
-        path: "/about"
-      },
-      {
-        id: "careers",
-        label: "Careers",
-        icon: "https://img.icons8.com/?size=100&id=VfcK55OADyK5&format=png&color=000000",
         actionType: "navigate",
         path: "/about"
       }
@@ -164,20 +150,6 @@ export const profileMenuConfig = [
         icon: "https://img.icons8.com/?size=100&id=19nQzXuCO2It&format=png&color=000000",
         actionType: "navigate",
         path: "/help"
-      },
-      {
-        id: "contact-us",
-        label: "Contact Us",
-        icon: "https://img.icons8.com/?size=100&id=hTTzWSpAOgIV&format=png&color=000000",
-        actionType: "navigate",
-        path: "/contact"
-      },
-      {
-        id: "chat-support",
-        label: "Chat Support",
-        icon: "https://img.icons8.com/?size=100&id=SKPXwfsncJbF&format=png&color=000000",
-        actionType: "navigate",
-        path: "/support/chat"
       },
       {
         id: "report-issue",
@@ -236,7 +208,7 @@ export const profileMenuConfig = [
         label: "Notification preferences",
         icon: "https://img.icons8.com/?size=100&id=TQvX68dIobCH&format=png&color=000000",
         actionType: "navigate",
-        path: "/notifications"
+        path: "/notification-preferences"
       },
       {
         id: "logout",
