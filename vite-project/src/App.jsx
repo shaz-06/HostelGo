@@ -37,6 +37,7 @@ import { useHeaderTheme } from "./hooks/useHeaderTheme";
 import ProductCard from "./ProductCard";
 import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
 import OnboardingBottomSheet from "./components/common/OnboardingBottomSheet";
+import ReferralPromptModal from "./components/common/ReferralPromptModal";
 import WelcomeRewardModal from "./components/common/WelcomeRewardModal";
 import { LoaderProvider, LoaderContext } from "./context/LoaderContext";
 import BuytoLoader from "./components/common/BuytoLoader";
@@ -79,6 +80,7 @@ const SuccessPage = safeLazy(() => import("./pages/SuccessPage"));
 const ProfilePage = safeLazy(() => import("./pages/ProfilePage"));
 const EditProfilePage = safeLazy(() => import("./pages/EditProfilePage"));
 const MyOrdersPage = safeLazy(() => import("./pages/MyOrdersPage"));
+const OrderAgainPage = safeLazy(() => import("./pages/OrderAgainPage"));
 const SettingsPage = safeLazy(() => import("./pages/SettingsPage"));
 const WalletPage = safeLazy(() => import("./pages/WalletPage"));
 const ClaimGiftCardsPage = safeLazy(() => import("./pages/ClaimGiftCardsPage"));
@@ -541,7 +543,6 @@ function AppContent({ onReady }) {
     }
     return false;
   }, []);
-
   useEffect(() => {
     const handleTouchStart = (e) => {
       hasTriggeredRefreshRef.current = false;
@@ -573,27 +574,49 @@ function AppContent({ onReady }) {
         activeTouchRef.current = false;
         pullDistanceRef.current = 0;
         if (indicatorRef.current) {
-          indicatorRef.current.style.transform = "translate3d(-50%, -50px, 0)";
+          indicatorRef.current.style.transform = "translate3d(-50%, -80px, 0) scale(0.7)";
           indicatorRef.current.style.opacity = "0";
         }
         return;
       }
 
-      const pull = Math.min(100, deltaY * 0.5);
+      let pull = 0;
+      if (deltaY > 20) {
+        const drag = deltaY - 20;
+        pull = Math.min(120, drag / (1.2 + drag * 0.005));
+      }
       pullDistanceRef.current = pull;
 
       if (indicatorRef.current) {
-        indicatorRef.current.style.opacity = Math.min(1, pull / 40);
-        indicatorRef.current.style.transform = `translate3d(-50%, ${pull}px, 0)`;
+        const opacity = Math.min(1, pull / 40);
+        const scale = Math.min(1.08, 0.7 + (pull / 75) * 0.3);
+        const rotate = pull * 3;
+
+        indicatorRef.current.style.opacity = opacity.toString();
+        indicatorRef.current.style.transform = `translate3d(-50%, ${pull}px, 0) scale(${scale})`;
 
         const spinner = indicatorRef.current.querySelector(".pull-spinner");
         if (spinner) {
-          spinner.style.transform = `rotate(${pull * 4.8}deg)`;
+          spinner.style.transform = `rotate(${rotate}deg)`;
         }
 
         const label = indicatorRef.current.querySelector(".pull-label");
-        if (label) {
-          label.textContent = pull >= 75 ? "Release to refresh" : "Pull to refresh";
+        const circle = indicatorRef.current.querySelector(".pull-circle");
+        
+        if (label && circle) {
+          if (pull >= 75) {
+            label.textContent = "Release to refresh";
+            circle.style.borderColor = "#318616";
+            circle.style.boxShadow = "0 6px 20px rgba(49, 134, 22, 0.2)";
+            circle.style.transform = "scale(1.08)";
+            circle.style.transition = "transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.15s ease";
+          } else {
+            label.textContent = "Pull to refresh";
+            circle.style.borderColor = "rgba(49, 134, 22, 0.1)";
+            circle.style.boxShadow = "0 4px 14px rgba(0,0,0,0.12)";
+            circle.style.transform = "scale(1)";
+            circle.style.transition = "none";
+          }
         }
       }
 
@@ -613,8 +636,9 @@ function AppContent({ onReady }) {
           setRefreshState("refreshing");
 
           if (indicatorRef.current) {
-            indicatorRef.current.style.transition = "transform 0.2s ease, opacity 0.2s ease";
-            indicatorRef.current.style.transform = "translate3d(-50%, 75px, 0)";
+            indicatorRef.current.style.transition = "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease";
+            indicatorRef.current.style.transform = "translate3d(-50%, 75px, 0) scale(1)";
+            indicatorRef.current.style.opacity = "1";
 
             const spinner = indicatorRef.current.querySelector(".pull-spinner");
             if (spinner) {
@@ -625,6 +649,12 @@ function AppContent({ onReady }) {
             if (label) {
               label.textContent = "Refreshing...";
             }
+
+            const circle = indicatorRef.current.querySelector(".pull-circle");
+            if (circle) {
+              circle.style.borderColor = "#318616";
+              circle.style.transform = "scale(1)";
+            }
           }
 
           setTimeout(() => {
@@ -634,23 +664,40 @@ function AppContent({ onReady }) {
       } else {
         if (indicatorRef.current) {
           indicatorRef.current.style.transition = "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease";
-          indicatorRef.current.style.transform = "translate3d(-50%, -50px, 0)";
+          indicatorRef.current.style.transform = "translate3d(-50%, -80px, 0) scale(0.7)";
           indicatorRef.current.style.opacity = "0";
         }
         pullDistanceRef.current = 0;
       }
     };
 
+    const handleTouchCancel = () => {
+      if (!activeTouchRef.current || refreshState === "refreshing") return;
+
+      activeTouchRef.current = false;
+
+      if (indicatorRef.current) {
+        indicatorRef.current.style.transition =
+          "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease";
+
+        indicatorRef.current.style.transform =
+          "translate3d(-50%, -80px, 0) scale(0.7)";
+
+        indicatorRef.current.style.opacity = "0";
+      }
+
+      pullDistanceRef.current = 0;
+    };
+
     window.addEventListener("touchstart", handleTouchStart, { passive: false });
     window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("touchend", handleTouchEnd);
-    window.addEventListener("touchcancel", handleTouchEnd);
-
+    window.addEventListener("touchcancel", handleTouchCancel);
     return () => {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
-      window.removeEventListener("touchcancel", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchCancel);
     };
   }, [refreshState, location.pathname, shouldIgnoreTouch]);
 
@@ -1049,6 +1096,14 @@ function AppContent({ onReady }) {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const refCode = searchParams.get("ref");
+    if (refCode) {
+      console.log("[Referral] Referral code detected in URL:", refCode);
+      sessionStorage.setItem("pendingReferralCode", refCode.toUpperCase().trim());
+    }
+  }, [searchParams]);
+
   const searchQuery = searchParams.get("q") || "";
   const setSearchQuery = (val) => {
     console.log("setSearchQuery called with value:", val);
@@ -2149,7 +2204,7 @@ function AppContent({ onReady }) {
         {location.pathname === "/" && <SEO isHome={true} />}
         {location.pathname === "/login" && <SEO title="Login" description="Login to your Buyto account." />}
         {location.pathname === "/signup" && <SEO title="Create Account" description="Create a new Buyto account." />}
-        {!["/", "/login", "/signup", "/search", "/categories", "/cart", "/payment", "/success", "/profile/edit", "/profile", "/orders", "/my-orders", "/address", "/wishlist", "/buycoins", "/wallet", "/notifications", "/help", "/about", "/contact", "/settings", "/buycoins/transactions", "/buycoins/rewards", "/privacy-policy", "/terms", "/refund-policy", "/shipping-policy", "/faq", "/support/chat", "/shopping-list", "/shopping-list/results", "/shopping-list/smart-matching", "/save-for-later", "/saved-lists", "/payment-settings", "/profile/request-address", "/profile/manage-shares", "/gift-cards", "/notification-preferences", "/refer-earn"].includes(location.pathname) &&
+        {!["/", "/login", "/signup", "/search", "/categories", "/cart", "/payment", "/success", "/profile/edit", "/profile", "/orders", "/my-orders", "/order-again", "/address", "/wishlist", "/buycoins", "/wallet", "/notifications", "/help", "/about", "/contact", "/settings", "/buycoins/transactions", "/buycoins/rewards", "/privacy-policy", "/terms", "/refund-policy", "/shipping-policy", "/faq", "/support/chat", "/shopping-list", "/shopping-list/results", "/shopping-list/smart-matching", "/save-for-later", "/saved-lists", "/payment-settings", "/profile/request-address", "/profile/manage-shares", "/gift-cards", "/notification-preferences", "/refer-earn"].includes(location.pathname) &&
           !location.pathname.startsWith("/address/request/") &&
           !location.pathname.startsWith("/category/") &&
           !location.pathname.startsWith("/products/") &&
@@ -2378,6 +2433,7 @@ function AppContent({ onReady }) {
         />
         <OtpLoginBottomSheet />
         <OnboardingBottomSheet />
+        <ReferralPromptModal />
         <LocationFlowOverlay
           startupStatus={startupStatus}
           showGpsModal={showGpsModal}
@@ -2565,6 +2621,14 @@ function AppContent({ onReady }) {
     return wrapCustomerLayout(
       <ProtectedRoute>
         <MyOrdersPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (location.pathname === "/order-again") {
+    return wrapCustomerLayout(
+      <ProtectedRoute>
+        <OrderAgainPage />
       </ProtectedRoute>
     );
   }
@@ -3967,37 +4031,64 @@ function AppContent({ onReady }) {
         ref={indicatorRef}
         style={{
           position: "fixed",
-          top: "0px",
+          top: "16px",
           left: "50%",
-          transform: "translate3d(-50%, -50px, 0)",
+          transform: "translate3d(-50%, -80px, 0) scale(0.7)",
           opacity: 0,
           zIndex: 9999,
-          backgroundColor: "white",
-          padding: "8px 16px",
-          borderRadius: "9999px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           gap: "8px",
-          fontSize: "12px",
-          fontWeight: "700",
-          color: "#318616",
-          pointerEvents: "none",
-          border: "1px solid rgba(49, 134, 22, 0.15)",
+          pointerEvents: "none"
         }}
       >
         <div
-          className="pull-spinner"
+          className="pull-circle"
           style={{
-            width: "16px",
-            height: "16px",
-            border: "2px solid #318616",
-            borderTopColor: "transparent",
+            backgroundColor: "#ffffff",
+            width: "46px",
+            height: "46px",
             borderRadius: "50%",
-            transition: "transform 0.1s ease"
+            boxShadow: "0 4px 14px rgba(0,0,0,0.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "2px solid rgba(49, 134, 22, 0.1)",
+            boxSizing: "border-box",
+            transition: "transform 0.15s ease, border-color 0.15s ease"
           }}
-        />
-        <span className="pull-label">Pull to refresh</span>
+        >
+          <div
+            className="pull-spinner"
+            style={{
+              width: "20px",
+              height: "20px",
+              border: "3px solid #e2e8f0",
+              borderTopColor: "#318616",
+              borderRadius: "50%",
+              boxSizing: "border-box"
+            }}
+          />
+        </div>
+
+        <div
+          className="pull-text-badge"
+          style={{
+            backgroundColor: "rgba(30, 41, 59, 0.85)",
+            backdropFilter: "blur(4px)",
+            color: "#ffffff",
+            padding: "4px 10px",
+            borderRadius: "9999px",
+            fontSize: "10px",
+            fontWeight: "800",
+            letterSpacing: "0.5px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            whiteSpace: "nowrap"
+          }}
+        >
+          <span className="pull-label">Pull to refresh</span>
+        </div>
       </div>
       {wrapCustomerLayout(<>{desktopEl}{debugPanel}</>, true)}
     </>

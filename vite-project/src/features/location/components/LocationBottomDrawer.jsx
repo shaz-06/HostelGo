@@ -15,7 +15,7 @@ import { useAddressSearch } from "../hooks/useAddressSearch";
 import { useDrawerGesture } from "../hooks/useDrawerGesture";
 import { hasLocationServicesEnabled, requestLocationPermission, getCurrentLocation } from "../../../services/location/locationService";
 
-export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false }) {
+export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false, hideUseCurrentLocation = false }) {
   const navigate = useNavigate();
   const {
     selectedAddress,
@@ -521,29 +521,31 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
                   <>
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
                       {/* Use Current Location Option */}
-                      <button
-                        onClick={handleUseCurrentLocation}
-                        disabled={locationLoading}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          width: "100%",
-                          padding: "16px",
-                          borderRadius: "16px",
-                          border: "1.5px solid #e2e8f0",
-                          backgroundColor: "#ffffff",
-                          cursor: "pointer",
-                          fontWeight: "750",
-                          color: "#318616",
-                          fontSize: "14px"
-                        }}
-                      >
-                        <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          🎯 {locationLoading ? "Fetching Location..." : "Use current location"}
-                        </span>
-                        <span>❯</span>
-                      </button>
+                      {!hideUseCurrentLocation && (
+                        <button
+                          onClick={handleUseCurrentLocation}
+                          disabled={locationLoading}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            width: "100%",
+                            padding: "16px",
+                            borderRadius: "16px",
+                            border: "1.5px solid #e2e8f0",
+                            backgroundColor: "#ffffff",
+                            cursor: "pointer",
+                            fontWeight: "750",
+                            color: "#318616",
+                            fontSize: "14px"
+                          }}
+                        >
+                          <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            🎯 {locationLoading ? "Fetching Location..." : "Use current location"}
+                          </span>
+                          <span>❯</span>
+                        </button>
+                      )}
 
                       {/* Add New Address Option */}
                       <button

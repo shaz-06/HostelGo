@@ -206,7 +206,27 @@ async function processOrderDelivery(eventPayload) {
     details: { orderId, orderTotal }
   }).save();
 
-  // 5. Execute Wallet Payout atomically inside dedicated transaction
+  // 5. Execute Wallet Payout atomically
+  try {
+    await creditReferralRewards(referral, correlationId);
+  } catch (err) {
+    console.error("[ReferralService] Payout failed during delivery event path, will be retried on recovery cron run:", err);
+  }
+}
+
+/**
+ * Decoupled function to process the wallet payouts for a qualified referral.
+ * Can be invoked on the normal path or by the cleanup recovery job.
+ */
+async function creditReferralRewards(referral, correlationId) {
+  if (!referral) {
+    throw new Error("No referral provided to creditReferralRewards.");
+  }
+  if (referral.status !== "QUALIFIED" || referral.rewardCredited === true) {
+    console.log(`[ReferralService] Payout skipped. Referral ${referral._id} status is ${referral.status}, rewardCredited: ${referral.rewardCredited}`);
+    return;
+  }
+
   try {
     await runInTransaction(async (session) => {
       const opts = session ? { session } : {};
@@ -285,11 +305,12 @@ async function processOrderDelivery(eventPayload) {
     // Write failure audit log
     await new ReferralAuditLog({
       referralId: referral._id,
-      userId,
+      userId: referral.referredUser,
       action: "FAILED_REWARD",
       correlationId,
       details: { error: rewardErr.message }
     }).save().catch(() => {});
+    throw rewardErr;
   }
 }
 
@@ -359,15 +380,14 @@ async function runDailyCleanup() {
   console.log(`[ReferralService] Expired ${expiredCount.modifiedCount} overdue pending referrals.`);
 
   // Find all QUALIFIED but failed completions to retry
-  const qualifiedList = await Referral.find({ status: "QUALIFIED" });
+  const qualifiedList = await Referral.find({ status: "QUALIFIED", rewardCredited: false });
   for (const ref of qualifiedList) {
     console.log(`[ReferralService] Retrying rewards for qualified referral: ${ref._id}`);
-    await processOrderDelivery({
-      orderId: ref.qualifyingOrder,
-      userId: ref.referredUser,
-      orderTotal: ref.campaignSnapshot.minOrder,
-      correlationId: `retry-cron-${ref._id.toString()}-${Date.now()}`
-    });
+    try {
+      await creditReferralRewards(ref, `retry-cron-${ref._id.toString()}-${Date.now()}`);
+    } catch (err) {
+      console.error(`[ReferralService] Retry failed for referral ${ref._id}:`, err);
+    }
   }
 
   // Re-sync all users just to be safe
@@ -438,5 +458,6 @@ module.exports = {
   processOrderDelivery,
   processOrderCancellation,
   rebuildUserStats,
-  runDailyCleanup
+  runDailyCleanup,
+  creditReferralRewards
 };

@@ -5,6 +5,7 @@ import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { requestLocationPermission, getCurrentLocation } from "../../../services/location/locationService";
 
 // Resolve default marker icon bug in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -61,6 +62,60 @@ export function AddAddressForm({ initialAddress, onSave, onCancel }) {
   });
 
   const [mapCenter, setMapCenter] = useState([form.latitude, form.longitude]);
+  const [detectStatus, setDetectStatus] = useState("idle"); // "idle" | "detecting" | "success" | "error"
+  const [localError, setLocalError] = useState("");
+
+  const handleUseCurrentLocation = async () => {
+    setDetectStatus("detecting");
+    setLocalError("");
+
+    try {
+      // 1. Request location permission
+      const permission = await requestLocationPermission();
+      if (permission === "denied") {
+        setLocalError("Location permission is required to detect your current address.");
+        setDetectStatus("error");
+        return;
+      }
+
+      // 2. Fetch current coordinates
+      const coords = await getCurrentLocation(10000);
+      const { latitude, longitude } = coords;
+
+      // 3. Move map and marker
+      setMapCenter([latitude, longitude]);
+      
+      // 4. Reverse geocode
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+      if (!res.ok) throw new Error("Reverse geocoding failed");
+      const data = await res.json();
+
+      // Extract details
+      const address = data.address || {};
+      const detectedCity = address.city || address.town || address.village || "";
+      const detectedPincode = address.postcode || "";
+      const detectedLandmark = address.suburb || address.neighbourhood || address.road || "";
+      const detectedAddressLine = data.display_name || "";
+
+      // 5. Update form state
+      setForm(prev => ({
+        ...prev,
+        latitude,
+        longitude,
+        addressLine: detectedAddressLine || prev.addressLine,
+        city: detectedCity || prev.city,
+        pincode: detectedPincode || prev.pincode,
+        landmark: detectedLandmark || prev.landmark
+      }));
+
+      setDetectStatus("success");
+      setTimeout(() => setDetectStatus("idle"), 3000);
+    } catch (err) {
+      console.error("[AddAddressForm] Geolocation / geocoding failed:", err);
+      setLocalError("Unable to detect your location. Please try again.");
+      setDetectStatus("error");
+    }
+  };
 
   // Sync coords from map center
   const handleMapClick = (coords) => {
@@ -92,6 +147,57 @@ export function AddAddressForm({ initialAddress, onSave, onCancel }) {
       <div style={{ fontSize: "11px", color: "#64748b", textAlign: "left", fontWeight: "600" }}>
         📍 Click on the map to pin exact delivery location coordinates
       </div>
+
+      {/* Use Current Location CTA */}
+      <button
+        type="button"
+        onClick={handleUseCurrentLocation}
+        disabled={detectStatus === "detecting"}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          width: "100%",
+          padding: "12px 16px",
+          borderRadius: "12px",
+          border: "1.5px solid #318616",
+          backgroundColor: detectStatus === "detecting" ? "#f0fdf4" : "#318616",
+          color: detectStatus === "detecting" ? "#318616" : "#ffffff",
+          fontWeight: "800",
+          fontSize: "14px",
+          cursor: detectStatus === "detecting" ? "not-allowed" : "pointer",
+          transition: "all 0.2s ease",
+          boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)"
+        }}
+      >
+        {detectStatus === "idle" && "📍 Use current location"}
+        {detectStatus === "detecting" && "⟳ Locating you..."}
+        {detectStatus === "success" && "✓ Location detected"}
+        {detectStatus === "error" && "📍 Use current location"}
+      </button>
+
+      {/* Friendly Error notice */}
+      {localError && (
+        <div style={{
+          backgroundColor: "#fef2f2",
+          border: "1px solid #fee2e2",
+          borderRadius: "12px",
+          padding: "12px 16px",
+          color: "#991b1b",
+          fontSize: "13px",
+          fontWeight: "600",
+          textAlign: "left",
+          display: "flex",
+          flexDirection: "column",
+          gap: "4px"
+        }}>
+          <div>⚠️ {localError}</div>
+          <div style={{ color: "#b91c1c", fontSize: "12px", fontWeight: "750" }}>
+            👉 {localError.includes("permission") ? "Enter address manually" : "We couldn't find the address for this location. You can enter it manually."}
+          </div>
+        </div>
+      )}
 
       {/* Preset Buttons */}
       <div style={{ textAlign: "left" }}>

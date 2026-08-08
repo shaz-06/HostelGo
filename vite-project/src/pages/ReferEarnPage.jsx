@@ -2,11 +2,11 @@ import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import SEO from "../components/common/SEO";
-import { Copy, Share2, MessageCircle, AlertCircle, RefreshCw } from "lucide-react";
+import { Copy, Share2, MessageCircle, AlertCircle, RefreshCw, Check } from "lucide-react";
 
 export default function ReferEarnPage() {
   const navigate = useNavigate();
-  const { user, token } = useContext(AuthContext);
+  const { user, token, loading: authLoading, updateUserInSession } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -17,26 +17,75 @@ export default function ReferEarnPage() {
   const [copyFeedback, setCopyFeedback] = useState("");
   const [shareFeedback, setShareFeedback] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [isLoadingReferral, setIsLoadingReferral] = useState(true);
+  const [referralError, setReferralError] = useState(false);
+  const copyTimeoutRef = React.useRef(null);
 
-  const referralCode = user?.referralCode || "BUYTO123";
-  const referralLink = `https://www.buyto.co.in/signup?ref=${referralCode}`;
-  const shareMessage = `Join Buyto and get ₹50 in your Buyto Wallet after your first delivered order of ₹199 or more. Use my referral code ${referralCode} during signup. I'll earn ₹75 too. Download Buyto now! ${referralLink}`;
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Manual entry and order eligibility states
+  const [hasOrders, setHasOrders] = useState(false);
+  const [checkingOrders, setCheckingOrders] = useState(true);
+  const referralLink = referralCode ? `https://www.buyto.co.in/?ref=${referralCode}` : "";
+  const shareMessage = referralCode ? `🎁 Join me on Buyto!\n\nUse my referral code ${referralCode} when you join Buyto.\n\nYou get ₹50 BuyCoins and I get ₹75 BuyCoins after your qualifying order.\n\n${referralLink}` : "";
+
+  console.log("[ReferEarn] current AuthContext user:", user);
+  console.log("[ReferEarn] calculated referralCode:", referralCode);
+  const [manualCode, setManualCode] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState("");
+  const [linkSuccess, setLinkSuccess] = useState("");
 
   // Fetch referrals data
   const fetchData = useCallback(async (targetPage = 1, append = false) => {
     if (!token) return;
-    if (!append) setLoading(true);
+    if (!append) {
+      setLoading(true);
+      setIsLoadingReferral(true);
+    }
     setError(false);
+    setReferralError(false);
 
     try {
-      const res = await fetch(`${window.API_BASE_URL}/api/users/referrals?page=${targetPage}&limit=10`, {
+      console.log("[ReferEarn] ===== REFERRAL API REQUEST START =====");
+      console.log("[ReferEarn] Auth user:", user);
+      console.log("[ReferEarn] Token available:", !!token);
+      console.log("[ReferEarn] API URL:", `${window.API_BASE_URL}/api/users/referrals`);
+
+      const res = await fetch(`${window.API_BASE_URL}/api/users/referrals?page=${targetPage}&limit=10&_t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      console.log("[ReferEarn] Referral API HTTP status:", res.status);
       const data = await res.json();
+      console.log("[ReferEarn] Referral API RESPONSE:", data);
+      console.log("[ReferEarn] Referral code from API:", data?.referralCode);
+      console.log("[ReferEarn] Referral code from nested user:", data?.user?.referralCode);
+      console.log("[ReferEarn] Referral code from nested data:", data?.data?.referralCode);
+      
       if (res.ok && data.success) {
         setStats(data.stats);
         setTotalPages(data.pagination.totalPages);
         setPage(data.pagination.page);
+        
+        const code = data.referralCode || data?.user?.referralCode || data?.data?.referralCode;
+        if (code) {
+          setReferralCode(code);
+          if (user && !user.referralCode) {
+            updateUserInSession({ ...user, referralCode: code });
+          }
+        } else {
+          setReferralError(true);
+        }
+        
         if (append) {
           setHistory(prev => [...prev, ...data.history]);
         } else {
@@ -44,19 +93,45 @@ export default function ReferEarnPage() {
         }
       } else {
         setError(true);
+        setReferralError(true);
       }
     } catch (err) {
-      console.error("Error loading referrals:", err);
+      console.error("[ReferEarn] Failed to load referral data:", err);
       setError(true);
+      setReferralError(true);
     } finally {
       setLoading(false);
+      setIsLoadingReferral(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, [token, user, updateUserInSession]);
+
+  // Fetch order status for manual linking restriction
+  useEffect(() => {
+    if (authLoading || !token) {
+      setCheckingOrders(false);
+      return;
+    }
+    setCheckingOrders(true);
+    fetch(`${window.API_BASE_URL}/api/orders/my-orders`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.orders) && data.orders.length > 0) {
+          setHasOrders(true);
+        }
+        setCheckingOrders(false);
+      })
+      .catch(() => setCheckingOrders(false));
+  }, [authLoading, token]);
 
   useEffect(() => {
-    fetchData(1, false);
-  }, [fetchData]);
+    if (!authLoading && token) {
+      console.log("[ReferEarn] authLoading completed and token available. Fetching referrals...");
+      fetchData(1, false);
+    }
+  }, [authLoading, token, fetchData]);
 
   // Pull to refresh simulation
   const handleRefresh = () => {
@@ -72,16 +147,25 @@ export default function ReferEarnPage() {
   };
 
   // Copy code to clipboard
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(referralCode);
-    setCopyFeedback("Referral code copied!");
-    setTimeout(() => setCopyFeedback(""), 2000);
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(referralCode);
+      setCopied(true);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+      }, 1800);
+    } catch (err) {
+      console.error("Failed to copy referral code:", err);
+    }
   };
 
   // Copy link to clipboard
   const handleCopyLink = () => {
     navigator.clipboard.writeText(referralLink);
-    setCopyFeedback("Referral link copied!");
+    setCopyFeedback("Referral link copied ✓");
     setTimeout(() => setCopyFeedback(""), 2000);
   };
 
@@ -100,7 +184,6 @@ export default function ReferEarnPage() {
         console.log("Error sharing:", err);
       }
     } else {
-      // Fallback
       handleCopyLink();
     }
   };
@@ -115,6 +198,45 @@ export default function ReferEarnPage() {
   const handleTelegramShare = () => {
     const url = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareMessage)}`;
     window.open(url, "_blank");
+  };
+
+  const handleApplyManualCode = async (e) => {
+    e.preventDefault();
+    if (!manualCode.trim()) return;
+    setLinking(true);
+    setLinkError("");
+    setLinkSuccess("");
+
+    try {
+      const res = await fetch(`${window.API_BASE_URL}/api/auth/update-profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: user.name,
+          referralCode: manualCode.toUpperCase().trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to link referral code.");
+      }
+      updateUserInSession(data.user);
+      setLinkSuccess("Referral applied successfully! You will get ₹50 BuyCoins reward after your first qualifying order is delivered.");
+    } catch (err) {
+      console.error(err);
+      if (err.message?.toLowerCase().includes("self")) {
+        setLinkError("You can't use your own referral code.");
+      } else if (err.message?.toLowerCase().includes("invalid")) {
+        setLinkError("That referral code isn't valid.");
+      } else {
+        setLinkError(err.message || "Failed to link code. Please try again.");
+      }
+    } finally {
+      setLinking(false);
+    }
   };
 
   // Render Skeletons
@@ -181,34 +303,206 @@ export default function ReferEarnPage() {
 
           {/* Referral Code Card */}
           <div style={referralCardStyle}>
+            <style>{`
+              @keyframes spin-refresh {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
             <h3 style={cardHeaderStyle}>Your Referral Code</h3>
-            <div style={codeRowStyle}>
-              <span style={codeTextStyle}>{referralCode}</span>
-              <button onClick={handleCopyCode} style={copyBtnStyle} aria-label="Copy Referral Code">
-                <Copy size={18} /> Copy Code
-              </button>
-            </div>
-            {copyFeedback && <div style={toastFeedbackStyle}>{copyFeedback}</div>}
+            {isLoadingReferral ? (
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "16px",
+                fontSize: "14px",
+                color: "var(--text-secondary)",
+                fontWeight: "750",
+                gap: "8px"
+              }}>
+                <RefreshCw size={16} style={{ animation: "spin-refresh 1s linear infinite" }} /> Generating your referral code...
+              </div>
+            ) : referralError ? (
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "16px",
+                gap: "12px"
+              }}>
+                <span style={{ fontSize: "14px", color: "#ef4444", fontWeight: "600" }}>
+                  Unable to load your referral code.
+                </span>
+                <button 
+                  onClick={() => fetchData(1, false)} 
+                  style={{
+                    backgroundColor: "#16a34a",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px 16px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    cursor: "pointer"
+                  }}
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={codeRowStyle}>
+                  <span style={codeTextStyle}>{referralCode}</span>
+                  <button
+                    onClick={handleCopyCode}
+                    style={{
+                      ...copyBtnStyle,
+                      backgroundColor: copied ? "#F59E0B" : "#16a34a",
+                      color: copied ? "#318616" : "#ffffff",
+                      transition: "background-color 180ms ease, color 180ms ease, transform 180ms ease",
+                      transform: copied ? "scale(0.96)" : "scale(1)",
+                      minWidth: "120px",
+                      justifyContent: "center"
+                    }}
+                    aria-label="Copy Referral Code"
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={18} /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={18} /> Copy Code
+                      </>
+                    )}
+                  </button>
+                </div>
+                {!copied && copyFeedback && <div style={toastFeedbackStyle}>{copyFeedback}</div>}
 
-            <div style={dividerStyle} />
+                <div style={dividerStyle} />
 
-            <h4 style={shareTitleStyle}>Share Referral Link</h4>
-            <div style={shareGridStyle}>
-              <button onClick={handleWhatsAppShare} style={shareIconBtnStyle} aria-label="Share on WhatsApp">
-                <MessageCircle size={22} color="#25D366" />
-                <span style={shareLabelStyle}>WhatsApp</span>
-              </button>
-              <button onClick={handleTelegramShare} style={shareIconBtnStyle} aria-label="Share on Telegram">
-                <Share2 size={22} color="#0088cc" />
-                <span style={shareLabelStyle}>Telegram</span>
-              </button>
-              <button onClick={handleNativeShare} style={shareIconBtnStyle} aria-label="Open Share Options">
-                <Share2 size={22} color="var(--text-primary)" />
-                <span style={shareLabelStyle}>Share Link</span>
-              </button>
-            </div>
-            {shareFeedback && <div style={toastFeedbackStyle}>{shareFeedback}</div>}
+                <h4 style={shareTitleStyle}>Share Referral Link</h4>
+                <div style={shareGridStyle}>
+                  <button onClick={handleWhatsAppShare} style={shareIconBtnStyle} aria-label="Share on WhatsApp">
+                    <img
+                      src="https://img.icons8.com/?size=100&id=A1JUR9NRH7sC&format=png&color=000000"
+                      alt="WhatsApp"
+                      style={{ width: "36px", height: "36px", objectFit: "contain" }}
+                    />
+                    <span style={shareLabelStyle}>WhatsApp</span>
+                  </button>
+                  <button onClick={handleTelegramShare} style={shareIconBtnStyle} aria-label="Share on Telegram">
+                    <img
+                      src="https://img.icons8.com/?size=100&id=5mIvDYZUWDCF&format=png&color=000000"
+                      alt="Telegram"
+                      style={{ width: "36px", height: "36px", objectFit: "contain" }}
+                    />
+                    <span style={shareLabelStyle}>Telegram</span>
+                  </button>
+                  <button onClick={handleNativeShare} style={shareIconBtnStyle} aria-label="Open Share Options">
+                    <img
+                      src="https://img.icons8.com/?size=100&id=12771&format=png&color=000000"
+                      alt="Share Link"
+                      style={{ width: "36px", height: "36px", objectFit: "contain" }}
+                    />
+                    <span style={shareLabelStyle}>Share Link</span>
+                  </button>
+                </div>
+                {shareFeedback && <div style={toastFeedbackStyle}>{shareFeedback}</div>}
+              </>
+            )}
           </div>
+
+          {/* Manual Referral Code Input / Status Card */}
+          {!checkingOrders && (
+            <>
+              {user?.referredBy ? (
+                <div style={manualEntryCardStyle}>
+                  <h3 style={sectionTitleStyle}>🎁 Referral Code Status</h3>
+                  <div style={{
+                    background: "#f0fdf4",
+                    border: "1px solid #bcf0da",
+                    padding: "16px",
+                    borderRadius: "18px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px"
+                  }}>
+                    <span style={{ fontWeight: "800", color: "#16a34a", fontSize: "14px" }}>🎁 Referral Applied ✓</span>
+                    <span style={{ fontSize: "12.5px", color: "#374151", fontWeight: "600" }}>
+                      You've joined Buyto through a referral. Your ₹50 reward is pending your first qualifying order delivery.
+                    </span>
+                  </div>
+                </div>
+              ) : hasOrders ? (
+                <div style={manualEntryCardStyle}>
+                  <h3 style={{ ...sectionTitleStyle, display: "flex", alignItems: "center", gap: "8px", margin: "0 0 14px 0" }}>
+                    <img src="https://img.icons8.com/?size=100&id=UYwSCUxFGfYb&format=png&color=000000" alt="Referral Code" style={{ width: "22px", height: "22px" }} />
+                    Have a referral code?
+                  </h3>
+                  <div style={{
+                    background: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    padding: "16px",
+                    borderRadius: "18px",
+                    fontSize: "13px",
+                    color: "#991b1b",
+                    fontWeight: "750"
+                  }}>
+                    Referral codes can only be added before your first order.
+                  </div>
+                </div>
+              ) : (
+                <div style={manualEntryCardStyle}>
+                  <h3 style={{ ...sectionTitleStyle, display: "flex", alignItems: "center", gap: "8px", margin: "0 0 14px 0" }}>
+                    <img src="https://img.icons8.com/?size=100&id=UYwSCUxFGfYb&format=png&color=000000" alt="Referral Code" style={{ width: "22px", height: "22px" }} />
+                    Have a referral code?
+                  </h3>
+                  <p style={{ ...subtitleStyle, marginBottom: "12px" }}>Enter your friend's Buyto referral code to claim ₹50 BuyCoins.</p>
+                  <form onSubmit={handleApplyManualCode} style={{ display: "flex", gap: "10px" }}>
+                    <input
+                      type="text"
+                      placeholder="e.g. BUYTO123"
+                      value={manualCode}
+                      onChange={(e) => setManualCode(e.target.value)}
+                      style={{
+                        flex: 1,
+                        height: "46px",
+                        borderRadius: "12px",
+                        border: "1.5px solid #cbd5e1",
+                        padding: "0 14px",
+                        fontSize: "14px",
+                        fontWeight: "700",
+                        outline: "none",
+                        background: "#f8fafc"
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={linking || !manualCode.trim()}
+                      style={{
+                        background: "#318616",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "12px",
+                        padding: "0 18px",
+                        fontSize: "13.5px",
+                        fontWeight: "800",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 10px rgba(49, 134, 22, 0.15)"
+                      }}
+                    >
+                      {linking ? "Applying..." : "Apply Code"}
+                    </button>
+                  </form>
+                  {linkError && <div style={{ color: "#ef4444", fontSize: "12.5px", fontWeight: "700", marginTop: "8px" }}>⚠️ {linkError}</div>}
+                  {linkSuccess && <div style={{ color: "#16a34a", fontSize: "12.5px", fontWeight: "750", marginTop: "8px" }}>🎉 {linkSuccess}</div>}
+                </div>
+              )}
+            </>
+          )}
 
           {/* Statistics Grid */}
           <div style={statsGridStyle}>
@@ -806,4 +1100,12 @@ const retryButtonStyle = {
   fontWeight: "750",
   cursor: "pointer",
   outline: "none"
+};
+
+const manualEntryCardStyle = {
+  background: "var(--bg-card)",
+  borderRadius: "24px",
+  padding: "24px",
+  border: "1px solid var(--border-color)",
+  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.02)"
 };

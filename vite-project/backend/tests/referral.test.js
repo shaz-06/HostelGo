@@ -251,6 +251,88 @@ async function runTests() {
     assert.strictEqual(userA_repaired.referralWalletEarned, 75, "Should rebuild correct earned sum");
     console.log("✅ Test 8 passed.");
 
+    // ==========================================
+    // TEST 9: Decoupled Payout Recovery Flow
+    // ==========================================
+    console.log("\n🧪 Test 9: Decoupled recovery payout flow, idempotency, and state ignores...");
+    const userRec1 = await createTestUser("UserRec1", testSuffix);
+    const userRec2 = await createTestUser("UserRec2", testSuffix);
+
+    // Link referral
+    await referralService.linkReferral(userRec2, userRec1.referralCode, "corr-rec-link");
+    const recRef = await Referral.findOne({ referredUser: userRec2._id });
+    assert.strictEqual(recRef.status, "PENDING", "Initially PENDING");
+
+    // Manually force to QUALIFIED but rewardCredited = false (simulating failure right after transition to QUALIFIED)
+    recRef.status = "QUALIFIED";
+    recRef.rewardCredited = false;
+    await recRef.save();
+
+    // Verify recovery run picks it up
+    await referralService.runDailyCleanup();
+
+    const recoveredRef = await Referral.findOne({ referredUser: userRec2._id });
+    assert.strictEqual(recoveredRef.status, "COMPLETED", "Should transition to COMPLETED");
+    assert.strictEqual(recoveredRef.rewardCredited, true, "Should set rewardCredited to true");
+
+    // Verify wallet credits
+    const recReferrer = await User.findById(userRec1._id);
+    const recReferred = await User.findById(userRec2._id);
+    assert.strictEqual(recReferrer.referralWalletEarned, 75, "Referrer should have earned ₹75");
+    assert.strictEqual(recReferred.referralRewardClaimed, true, "Referred user should have rewardCredited claimed status");
+
+    // Verify calling creditReferralRewards again on it does not double credit (Idempotency)
+    await referralService.creditReferralRewards(recoveredRef, "duplicate-try-idempotency");
+    const recReferrerAfterDup = await User.findById(userRec1._id);
+    assert.strictEqual(recReferrerAfterDup.referralWalletEarned, 75, "Idempotency key prevents duplicate payout");
+
+    // Verify already EXPIRED, CANCELLED, and COMPLETED are ignored by recovery payout path
+    const expiredRefDummy = new Referral({
+      referrer: userRec1._id,
+      referredUser: new mongoose.Types.ObjectId(),
+      referralCode: userRec1.referralCode,
+      status: "EXPIRED",
+      rewardCredited: false,
+      rewardAmountReferrer: 75,
+      rewardAmountReferred: 50,
+      expiresAt: new Date(),
+      campaignSnapshot: {
+        configVersion: 1,
+        minOrder: 199,
+        referrerReward: 75,
+        referredUserReward: 50
+      }
+    });
+    await expiredRefDummy.save();
+
+    const cancelledRefDummy = new Referral({
+      referrer: userRec1._id,
+      referredUser: new mongoose.Types.ObjectId(),
+      referralCode: userRec1.referralCode,
+      status: "CANCELLED",
+      rewardCredited: false,
+      rewardAmountReferrer: 75,
+      rewardAmountReferred: 50,
+      expiresAt: new Date(),
+      campaignSnapshot: {
+        configVersion: 1,
+        minOrder: 199,
+        referrerReward: 75,
+        referredUserReward: 50
+      }
+    });
+    await cancelledRefDummy.save();
+
+    // Trigger cleanup
+    await referralService.runDailyCleanup();
+
+    const expiredAfter = await Referral.findById(expiredRefDummy._id);
+    const cancelledAfter = await Referral.findById(cancelledRefDummy._id);
+    assert.strictEqual(expiredAfter.rewardCredited, false, "EXPIRED referral ignored by recovery");
+    assert.strictEqual(cancelledAfter.rewardCredited, false, "CANCELLED referral ignored by recovery");
+
+    console.log("✅ Test 9 passed.");
+
     console.log("\n🎉 All Referral system backend integration tests PASSED successfully!");
     process.exit(0);
   } catch (err) {

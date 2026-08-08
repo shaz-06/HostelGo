@@ -256,6 +256,12 @@ router.put("/preferences", authMiddleware, async (req, res) => {
 // GET /api/users/referrals
 router.get("/referrals", authMiddleware, async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    if (!req.user.referralCode) {
+      const { getOrCreateReferralCode } = require("../services/referralCodeService");
+      await getOrCreateReferralCode(req.user);
+    }
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
@@ -283,6 +289,7 @@ router.get("/referrals", authMiddleware, async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      referralCode: req.user.referralCode,
       stats: {
         total,
         completed,

@@ -5,11 +5,12 @@ import { LocationBottomDrawer } from "../../features/location/components/Locatio
  * AddressSelectorModal acts as a backward compatibility wrapper 
  * pointing directly to the unified LocationBottomDrawer component.
  */
-export default function AddressSelectorModal({ onClose, onSelectAddress, isLoggedIn }) {
+export default function AddressSelectorModal({ onClose, onSelectAddress, isLoggedIn, hideUseCurrentLocation = false }) {
   return (
     <LocationBottomDrawer
       isOpen={true}
       onClose={onClose}
+      hideUseCurrentLocation={hideUseCurrentLocation}
     />
   );
 }

@@ -5,8 +5,8 @@ import { AuthContext } from "../context/AuthContext";
 import AddressSelectorModal from "../components/common/AddressSelectorModal";
 
 const WhatsAppIcon = () => (
-  <img 
-    src="https://img.icons8.com/?size=100&id=DUEq8l5qTqBE&format=png&color=000000" 
+  <img
+    src="https://img.icons8.com/?size=100&id=DUEq8l5qTqBE&format=png&color=000000"
     alt="Request Address"
     className="w-8 h-8 object-contain"
   />
@@ -26,6 +26,45 @@ export default function MyAddressesPage() {
   const [scrolled, setScrolled] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showShareBanner, setShowShareBanner] = useState(true);
+  const [toastMsg, setToastMsg] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(""), 3000);
+  };
+
+  const handleShareAddress = async (addr) => {
+    if (isSharing) return;
+    setIsSharing(true);
+
+    try {
+      const displayStr = `${addr.houseNumber || addr.addressLine || ""}, ${addr.area || ""}, ${addr.landmark ? "Near " + addr.landmark : ""}, ${addr.city || "Bengaluru"}, ${addr.state || "Karnataka"} ${addr.zip || ""}`.replace(/,\s*,/g, ",").replace(/^,\s*/, "");
+      
+      let shareText = `My Buyto delivery address:\n${displayStr}`;
+      
+      if (addr.latitude !== undefined && addr.longitude !== undefined && Number.isFinite(Number(addr.latitude)) && Number.isFinite(Number(addr.longitude))) {
+        shareText += `\n\nLocation:\nhttps://www.google.com/maps?q=${addr.latitude},${addr.longitude}`;
+      }
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "My Buyto Address",
+          text: shareText
+        });
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        showToast("Address copied ✓");
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("Address sharing failed:", err);
+        showToast("Unable to share address");
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   // Addresses state loaded from API
   const [addresses, setAddresses] = useState([]);
@@ -61,7 +100,7 @@ export default function MyAddressesPage() {
         const data = await res.json();
         if (data.success && data.addresses) {
           setAddresses(data.addresses);
-          
+
           // Sync default selectedId if empty
           const savedId = localStorage.getItem("buyto_selected_address_id");
           if (!savedId && data.addresses.length > 0) {
@@ -278,18 +317,27 @@ export default function MyAddressesPage() {
   const displayList = addresses.length > 0 ? addresses : fallbackAddresses;
 
   return (
-    <div 
+    <div
       className="min-h-screen pb-16 font-sans select-none overflow-x-hidden"
       style={{
         background: "#F6F7FB",
-        animation: isExiting 
-          ? "slideOut 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards" 
+        animation: isExiting
+          ? "slideOut 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards"
           : "slideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         width: "100%",
         maxWidth: "100%",
         willChange: "transform"
       }}
     >
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div
+          className="fixed top-6 left-1/2 -translate-x-1/2 bg-[#1e293b] text-white px-6 py-3 rounded-full font-bold text-[14px] shadow-[0_10px_30px_rgba(0,0,0,0.25)] z-[99999] flex items-center gap-2"
+          style={{ animation: "fadeIn 0.2s ease" }}
+        >
+          {toastMsg}
+        </div>
+      )}
       {/* Dynamic Keyframe Injection */}
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -315,13 +363,12 @@ export default function MyAddressesPage() {
       }} />
 
       {/* Sticky Header */}
-      <header 
-        className={`sticky top-0 z-50 flex items-center justify-between px-3 py-3.5 bg-white transition-shadow duration-200 ${
-          scrolled ? "shadow-[0_4px_12px_rgba(0,0,0,0.04)] border-b border-gray-100" : "border-b border-gray-50"
-        }`}
+      <header
+        className={`sticky top-0 z-50 flex items-center justify-between px-3 py-3.5 bg-white transition-shadow duration-200 ${scrolled ? "shadow-[0_4px_12px_rgba(0,0,0,0.04)] border-b border-gray-100" : "border-b border-gray-50"
+          }`}
       >
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={handleBack}
             className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center hover:bg-gray-100 text-gray-800 transition-colors focus:outline-none"
           >
@@ -333,12 +380,12 @@ export default function MyAddressesPage() {
 
       {/* Main Container */}
       <main className="max-w-md mx-auto px-4 py-5 flex flex-col gap-5">
-        
+
         {/* ================= TOP CARD: ACTIONS ================= */}
         <section className="bg-white rounded-[18px] custom-shadow border border-gray-50 overflow-hidden divide-y divide-gray-50">
-          
+
           {/* Action Row 1: Add new address */}
-          <div 
+          <div
             onClick={handleOpenAddAddress}
             className="flex items-center justify-between p-4 row-active cursor-pointer transition-all duration-150"
           >
@@ -352,7 +399,7 @@ export default function MyAddressesPage() {
           </div>
 
           {/* Action Row 2: Request from someone else */}
-          <div 
+          <div
             onClick={useCallback(() => navigate("/profile/request-address"), [navigate])}
             className="flex items-center justify-between p-4 row-active cursor-pointer transition-all duration-150"
           >
@@ -367,13 +414,13 @@ export default function MyAddressesPage() {
           <div className="flex items-center justify-between p-4 row-active cursor-pointer transition-all duration-150">
             <div className="flex items-center gap-3.5">
               <ZomatoIcon />
-              <span className="text-[14px] font-bold text-gray-800">Import your addresses from Zomato</span>
+              <span className="text-[14px] font-bold text-gray-800">Import your addresses from Buyto</span>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-300" />
           </div>
 
           {/* Action Row 4: Manage Shared Addresses */}
-          <div 
+          <div
             onClick={useCallback(() => navigate("/profile/manage-shares"), [navigate])}
             className="flex items-center justify-between p-4 row-active cursor-pointer transition-all duration-150"
           >
@@ -391,18 +438,17 @@ export default function MyAddressesPage() {
         {/* ================= SAVED ADDRESSES SECTION ================= */}
         <section className="flex flex-col gap-3">
           <h2 className="text-[13px] font-black text-gray-400 uppercase tracking-wide px-1">Your saved addresses</h2>
-          
+
           {displayList.map((addr) => {
             const isSelected = selectedId === addr._id || (displayList.length === 1 && !selectedId);
             const displayStr = `${addr.houseNumber || addr.addressLine || ""}, ${addr.area || ""}, ${addr.landmark ? "Near " + addr.landmark : ""}, ${addr.city || "Bengaluru"}, ${addr.state || "Karnataka"} ${addr.zip || ""}`.replace(/,\s*,/g, ",").replace(/^,\s*/, "");
-            
+
             return (
-              <div 
+              <div
                 key={addr._id}
                 onClick={() => handleSelectAddress(addr)}
-                className={`bg-white rounded-[20px] p-5 custom-shadow relative flex flex-col gap-4 cursor-pointer transition-all duration-200 border ${
-                  isSelected ? "border-[#318616] ring-1 ring-[#318616]" : "border-gray-50 hover:border-gray-200"
-                }`}
+                className={`bg-white rounded-[20px] p-5 custom-shadow relative flex flex-col gap-4 cursor-pointer transition-all duration-200 border ${isSelected ? "border-[#318616] ring-1 ring-[#318616]" : "border-gray-50 hover:border-gray-200"
+                  }`}
               >
                 {/* Pin Badge Indicator */}
                 <div className="absolute top-5 right-5 text-gray-300 hover:text-gray-500">
@@ -412,18 +458,17 @@ export default function MyAddressesPage() {
                 {/* Body Block */}
                 <div className="flex gap-4 items-start">
                   {/* Category Pin Box */}
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center border flex-shrink-0 ${
-                    isSelected ? "bg-green-50 text-[#318616] border-green-100" : "bg-gray-50 text-amber-500 border-gray-100"
-                  }`}>
-                    <img 
-                      src="https://img.icons8.com/?size=100&id=XieTOK4V0QEI&format=png&color=000000" 
-                      alt="Location Pin" 
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center border flex-shrink-0 ${isSelected ? "bg-green-50 text-[#318616] border-green-100" : "bg-gray-50 text-amber-500 border-gray-100"
+                    }`}>
+                    <img
+                      src="https://img.icons8.com/?size=100&id=XieTOK4V0QEI&format=png&color=000000"
+                      alt="Location Pin"
                       className="w-6 h-6 object-contain"
                     />
                   </div>
-                  
+
                   {/* Address Details */}
-                   <div className="flex flex-col flex-1 pr-4">
+                  <div className="flex flex-col flex-1 pr-4">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="text-[15px] font-black text-gray-800 leading-none">
                         {addr.label || addr.addressType || "PG"}
@@ -453,13 +498,17 @@ export default function MyAddressesPage() {
 
                 {/* Sub-actions Row */}
                 <div className="flex items-center gap-2 pl-15" onClick={(e) => e.stopPropagation()}>
-                  <button 
+                  <button
                     onClick={() => setActiveDrawerAddress(addr)}
                     className="w-8 h-8 rounded-full border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
-                  <button className="w-8 h-8 rounded-full border border-gray-100 hover:bg-green-50 flex items-center justify-center text-green-600 hover:text-green-700 focus:outline-none transition-colors">
+                  <button
+                    onClick={() => handleShareAddress(addr)}
+                    disabled={isSharing}
+                    className="w-8 h-8 rounded-full border border-gray-100 hover:bg-green-50 flex items-center justify-center text-green-600 hover:text-green-700 focus:outline-none transition-colors"
+                  >
                     <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-[2.2]">
                       <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
                     </svg>
@@ -471,7 +520,7 @@ export default function MyAddressesPage() {
                   <div className="mt-2 bg-[#FFF9E9] rounded-2xl p-3.5 flex items-center justify-between gap-3 border border-[#FBEAC4]/40 relative" onClick={(e) => e.stopPropagation()}>
                     {/* Tiny triangle connector on top of banner pointing to share button */}
                     <div className="absolute -top-1.5 left-[84px] w-3 h-3 bg-[#FFF9E9] border-t border-l border-[#FBEAC4]/40 transform rotate-45" />
-                    
+
                     <div className="flex items-center gap-3">
                       <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-green-600 flex-shrink-0">
                         <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-[2.5]">
@@ -482,7 +531,7 @@ export default function MyAddressesPage() {
                         Now share your addresses with friends and family
                       </span>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setShowShareBanner(false)}
                       className="w-6 h-6 rounded-full bg-[#E5D7B7]/40 hover:bg-[#E5D7B7]/60 flex items-center justify-center text-amber-950 focus:outline-none transition-colors"
                     >
@@ -501,11 +550,11 @@ export default function MyAddressesPage() {
 
       {/* ================= BOTTOM DRAWER ACTIONS SHEET ================= */}
       {activeDrawerAddress && (
-        <div 
+        <div
           className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-xs flex items-end justify-center animate-in fade-in duration-200"
           onClick={() => setActiveDrawerAddress(null)}
         >
-          <div 
+          <div
             className="bg-white rounded-t-[28px] w-full max-w-md p-5 pb-8 flex flex-col gap-4 animate-in slide-in-from-bottom duration-250 ease-out"
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -514,7 +563,7 @@ export default function MyAddressesPage() {
           >
             {/* Header bar indicator */}
             <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-2" />
-            
+
             <div className="flex flex-col gap-1 px-1">
               <h3 className="text-[15px] font-black text-gray-800">Address Actions</h3>
               <p className="text-[12px] font-bold text-gray-400 truncate">
@@ -524,30 +573,30 @@ export default function MyAddressesPage() {
 
             <div className="flex flex-col gap-2 mt-2">
               {!activeDrawerAddress.isShared && (
-                <button 
+                <button
                   onClick={() => handleEditClick(activeDrawerAddress)}
                   className="w-full py-4 px-4 bg-gray-50 hover:bg-gray-100 rounded-2xl text-[14px] font-black text-gray-800 flex items-center gap-3 transition-colors text-left"
                 >
-                  <img 
-                    src="https://img.icons8.com/?size=100&id=95043&format=png&color=000000" 
-                    alt="Edit" 
-                    className="w-5 h-5 object-contain" 
+                  <img
+                    src="https://img.icons8.com/?size=100&id=95043&format=png&color=000000"
+                    alt="Edit"
+                    className="w-5 h-5 object-contain"
                   /> Edit address
                 </button>
               )}
-              <button 
+              <button
                 onClick={() => handleDeleteClick(activeDrawerAddress)}
                 className="w-full py-4 px-4 bg-red-50 hover:bg-red-100 rounded-2xl text-[14px] font-black text-red-600 flex items-center gap-3 transition-colors text-left"
               >
-                <img 
-                  src="https://img.icons8.com/?size=100&id=XLYyiimvk3fV&format=png&color=000000" 
-                  alt="Delete" 
-                  className="w-5 h-5 object-contain" 
+                <img
+                  src="https://img.icons8.com/?size=100&id=XLYyiimvk3fV&format=png&color=000000"
+                  alt="Delete"
+                  className="w-5 h-5 object-contain"
                 /> {activeDrawerAddress.isShared ? "Remove shared address" : "Delete address"}
               </button>
             </div>
 
-            <button 
+            <button
               onClick={() => setActiveDrawerAddress(null)}
               className="w-full py-3.5 bg-gray-900 text-white text-[13px] font-black rounded-xl hover:bg-black transition-colors mt-2"
             >
@@ -568,7 +617,7 @@ export default function MyAddressesPage() {
             <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Address Type (e.g. PG, Home)</label>
-                <input 
+                <input
                   type="text"
                   value={editLabel}
                   onChange={(e) => setEditLabel(e.target.value)}
@@ -578,7 +627,7 @@ export default function MyAddressesPage() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Address Line / Hostel Name</label>
-                <input 
+                <input
                   type="text"
                   value={editAddressLine}
                   onChange={(e) => setEditAddressLine(e.target.value)}
@@ -589,7 +638,7 @@ export default function MyAddressesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Room Number</label>
-                  <input 
+                  <input
                     type="text"
                     value={editRoomNumber}
                     onChange={(e) => setEditRoomNumber(e.target.value)}
@@ -598,7 +647,7 @@ export default function MyAddressesPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Landmark</label>
-                  <input 
+                  <input
                     type="text"
                     value={editLandmark}
                     onChange={(e) => setEditLandmark(e.target.value)}
@@ -609,7 +658,7 @@ export default function MyAddressesPage() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Contact Name</label>
-                <input 
+                <input
                   type="text"
                   value={editFullName}
                   onChange={(e) => setEditFullName(e.target.value)}
@@ -619,7 +668,7 @@ export default function MyAddressesPage() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Contact Phone</label>
-                <input 
+                <input
                   type="text"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
@@ -634,14 +683,14 @@ export default function MyAddressesPage() {
               )}
 
               <div className="flex gap-3 mt-2">
-                <button 
+                <button
                   type="button"
                   onClick={() => setEditingAddress(null)}
                   className="flex-1 py-3 bg-gray-100 text-gray-700 text-[13px] font-black rounded-xl hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="flex-1 py-3 bg-[#318616] text-white text-[13px] font-black rounded-xl hover:bg-green-700 transition-colors"
                 >
@@ -655,7 +704,7 @@ export default function MyAddressesPage() {
 
       {/* Address Selector Modal integration */}
       {showAddressModal && (
-        <AddressSelectorModal onClose={handleModalClose} />
+        <AddressSelectorModal onClose={handleModalClose} hideUseCurrentLocation={true} />
       )}
 
     </div>

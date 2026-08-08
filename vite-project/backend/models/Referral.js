@@ -68,5 +68,6 @@ const ReferralSchema = new mongoose.Schema({
 // Compound indexes
 ReferralSchema.index({ referrer: 1, status: 1 });
 ReferralSchema.index({ referredUser: 1, rewardCredited: 1 });
+ReferralSchema.index({ status: 1, rewardCredited: 1 });
 
 module.exports = mongoose.model("Referral", ReferralSchema);

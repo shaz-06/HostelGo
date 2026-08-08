@@ -93,16 +93,7 @@ export default function CartPage({
     const [toast, setToast] = useState(null);
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-    // Shopping List Checkout Summary State
-    const [checkoutSummary, setCheckoutSummary] = useState(null);
     const [localActiveCoupons, setLocalActiveCoupons] = useState([]);
-
-    useEffect(() => {
-        const savedSummary = localStorage.getItem("buyto_checkout_summary");
-        if (savedSummary) {
-            setCheckoutSummary(JSON.parse(savedSummary));
-        }
-    }, []);
 
     useEffect(() => {
         if (!token) {
@@ -1119,41 +1110,10 @@ export default function CartPage({
             <div style={{ background: "white", borderRadius: "24px", padding: windowWidth < 768 ? "16px" : "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", marginBottom: "20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#1f2937" }}>Cart Items</h3>
-                    <span style={{ color: "#6b7280", fontSize: "13px", fontWeight: "600" }}>Standard Delivery: 30 Mins</span>
+                    <span style={{ color: "#6b7280", fontSize: "13px", fontWeight: "600" }}>Standard Delivery: 10 Mins</span>
                 </div>
 
-                {checkoutSummary && (
-                    <div style={{
-                        background: "linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.02) 100%)",
-                        borderRadius: "18px",
-                        border: "1px solid #d1fae5",
-                        padding: "14px 16px",
-                        marginBottom: "20px",
-                        display: "flex",
-                        justifyContent: "space-around",
-                        alignItems: "center"
-                    }}>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                            <span style={{ fontSize: "16px", fontWeight: "900", color: "#1f2937" }}>{checkoutSummary.totalItems}</span>
-                            <span style={{ fontSize: "10px", color: "#6b7280", fontWeight: "700", marginTop: "2px", textAlign: "center" }}>Shopping List Items</span>
-                        </div>
-                        <div style={{ width: "1px", height: "24px", background: "#d1fae5" }} />
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                            <span style={{ fontSize: "16px", fontWeight: "900", color: "#15803d" }}>{checkoutSummary.matchedCount}</span>
-                            <span style={{ fontSize: "10px", color: "#6b7280", fontWeight: "700", marginTop: "2px", textAlign: "center" }}>Matched Products</span>
-                        </div>
-                        <div style={{ width: "1px", height: "24px", background: "#d1fae5" }} />
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                            <span style={{ fontSize: "16px", fontWeight: "900", color: "#b91c1c" }}>{checkoutSummary.unavailableCount}</span>
-                            <span style={{ fontSize: "10px", color: "#6b7280", fontWeight: "700", marginTop: "2px", textAlign: "center" }}>Unavailable Items</span>
-                        </div>
-                        <div style={{ width: "1px", height: "24px", background: "#d1fae5" }} />
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                            <span style={{ fontSize: "16px", fontWeight: "900", color: "#b45309" }}>{checkoutSummary.needsSelectionCount}</span>
-                            <span style={{ fontSize: "10px", color: "#6b7280", fontWeight: "700", marginTop: "2px", textAlign: "center" }}>Needs Selection</span>
-                        </div>
-                    </div>
-                )}
+
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     {cartItems.map((item) => (
@@ -2117,7 +2077,7 @@ export default function CartPage({
                             boxShadow: (!isLoggedIn || (selectedAddressId && isAddressServiceable)) ? "0 4px 12px rgba(49,134,22,0.15)" : "none"
                         }}
                     >
-                        {!isLoggedIn ? "Continue Securely →" : !selectedAddressId ? "Select Address" : !isAddressServiceable ? "Unserviceable" : "Proceed to Pay"}
+                        {!isLoggedIn ? "Login to Continue →" : !selectedAddressId ? "Select Address" : !isAddressServiceable ? "Unserviceable" : "Proceed to Pay"}
                     </button>
                 </div>
             )}

@@ -76,6 +76,12 @@ export default function PaymentSettingsPage() {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(""), 3000);
+  };
 
   // Monitor scroll for sticky header divider shadow
   useEffect(() => {
@@ -106,6 +112,15 @@ export default function PaymentSettingsPage() {
         willChange: "transform"
       }}
     >
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div
+          className="fixed top-6 left-1/2 -translate-x-1/2 bg-[#1e293b] text-white px-6 py-3 rounded-full font-bold text-[14px] shadow-[0_10px_30px_rgba(0,0,0,0.25)] z-[99999] flex items-center gap-2"
+          style={{ animation: "fadeIn 0.2s ease" }}
+        >
+          {toastMsg}
+        </div>
+      )}
       {/* Dynamic Keyframe Injection */}
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -166,20 +181,29 @@ export default function PaymentSettingsPage() {
           <div className="bg-white rounded-[18px] custom-shadow border border-gray-50 overflow-hidden px-4">
             
             {/* Add Card Row */}
-            <div className="flex items-center justify-between py-3.5 row-divider row-active transition-all duration-150">
+            <div 
+              onClick={() => showToast("Coming Soon..")}
+              className="flex items-center justify-between py-3.5 row-divider row-active cursor-pointer transition-all duration-150"
+            >
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-xl custom-border flex items-center justify-center bg-white">
                   <CardIcon />
                 </div>
                 <span className="text-[14px] font-extrabold text-gray-800">Add credit or debit cards</span>
               </div>
-              <button className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1">
+              <button 
+                onClick={(e) => { e.stopPropagation(); showToast("Coming Soon.."); }}
+                className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1"
+              >
                 ADD
               </button>
             </div>
 
             {/* Pluxee Row */}
-            <div className="flex items-center gap-3.5 py-3.5 row-active transition-all duration-150">
+            <div 
+              onClick={() => showToast("Coming Soon..")}
+              className="flex items-center gap-3.5 py-3.5 row-active cursor-pointer transition-all duration-150"
+            >
               <div className="w-12 h-12 rounded-xl custom-border flex items-center justify-center bg-white">
                 <PluxeeIcon />
               </div>
@@ -211,7 +235,10 @@ export default function PaymentSettingsPage() {
             </div>
 
             {/* Samsung Pay */}
-            <div className="flex items-center gap-3.5 py-3.5 row-active transition-all duration-150">
+            <div 
+              onClick={() => showToast("Coming Soon..")}
+              className="flex items-center gap-3.5 py-3.5 row-active cursor-pointer transition-all duration-150"
+            >
               <div className="w-12 h-12 rounded-xl custom-border flex items-center justify-center bg-white">
                 <SamsungPayIcon />
               </div>
@@ -227,7 +254,10 @@ export default function PaymentSettingsPage() {
           <div className="bg-white rounded-[18px] custom-shadow border border-gray-50 overflow-hidden px-4">
             
             {/* Amazon Pay */}
-            <div className="flex items-center justify-between py-3.5 row-divider row-active transition-all duration-150">
+            <div 
+              onClick={() => showToast("Coming Soon..")}
+              className="flex items-center justify-between py-3.5 row-divider row-active cursor-pointer transition-all duration-150"
+            >
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-xl custom-border flex items-center justify-center bg-white">
                   <AmazonPayIcon />
@@ -237,13 +267,19 @@ export default function PaymentSettingsPage() {
                   <span className="text-[11px] font-medium text-gray-400 mt-0.5">Link your Amazon Pay Balance wallet</span>
                 </div>
               </div>
-              <button className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1">
+              <button 
+                onClick={(e) => { e.stopPropagation(); showToast("Coming Soon.."); }}
+                className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1"
+              >
                 ADD
               </button>
             </div>
 
             {/* Mobikwik */}
-            <div className="flex items-center justify-between py-3.5 row-active transition-all duration-150">
+            <div 
+              onClick={() => showToast("Coming Soon..")}
+              className="flex items-center justify-between py-3.5 row-active cursor-pointer transition-all duration-150"
+            >
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-xl custom-border flex items-center justify-center bg-white">
                   <MobikwikIcon />
@@ -253,7 +289,10 @@ export default function PaymentSettingsPage() {
                   <span className="text-[11px] font-medium text-gray-400 mt-0.5">Link your Mobikwik wallet</span>
                 </div>
               </div>
-              <button className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1">
+              <button 
+                onClick={(e) => { e.stopPropagation(); showToast("Coming Soon.."); }}
+                className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1"
+              >
                 ADD
               </button>
             </div>
@@ -267,7 +306,10 @@ export default function PaymentSettingsPage() {
           <div className="bg-white rounded-[18px] custom-shadow border border-gray-50 overflow-hidden px-4">
             
             {/* LazyPay */}
-            <div className="flex items-center justify-between py-3.5 row-active transition-all duration-150">
+            <div 
+              onClick={() => showToast("Coming Soon..")}
+              className="flex items-center justify-between py-3.5 row-active cursor-pointer transition-all duration-150"
+            >
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-xl custom-border flex items-center justify-center bg-white">
                   <LazyPayIcon />
@@ -277,7 +319,10 @@ export default function PaymentSettingsPage() {
                   <span className="text-[11px] font-medium text-gray-400 mt-0.5">Link your LazyPay account</span>
                 </div>
               </div>
-              <button className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1">
+              <button 
+                onClick={(e) => { e.stopPropagation(); showToast("Coming Soon.."); }}
+                className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1"
+              >
                 ADD
               </button>
             </div>
@@ -291,14 +336,20 @@ export default function PaymentSettingsPage() {
           <div className="bg-white rounded-[18px] custom-shadow border border-gray-50 overflow-hidden px-4">
             
             {/* Netbanking */}
-            <div className="flex items-center justify-between py-3.5 row-active transition-all duration-150">
+            <div 
+              onClick={() => showToast("Coming Soon..")}
+              className="flex items-center justify-between py-3.5 row-active cursor-pointer transition-all duration-150"
+            >
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-xl custom-border flex items-center justify-center bg-white">
                   <NetbankingIcon />
                 </div>
                 <span className="text-[14px] font-extrabold text-gray-800">Netbanking</span>
               </div>
-              <button className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1">
+              <button 
+                onClick={(e) => { e.stopPropagation(); showToast("Coming Soon.."); }}
+                className="text-[13px] font-extrabold text-[#318616] hover:opacity-85 focus:outline-none pr-1"
+              >
                 ADD
               </button>
             </div>

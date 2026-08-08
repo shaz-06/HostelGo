@@ -10,7 +10,7 @@ const MobileBottomNavigation = React.memo(({ isVisible = true }) => {
   const getActiveTab = () => {
     const path = location.pathname;
     if (path === "/") return "home";
-    if (path === "/orders" || path === "/my-orders") return "orders";
+    if (path === "/orders" || path === "/my-orders" || path === "/order-again") return "orders";
     if (path === "/categories") return "categories";
     if (path === "/profile" || path === "/profile/edit") return "profile";
     return "";
@@ -32,7 +32,7 @@ const MobileBottomNavigation = React.memo(({ isVisible = true }) => {
       navigate("/");
     } else if (tab === "orders") {
       setOrdersAnimKey(prev => prev + 1);
-      navigate("/orders");
+      navigate("/order-again");
     } else if (tab === "categories") {
       setCategoriesAnimKey(prev => prev + 1);
       navigate("/categories");

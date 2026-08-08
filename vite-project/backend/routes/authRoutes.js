@@ -180,7 +180,8 @@ router.post("/signup", [
         avatar: updatedUser.avatar || "",
         addresses: updatedUser.addresses,
         buyCoins: updatedUser.buyCoins,
-        buyCoinsStats: updatedUser.buyCoinsStats
+        buyCoinsStats: updatedUser.buyCoinsStats,
+        referralCode: updatedUser.referralCode
       }
     });
 
@@ -294,7 +295,8 @@ router.post("/login", loginLimiter, [
         avatar: user.avatar || "",
         addresses: user.addresses,
         buyCoins: user.buyCoins,
-        buyCoinsStats: user.buyCoinsStats
+        buyCoinsStats: user.buyCoinsStats,
+        referralCode: user.referralCode
       }
     });
 
@@ -337,7 +339,8 @@ router.get("/me", authMiddleware, async (req, res) => {
       profileCompleted: !!userObj.profileCompleted,
       addresses: userObj.addresses || [],
       buyCoins: userObj.buyCoins || 0,
-      buyCoinsStats: userObj.buyCoinsStats
+      buyCoinsStats: userObj.buyCoinsStats,
+      referralCode: userObj.referralCode
     }
   });
 });
@@ -857,10 +860,13 @@ router.post("/msg91-login", async (req, res) => {
     let isNewUser = false;
     if (!user) {
       console.log(`Creating new account for verified phone: ${normalizedPhone}`);
+      const { generateUniqueCode } = require("../services/referralCodeService");
+      const referralCode = await generateUniqueCode("Buyto User");
       user = new User({
         name: "Buyto User",
         phone: normalizedPhone,
-        role: "customer"
+        role: "customer",
+        referralCode
       });
       await user.save();
       isNewUser = true;
@@ -916,7 +922,8 @@ router.post("/msg91-login", async (req, res) => {
         profileCompleted: !!updatedUser.profileCompleted,
         addresses: updatedUser.addresses,
         buyCoins: updatedUser.buyCoins,
-        buyCoinsStats: updatedUser.buyCoinsStats
+        buyCoinsStats: updatedUser.buyCoinsStats,
+        referralCode: updatedUser.referralCode
       }
     };
 

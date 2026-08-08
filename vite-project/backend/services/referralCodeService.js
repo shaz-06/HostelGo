@@ -31,6 +31,49 @@ async function generateUniqueCode(name) {
   return code;
 }
 
+/**
+ * Concurrency-safe lazy referral-code generation.
+ */
+async function getOrCreateReferralCode(user) {
+  if (user.referralCode) return user.referralCode;
+
+  const User = mongoose.model("User");
+  let attempts = 0;
+  while (attempts < 5) {
+    const candidate = await generateUniqueCode(user.name || "Buyto User");
+    
+    try {
+      const updatedUser = await User.findOneAndUpdate(
+        { 
+          _id: user._id, 
+          $or: [ { referralCode: null }, { referralCode: { $exists: false } } ] 
+        },
+        { $set: { referralCode: candidate } },
+        { new: true }
+      );
+      
+      if (updatedUser) {
+        user.referralCode = updatedUser.referralCode;
+        return updatedUser.referralCode;
+      }
+      
+      const existingUser = await User.findById(user._id);
+      if (existingUser && existingUser.referralCode) {
+        user.referralCode = existingUser.referralCode;
+        return existingUser.referralCode;
+      }
+    } catch (error) {
+      if (error.code === 11000 || error.message.includes("E11000")) {
+        attempts++;
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error("Failed to generate unique referral code after multiple attempts.");
+}
+
 module.exports = {
-  generateUniqueCode
+  generateUniqueCode,
+  getOrCreateReferralCode
 };

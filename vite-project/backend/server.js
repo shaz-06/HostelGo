@@ -504,27 +504,48 @@ app.get("/api/products", async (req, res) => {
 
     let products = [];
     if (isConnected) {
-      const filter = {};
+      const andConditions = [];
+
+      const idsQuery = req.query.ids;
+      if (idsQuery) {
+        const idList = idsQuery.split(",").filter(Boolean);
+        const validObjectIds = idList.filter(id => mongoose.Types.ObjectId.isValid(id));
+        andConditions.push({
+          $or: [
+            { _id: { $in: validObjectIds } },
+            { id: { $in: idList } }
+          ]
+        });
+      }
 
       if (searchQuery) {
         const regex = new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
-        filter.$or = [
-          { name: regex },
-          { brand: regex },
-          { category: regex },
-          { subCategory: regex },
-          { subcategory: regex },
-          { tags: regex }
-        ];
+        andConditions.push({
+          $or: [
+            { name: regex },
+            { brand: regex },
+            { category: regex },
+            { subCategory: regex },
+            { subcategory: regex },
+            { tags: regex }
+          ]
+        });
       }
 
       if (categoryQuery && categoryQuery !== "All") {
-        filter.category = new RegExp("^" + categoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i");
+        andConditions.push({
+          category: new RegExp("^" + categoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i")
+        });
       }
 
       if (subCategoryQuery && subCategoryQuery !== "Show All") {
-        filter.subCategory = new RegExp("^" + subCategoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i");
+        andConditions.push({
+          subCategory: new RegExp("^" + subCategoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i")
+        });
       }
+
+      const filter = andConditions.length > 0 ? { $and: andConditions } : {};
+      console.log("=== [GET PRODUCTS FILTER] ===", JSON.stringify(filter, null, 2));
 
       if (limit > 0) {
         products = await Product.find(filter, "id name category subCategory brand price originalPrice weight image stock eta rating isAd variants tags").skip(skip).limit(limit).lean();
@@ -532,8 +553,8 @@ app.get("/api/products", async (req, res) => {
         products = await Product.find(filter, "id name category subCategory brand price originalPrice weight image stock eta rating isAd variants tags").lean();
       }
 
-      // Merge fallback mock products only if MongoDB returned no results (unseeded or empty database)
-      if (products.length === 0 && !searchQuery && !categoryQuery) {
+      // Merge fallback mock products only if MongoDB returned no results and no filter was applied
+      if (products.length === 0 && !searchQuery && !categoryQuery && !idsQuery) {
         const productIds = new Set(products.map((product) => product.id || String(product._id)));
         let missingFallbackProducts = mockProducts.filter((product) => !productIds.has(product.id));
         if (limit > 0) {
@@ -544,6 +565,11 @@ app.get("/api/products", async (req, res) => {
     } else {
       console.log("ℹ️ Serving local in-memory products (database offline/unreachable)");
       products = mockProducts;
+      const idsQuery = req.query.ids;
+      if (idsQuery) {
+        const idList = idsQuery.split(",").filter(Boolean);
+        products = products.filter(p => idList.includes(String(p._id || p.id)));
+      }
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         products = products.filter(p =>
