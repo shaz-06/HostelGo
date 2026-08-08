@@ -114,6 +114,7 @@ const PaymentSettingsPage = safeLazy(() => import("./pages/PaymentSettingsPage")
 const MyAddressesPage = safeLazy(() => import("./pages/MyAddressesPage"));
 const RequestAddressPage = safeLazy(() => import("./pages/RequestAddressPage"));
 const ManageSharesPage = safeLazy(() => import("./pages/ManageSharesPage"));
+const RecipientAddressRequestPage = safeLazy(() => import("./pages/RecipientAddressRequestPage"));
 
 // API Cache & Performance Logger
 import { cachedFetch } from "./utils/apiCache";
@@ -491,6 +492,7 @@ function App() {
 function AppContent({ onReady }) {
   usePerfLogger("AppContent");
   useHeaderTheme();
+  const location = useLocation();
 
   const {
     startupComplete,
@@ -505,7 +507,153 @@ function AppContent({ onReady }) {
   const [bottomNavVisible, setBottomNavVisible] = useState(true);
   const [hideNavOverride, setHideNavOverride] = useState(false);
 
-  const { user, isLoggedIn, token, logout } = useContext(AuthContext) || { user: null };
+  const { user, isLoggedIn, token, logout, openLogin, loading: authLoading } = useContext(AuthContext) || { user: null };
+
+  // Pull to refresh states, refs, and DOM controller
+  const [refreshState, setRefreshState] = useState("idle"); // "idle", "refreshing"
+  const pullDistanceRef = useRef(0);
+  const startYRef = useRef(0);
+  const startXRef = useRef(0);
+  const activeTouchRef = useRef(false);
+  const hasTriggeredRefreshRef = useRef(false);
+  const indicatorRef = useRef(null);
+
+  const shouldIgnoreTouch = useCallback((target) => {
+    if (!target) return false;
+    const tagName = target.tagName;
+    if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || tagName === "BUTTON" || tagName === "A" || target.isContentEditable) {
+      return true;
+    }
+    let current = target;
+    while (current) {
+      if (current.classList && (
+        current.classList.contains("bottom-sheet") ||
+        current.classList.contains("modal") ||
+        current.classList.contains("leaflet-container") ||
+        current.classList.contains("no-pull-refresh") ||
+        current.getAttribute("data-no-pull") === "true" ||
+        current.style.overflowX === "auto" ||
+        current.style.overflowX === "scroll"
+      )) {
+        return true;
+      }
+      current = current.parentElement;
+    }
+    return false;
+  }, []);
+
+  useEffect(() => {
+    const handleTouchStart = (e) => {
+      hasTriggeredRefreshRef.current = false;
+      if (refreshState === "refreshing") return;
+
+      const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      if (scrollTop > 1) return;
+
+      const blacklistedPaths = ["/payment", "/checkout", "/login", "/otp", "/admin", "/rider"];
+      if (blacklistedPaths.some(p => location.pathname.startsWith(p))) return;
+
+      if (shouldIgnoreTouch(e.target)) return;
+
+      const touch = e.touches[0];
+      startYRef.current = touch.pageY;
+      startXRef.current = touch.pageX;
+      activeTouchRef.current = true;
+      pullDistanceRef.current = 0;
+    };
+
+    const handleTouchMove = (e) => {
+      if (!activeTouchRef.current || refreshState === "refreshing") return;
+
+      const touch = e.touches[0];
+      const deltaY = touch.pageY - startYRef.current;
+      const deltaX = touch.pageX - startXRef.current;
+
+      if (deltaY < 0 || Math.abs(deltaX) > Math.abs(deltaY)) {
+        activeTouchRef.current = false;
+        pullDistanceRef.current = 0;
+        if (indicatorRef.current) {
+          indicatorRef.current.style.transform = "translate3d(-50%, -50px, 0)";
+          indicatorRef.current.style.opacity = "0";
+        }
+        return;
+      }
+
+      const pull = Math.min(100, deltaY * 0.5);
+      pullDistanceRef.current = pull;
+
+      if (indicatorRef.current) {
+        indicatorRef.current.style.opacity = Math.min(1, pull / 40);
+        indicatorRef.current.style.transform = `translate3d(-50%, ${pull}px, 0)`;
+
+        const spinner = indicatorRef.current.querySelector(".pull-spinner");
+        if (spinner) {
+          spinner.style.transform = `rotate(${pull * 4.8}deg)`;
+        }
+
+        const label = indicatorRef.current.querySelector(".pull-label");
+        if (label) {
+          label.textContent = pull >= 75 ? "Release to refresh" : "Pull to refresh";
+        }
+      }
+
+      if (pull > 0 && e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!activeTouchRef.current || refreshState === "refreshing") return;
+      activeTouchRef.current = false;
+
+      const pull = pullDistanceRef.current;
+      if (pull >= 75) {
+        if (!hasTriggeredRefreshRef.current) {
+          hasTriggeredRefreshRef.current = true;
+          setRefreshState("refreshing");
+
+          if (indicatorRef.current) {
+            indicatorRef.current.style.transition = "transform 0.2s ease, opacity 0.2s ease";
+            indicatorRef.current.style.transform = "translate3d(-50%, 75px, 0)";
+
+            const spinner = indicatorRef.current.querySelector(".pull-spinner");
+            if (spinner) {
+              spinner.style.animation = "spin-refresh 0.8s linear infinite";
+            }
+
+            const label = indicatorRef.current.querySelector(".pull-label");
+            if (label) {
+              label.textContent = "Refreshing...";
+            }
+          }
+
+          setTimeout(() => {
+            window.location.reload();
+          }, 800);
+        }
+      } else {
+        if (indicatorRef.current) {
+          indicatorRef.current.style.transition = "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease";
+          indicatorRef.current.style.transform = "translate3d(-50%, -50px, 0)";
+          indicatorRef.current.style.opacity = "0";
+        }
+        pullDistanceRef.current = 0;
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: false });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd);
+    window.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [refreshState, location.pathname, shouldIgnoreTouch]);
+
   const [activeNotification, setActiveNotification] = useState(null);
   const [showRespondModal, setShowRespondModal] = useState(false);
   const [myAddresses, setMyAddresses] = useState([]);
@@ -638,7 +786,6 @@ function AppContent({ onReady }) {
   }, []);
 
   const { isNavigating, setIsNavigating, isRouteLoaded, markRouteAsLoaded } = useContext(LoaderContext);
-  const location = useLocation();
   const prevPathRef = useRef(location.pathname);
 
   // Turn off startup loading overlay once app mount sequence settles
@@ -1002,6 +1149,9 @@ function AppContent({ onReady }) {
         const found = displayCats.find(c => {
           const cSlug = c.slug || generateSlug(c.name);
           return cSlug.toLowerCase() === slug.toLowerCase();
+        }) || HEADER_CATEGORIES.find(c => {
+          const cSlug = c.slug || generateSlug(c.name);
+          return cSlug.toLowerCase() === slug.toLowerCase();
         });
         if (found) {
           setSelectedCategory(found.name);
@@ -1132,6 +1282,15 @@ function AppContent({ onReady }) {
   const [userLocation, setUserLocation] = useState(() => localStorage.getItem("userLocation") || "");
   const [roomNumber, setRoomNumber] = useState(() => localStorage.getItem("roomNumber") || "");
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const handleOpenAddressModal = useCallback(() => {
+    if (!isLoggedIn) {
+      if (openLogin) {
+        openLogin();
+      }
+    } else {
+      setShowAddressModal(true);
+    }
+  }, [isLoggedIn, openLogin]);
   const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
 
   const isAdminOrRiderRoute = location.pathname.startsWith("/admin") ||
@@ -1991,6 +2150,7 @@ function AppContent({ onReady }) {
         {location.pathname === "/login" && <SEO title="Login" description="Login to your Buyto account." />}
         {location.pathname === "/signup" && <SEO title="Create Account" description="Create a new Buyto account." />}
         {!["/", "/login", "/signup", "/search", "/categories", "/cart", "/payment", "/success", "/profile/edit", "/profile", "/orders", "/my-orders", "/address", "/wishlist", "/buycoins", "/wallet", "/notifications", "/help", "/about", "/contact", "/settings", "/buycoins/transactions", "/buycoins/rewards", "/privacy-policy", "/terms", "/refund-policy", "/shipping-policy", "/faq", "/support/chat", "/shopping-list", "/shopping-list/results", "/shopping-list/smart-matching", "/save-for-later", "/saved-lists", "/payment-settings", "/profile/request-address", "/profile/manage-shares", "/gift-cards", "/notification-preferences", "/refer-earn"].includes(location.pathname) &&
+          !location.pathname.startsWith("/address/request/") &&
           !location.pathname.startsWith("/category/") &&
           !location.pathname.startsWith("/products/") &&
           !location.pathname.startsWith("/product/") &&
@@ -2011,7 +2171,8 @@ function AppContent({ onReady }) {
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               isLoggedIn={isLoggedIn}
-              onOpenAddressModal={() => setShowAddressModal(true)}
+              authLoading={authLoading}
+              onOpenAddressModal={handleOpenAddressModal}
               eta={7}
               displayCats={HEADER_CATEGORIES}
               selectedCategory={selectedCategory}
@@ -2417,6 +2578,12 @@ function AppContent({ onReady }) {
     );
   }
 
+  if (location.pathname.startsWith("/address/request/")) {
+    return (
+      <RecipientAddressRequestPage />
+    );
+  }
+
   if (location.pathname === "/wishlist") {
     return wrapCustomerLayout(
       <SaveForLaterPage
@@ -2728,7 +2895,7 @@ function AppContent({ onReady }) {
                 roomNumber={roomNumber}
                 totalItems={totalItems}
                 isLoggedIn={isLoggedIn}
-                onOpenAddressModal={() => setShowAddressModal(true)}
+                onOpenAddressModal={handleOpenAddressModal}
                 displayCats={memoizedDisplayCats}
                 selectedCategory={selectedCategory}
                 onCategoryClick={handleCategoryClick}
@@ -2752,7 +2919,7 @@ function AppContent({ onReady }) {
                 roomNumber={roomNumber}
                 totalItems={totalItems}
                 isLoggedIn={isLoggedIn}
-                onOpenAddressModal={() => setShowAddressModal(true)}
+                onOpenAddressModal={handleOpenAddressModal}
                 displayCats={memoizedDisplayCats}
                 selectedCategory={selectedCategory}
                 onCategoryClick={handleCategoryClick}
@@ -3788,7 +3955,53 @@ function AppContent({ onReady }) {
     );
   }
 
-  return wrapCustomerLayout(<>{desktopEl}{debugPanel}</>, true);
+  return (
+    <>
+      <style>{`
+        @keyframes spin-refresh {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div
+        ref={indicatorRef}
+        style={{
+          position: "fixed",
+          top: "0px",
+          left: "50%",
+          transform: "translate3d(-50%, -50px, 0)",
+          opacity: 0,
+          zIndex: 9999,
+          backgroundColor: "white",
+          padding: "8px 16px",
+          borderRadius: "9999px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          fontSize: "12px",
+          fontWeight: "700",
+          color: "#318616",
+          pointerEvents: "none",
+          border: "1px solid rgba(49, 134, 22, 0.15)",
+        }}
+      >
+        <div
+          className="pull-spinner"
+          style={{
+            width: "16px",
+            height: "16px",
+            border: "2px solid #318616",
+            borderTopColor: "transparent",
+            borderRadius: "50%",
+            transition: "transform 0.1s ease"
+          }}
+        />
+        <span className="pull-label">Pull to refresh</span>
+      </div>
+      {wrapCustomerLayout(<>{desktopEl}{debugPanel}</>, true)}
+    </>
+  );
 }
 
 function CouponCelebrationModal({ coupon, onClose }) {

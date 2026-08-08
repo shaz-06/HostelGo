@@ -373,6 +373,7 @@ export default function ProfilePage({ defaultTab = "" }) {
         user={liveUser}
         isLoggedIn={isLoggedIn}
         onBack={handleBack}
+        onLoginClick={openLogin}
       />
 
       {/* 2. Profile Completion Banner */}

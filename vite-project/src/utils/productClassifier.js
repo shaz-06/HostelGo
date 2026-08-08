@@ -206,46 +206,49 @@ export const canonicalCategory = (name) => {
     return "Dairy, Bread & Eggs";
   }
   if (lower === "cold drinks & juices" || lower === "cold drinks and juices" || lower === "beverages" || lower === "drinks" || lower === "beverage") {
-    return "Cold Drinks & Juices";
+    return "Beverages";
   }
   if (lower === "mobiles & electronics" || lower === "mobiles and electronics" || lower === "electronics & appliances" || lower === "electronics" || lower === "tech") {
-    return "Mobiles & Electronics";
+    return "Electronics & Appliances";
   }
   if (lower === "books & stationery" || lower === "books and stationery" || lower === "stationery" || lower === "book store") {
-    return "Books & Stationery";
+    return "Stationary";
   }
   if (lower === "clothing" || lower === "fashion" || lower === "clothes") {
-    return "Clothing";
+    return "Clothing Section";
   }
   if (lower === "meat and seafood" || lower === "meat & seafood" || lower === "meat") {
-    return "Meat & Seafood";
+    return "Meat and Seafood";
   }
   if (lower === "snacks" || lower === "chips & namkeens" || lower === "chips and namkeens") {
-    return "Chips & Namkeens";
+    return "Snacks";
   }
-  if (lower === "cleaners & repellents" || lower === "cleaning essentials") {
-    return "Cleaning Essentials";
+  if (lower === "cleaners & repellents" || lower === "cleaning essentials" || lower === "cleaners and repellents") {
+    return "Cleaners & Repellents";
   }
   if (lower === "atta, rice and dal" || lower === "atta, rice & dal" || lower === "atta rice & dal" || lower === "grocery") {
     return "Atta, Rice and Dal";
   }
   if (lower === "ice cream" || lower === "icecream" || lower === "ice-cream" || lower === "ice creams & desserts" || lower === "ice creams & frozen desserts" || lower === "ice-creams-frozen-desserts") {
-    return "Ice Creams & Frozen Desserts";
+    return "Ice Creams & Desserts";
   }
   if (lower === "noodles & pasta" || lower === "noodles, pasta & vermicelli" || lower === "noodles" || lower === "pasta" || lower === "noodles-pasta-vermicelli") {
-    return "Noodles, Pasta & Vermicelli";
+    return "Noodles & Pasta";
   }
   if (lower === "frozen foods" || lower === "frozen food" || lower === "frozen" || lower === "frozen-food") {
-    return "Frozen Food";
+    return "Frozen Foods";
   }
   if (lower === "cake corner" || lower === "cakes" || lower === "cake" || lower === "cake-corner") {
     return "Cake Corner";
   }
   if (lower === "pan centre" || lower === "paan corner" || lower === "paan" || lower === "pan center" || lower === "paan-corner") {
-    return "Paan Corner";
+    return "Pan Centre";
   }
   if (lower === "other" || lower === "other products") {
     return "Other Products";
+  }
+  if (lower === "hostel essentials") {
+    return "Hostel Essentials";
   }
   
   return name.charAt(0).toUpperCase() + name.slice(1);

@@ -1,7 +1,7 @@
 import React from "react";
-import { ArrowLeft, User } from "lucide-react";
+import { ArrowLeft, LogIn } from "lucide-react";
 
-const ProfileHeader = React.memo(({ user, isLoggedIn, onBack }) => {
+const ProfileHeader = React.memo(({ user, isLoggedIn, onBack, onLoginClick }) => {
   return (
     <div className="relative pt-12 pb-8 px-4 flex flex-col items-center justify-center bg-gradient-to-b from-[#FFF4B8] via-[#FFFBE3] to-[#F6F7FB] rounded-b-[40px] shadow-sm animate-fade-in">
       {/* Back Button */}
@@ -37,6 +37,53 @@ const ProfileHeader = React.memo(({ user, isLoggedIn, onBack }) => {
       <p className="text-sm font-semibold text-gray-500">
         {isLoggedIn ? (user?.phone || "No phone number linked") : "Log in to manage your profile"}
       </p>
+
+      {/* Login CTA Button */}
+      {!isLoggedIn && (
+        <button
+          onClick={onLoginClick}
+          style={{
+            marginTop: "20px",
+            width: "190px",
+            height: "46px",
+            backgroundColor: "#318616",
+            color: "white",
+            border: "none",
+            borderRadius: "9999px",
+            fontWeight: "800",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            cursor: "pointer",
+            boxShadow: "0 4px 14px rgba(49, 134, 22, 0.25)",
+            transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+            transform: "translateY(0)"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "#286f12";
+            e.currentTarget.style.transform = "translateY(-1px)";
+            e.currentTarget.style.boxShadow = "0 6px 18px rgba(49, 134, 22, 0.35)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "#318616";
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "0 4px 14px rgba(49, 134, 22, 0.25)";
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "0 2px 8px rgba(49, 134, 22, 0.2)";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = "translateY(-1px)";
+            e.currentTarget.style.boxShadow = "0 6px 18px rgba(49, 134, 22, 0.35)";
+          }}
+        >
+          <LogIn className="w-4 h-4" />
+          <span>Login / Sign up</span>
+        </button>
+      )}
     </div>
   );
 });

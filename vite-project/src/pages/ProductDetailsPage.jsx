@@ -563,38 +563,51 @@ export default function ProductDetailsPage({
                     Pack Sizes
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {activeProduct.variants.map((v, idx) => (
-                      <div
-                        key={v._id || `${activeProduct._id}-${v.weight || idx}`}
-                        onClick={() => setSelectedVariantIndex(idx)}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "12px 16px",
-                          borderRadius: "14px",
-                          border: selectedVariantIndex === idx ? "2px solid #318616" : "1px solid #e5e7eb",
-                          background: selectedVariantIndex === idx ? "#f0fdf4" : "white",
-                          cursor: "pointer",
-                          transition: "all 0.2s"
-                        }}
-                      >
-                        <div style={{ display: "flex", flexDirection: "column" }}>
-                          <span style={{ fontSize: "14px", fontWeight: "800", color: "#1f2937" }}>{v.weight}</span>
-                          {v.originalPrice > v.price && (
-                            <span style={{ fontSize: "11px", color: "#9ca3af", textDecoration: "line-through" }}>MRP: ₹{v.originalPrice}</span>
-                          )}
+                    {activeProduct.variants.map((v, idx) => {
+                      const isVariantOOS = v.stock !== undefined && v.stock <= 0;
+                      return (
+                        <div
+                          key={v._id || `${activeProduct._id}-${v.weight || idx}`}
+                          onClick={() => {
+                            if (isVariantOOS) return;
+                            setSelectedVariantIndex(idx);
+                          }}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "12px 16px",
+                            borderRadius: "14px",
+                            border: selectedVariantIndex === idx ? "2px solid #318616" : "1px solid #e5e7eb",
+                            background: isVariantOOS ? "#f9fafb" : (selectedVariantIndex === idx ? "#f0fdf4" : "white"),
+                            cursor: isVariantOOS ? "not-allowed" : "pointer",
+                            opacity: isVariantOOS ? 0.6 : 1,
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontSize: "14px", fontWeight: "800", color: isVariantOOS ? "#9ca3af" : "#1f2937" }}>{v.weight}</span>
+                            {v.originalPrice > v.price && (
+                              <span style={{ fontSize: "11px", color: "#9ca3af", textDecoration: "line-through" }}>MRP: ₹{v.originalPrice}</span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            {isVariantOOS ? (
+                              <span style={{ fontSize: "11px", fontWeight: "900", color: "#ef4444", background: "#fee2e2", padding: "2px 6px", borderRadius: "4px" }}>OUT OF STOCK</span>
+                            ) : (
+                              <>
+                                <span style={{ fontSize: "16px", fontWeight: "900", color: "#111827" }}>₹{v.price}</span>
+                                {selectedVariantIndex === idx && (
+                                  <div style={{ width: "20px", height: "20px", background: "#318616", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <Check size={12} color="white" style={{ margin: "auto" }} />
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ fontSize: "16px", fontWeight: "900", color: "#111827" }}>₹{v.price}</span>
-                          {selectedVariantIndex === idx && (
-                            <div style={{ width: "20px", height: "20px", background: "#318616", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <Check size={12} color="white" style={{ margin: "auto" }} />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -623,84 +636,125 @@ export default function ProductDetailsPage({
 
               {/* Add to Cart button */}
               <div style={{ flexGrow: 1 }}>
-                {cartQty === 0 ? (
-                  <button
-                    onClick={() => {
-                      if (cartQty >= (activeProduct.stock || 30)) {
-                        alert(`Only ${activeProduct.stock || 30} items available`);
-                        return;
-                      }
-                      addToCart({
-                        ...activeProduct,
-                        selectedWeight: currentWeight,
-                        price: currentPrice
-                      });
-                    }}
-                    style={{
-                      width: "100%",
-                      height: "52px",
-                      background: "#318616",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "16px",
-                      fontSize: "15px",
-                      fontWeight: "800",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)"
-                    }}
-                  >
-                    <ShoppingBag size={18} />
-                    ADD TO CART
-                  </button>
-                ) : (
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "52px",
-                      background: "#318616",
-                      borderRadius: "16px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "0 16px",
-                      boxSizing: "border-box"
-                    }}
-                  >
-                    <button
-                      onClick={() =>
-                        removeFromCart({
-                          ...activeProduct,
-                          selectedWeight: currentWeight,
-                          price: currentPrice
-                        })
-                      }
-                      style={{ background: "none", border: "none", color: "white", fontSize: "24px", fontWeight: "800", cursor: "pointer", padding: "0 12px" }}
-                    >
-                      -
-                    </button>
-                    <span style={{ color: "white", fontWeight: "800", fontSize: "15px" }}>{cartQty} Items in Cart</span>
-                    <button
-                      onClick={() => {
-                        if (cartQty >= (activeProduct.stock || 30)) {
-                          alert(`Only ${activeProduct.stock || 30} items available`);
-                          return;
-                        }
-                        addToCart({
-                          ...activeProduct,
-                          selectedWeight: currentWeight,
-                          price: currentPrice
-                        });
+                {(() => {
+                  const isCurrentOOS = currentVariant
+                    ? (currentVariant.stock !== undefined && currentVariant.stock <= 0)
+                    : (activeProduct.stock !== undefined && activeProduct.stock <= 0);
+
+                  if (isCurrentOOS) {
+                    return (
+                      <button
+                        disabled
+                        style={{
+                          width: "100%",
+                          height: "52px",
+                          background: "#e5e7eb",
+                          color: "#9ca3af",
+                          border: "none",
+                          borderRadius: "16px",
+                          fontSize: "15px",
+                          fontWeight: "800",
+                          cursor: "not-allowed",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px"
+                        }}
+                      >
+                        OUT OF STOCK
+                      </button>
+                    );
+                  }
+
+                  if (cartQty === 0) {
+                    return (
+                      <button
+                        onClick={() => {
+                          const maxAvailable = currentVariant
+                            ? (currentVariant.stock !== undefined ? currentVariant.stock : 30)
+                            : (activeProduct.stock !== undefined ? activeProduct.stock : 30);
+                          if (cartQty >= maxAvailable) {
+                            alert(`Only ${maxAvailable} items available`);
+                            return;
+                          }
+                          addToCart({
+                            ...activeProduct,
+                            selectedWeight: currentWeight,
+                            price: currentPrice
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          height: "52px",
+                          background: "#318616",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "16px",
+                          fontSize: "15px",
+                          fontWeight: "800",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          boxShadow: "0 4px 12px rgba(49, 134, 22, 0.2)"
+                        }}
+                      >
+                        <ShoppingBag size={18} />
+                        ADD TO CART
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "52px",
+                        background: "#318616",
+                        borderRadius: "16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "0 16px",
+                        boxSizing: "border-box"
                       }}
-                      style={{ background: "none", border: "none", color: "white", fontSize: "24px", fontWeight: "800", cursor: "pointer", padding: "0 12px" }}
                     >
-                      +
-                    </button>
-                  </div>
-                )}
+                      <button
+                        onClick={() =>
+                          removeFromCart({
+                            ...activeProduct,
+                            selectedWeight: currentWeight,
+                            price: currentPrice
+                          })
+                        }
+                        style={{ background: "none", border: "none", color: "white", fontSize: "24px", fontWeight: "800", cursor: "pointer", padding: "0 12px" }}
+                      >
+                        -
+                      </button>
+                      <span style={{ color: "white", fontWeight: "800", fontSize: "15px" }}>{cartQty} Items in Cart</span>
+                      <button
+                        onClick={() => {
+                          const maxAvailable = currentVariant
+                            ? (currentVariant.stock !== undefined ? currentVariant.stock : 30)
+                            : (activeProduct.stock !== undefined ? activeProduct.stock : 30);
+                          if (cartQty >= maxAvailable) {
+                            alert(`Only ${maxAvailable} items available`);
+                            return;
+                          }
+                          addToCart({
+                            ...activeProduct,
+                            selectedWeight: currentWeight,
+                            price: currentPrice
+                          });
+                        }}
+                        style={{ background: "none", border: "none", color: "white", fontSize: "24px", fontWeight: "800", cursor: "pointer", padding: "0 12px" }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

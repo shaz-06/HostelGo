@@ -156,104 +156,173 @@ const ProfileButton = ({ onClick, compact = false }) => {
 
 export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, onCategoryClick, whiteText = false }) => {
   const scrollerRef = React.useRef(null);
+  const itemRefs = React.useRef({});
+  const [indicatorStyle, setIndicatorStyle] = React.useState({ left: 0, width: 0, opacity: 0 });
+  const [isReady, setIsReady] = React.useState(false);
+
+  const updateIndicator = React.useCallback(() => {
+    const activeItem = itemRefs.current[selectedCategory];
+    if (activeItem && scrollerRef.current) {
+      const left = activeItem.offsetLeft;
+      const width = activeItem.offsetWidth;
+
+      // Indicator width is 50% of the active category item's width
+      // Sense bounds: min 20px, max 45px
+      let indicatorWidth = width * 0.5;
+      if (indicatorWidth < 20) indicatorWidth = 20;
+      if (indicatorWidth > 45) indicatorWidth = 45;
+
+      const indicatorLeft = left + (width - indicatorWidth) / 2;
+
+      setIndicatorStyle({
+        left: indicatorLeft,
+        width: indicatorWidth,
+        opacity: 1
+      });
+      setIsReady(true);
+    } else {
+      setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
+    }
+  }, [selectedCategory]);
+
+  React.useEffect(() => {
+    updateIndicator();
+  }, [selectedCategory, displayCats, updateIndicator]);
+
+  React.useEffect(() => {
+    if (!scrollerRef.current) return;
+
+    // ResizeObserver on the category strip container
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        // Trigger measurement update
+        updateIndicator();
+      }
+    });
+
+    resizeObserver.observe(scrollerRef.current);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [updateIndicator]);
 
   if (!displayCats || displayCats.length === 0) return null;
+
   return (
-    <div
-      ref={scrollerRef}
-      id="category-strip-container"
-      className="hide-scrollbar"
-      style={{
-        display: "flex",
-        gap: "16px",
-        overflowX: "auto",
-        overflowY: "hidden",
-        scrollBehavior: "smooth",
-        width: "100%",
-        maxWidth: "100%",
-        boxSizing: "border-box",
-        padding: "4px 0 2px 0",
-        transform: "translate3d(0, 0, 0)",
-        willChange: "transform",
-        userSelect: "none",
-        WebkitOverflowScrolling: "touch"
-      }}
-    >
-      {displayCats.map((cat) => {
-        const isActive = selectedCategory === cat.name;
-        return (
-          <div
-            key={cat.name}
-            onClick={() => onCategoryClick(cat)}
-            style={{
-              width: "78px",
-              flexShrink: 0,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              cursor: "pointer"
-            }}
-          >
+    <div style={{ position: "relative", width: "100%" }}>
+      <div
+        ref={scrollerRef}
+        id="category-strip-container"
+        className="hide-scrollbar"
+        style={{
+          display: "flex",
+          gap: "16px",
+          overflowX: "auto",
+          overflowY: "hidden",
+          scrollBehavior: "smooth",
+          width: "100%",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          padding: "4px 0 8px 0",
+          transform: "translate3d(0, 0, 0)",
+          willChange: "transform",
+          userSelect: "none",
+          WebkitOverflowScrolling: "touch",
+          position: "relative"
+        }}
+      >
+        {displayCats.map((cat) => {
+          return (
             <div
+              key={cat.name}
+              ref={(el) => {
+                if (el) {
+                  itemRefs.current[cat.name] = el;
+                }
+              }}
+              onClick={() => onCategoryClick(cat)}
               style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: isActive
-                  ? "2px solid #589f42ff"
-                  : "none",
-                background: isActive
-                  ? (whiteText ? "rgba(255, 255, 255, 0.25)" : "rgba(88, 159, 66, 0.12)")
-                  : "transparent",
+                width: "68px",
+                flexShrink: 0,
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-                transition: "all 0.2s ease",
-                transform: isActive ? "scale(1.08)" : "scale(1)",
-                boxShadow: isActive ? (whiteText ? "0 8px 24px rgba(255,255,255,0.15)" : "0 4px 12px rgba(88,159,66,0.15)") : "none"
+                justifyContent: "flex-start",
+                cursor: "pointer"
               }}
             >
-              {cat.image ? (
-                <img
-                  src={cat.image}
-                  alt={cat.name}
-                  style={{
-                    width: "90%",
-                    height: "90%",
-                    objectFit: "contain",
-                    filter: whiteText ? "var(--category-icon-filter, none)" : "brightness(0)",
-                    transition: "filter 350ms ease-in-out"
-                  }}
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : (
-                <span style={{ fontSize: "20px" }}>{cat.icon || "🛍️"}</span>
-              )}
+              <div
+                style={{
+                  width: "34px",
+                  height: "34px",
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  transition: "transform 0.2s ease"
+                }}
+              >
+                {cat.image ? (
+                  <img
+                    src={cat.image}
+                    alt={cat.name}
+                    style={{
+                      width: "80%",
+                      height: "80%",
+                      objectFit: "contain",
+                      filter: whiteText ? "var(--category-icon-filter, none)" : "brightness(0)",
+                      transition: "filter 350ms ease-in-out"
+                    }}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <span style={{ fontSize: "16px" }}>{cat.icon || "🛍️"}</span>
+                )}
+              </div>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: "500",
+                  color: whiteText ? "var(--category-text-color, #FFFFFF)" : "var(--category-text-color, #374151)",
+                  textAlign: "center",
+                  lineHeight: "1.2",
+                  maxWidth: "64px",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  marginTop: "2px"
+                }}
+              >
+                {cat.name}
+              </span>
             </div>
-            <span
-              style={{
-                fontSize: "12px",
-                fontWeight: isActive ? "700" : "500",
-                color: whiteText ? "var(--category-text-color, #FFFFFF)" : (isActive ? "#318616" : "var(--category-text-color, #374151)"),
-                textAlign: "center",
-                lineHeight: "1.2",
-                maxWidth: "72px",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-                marginTop: "3px",
-                transition: "color 300ms ease-in-out, font-weight 150ms ease, transform 150ms ease"
-              }}
-            >
-              {cat.name}
-            </span>
-          </div>
-        );
-      })}
+          );
+        })}
+
+        {/* ONE shared animated active indicator line */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: "0px",
+            left: 0,
+            height: "3px",
+            width: `${indicatorStyle.width}px`,
+            backgroundColor: "#318616",
+            borderRadius: "9999px",
+            transform: `translate3d(${indicatorStyle.left}px, 0, 0)`,
+            transition: isReady
+              ? "transform 300ms cubic-bezier(0.16, 1, 0.3, 1), width 300ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease"
+              : "none",
+            opacity: isReady ? indicatorStyle.opacity : 0,
+            pointerEvents: "none"
+          }}
+        />
+      </div>
     </div>
   );
 });
@@ -265,6 +334,7 @@ const Header = React.memo(({
   searchQuery,
   setSearchQuery,
   isLoggedIn,
+  authLoading = false,
   onOpenAddressModal,
   eta = 7,
   displayCats = [],
@@ -450,10 +520,16 @@ const Header = React.memo(({
   }, [isFocused]);
 
   const addressText = useMemo(() => {
+    if (authLoading) {
+      return "Loading location...";
+    }
+    if (!isLoggedIn) {
+      return "Login · Your location will appear here";
+    }
     return userLocation
       ? `${userLocation}${roomNumber ? `, Room ${roomNumber}` : ""}`
       : "Select Delivery Address";
-  }, [userLocation, roomNumber]);
+  }, [authLoading, isLoggedIn, userLocation, roomNumber]);
 
   // Lazy load speech recognition helper when voice search is clicked
   const handleVoiceSearch = async () => {

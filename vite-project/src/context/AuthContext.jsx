@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
 
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get("token");
-    if (urlToken) {
+    if (urlToken && !window.location.pathname.startsWith("/address/request/")) {
       // Clean up URL query parameters so the token is not visible
       const newUrl = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, newUrl);
@@ -44,6 +44,63 @@ export const AuthProvider = ({ children }) => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeBonus, setWelcomeBonus] = useState(20);
   const [appConfig, setAppConfig] = useState(null);
+
+  const updateUserInSession = React.useCallback((incomingUser) => {
+    const existingUser = JSON.parse(
+      localStorage.getItem("buyto_user") || "null"
+    );
+
+    const mergedUser = {
+      ...existingUser,
+      ...incomingUser,
+    };
+
+    const existingCoords = existingUser?.coords;
+
+    const hasIncomingCoordinates =
+      incomingUser &&
+      Number.isFinite(Number(incomingUser.latitude)) &&
+      Number.isFinite(Number(incomingUser.longitude));
+
+    const hasExistingCoordinates =
+      Array.isArray(existingCoords) &&
+      existingCoords.length >= 2 &&
+      Number.isFinite(Number(existingCoords[0])) &&
+      Number.isFinite(Number(existingCoords[1]));
+
+    const isSameUser =
+      existingUser &&
+      incomingUser &&
+      (existingUser._id === incomingUser._id || existingUser.phone === incomingUser.phone);
+
+    if (isSameUser && !hasIncomingCoordinates && hasExistingCoordinates) {
+      mergedUser.latitude = Number(existingCoords[0]);
+      mergedUser.longitude = Number(existingCoords[1]);
+    }
+
+    if (
+      !Array.isArray(mergedUser.coords) &&
+      Number.isFinite(Number(mergedUser.latitude)) &&
+      Number.isFinite(Number(mergedUser.longitude))
+    ) {
+      mergedUser.coords = [
+        Number(mergedUser.latitude),
+        Number(mergedUser.longitude)
+      ];
+    }
+
+    setUser(mergedUser);
+    localStorage.setItem(
+      "buyto_user",
+      JSON.stringify(mergedUser)
+    );
+    localStorage.setItem(
+      "hostelgoUser",
+      JSON.stringify(mergedUser)
+    );
+
+    return mergedUser;
+  }, []);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -84,9 +141,7 @@ export const AuthProvider = ({ children }) => {
 
           if (res.ok) {
             const data = JSON.parse(text);
-            setUser(data.user);
-            localStorage.setItem("buyto_user", JSON.stringify(data.user));
-            localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
+            updateUserInSession(data.user);
           } else {
             if (res.status === 401 || res.status === 403) {
               console.log("AUTH FAILURE TRIGGERED: Status", res.status);
@@ -240,13 +295,11 @@ export const AuthProvider = ({ children }) => {
     await syncGuestSavedProducts(data.token);
 
     setToken(data.token);
-    setUser(data.user);
+    updateUserInSession(data.user);
 
     // Set localStorage credentials
     localStorage.setItem("buyto_token", data.token);
     localStorage.setItem("buyto_login_token", data.token);
-    localStorage.setItem("buyto_user", JSON.stringify(data.user));
-    localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
 
     setTimeout(() => {
       syncTokenWithBackend(data.token);
@@ -267,11 +320,7 @@ export const AuthProvider = ({ children }) => {
     setOnboardingOpen(false);
   }, []);
 
-  const updateUserInSession = React.useCallback((updatedUser) => {
-    setUser(updatedUser);
-    localStorage.setItem("buyto_user", JSON.stringify(updatedUser));
-    localStorage.setItem("hostelgoUser", JSON.stringify(updatedUser));
-  }, []);
+
 
   const refreshUser = React.useCallback(async () => {
     if (!token) return;
@@ -284,9 +333,7 @@ export const AuthProvider = ({ children }) => {
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.user) {
-          setUser(data.user);
-          localStorage.setItem("buyto_user", JSON.stringify(data.user));
-          localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
+          updateUserInSession(data.user);
           return data.user;
         }
       }
@@ -310,11 +357,9 @@ export const AuthProvider = ({ children }) => {
     console.log("LOGIN SUCCESS");
     await syncGuestSavedProducts(authToken);
     setToken(authToken);
-    setUser(authUser);
+    updateUserInSession(authUser);
     localStorage.setItem("buyto_token", authToken);
     localStorage.setItem("buyto_login_token", authToken);
-    localStorage.setItem("buyto_user", JSON.stringify(authUser));
-    localStorage.setItem("hostelgoUser", JSON.stringify(authUser));
     console.log("JWT SAVED");
 
     if (isNewUser) {
@@ -355,13 +400,11 @@ export const AuthProvider = ({ children }) => {
     await syncGuestSavedProducts(data.token);
 
     setToken(data.token);
-    setUser(data.user);
+    updateUserInSession(data.user);
 
     // Set localStorage credentials
     localStorage.setItem("buyto_token", data.token);
     localStorage.setItem("buyto_login_token", data.token);
-    localStorage.setItem("buyto_user", JSON.stringify(data.user));
-    localStorage.setItem("hostelgoUser", JSON.stringify(data.user));
 
     if (data.isNewUser) {
       setWelcomeBonus(data.welcomeBonus || 20);

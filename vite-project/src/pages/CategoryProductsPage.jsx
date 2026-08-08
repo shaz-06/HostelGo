@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import ProductCard from "../ProductCard";
 import { classifyProduct, canonicalCategory } from "../utils/productClassifier";
 import { cachedFetch } from "../utils/apiCache";
@@ -9,6 +9,16 @@ import SEO from "../components/common/SEO";
 
 // Module-level cache to persist categories data across navigations
 const categoryProductsCache = {};
+
+const getCategorySlug = (cat) => {
+  if (!cat) return "";
+  return cat.toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+};
 
 const categoryRouteMap = {
   // Fresh & Grocery
@@ -21,19 +31,20 @@ const categoryRouteMap = {
   "atta-rice-and-dal": "Atta, Rice and Dal",
   "atta-rice-dal": "Atta, Rice and Dal",
   "masalas": "Masalas",
-  "oils-and-ghee": "Oil & Ghee",
-  "oil-ghee": "Oil & Ghee",
-  "cereals-breakfast": "Breakfast",
-  "breakfast": "Breakfast",
+  "oils-and-ghee": "Oils and Ghee",
+  "oil-ghee": "Oils and Ghee",
+  "cereals-breakfast": "Cereals & Breakfast",
+  "breakfast": "Cereals & Breakfast",
 
   // Snacks & Drinks
   "cold-drinks-juices": "Beverages",
   "cold-drinks-and-juices": "Beverages",
-  "chips-namkeens": "Snacks",
-  "chips-and-namkeens": "Snacks",
-  "ice-cream": "Ice-Cream",
-  "ice-creams-frozen-desserts": "Ice-Cream",
-  "ice-creams-and-desserts": "Ice-Cream",
+  "chips-namkeens": "Chips and Namkeens",
+  "chips-and-namkeens": "Chips and Namkeens",
+  "snacks": "Snacks",
+  "ice-cream": "Ice Creams & Desserts",
+  "ice-creams-frozen-desserts": "Ice Creams & Desserts",
+  "ice-creams-and-desserts": "Ice Creams & Desserts",
   "chocolates": "Chocolates",
   "noodles-pasta-vermicelli": "Noodles & Pasta",
   "noodles-and-pasta": "Noodles & Pasta",
@@ -43,17 +54,18 @@ const categoryRouteMap = {
   "paan-corner": "Pan Centre",
   "pan-centre": "Pan Centre",
   "cake-corner": "Cake Corner",
-  "biscuits-and-cakes": "Snacks",
-  "tea-coffee-drinks": "Beverages",
-  "tea-coffee": "Beverages",
-  "sauces-and-spreads": "Premium Pickles",
+  "biscuits-and-cakes": "Biscuits and Cakes",
+  "tea-coffee-drinks": "Tea, Coffee & Drinks",
+  "tea-coffee": "Tea, Coffee & Drinks",
+  "sauces-and-spreads": "Sauces and Spreads",
+  "premium-pickles": "Premium Pickles",
 
   // Beauty & Wellness
-  "bath-body": "Bath & Body",
-  "bath-and-body": "Bath & Body",
+  "bath-body": "Bath and Body",
+  "bath-and-body": "Bath and Body",
   "hair-care": "Hair Care",
-  "skin-care": "Skin Care",
-  "skincare": "Skin Care",
+  "skin-care": "Skincare",
+  "skincare": "Skincare",
   "makeup": "Makeups",
   "makeups": "Makeups",
   "oral-care": "Oral Care",
@@ -64,30 +76,31 @@ const categoryRouteMap = {
   "protein-supplements": "Proteins",
   "feminine-hygiene": "Female Hygiene",
   "sexual-wellness": "Sexual Wellness",
-  "health-pharma": "Health & Pharmacy",
-  "health-and-pharma": "Health & Pharmacy",
+  "health-pharma": "Health and Pharma",
+  "health-and-pharma": "Health and Pharma",
 
   // Household & Lifestyle
   "home-furnishing": "House Holds",
-  "home-and-kitchen": "Kitchen & Cooking",
-  "home-kitchen": "Kitchen & Cooking",
-  "kitchen-dining": "Kitchen & Cooking",
-  "cleaning-essentials": "Cleaning Essentials",
-  "cleaners-repellents": "Cleaning Essentials",
+  "home-and-kitchen": "Home and Kitchen",
+  "home-kitchen": "Home and Kitchen",
+  "kitchen-dining": "Home and Kitchen",
+  "cleaning-essentials": "Cleaners & Repellents",
+  "cleaners-repellents": "Cleaners & Repellents",
   "clothing": "Clothing Section",
-  "mobiles-electronics": "Mobiles & Electronics",
-  "appliances": "Mobiles & Electronics",
-  "electronics-appliances": "Mobiles & Electronics",
+  "mobiles-electronics": "Electronics & Appliances",
+  "appliances": "Electronics & Appliances",
+  "electronics-appliances": "Electronics & Appliances",
   "books-stationery": "Stationary",
   "stationery": "Stationary",
   "jewellery-accessories": "Grooming",
 
   // Electronics & Appliances
-  "puja": "Pooja Essentials",
-  "puja-store": "Pooja Essentials",
+  "puja": "Puja Store",
+  "puja-store": "Puja Store",
   "toys-games": "Toys and Games",
   "sports-fitness": "Sports Equipment",
   "pet-supplies": "Pet Shop",
+  "hostel-essentials": "Hostel Essentials",
 
   // Shop By Store
   "book-store": "Stationary",
@@ -589,83 +602,6 @@ export default function CategoryProductsPage({
   const [localCategories, setLocalCategories] = useState(categories);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
-  // Pagination & Load More States
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  const [activeSubcategory, setActiveSubcategory] = useState("Show All");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilters, setSelectedFilters] = useState({});
-  const [isFilterBottomSheetOpen, setIsFilterBottomSheetOpen] = useState(false);
-  const [activeMobileFilterSection, setActiveMobileFilterSection] = useState("All");
-
-  // Scroll to top on slug change
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [slug]);
-
-  // Sync Categories with parent props
-  useEffect(() => {
-    if (categories && categories.length > 0) {
-      setLocalCategories(categories);
-    } else {
-      cachedFetch(window.API_BASE_URL + "/api/categories")
-        .then(data => {
-          setLocalCategories(data || []);
-        })
-        .catch(err => {
-          console.error("Error loading categories in CategoryProductsPage:", err);
-        });
-    }
-  }, [categories]);
-
-  // Helper fetch function
-  const fetchCategoryData = async (categoryName, pageNum, isBackground = false, signal = null) => {
-    try {
-      if (!isBackground) {
-        if (pageNum > 1) {
-          setLoadingMore(true);
-        } else {
-          setLoading(true);
-        }
-      }
-      
-      const url = `${window.API_BASE_URL}/api/products?category=${encodeURIComponent(categoryName)}&page=${pageNum}&limit=20`;
-      const isBlocking = false;
-      const res = await apiFetch(url, { signal, blocking: isBlocking, minDelay: 700 });
-      if (!res.ok) throw new Error("Failed to fetch products");
-      const data = await res.json();
-      
-      const enriched = (data || []).map(p => ({
-        ...p,
-        _classifiedCategory: canonicalCategory(classifyProduct(p))
-      }));
-
-      setLocalProducts(prev => {
-        const nextProducts = pageNum === 1 ? enriched : [...prev, ...enriched];
-        // Cache data
-        categoryProductsCache[slug] = {
-          products: nextProducts,
-          page: pageNum,
-          hasMore: enriched.length === 20,
-          fetchedAt: Date.now()
-        };
-        return nextProducts;
-      });
-
-      setHasMore(enriched.length === 20);
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("Error loading category products:", err);
-        setError("Failed to load products for this category.");
-      }
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
 
   // Match the category
   const matchedCategory = useMemo(() => {
@@ -689,7 +625,169 @@ export default function CategoryProductsPage({
     return dbCategory || { name: categoryName };
   }, [localCategories, slug]);
 
-  // Main fetch hook based on current category slug
+  // Dynamic subcategories state
+  const [subcategories, setSubcategories] = useState(["Show All"]);
+  const [hasLoadedSubcategories, setHasLoadedSubcategories] = useState(false);
+
+  // Get active filters configuration based on category slug
+  const activeFiltersConfig = useMemo(() => {
+    const key = getSubcategoryKey(slug);
+    return categoryFilters[key] || {};
+  }, [slug]);
+  
+  // Pagination & Load More States
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawSubParam = searchParams.get("sub");
+
+  const activeSubcategory = useMemo(() => {
+    if (!rawSubParam || rawSubParam === "Show All") return "Show All";
+    const found = subcategories.find(
+      s => s.toLowerCase() === rawSubParam.toLowerCase()
+    );
+    return found || "Show All";
+  }, [rawSubParam, subcategories]);
+
+  // Validate subcategory and remove parameter if invalid
+  useEffect(() => {
+    if (hasLoadedSubcategories && rawSubParam) {
+      const found = subcategories.find(
+        s => s.toLowerCase() === rawSubParam.toLowerCase() && s !== "Show All"
+      );
+      if (!found) {
+        searchParams.delete("sub");
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [hasLoadedSubcategories, rawSubParam, subcategories, searchParams, setSearchParams]);
+
+  const setActiveSubcategory = (sub) => {
+    if (sub === "Show All") {
+      searchParams.delete("sub");
+    } else {
+      searchParams.set("sub", sub);
+    }
+    setSearchParams(searchParams);
+  };
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFilters, setSelectedFilters] = useState({});
+  const [isFilterBottomSheetOpen, setIsFilterBottomSheetOpen] = useState(false);
+  const [activeMobileFilterSection, setActiveMobileFilterSection] = useState("All");
+  const [sortBy, setSortBy] = useState("default");
+  const [isSortOpen, setIsSortOpen] = useState(false);
+
+  const activeItemRef = useRef(null);
+
+  // Scroll to top on slug change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
+
+  // Scroll active sidebar category into view
+  useEffect(() => {
+    if (activeItemRef.current) {
+      activeItemRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
+    }
+  }, [slug]);
+
+  // Sync Categories with parent props
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      setLocalCategories(categories);
+    } else {
+      cachedFetch(window.API_BASE_URL + "/api/categories")
+        .then(data => {
+          setLocalCategories(data || []);
+        })
+        .catch(err => {
+          console.error("Error loading categories in CategoryProductsPage:", err);
+        });
+    }
+  }, [categories]);
+
+  // Fetch unique subcategories from backend when category changes
+  useEffect(() => {
+    if (!matchedCategory) {
+      setSubcategories(["Show All"]);
+      setHasLoadedSubcategories(false);
+      return;
+    }
+    setHasLoadedSubcategories(false);
+    const categoryName = matchedCategory.name;
+    const url = `${window.API_BASE_URL}/api/subcategories?category=${encodeURIComponent(categoryName)}`;
+    cachedFetch(url)
+      .then(data => {
+        const list = data?.subcategories || [];
+        setSubcategories(["Show All", ...list]);
+        setHasLoadedSubcategories(true);
+      })
+      .catch(err => {
+        console.error("Error fetching subcategories:", err);
+        setSubcategories(["Show All"]);
+        setHasLoadedSubcategories(true);
+      });
+  }, [matchedCategory]);
+
+  // Helper fetch function supporting subcategory
+  const fetchCategoryData = async (categoryName, pageNum, subCat, isBackground = false, signal = null) => {
+    try {
+      if (!isBackground) {
+        if (pageNum > 1) {
+          setLoadingMore(true);
+        } else {
+          setLoading(true);
+        }
+      }
+      
+      let url = `${window.API_BASE_URL}/api/products?category=${encodeURIComponent(categoryName)}&page=${pageNum}&limit=20`;
+      if (subCat && subCat !== "Show All") {
+        url += `&subCategory=${encodeURIComponent(subCat)}`;
+      }
+      
+      const isBlocking = false;
+      const res = await apiFetch(url, { signal, blocking: isBlocking, minDelay: 700 });
+      if (!res.ok) throw new Error("Failed to fetch products");
+      const data = await res.json();
+      
+      const enriched = (data || []).map(p => ({
+        ...p,
+        _classifiedCategory: canonicalCategory(classifyProduct(p))
+      }));
+
+      const cacheKey = `${slug}_${subCat || "Show All"}`;
+
+      setLocalProducts(prev => {
+        const nextProducts = pageNum === 1 ? enriched : [...prev, ...enriched];
+        // Cache data
+        categoryProductsCache[cacheKey] = {
+          products: nextProducts,
+          page: pageNum,
+          hasMore: enriched.length === 20,
+          fetchedAt: Date.now()
+        };
+        return nextProducts;
+      });
+
+      setHasMore(enriched.length === 20);
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("Error loading category products:", err);
+        setError("Failed to load products for this category.");
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Main fetch hook based on current category slug and active subcategory
   useEffect(() => {
     if (!slug || localCategories.length === 0) return;
 
@@ -706,9 +804,10 @@ export default function CategoryProductsPage({
     const signal = controller.signal;
 
     const categoryName = matchedCategory.name;
+    const cacheKey = `${slug}_${activeSubcategory}`;
 
-    if (categoryProductsCache[slug]) {
-      const cached = categoryProductsCache[slug];
+    if (categoryProductsCache[cacheKey]) {
+      const cached = categoryProductsCache[cacheKey];
       setLocalProducts(cached.products);
       setPage(cached.page);
       setHasMore(cached.hasMore);
@@ -716,18 +815,18 @@ export default function CategoryProductsPage({
 
       // Refresh in background if stale (> 30s)
       if (Date.now() - cached.fetchedAt > 30000) {
-        fetchCategoryData(categoryName, 1, true, signal);
+        fetchCategoryData(categoryName, 1, activeSubcategory, true, signal);
       }
     } else {
       setLocalProducts([]);
       setLoading(true);
-      fetchCategoryData(categoryName, 1, false, signal);
+      fetchCategoryData(categoryName, 1, activeSubcategory, false, signal);
     }
 
     return () => {
       controller.abort();
     };
-  }, [slug, localCategories, matchedCategory]);
+  }, [slug, localCategories, matchedCategory, activeSubcategory]);
 
   // Load More function
   const loadMore = () => {
@@ -736,7 +835,7 @@ export default function CategoryProductsPage({
     setPage(nextPage);
     
     const categoryName = matchedCategory ? matchedCategory.name : slug;
-    fetchCategoryData(categoryName, nextPage);
+    fetchCategoryData(categoryName, nextPage, activeSubcategory);
   };
 
   const observerTarget = useRef(null);
@@ -765,21 +864,12 @@ export default function CategoryProductsPage({
     };
   }, [hasMore, loading, loadingMore, page, localCategories, slug]);
 
-  // Get active subcategories list
-  const subcategories = useMemo(() => {
-    const key = getSubcategoryKey(slug);
-    return CATEGORY_SUBCATEGORIES[key] || ["Show All"];
-  }, [slug]);
 
-  // Get active filters configuration based on category slug
-  const activeFiltersConfig = useMemo(() => {
-    const key = getSubcategoryKey(slug);
-    return categoryFilters[key] || {};
-  }, [slug]);
 
   // Reset active subcategory and filters when slug changes
   useEffect(() => {
-    setActiveSubcategory("Show All");
+    searchParams.delete("sub");
+    setSearchParams(searchParams, { replace: true });
     setSearchQuery("");
     setSelectedFilters({});
   }, [slug]);
@@ -797,6 +887,27 @@ export default function CategoryProductsPage({
     return normProd === normTarget || normProd.includes(normTarget) || normTarget.includes(normProd);
   };
 
+  // Memoize subcategory image mapping
+  const subcategoryImageMap = useMemo(() => {
+    const mapping = {};
+    subcategories.forEach((subName) => {
+      if (subName === "Show All") {
+        mapping[subName] = matchedCategory?.image || matchedCategory?.icon;
+        return;
+      }
+      const firstProd = localProducts.find(p =>
+        getSubcategoryMatch(p.subCategory, subName) ||
+        getSubcategoryMatch(p.subcategory, subName)
+      );
+      if (firstProd?.image) {
+        mapping[subName] = firstProd.image;
+      } else {
+        mapping[subName] = matchedCategory?.image || matchedCategory?.icon;
+      }
+    });
+    return mapping;
+  }, [subcategories, localProducts, matchedCategory]);
+
   // Filter category products based on dynamic subcategory, search query, and category specific checkbox filters
   const filteredCategoryProducts = useMemo(() => {
     if (!matchedCategory) return [];
@@ -813,11 +924,6 @@ export default function CategoryProductsPage({
     if (activeSubcategory !== "Show All") {
       if (activeSubcategory === "Top Deals") {
         list = list.filter(p => p.originalPrice > p.price);
-      } else {
-        list = list.filter(p =>
-          getSubcategoryMatch(p.subCategory, activeSubcategory) ||
-          getSubcategoryMatch(p.subcategory, activeSubcategory)
-        );
       }
     }
 
@@ -862,8 +968,21 @@ export default function CategoryProductsPage({
       });
     });
 
+    // 5. Sorting
+    if (sortBy === "price-asc") {
+      list.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-desc") {
+      list.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "discount") {
+      list.sort((a, b) => {
+        const discountA = a.originalPrice ? (a.originalPrice - a.price) / a.originalPrice : 0;
+        const discountB = b.originalPrice ? (b.originalPrice - b.price) / b.originalPrice : 0;
+        return discountB - discountA;
+      });
+    }
+
     return list;
-  }, [localProducts, matchedCategory, activeSubcategory, searchQuery, selectedFilters]);
+  }, [localProducts, matchedCategory, activeSubcategory, searchQuery, selectedFilters, sortBy]);
 
 
 
@@ -906,7 +1025,7 @@ export default function CategoryProductsPage({
           <div style={{
             flex: 1,
             display: "grid",
-            gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fill, minmax(180px, 1fr))",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
             gap: isMobile ? "12px" : "20px"
           }}>
             {Array.from({ length: 6 }).map((_, index) => (
@@ -942,361 +1061,482 @@ export default function CategoryProductsPage({
         fontFamily: "'Outfit', 'Inter', sans-serif",
         background: "#f7f8fa",
         minHeight: "80vh",
-        padding: isMobile ? "12px" : "20px 0",
+        display: "flex",
+        flexDirection: "row",
         width: "100%",
         maxWidth: "100%",
-        overflowX: "hidden",
         boxSizing: "border-box"
       }}
     >
       <SEO title={matchedCategory ? matchedCategory.name : "Products"} description={matchedCategory ? `Shop top quality ${matchedCategory.name} online with fast 10-minute delivery on Buyto.` : "Browse categories on Buyto."} />
-      {/* Category header block */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
-          <h1 style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "900", color: "#1f2937", margin: 0 }}>
-            {matchedCategory.icon && <span style={{ marginRight: "8px" }}>{matchedCategory.icon}</span>}
-            {matchedCategory.name}
-          </h1>
-          <span style={{ fontSize: "13px", color: "#6b7280", fontWeight: "600" }}>
-            ({filteredCategoryProducts.length} items)
-          </span>
-        </div>
-      </div>
 
-      <div
+      {/* 1. Left Vertical Category Navigation Sidebar */}
+      <aside
         style={{
+          position: "sticky",
+          top: isMobile ? "116px" : "120px",
+          height: isMobile ? "calc(100vh - 180px)" : "calc(100vh - 140px)",
+          overflowY: "auto",
+          width: isMobile ? "90px" : "140px",
+          flexShrink: 0,
+          background: "white",
           display: "flex",
-          gap: isMobile ? "12px" : "24px",
-          flexDirection: isMobile ? "column" : "row",
-          alignItems: "stretch",
-          width: "100%",
-          maxWidth: "100%",
-          boxSizing: "border-box"
+          flexDirection: "column",
+          gap: "16px",
+          padding: "16px 0",
+          boxSizing: "border-box",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          borderRight: "1px solid #f3f4f6"
         }}
+        className="hide-scrollbar"
       >
-        {/* Left Sidebar Layout (Subcategories + Filters) */}
-        {!isMobile && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "220px" }}>
-            {/* Subcategories list */}
-            <aside
+        {subcategories.map((sub) => {
+          const isActive = activeSubcategory === sub;
+          const label = sub === "Show All" ? "All" : sub;
+          const image = subcategoryImageMap[sub];
+
+          return (
+            <button
+              key={sub}
+              ref={isActive ? activeItemRef : null}
+              onClick={() => setActiveSubcategory(sub)}
               style={{
-                background: "white",
-                borderRadius: "28px",
-                padding: "16px 12px",
-                boxShadow: "0 8px 30px rgba(0,0,0,0.04)",
-                border: "1px solid #f3f4f6",
-                maxHeight: "350px",
-                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                background: "none",
+                border: "none",
+                padding: "8px 4px",
+                cursor: "pointer",
+                position: "relative",
+                width: "100%",
                 boxSizing: "border-box"
               }}
             >
-              <span style={{ fontWeight: "800", fontSize: "14px", color: "#111827", paddingLeft: "14px", display: "block", marginBottom: "10px" }}>
-                Subcategories
-              </span>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                {subcategories.map((sub) => {
-                  const isActive = activeSubcategory === sub;
-                  return (
-                    <button
-                      key={sub}
-                      onClick={() => setActiveSubcategory(sub)}
-                      style={{
-                        textAlign: "left",
-                        padding: "8px 14px",
-                        borderRadius: "10px",
-                        border: "none",
-                        background: isActive ? "#eefaf2" : "transparent",
-                        color: isActive ? "#318616" : "#4b5563",
-                        fontSize: "13px",
-                        fontWeight: isActive ? "800" : "600",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between"
-                      }}
-                      onMouseOver={(e) => {
-                        if (!isActive) e.currentTarget.style.background = "#f7f8fa";
-                      }}
-                      onMouseOut={(e) => {
-                        if (!isActive) e.currentTarget.style.background = "transparent";
-                      }}
-                    >
-                      <span>{sub}</span>
-                      {isActive && <span style={{ fontSize: "10px" }}>●</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
-
-            {/* Dynamic Filter Sidebar */}
-            {Object.keys(activeFiltersConfig).length > 0 && (
-              <aside
-                style={{
-                  background: "white",
-                  borderRadius: "28px",
-                  padding: "20px",
-                  boxShadow: "0 8px 30px rgba(0,0,0,0.04)",
-                  border: "1px solid #f3f4f6",
-                  boxSizing: "border-box",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "20px"
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: "800", fontSize: "14px", color: "#111827" }}>Filters</span>
-                  {Object.keys(selectedFilters).length > 0 && (
-                    <button
-                      onClick={handleClearAll}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#318616",
-                        fontSize: "11px",
-                        fontWeight: "750",
-                        cursor: "pointer",
-                        padding: 0
-                      }}
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </div>
-
-                {Object.entries(activeFiltersConfig).map(([section, options]) => (
-                  <div key={section} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <span style={{ fontWeight: "750", fontSize: "11px", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      {section}
-                    </span>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {options.map((opt) => {
-                        const isChecked = (selectedFilters[section] || []).includes(opt);
-                        return (
-                          <label
-                            key={opt}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                              fontSize: "13px",
-                              fontWeight: isChecked ? "700" : "500",
-                              color: isChecked ? "#318616" : "#4b5563",
-                              cursor: "pointer",
-                              userSelect: "none"
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleCheckboxChange(section, opt)}
-                              style={{
-                                accentColor: "#318616",
-                                width: "16px",
-                                height: "16px",
-                                cursor: "pointer"
-                              }}
-                            />
-                            <span>{opt}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                    <div style={{ height: "1px", background: "#f3f4f6", marginTop: "10px" }} />
-                  </div>
-                ))}
-              </aside>
-            )}
-          </div>
-        )}
-
-        {/* Mobile Filter Chips Row */}
-        {isMobile && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {/* Subcategories Horizontal Bar */}
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                overflowX: "auto",
-                padding: "4px 0",
-                width: "100%",
-                scrollbarWidth: "none"
-              }}
-              className="hide-scrollbar"
-            >
-              {subcategories.map((sub) => {
-                const isActive = activeSubcategory === sub;
-                return (
-                  <button
-                    key={sub}
-                    onClick={() => setActiveSubcategory(sub)}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: "20px",
-                      border: "none",
-                      background: isActive ? "#318616" : "white",
-                      color: isActive ? "white" : "#4b5563",
-                      fontSize: "12px",
-                      fontWeight: "750",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                      border: "1px solid #e5e7eb"
-                    }}
-                  >
-                    {sub}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Filter Section Chips */}
-            {Object.keys(activeFiltersConfig).length > 0 && (
+              {/* Active Indicator on RIGHT edge */}
               <div
                 style={{
-                  display: "flex",
-                  gap: "8px",
-                  overflowX: "auto",
-                  padding: "4px 0 12px 0",
-                  width: "100%",
-                  scrollbarWidth: "none"
+                  position: "absolute",
+                  right: 0,
+                  top: "10%",
+                  height: "80%",
+                  width: "6px",
+                  backgroundColor: "#318616",
+                  borderRadius: "4px 0 0 4px",
+                  opacity: isActive ? 1 : 0,
+                  transform: isActive ? "scaleX(1)" : "scaleX(0)",
+                  transformOrigin: "right",
+                  transition: "opacity 0.25s ease, transform 0.25s ease"
                 }}
-                className="hide-scrollbar"
+              />
+
+              {/* Icon / Image container */}
+              <div
+                style={{
+                  width: isMobile ? "44px" : "54px",
+                  height: isMobile ? "44px" : "54px",
+                  borderRadius: "50%",
+                  backgroundColor: isActive ? "#eefaf2" : "#f3f4f6",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  marginBottom: "6px",
+                  transition: "background-color 0.2s ease"
+                }}
               >
-                <button
-                  onClick={() => {
-                    setActiveMobileFilterSection("All");
-                    setIsFilterBottomSheetOpen(true);
-                  }}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: "20px",
-                    border: "none",
-                    background: "#1F2937",
-                    color: "white",
-                    fontSize: "12px",
-                    fontWeight: "750",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px"
-                  }}
-                >
-                  <span>🔍 Filters</span>
-                  {Object.keys(selectedFilters).length > 0 && (
-                    <span style={{ background: "#318616", color: "white", borderRadius: "50%", width: "16px", height: "16px", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "10px" }}>
-                      {Object.values(selectedFilters).reduce((a, b) => a + b.length, 0)}
-                    </span>
-                  )}
-                </button>
-
-                {Object.keys(activeFiltersConfig).map((section) => {
-                  const selectedCount = (selectedFilters[section] || []).length;
-                  return (
-                    <button
-                      key={section}
-                      onClick={() => {
-                        setActiveMobileFilterSection(section);
-                        setIsFilterBottomSheetOpen(true);
-                      }}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: "20px",
-                        border: "none",
-                        background: selectedCount > 0 ? "#eefaf2" : "white",
-                        color: selectedCount > 0 ? "#318616" : "#4b5563",
-                        fontSize: "12px",
-                        fontWeight: "750",
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                        border: selectedCount > 0 ? "1px solid #318616" : "1px solid #e5e7eb"
-                      }}
-                    >
-                      {section} {selectedCount > 0 ? `(${selectedCount})` : ""}
-                    </button>
-                  );
-                })}
+                {image && image.startsWith("http") ? (
+                  <img
+                    src={image}
+                    alt={label}
+                    style={{
+                      width: "60%",
+                      height: "60%",
+                      objectFit: "contain",
+                      filter: isActive ? "none" : "grayscale(30%)"
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontSize: isMobile ? "20px" : "24px" }}>
+                    {image || "🛍️"}
+                  </span>
+                )}
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Main Product Grid */}
+              {/* Category Name */}
+              <span
+                style={{
+                  fontSize: isMobile ? "10px" : "12px",
+                  fontWeight: isActive ? "800" : "600",
+                  color: isActive ? "#318616" : "#4b5563",
+                  textAlign: "center",
+                  lineHeight: "1.2",
+                  padding: "0 4px",
+                  wordBreak: "break-word"
+                }}
+              >
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </aside>
+
+      {/* 2. Right Content Area (Filters, Banner, Products Grid) */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: isMobile ? "12px" : "20px 24px",
+          boxSizing: "border-box"
+        }}
+      >
+        {/* Category header block */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+            <h1 style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "900", color: "#1f2937", margin: 0 }}>
+              {matchedCategory.icon && <span style={{ marginRight: "8px" }}>{matchedCategory.icon}</span>}
+              {matchedCategory.name}
+            </h1>
+            <span style={{ fontSize: "13px", color: "#6b7280", fontWeight: "600" }}>
+              ({filteredCategoryProducts.length} items)
+            </span>
+          </div>
+        </div>
+
+        {/* Premium Horizontal Filter Row */}
         <div
           style={{
-            flex: 1,
+            display: "flex",
+            gap: "10px",
+            overflowX: "auto",
+            padding: "4px 0 16px 0",
             width: "100%",
-            maxWidth: "100%",
-            overflowX: "hidden",
-            boxSizing: "border-box",
-            paddingLeft: isMobile ? "4px" : "0",
-            paddingRight: isMobile ? "4px" : "0"
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            alignItems: "center"
           }}
+          className="hide-scrollbar"
         >
-          {filteredCategoryProducts.length === 0 ? (
-            <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "28px", border: "1px solid #f3f4f6", boxShadow: "0 8px 30px rgba(0,0,0,0.02)" }}>
-              <div style={{ fontSize: "40px", marginBottom: "12px" }}>📦</div>
-              <p style={{ color: "#6b7280", fontSize: "14px", fontWeight: "600" }}>
-                No matching products found in this category or subcategory.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div
+          {/* Filters Button */}
+          <button
+            onClick={() => {
+              setActiveMobileFilterSection("All");
+              setIsFilterBottomSheetOpen(true);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 16px",
+              borderRadius: "14px",
+              border: Object.keys(selectedFilters).length > 0 ? "1.5px solid #318616" : "1px solid #e5e7eb",
+              background: Object.keys(selectedFilters).length > 0 ? "#eefaf2" : "white",
+              color: Object.keys(selectedFilters).length > 0 ? "#318616" : "#4b5563",
+              fontSize: "13px",
+              fontWeight: "750",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+              height: "46px",
+              boxSizing: "border-box"
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+            </svg>
+            <span>Filters</span>
+            {Object.keys(selectedFilters).length > 0 && (
+              <span style={{ background: "#318616", color: "white", borderRadius: "50%", width: "16px", height: "16px", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "800" }}>
+                {Object.values(selectedFilters).reduce((a, b) => a + b.length, 0)}
+              </span>
+            )}
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {/* Sort Button with dropdown */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setIsSortOpen(!isSortOpen)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 16px",
+                borderRadius: "14px",
+                border: sortBy !== "default" ? "1.5px solid #318616" : "1px solid #e5e7eb",
+                background: sortBy !== "default" ? "#eefaf2" : "white",
+                color: sortBy !== "default" ? "#318616" : "#4b5563",
+                fontSize: "13px",
+                fontWeight: "750",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                height: "46px",
+                boxSizing: "border-box"
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="16 18 20 22 24 18" /><line x1="20" y1="22" x2="20" y2="2" /><polyline points="8 6 4 2 0 6" /><line x1="4" y1="2" x2="4" y2="22" />
+              </svg>
+              <span>Sort{sortBy !== "default" ? `: ${sortBy === "price-asc" ? "L-H" : sortBy === "price-desc" ? "H-L" : "Savings"}` : ""}</span>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {isSortOpen && (
+              <>
+                <div style={{ position: "fixed", inset: 0, zIndex: 9 }} onClick={() => setIsSortOpen(false)} />
+                <div style={{ position: "absolute", top: "100%", left: 0, marginTop: "4px", background: "white", borderRadius: "14px", border: "1px solid #e5e7eb", boxShadow: "0 8px 30px rgba(0,0,0,0.08)", zIndex: 10, minWidth: "160px", padding: "4px" }}>
+                  {[
+                    { val: "default", label: "Default" },
+                    { val: "price-asc", label: "Price: Low to High" },
+                    { val: "price-desc", label: "Price: High to Low" },
+                    { val: "discount", label: "Discount" }
+                  ].map(opt => {
+                    const isActive = sortBy === opt.val;
+                    return (
+                      <button
+                        key={opt.val}
+                        onClick={() => {
+                          setSortBy(opt.val);
+                          setIsSortOpen(false);
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 14px",
+                          border: "none",
+                          borderRadius: "10px",
+                          background: isActive ? "#eefaf2" : "transparent",
+                          color: isActive ? "#318616" : "#4b5563",
+                          fontSize: "13px",
+                          fontWeight: isActive ? "750" : "500",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Dynamic Filter Sections (Type, Country, Brand etc.) */}
+          {Object.keys(activeFiltersConfig).map((section) => {
+            const selectedCount = (selectedFilters[section] || []).length;
+            return (
+              <button
+                key={section}
+                onClick={() => {
+                  setActiveMobileFilterSection(section);
+                  setIsFilterBottomSheetOpen(true);
+                }}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: isMobile
-                    ? "repeat(2, minmax(0, 1fr))"
-                    : "repeat(auto-fill, minmax(180px, 1fr))",
-                  gap: isMobile ? "12px" : "20px",
-                  width: "100%",
-                  maxWidth: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  borderRadius: "14px",
+                  border: selectedCount > 0 ? "1.5px solid #318616" : "1px solid #e5e7eb",
+                  background: selectedCount > 0 ? "#eefaf2" : "white",
+                  color: selectedCount > 0 ? "#318616" : "#4b5563",
+                  fontSize: "13px",
+                  fontWeight: "750",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                  height: "46px",
                   boxSizing: "border-box"
                 }}
               >
-                {filteredCategoryProducts.map(p => (
-                  <ProductCard
-                    key={p._id || p.id}
-                    product={p}
-                    addToCart={addToCart}
-                    removeFromCart={removeFromCart}
-                    cart={cart}
-                    cartItems={cartItems}
-                    windowWidth={windowWidth}
-                    getCartKey={getCartKey}
-                    setSelectedProduct={setSelectedProduct}
-                  />
-                ))}
-              </div>
+                <span>{section}</span>
+                {selectedCount > 0 && (
+                  <span style={{ background: "#318616", color: "white", borderRadius: "50%", width: "16px", height: "16px", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "800" }}>
+                    {selectedCount}
+                  </span>
+                )}
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            );
+          })}
+        </div>
 
-              {/* Load More trigger and loading cards */}
-              {hasMore && (
-                <div
-                  ref={observerTarget}
+        <div
+          style={{
+            display: "flex",
+            gap: isMobile ? "12px" : "24px",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: "stretch",
+            width: "100%",
+            maxWidth: "100%",
+            boxSizing: "border-box"
+          }}
+        >
+          {/* Left Sidebar Layout (Filters) */}
+          {!isMobile && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "220px" }}>
+              {/* Dynamic Filter Sidebar */}
+              {Object.keys(activeFiltersConfig).length > 0 && (
+                <aside
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: isMobile
-                      ? "repeat(2, minmax(0, 1fr))"
-                      : "repeat(auto-fill, minmax(180px, 1fr))",
-                    gap: isMobile ? "12px" : "20px",
-                    marginTop: "20px",
-                    width: "100%",
-                    minHeight: "50px"
+                    background: "white",
+                    borderRadius: "28px",
+                    padding: "20px",
+                    boxShadow: "0 8px 30px rgba(0,0,0,0.04)",
+                    border: "1px solid #f3f4f6",
+                    boxSizing: "border-box",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px"
                   }}
                 >
-                  {loadingMore &&
-                    Array.from({ length: isMobile ? 2 : 4 }).map((_, idx) => (
-                      <ProductCardSkeleton key={`more-skeleton-${idx}`} isMobile={isMobile} />
-                    ))}
-                </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: "800", fontSize: "14px", color: "#111827" }}>Filters</span>
+                    {Object.keys(selectedFilters).length > 0 && (
+                      <button
+                        onClick={handleClearAll}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#318616",
+                          fontSize: "11px",
+                          fontWeight: "750",
+                          cursor: "pointer",
+                          padding: 0
+                        }}
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+
+                  {Object.entries(activeFiltersConfig).map(([section, options]) => (
+                    <div key={section} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <span style={{ fontWeight: "750", fontSize: "11px", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        {section}
+                      </span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {options.map((opt) => {
+                          const isChecked = (selectedFilters[section] || []).includes(opt);
+                          return (
+                            <label
+                              key={opt}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                fontSize: "13px",
+                                fontWeight: isChecked ? "700" : "500",
+                                color: isChecked ? "#318616" : "#4b5563",
+                                cursor: "pointer",
+                                userSelect: "none"
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleCheckboxChange(section, opt)}
+                                style={{
+                                  accentColor: "#318616",
+                                  width: "16px",
+                                  height: "16px",
+                                  cursor: "pointer"
+                                }}
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <div style={{ height: "1px", background: "#f3f4f6", marginTop: "10px" }} />
+                    </div>
+                  ))}
+                </aside>
               )}
-            </>
+            </div>
           )}
+
+
+
+          {/* Main Product Grid */}
+          <div
+            style={{
+              flex: 1,
+              width: "100%",
+              maxWidth: "100%",
+              overflowX: "hidden",
+              boxSizing: "border-box",
+              paddingLeft: isMobile ? "4px" : "0",
+              paddingRight: isMobile ? "4px" : "0"
+            }}
+          >
+            {filteredCategoryProducts.length === 0 ? (
+              <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "28px", border: "1px solid #f3f4f6", boxShadow: "0 8px 30px rgba(0,0,0,0.02)" }}>
+                <div style={{ fontSize: "40px", marginBottom: "12px" }}>📦</div>
+                <p style={{ color: "#6b7280", fontSize: "14px", fontWeight: "600" }}>
+                  No matching products found in this category or subcategory.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap: isMobile ? "12px" : "20px",
+                    width: "100%",
+                    maxWidth: "100%",
+                    boxSizing: "border-box"
+                  }}
+                >
+                  {filteredCategoryProducts.map(p => (
+                    <ProductCard
+                      key={p._id || p.id}
+                      product={p}
+                      addToCart={addToCart}
+                      removeFromCart={removeFromCart}
+                      cart={cart}
+                      cartItems={cartItems}
+                      windowWidth={windowWidth}
+                      getCartKey={getCartKey}
+                      setSelectedProduct={setSelectedProduct}
+                    />
+                  ))}
+                </div>
+
+                {/* Load More trigger and loading cards */}
+                {hasMore && (
+                  <div
+                    ref={observerTarget}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: isMobile ? "12px" : "20px",
+                      marginTop: "20px",
+                      width: "100%",
+                      minHeight: "50px"
+                    }}
+                  >
+                    {loadingMore &&
+                      Array.from({ length: isMobile ? 2 : 4 }).map((_, idx) => (
+                        <ProductCardSkeleton key={`more-skeleton-${idx}`} isMobile={isMobile} />
+                      ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 

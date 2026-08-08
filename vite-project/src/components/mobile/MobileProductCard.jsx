@@ -16,6 +16,9 @@ function MobileProductCard({
 
   const productId = product._id || product.id;
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+  const isOutOfStock = hasVariants
+    ? product.variants.every(v => v.stock === undefined ? false : v.stock <= 0)
+    : (product.stock !== undefined && product.stock <= 0);
 
   const price = product.price !== undefined && product.price !== null
     ? product.price
@@ -104,14 +107,19 @@ function MobileProductCard({
 
   const handleAdd = (e) => {
     e.stopPropagation();
+    if (isOutOfStock) return;
+
     const productToCart = {
       ...product,
       selectedWeight: defaultWeight,
       price: product.variants && product.variants[0] ? product.variants[0].price : product.price
     };
 
-    if (quantity >= (product.stock || 30)) {
-      alert(`Only ${product.stock || 30} items available`);
+    const maxAvailable = hasVariants
+      ? (product.variants[0] && product.variants[0].stock !== undefined ? product.variants[0].stock : 30)
+      : (product.stock !== undefined ? product.stock : 30);
+    if (quantity >= maxAvailable) {
+      alert(`Only ${maxAvailable} items available`);
       return;
     }
 
@@ -172,6 +180,23 @@ function MobileProductCard({
             boxSizing: "border-box",
           }}
         >
+          {isOutOfStock && (
+            <span style={{
+              position: "absolute",
+              zIndex: 10,
+              background: "#ef4444",
+              color: "white",
+              padding: "2px 4px",
+              borderRadius: "4px",
+              fontSize: "8px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.3px",
+              boxShadow: "0 1.5px 4px rgba(239, 68, 68, 0.3)"
+            }}>
+              Out of Stock
+            </span>
+          )}
           <img
             src={getOptimizedImageUrl(product.image, "thumbnail", product)}
             alt={product.name}
@@ -180,6 +205,7 @@ function MobileProductCard({
               maxHeight: "100%",
               objectFit: "contain",
               borderRadius: "6px",
+              filter: isOutOfStock ? "grayscale(40%) opacity(0.6)" : "none",
             }}
             loading="lazy"
           />
@@ -335,8 +361,8 @@ function MobileProductCard({
             transition: "all 300ms cubic-bezier(0.16, 1, 0.3, 1)",
             borderRadius: "6px",
             overflow: "hidden",
-            border: "1px solid #318616",
-            backgroundColor: (quantity > 0 && !isAnimating) ? "#318616" : "white",
+            border: isOutOfStock ? "1px solid #d1d5db" : "1px solid #318616",
+            backgroundColor: isOutOfStock ? "#f3f4f6" : ((quantity > 0 && !isAnimating) ? "#318616" : "white"),
             animation: isAnimating ? "buytoContainerBg 450ms forwards ease-out" : "none",
             boxSizing: "border-box",
             willChange: "width, background-color, border-color",
@@ -359,7 +385,29 @@ function MobileProductCard({
           )}
 
           {/* ADD Button */}
-          {(quantity === 0 || isAnimating) && (
+          {isOutOfStock ? (
+            <button
+              disabled
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "transparent",
+                border: "none",
+                color: "#9ca3af",
+                borderRadius: "6px",
+                fontSize: "8px",
+                fontWeight: "900",
+                cursor: "not-allowed",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 3,
+                boxSizing: "border-box",
+              }}
+            >
+              OOS
+            </button>
+          ) : ((quantity === 0 || isAnimating) && (
             <button
               onClick={handleButtonClick}
               style={{
@@ -384,10 +432,10 @@ function MobileProductCard({
             >
               ADD
             </button>
-          )}
+          ))}
 
           {/* Qty Selector */}
-          {(quantity > 0 || isAnimating) && (
+          {!isOutOfStock && (quantity > 0 || isAnimating) && (
             <div
               onClick={(e) => e.stopPropagation()}
               style={{

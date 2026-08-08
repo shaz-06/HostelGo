@@ -159,6 +159,28 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
       throw new Error("One or more products are invalid, unavailable, or no longer exist. Please refresh your cart and try again.");
     }
 
+    const hasVariants = Array.isArray(dbProd.variants) && dbProd.variants.length > 0;
+    const requestedWeight = item.selectedWeight || item.weight || (hasVariants && dbProd.variants[0] ? dbProd.variants[0].weight : "");
+    if (hasVariants) {
+      const variant = dbProd.variants.find(v => v.weight === requestedWeight);
+      if (!variant) {
+        throw new Error(`The selected variant of "${dbProd.name}" is no longer available.`);
+      }
+      if (variant.stock <= 0) {
+        throw new Error(`The selected variant of "${dbProd.name}" is currently out of stock.`);
+      }
+      if (variant.stock < item.quantity) {
+        throw new Error(`Only ${variant.stock} units of "${dbProd.name}" selected variant are available.`);
+      }
+    } else {
+      if (dbProd.stock <= 0) {
+        throw new Error(`"${dbProd.name}" is currently out of stock.`);
+      }
+      if (dbProd.stock < item.quantity) {
+        throw new Error(`Only ${dbProd.stock} units of "${dbProd.name}" are available.`);
+      }
+    }
+
     const priceCalc = await calculateSellingPrice(dbProd);
     const dbPrice = priceCalc.finalPrice;
 
@@ -780,26 +802,84 @@ router.post("/payment/verify", async (req, res) => {
 
       // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
       console.log("Reducing inventory stock...");
-      for (const item of savedOrder.products) {
-        try {
-          const filter = [];
-          if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
-            filter.push({ _id: item.productId });
-          }
-          if (item.productId) {
-            filter.push({ id: item.productId });
-          }
-          const product = filter.length > 0 ? await Product.findOne({ $or: filter }) : null;
+      if (!savedOrder.inventoryDeducted) {
+        let allSuccess = true;
+        const rollbacks = [];
+        for (const item of savedOrder.products) {
+          try {
+            const hasVariants = item.weight;
+            let result;
+            if (hasVariants) {
+              result = await Product.updateOne(
+                {
+                  _id: item.productId,
+                  variants: {
+                    $elemMatch: {
+                      weight: item.weight,
+                      stock: { $gte: item.quantity }
+                    }
+                  }
+                },
+                {
+                  $inc: { "variants.$.stock": -item.quantity }
+                }
+              );
+            } else {
+              result = await Product.updateOne(
+                {
+                  _id: item.productId,
+                  stock: { $gte: item.quantity }
+                },
+                {
+                  $inc: { stock: -item.quantity }
+                }
+              );
+            }
 
-          if (product) {
-            product.stock = Math.max(0, product.stock - item.quantity);
-            const savedProduct = await product.save();
-            console.log(`Successfully reduced stock for ${savedProduct.name} (ID: ${item.productId}) by ${item.quantity}. New Stock: ${savedProduct.stock}`);
-          } else {
-            console.warn(`⚠️ Product not found for stock reduction: ${item.productId}`);
+            if (result.modifiedCount === 0) {
+              console.error(`❌ Atomic stock reduction failed for product ${item.productId}: Insufficient stock.`);
+              allSuccess = false;
+              break;
+            } else {
+              rollbacks.push({
+                productId: item.productId,
+                weight: item.weight,
+                quantity: item.quantity,
+                hasVariants: !!hasVariants
+              });
+            }
+          } catch (dbError) {
+            console.error(`❌ Failed to update stock for product ${item.productId}:`, dbError.message);
+            allSuccess = false;
+            break;
           }
-        } catch (dbError) {
-          console.error(`❌ Failed to update stock for product ${item.productId}:`, dbError.message);
+        }
+
+        if (!allSuccess) {
+          console.log("Rolling back successfully decremented items due to partial stock failure...");
+          for (const rb of rollbacks) {
+            try {
+              if (rb.hasVariants) {
+                await Product.updateOne(
+                  { _id: rb.productId, "variants.weight": rb.weight },
+                  { $inc: { "variants.$.stock": rb.quantity } }
+                );
+              } else {
+                await Product.updateOne(
+                  { _id: rb.productId },
+                  { $inc: { stock: rb.quantity } }
+                );
+              }
+            } catch (rbErr) {
+              console.error(`❌ Failed to rollback stock for product ${rb.productId}:`, rbErr.message);
+            }
+          }
+          await Order.updateOne({ _id: savedOrder._id }, { $set: { paymentStatus: "Refunded", orderStatus: "Cancelled" } });
+          return res.status(400).json({ success: false, message: "Payment verification failed: One or more products became out of stock during checkout. A refund will be initiated." });
+        } else {
+          await Order.updateOne({ _id: savedOrder._id }, { $set: { inventoryDeducted: true } });
+          savedOrder.inventoryDeducted = true;
+          console.log("Inventory stock successfully reduced and marked on order.");
         }
       }
 
@@ -1034,26 +1114,84 @@ router.post("/orders", authMiddleware, async (req, res) => {
 
       // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
       console.log("Reducing inventory stock for COD order...");
-      for (const item of products) {
-        try {
-          const filter = [];
-          if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
-            filter.push({ _id: item.productId });
-          }
-          if (item.productId) {
-            filter.push({ id: item.productId });
-          }
-          const product = filter.length > 0 ? await Product.findOne({ $or: filter }) : null;
+      if (!savedOrder.inventoryDeducted) {
+        let allSuccess = true;
+        const rollbacks = [];
+        for (const item of products) {
+          try {
+            const hasVariants = item.selectedWeight || item.weight;
+            let result;
+            if (hasVariants) {
+              result = await Product.updateOne(
+                {
+                  _id: item.productId,
+                  variants: {
+                    $elemMatch: {
+                      weight: item.selectedWeight || item.weight,
+                      stock: { $gte: item.quantity }
+                    }
+                  }
+                },
+                {
+                  $inc: { "variants.$.stock": -item.quantity }
+                }
+              );
+            } else {
+              result = await Product.updateOne(
+                {
+                  _id: item.productId,
+                  stock: { $gte: item.quantity }
+                },
+                {
+                  $inc: { stock: -item.quantity }
+                }
+              );
+            }
 
-          if (product) {
-            product.stock = Math.max(0, product.stock - item.quantity);
-            const savedProduct = await product.save();
-            console.log(`Reduced stock for ${savedProduct.name} (ID: ${item.productId}) by ${item.quantity}. New Stock: ${savedProduct.stock}`);
-          } else {
-            console.warn(`⚠️ Product not found for stock reduction: ${item.productId}`);
+            if (result.modifiedCount === 0) {
+              console.error(`❌ Atomic stock reduction failed for product ${item.productId}: Insufficient stock.`);
+              allSuccess = false;
+              break;
+            } else {
+              rollbacks.push({
+                productId: item.productId,
+                weight: item.selectedWeight || item.weight,
+                quantity: item.quantity,
+                hasVariants: !!hasVariants
+              });
+            }
+          } catch (dbError) {
+            console.error(`❌ Failed to update stock for product ${item.productId}:`, dbError.message);
+            allSuccess = false;
+            break;
           }
-        } catch (dbError) {
-          console.error(`❌ Failed to update stock for product ${item.productId}:`, dbError.message);
+        }
+
+        if (!allSuccess) {
+          console.log("Rolling back successfully decremented items due to partial stock failure...");
+          for (const rb of rollbacks) {
+            try {
+              if (rb.hasVariants) {
+                await Product.updateOne(
+                  { _id: rb.productId, "variants.weight": rb.weight },
+                  { $inc: { "variants.$.stock": rb.quantity } }
+                );
+              } else {
+                await Product.updateOne(
+                  { _id: rb.productId },
+                  { $inc: { stock: rb.quantity } }
+                );
+              }
+            } catch (rbErr) {
+              console.error(`❌ Failed to rollback stock for product ${rb.productId}:`, rbErr.message);
+            }
+          }
+          await Order.deleteOne({ _id: savedOrder._id });
+          return res.status(400).json({ success: false, message: "Checkout failed: Some items became out of stock. Please try again." });
+        } else {
+          await Order.updateOne({ _id: savedOrder._id }, { $set: { inventoryDeducted: true } });
+          savedOrder.inventoryDeducted = true;
+          console.log("Inventory stock successfully reduced and marked on order.");
         }
       }
 

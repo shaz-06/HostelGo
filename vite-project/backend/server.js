@@ -35,6 +35,7 @@ const supportRoutes = require("./routes/supportRoutes");
 const buyCoinRoutes = require("./routes/buyCoinRoutes");
 const addressRoutes = require("./routes/addressRoutes");
 const addressShareRoutes = require("./routes/addressShareRoutes");
+const addressRequestRoutes = require("./routes/addressRequestRoutes");
 const saveForLaterRoutes = require("./routes/saveForLaterRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const checkoutRoutes = require("./routes/checkoutRoutes");
@@ -448,10 +449,55 @@ app.put("/api/profile", require("./middleware/authMiddleware"), (req, res, next)
   userRoutes(req, res, next);
 });
 
+app.get("/api/subcategories", async (req, res) => {
+  try {
+    const categoryName = (req.query.category || "").toString().trim();
+    if (!categoryName) {
+      return res.status(400).json({ success: false, message: "Category query parameter is required" });
+    }
+
+    if (isConnected) {
+      const catRegex = new RegExp("^" + categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i");
+      const rawSubcategories = await Product.distinct("subCategory", {
+        category: catRegex,
+        subCategory: { $exists: true, $nin: ["", null, "undefined"] }
+      });
+
+      const seen = new Set();
+      const normalized = [];
+      for (const sub of rawSubcategories) {
+        const trimmed = sub.trim();
+        if (!trimmed) continue;
+        const lower = trimmed.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          normalized.push(trimmed);
+        }
+      }
+
+      res.json({
+        success: true,
+        category: categoryName,
+        subcategories: normalized
+      });
+    } else {
+      res.json({
+        success: true,
+        category: categoryName,
+        subcategories: []
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
+
 app.get("/api/products", async (req, res) => {
   try {
     const searchQuery = (req.query.search || req.query.q || req.query.query || "").toString().trim();
     const categoryQuery = (req.query.category || "").toString().trim();
+    const subCategoryQuery = (req.query.subCategory || req.query.sub || "").toString().trim();
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 0;
     const skip = (page - 1) * limit;
@@ -473,7 +519,11 @@ app.get("/api/products", async (req, res) => {
       }
 
       if (categoryQuery && categoryQuery !== "All") {
-        filter.category = new RegExp(categoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
+        filter.category = new RegExp("^" + categoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i");
+      }
+
+      if (subCategoryQuery && subCategoryQuery !== "Show All") {
+        filter.subCategory = new RegExp("^" + subCategoryQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i");
       }
 
       if (limit > 0) {
@@ -632,6 +682,11 @@ try {
     socket.on("registerUser", (userId) => {
       socket.join(`user_${userId}`);
       console.log(`🔌 Socket.IO client ${socket.id} joined user_${userId}`);
+    });
+
+    socket.on("joinAddressRequestRoom", (requestId) => {
+      socket.join(`address-request-${requestId}`);
+      console.log(`🔌 Socket.IO client ${socket.id} joined address-request-${requestId}`);
     });
 
     socket.on("joinOrderRoom", async (data) => {
@@ -796,6 +851,7 @@ app.use("/api/checkout", checkoutRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/address-share", addressShareRoutes);
+app.use("/api/address-request", addressRequestRoutes);
 app.use("/api/save-for-later", saveForLaterRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", userRoutes);
@@ -928,6 +984,44 @@ server.listen(PORT, "0.0.0.0", () => {
       }
     } catch (err) {
       console.error("[Cron Error] Address share expiry job failed:", err.message);
+    }
+  });
+
+  // Schedule AddressRequest expiry and retention cleanup daily at midnight
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      console.log("[Cron] Running AddressRequest expiry and retention cleanup job...");
+      const AddressRequest = require("./models/AddressRequest");
+      
+      // 1. Mark expired requests
+      const expireResult = await AddressRequest.updateMany(
+        { status: "pending", expiresAt: { $lte: new Date() } },
+        { status: "expired" }
+      );
+      if (expireResult.modifiedCount > 0) {
+        console.log(`[Cron] Lazy expired ${expireResult.modifiedCount} AddressRequests.`);
+      }
+
+      // 2. Retention policy cleanups
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      const deleteCompleted = await AddressRequest.deleteMany({
+        status: "completed",
+        updatedAt: { $lte: thirtyDaysAgo }
+      });
+      const deleteCancelled = await AddressRequest.deleteMany({
+        status: "cancelled",
+        updatedAt: { $lte: thirtyDaysAgo }
+      });
+      const deleteExpired = await AddressRequest.deleteMany({
+        status: "expired",
+        updatedAt: { $lte: sevenDaysAgo }
+      });
+
+      console.log(`[Cron] AddressRequest retention cleanup: Deleted ${deleteCompleted.deletedCount} completed, ${deleteCancelled.deletedCount} cancelled, ${deleteExpired.deletedCount} expired requests.`);
+    } catch (err) {
+      console.error("[Cron Error] AddressRequest cleanup job failed:", err.message);
     }
   });
 

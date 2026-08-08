@@ -3,7 +3,9 @@ export const DRAWER_STATE = {
   MAP: "MAP",
   ADD: "ADD",
   EDIT: "EDIT",
-  CONFIRM: "CONFIRM"
+  CONFIRM: "CONFIRM",
+  WAITING: "WAITING",
+  RECEIVED: "RECEIVED"
 };
 
 export const ADDRESS_ERROR = {

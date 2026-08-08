@@ -10,6 +10,32 @@ import { calculateBill } from "../utils/billCalculator";
 import CartBillDetails from "../components/CartBillDetails";
 import { cartDebug } from "../utils/cartDebug";
 
+const getUserCoordinates = (user) => {
+  if (
+    Array.isArray(user?.coords) &&
+    user.coords.length >= 2 &&
+    Number.isFinite(Number(user.coords[0])) &&
+    Number.isFinite(Number(user.coords[1]))
+  ) {
+    return [
+      Number(user.coords[0]),
+      Number(user.coords[1])
+    ];
+  }
+
+  if (
+    Number.isFinite(Number(user?.latitude)) &&
+    Number.isFinite(Number(user?.longitude))
+  ) {
+    return [
+      Number(user.latitude),
+      Number(user.longitude)
+    ];
+  }
+
+  return null;
+};
+
 let razorpayPromise;
 
 export const loadRazorpay = () => {
@@ -119,8 +145,8 @@ export default function PaymentPage({
   useEffect(() => {
     const checkServiceability = async () => {
       const savedUser = localStorage.getItem("buyto_user") ? JSON.parse(localStorage.getItem("buyto_user")) : null;
-      const coords = savedUser?.coords;
-      if (!coords || coords.length < 2) {
+      const coords = getUserCoordinates(savedUser);
+      if (!coords) {
         setIsAddressServiceable(false);
         setCheckingServiceability(false);
         return;
@@ -808,7 +834,11 @@ export default function PaymentPage({
 
     try {
       const savedUser = localStorage.getItem("buyto_user") ? JSON.parse(localStorage.getItem("buyto_user")) : null;
-      const coords = savedUser?.coords || [13.628, 74.693];
+      const coords = getUserCoordinates(savedUser);
+      if (!coords) {
+        alert("Unable to resolve location coordinates. Please select a valid address.");
+        return;
+      }
       const res = await fetch(window.API_BASE_URL + "/api/auth/notify-me", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

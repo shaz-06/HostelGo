@@ -171,6 +171,7 @@ const orderSchema = new mongoose.Schema({
   buyCoinsCredited: { type: Boolean, default: false },
   buyCoinsEarned: { type: Number, default: 0 },
   noBagPledge: { type: Boolean, default: false },
+  inventoryDeducted: { type: Boolean, default: false },
   adminNotificationStatus: {
     type: String,
     enum: ["pending", "processing", "sent", "failed"],

@@ -65,6 +65,10 @@ function ProductCard({
   const productId = product._id || product.id || String(Math.random());
 
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+  const isOutOfStock = hasVariants
+    ? product.variants.every(v => v.stock === undefined ? false : v.stock <= 0)
+    : (product.stock !== undefined && product.stock <= 0);
+
   const price = product.price !== undefined && product.price !== null ? product.price : (hasVariants && product.variants[0] ? product.variants[0].price : 0);
   const originalPrice = product.originalPrice !== undefined && product.originalPrice !== null ? product.originalPrice : (hasVariants && product.variants[0] && product.variants[0].originalPrice !== undefined ? product.variants[0].originalPrice : price);
   const weight = product.weight || (hasVariants && product.variants[0] ? product.variants[0].weight : "");
@@ -174,9 +178,10 @@ function ProductCard({
     console.log("Product clicked:", product);
     navigate(`/product/${productId}`);
   };
-
   const handleAdd = (e) => {
     e.stopPropagation();
+    if (isOutOfStock) return;
+
     const productToCart = {
       ...product,
       selectedWeight: defaultWeight,
@@ -184,8 +189,11 @@ function ProductCard({
     };
 
     // Check stock limit
-    if (quantity >= (product.stock || 30)) {
-      alert(`Only ${product.stock || 30} items available`);
+    const maxAvailable = hasVariants
+      ? (product.variants[0] && product.variants[0].stock !== undefined ? product.variants[0].stock : 30)
+      : (product.stock !== undefined ? product.stock : 30);
+    if (quantity >= maxAvailable) {
+      alert(`Only ${maxAvailable} items available`);
       return;
     }
 
@@ -287,6 +295,23 @@ function ProductCard({
         position: "relative",
         boxSizing: "border-box",
       }}>
+        {isOutOfStock && (
+          <span style={{
+            position: "absolute",
+            zIndex: 10,
+            background: "#ef4444",
+            color: "white",
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "10px",
+            fontWeight: "800",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            boxShadow: "0 2px 6px rgba(239, 68, 68, 0.3)"
+          }}>
+            Out of Stock
+          </span>
+        )}
         <img
           src={getOptimizedImageUrl(product.image, windowWidth < 768 ? "thumbnail" : "medium", product)}
           alt={product.name || "Product"}
@@ -297,6 +322,7 @@ function ProductCard({
             width: "auto",
             objectFit: "contain",
             borderRadius: "8px",
+            filter: isOutOfStock ? "grayscale(40%) opacity(0.6)" : "none",
           }}
           loading="lazy"
         />
@@ -484,8 +510,8 @@ function ProductCard({
               transition: "all 300ms cubic-bezier(0.16, 1, 0.3, 1)",
               borderRadius: "8px",
               overflow: "hidden",
-              border: "1.5px solid #318616",
-              backgroundColor: (quantity > 0 && !isAnimating) ? "#318616" : "white",
+              border: isOutOfStock ? "1.5px solid #d1d5db" : "1.5px solid #318616",
+              backgroundColor: isOutOfStock ? "#f3f4f6" : ((quantity > 0 && !isAnimating) ? "#318616" : "white"),
               animation: isAnimating ? "buytoContainerBg 450ms forwards ease-out" : "none",
               boxSizing: "border-box",
               willChange: "width, background-color, border-color",
@@ -508,7 +534,28 @@ function ProductCard({
             )}
 
             {/* ADD Text Button */}
-            {(quantity === 0 || isAnimating) && (
+            {isOutOfStock ? (
+              <button
+                disabled
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "transparent",
+                  border: "none",
+                  color: "#9ca3af",
+                  fontSize: "10px",
+                  fontWeight: "900",
+                  cursor: "not-allowed",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 3,
+                  boxSizing: "border-box",
+                }}
+              >
+                OUT OF STOCK
+              </button>
+            ) : ((quantity === 0 || isAnimating) && (
               <button
                 onClick={handleButtonClick}
                 style={{
@@ -532,7 +579,7 @@ function ProductCard({
               >
                 ADD
               </button>
-            )}
+            ))}
 
             {/* Quantity Selector */}
             {(quantity > 0 || isAnimating) && (

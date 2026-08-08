@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { QRCodeSVG } from "qrcode.react";
+import { io } from "socket.io-client";
 import { useAddress } from "../context/AddressContext";
+import { AuthContext } from "../../../context/AuthContext";
 import { DRAWER_STATE } from "../constants/addressConstants";
 import { AddressSearch } from "./AddressSearch";
 import { AddressBanner } from "./AddressBanner";
@@ -30,14 +33,222 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
   const [errorMessage, setErrorMessage] = useState("");
   const [showShareBanner, setShowShareBanner] = useState(true);
 
+  // Address request states
+  const [activeRequestId, setActiveRequestId] = useState(() => sessionStorage.getItem("buyto_active_request_id") || "");
+  const [activeShareUrl, setActiveShareUrl] = useState(() => sessionStorage.getItem("buyto_active_share_url") || "");
+  const [receivedAddress, setReceivedAddress] = useState(null);
+  const [saveReceivedForFuture, setSaveReceivedForFuture] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const socketRef = useRef(null);
+
   const { results: searchResults, loading: searchLoading } = useAddressSearch(searchQuery);
 
   // Focus trap / Accessibility
   const drawerRef = useRef(null);
 
+  // Socket connection and lifecycle
+  useEffect(() => {
+    if (activeRequestId && isOpen) {
+      const socket = io(window.API_BASE_URL);
+      socketRef.current = socket;
+
+      socket.on("connect", () => {
+        socket.emit("joinAddressRequestRoom", activeRequestId);
+      });
+
+      socket.on("address-request-completed", (data) => {
+        if (data.requestId === activeRequestId) {
+          console.log("[Socket] Received completed address request:", data);
+          setReceivedAddress(data.address);
+          setCurrentState(DRAWER_STATE.RECEIVED);
+          // Auto-select immediately
+          selectAddress(data.address);
+          // Invalidate session storage
+          sessionStorage.removeItem("buyto_active_request_id");
+          sessionStorage.removeItem("buyto_active_share_url");
+        }
+      });
+
+      socket.on("address-request-cancelled", (data) => {
+        if (data.requestId === activeRequestId) {
+          console.log("[Socket] Request cancelled by other client");
+          handleCancelClean();
+        }
+      });
+
+      // Polling fallback
+      const checkStatus = async () => {
+        try {
+          const res = await fetch(`${window.API_BASE_URL}/api/address-request/${activeRequestId}/status`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.status === "completed" && data.address) {
+              setReceivedAddress(data.address);
+              setCurrentState(DRAWER_STATE.RECEIVED);
+              selectAddress(data.address);
+              sessionStorage.removeItem("buyto_active_request_id");
+              sessionStorage.removeItem("buyto_active_share_url");
+            }
+          }
+        } catch (e) {
+          console.error("Status check failed:", e);
+        }
+      };
+
+      checkStatus();
+      const interval = setInterval(checkStatus, 5000);
+
+      return () => {
+        clearInterval(interval);
+        socket.disconnect();
+        socketRef.current = null;
+      };
+    }
+  }, [activeRequestId, isOpen]);
+
+  const handleShareAgain = async () => {
+    if (!activeShareUrl || !activeShareUrl.includes("token=")) {
+      console.error("Invalid share URL:", activeShareUrl);
+      setErrorMessage("Unable to generate secure share link.");
+      return;
+    }
+    const shareMsg = `📍 Share your delivery address\n\nHi! I'm placing an order on Buyto.\n\nPlease securely share your delivery address using the link below.\n\n${activeShareUrl}\n\n• One-time secure link\n• Valid for 24 hours\n• Used only for this delivery`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Share Delivery Address",
+          text: shareMsg,
+          url: activeShareUrl
+        });
+      } catch (err) {
+        console.log("Share failed:", err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(activeShareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      } catch (err) {
+        console.error("Clipboard copy failed:", err);
+      }
+    }
+  };
+
+  const handleRequestAddress = async () => {
+    setErrorMessage("");
+    try {
+      const token = localStorage.getItem("buyto_token");
+      const res = await fetch(`${window.API_BASE_URL}/api/address-request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Validation check
+        if (!data.shareUrl || !data.shareUrl.includes("token=")) {
+          console.error("Invalid share URL:", data.shareUrl);
+          setErrorMessage("Unable to generate secure share link.");
+          return;
+        }
+
+        // Debug Logging
+        console.log("Generated Share URL:", data.shareUrl);
+
+        setActiveRequestId(data.requestId);
+        setActiveShareUrl(data.shareUrl);
+        sessionStorage.setItem("buyto_active_request_id", data.requestId);
+        sessionStorage.setItem("buyto_active_share_url", data.shareUrl);
+        setCurrentState(DRAWER_STATE.WAITING);
+
+        // Share Link
+        const shareMsg = `📍 Share your delivery address\n\nHi! I'm placing an order on Buyto.\n\nPlease securely share your delivery address using the link below.\n\n${data.shareUrl}\n\n• One-time secure link\n• Valid for 24 hours\n• Used only for this delivery`;
+
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: "Share Delivery Address",
+              text: shareMsg,
+              url: data.shareUrl
+            });
+            console.log("Successful share");
+          } catch (err) {
+            console.log("Share cancelled or failed:", err);
+          }
+        } else {
+          // Fallback to clipboard
+          navigator.clipboard.writeText(data.shareUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 3000);
+        }
+      } else {
+        setErrorMessage(data.message || "Failed to initiate address request");
+      }
+    } catch (err) {
+      setErrorMessage("Network error, please try again.");
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!activeRequestId) return;
+    try {
+      const token = localStorage.getItem("buyto_token");
+      await fetch(`${window.API_BASE_URL}/api/address-request/${activeRequestId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      handleCancelClean();
+    } catch (err) {
+      console.error("Error cancelling request:", err);
+    }
+  };
+
+  const handleCancelClean = () => {
+    setActiveRequestId("");
+    setActiveShareUrl("");
+    sessionStorage.removeItem("buyto_active_request_id");
+    sessionStorage.removeItem("buyto_active_share_url");
+    setCurrentState(DRAWER_STATE.SEARCH);
+  };
+
+  const handleConfirmReceivedAddress = async () => {
+    if (saveReceivedForFuture && receivedAddress) {
+      await addAddress({
+        label: "Shared Address",
+        fullName: receivedAddress.fullName,
+        phone: receivedAddress.phone,
+        addressLine: receivedAddress.addressLine,
+        landmark: receivedAddress.landmark || "",
+        roomNumber: receivedAddress.roomNumber || "",
+        latitude: receivedAddress.latitude,
+        longitude: receivedAddress.longitude,
+        isDefault: false
+      });
+    }
+    // Select it as active address with isTemporary option
+    selectAddress({
+      ...receivedAddress,
+      isTemporary: !saveReceivedForFuture
+    });
+    onClose();
+  };
+
   useEffect(() => {
     if (isOpen) {
-      setCurrentState(DRAWER_STATE.SEARCH);
+      const savedRequestId = sessionStorage.getItem("buyto_active_request_id");
+      const savedShareUrl = sessionStorage.getItem("buyto_active_share_url");
+      if (savedRequestId && savedShareUrl) {
+        setActiveRequestId(savedRequestId);
+        setActiveShareUrl(savedShareUrl);
+        setCurrentState(DRAWER_STATE.WAITING);
+      } else {
+        setCurrentState(DRAWER_STATE.SEARCH);
+      }
       setSearchQuery("");
       setErrorMessage("");
       // Check GPS service availability
@@ -78,7 +289,7 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
         setLocationLoading(false);
         return;
       }
-      
+
       const perm = await requestLocationPermission();
       if (perm !== "granted") {
         setErrorMessage("Location permission denied. Please select location manually.");
@@ -363,10 +574,7 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
 
                       {/* Request address from someone else */}
                       <button
-                        onClick={() => {
-                          if (!restrictDismiss) onClose();
-                          navigate("/profile/request-address");
-                        }}
+                        onClick={handleRequestAddress}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -384,52 +592,12 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
                         }}
                       >
                         <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <img 
-                            src="https://img.icons8.com/?size=100&id=DUEq8l5qTqBE&format=png&color=000000" 
+                          <img
+                            src="https://img.icons8.com/?size=100&id=DUEq8l5qTqBE&format=png&color=000000"
                             alt="WhatsApp Icon"
                             style={{ width: "24px", height: "24px", objectFit: "contain" }}
                           />
                           Request address from someone else
-                        </span>
-                        <span>❯</span>
-                      </button>
-
-                      {/* Import addresses from Zomato */}
-                      <button
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          width: "100%",
-                          padding: "16px",
-                          borderRadius: "16px",
-                          border: "1.5px solid #e2e8f0",
-                          backgroundColor: "#ffffff",
-                          cursor: "pointer",
-                          fontWeight: "750",
-                          color: "#475569",
-                          fontSize: "14px",
-                          textAlign: "left"
-                        }}
-                      >
-                        <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <div style={{
-                            width: "24px",
-                            height: "24px",
-                            borderRadius: "6px",
-                            backgroundColor: "#CB202D",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "#ffffff",
-                            fontFamily: "sans-serif",
-                            fontSize: "7px",
-                            fontWeight: "900",
-                            fontStyle: "italic"
-                          }}>
-                            zomato
-                          </div>
-                          Import your addresses from Zomato
                         </span>
                         <span>❯</span>
                       </button>
@@ -452,7 +620,7 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
 
                     {/* Share Banner */}
                     {showShareBanner && (
-                      <div 
+                      <div
                         onClick={() => {
                           if (!restrictDismiss) onClose();
                           navigate("/profile/manage-shares");
@@ -470,9 +638,13 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "12px", textAlign: "left" }}>
-                          <span style={{ fontSize: "20px" }}>📤</span>
+                          <img 
+                            src="https://img.icons8.com/?size=100&id=E1Qn77QWMLgx&format=png&color=000000" 
+                            alt="Share Address Icon"
+                            style={{ width: "24px", height: "24px", objectFit: "contain" }}
+                          />
                           <span style={{ fontSize: "13px", fontWeight: "750", color: "#b7791f", lineHeight: "1.4" }}>
-                            Now share your addresses with friends and family
+                            Did you know you ? can share your address with friends and family
                           </span>
                         </div>
                         <button
@@ -496,6 +668,146 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false 
                     )}
                   </>
                 )}
+              </motion.div>
+            ) : currentState === DRAWER_STATE.WAITING ? (
+              <motion.div
+                key="waiting"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{ textAlign: "center", padding: "10px", display: "flex", flexDirection: "column", gap: "20px", alignItems: "center" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                  <button
+                    onClick={handleCancelClean}
+                    style={{ border: "none", background: "transparent", fontSize: "20px", cursor: "pointer" }}
+                  >
+                    ⬅️
+                  </button>
+                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "900", color: "#0f172a" }}>
+                    📤 Link Shared
+                  </h3>
+                  <div style={{ width: "24px" }} />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <span style={{ fontSize: "14px", fontWeight: "800", color: "#318616" }}>Waiting for your friend...</span>
+                  <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "600" }}>They are choosing their delivery location</span>
+                </div>
+
+                {/* Animated loader */}
+                <div style={{ display: "flex", gap: "6px", justifyContent: "center", margin: "10px 0" }}>
+                  <span className="dot" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#318616", animation: "bounce 0.6s infinite alternate" }} />
+                  <span className="dot" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#318616", animation: "bounce 0.6s infinite alternate 0.2s" }} />
+                  <span className="dot" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#318616", animation: "bounce 0.6s infinite alternate 0.4s" }} />
+                </div>
+                <style dangerouslySetInnerHTML={{
+                  __html: `
+                  @keyframes bounce {
+                    from { transform: translateY(0); }
+                    to { transform: translateY(-8px); }
+                  }
+                `}} />
+
+                {/* Status Checklist */}
+                <div style={{ width: "100%", backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "16px", textAlign: "left", display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: "750", color: "#475569" }}>
+                    <span style={{ color: "#318616" }}>✓</span> Link sent to friend
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: "750", color: "#475569" }}>
+                    <span style={{ color: "#f59e0b", animation: "pulse 1s infinite alternate" }}>⏳</span> Waiting for address submission
+                  </div>
+                  <style dangerouslySetInnerHTML={{
+                    __html: `
+                    @keyframes pulse {
+                      from { opacity: 0.5; }
+                      to { opacity: 1; }
+                    }
+                  `}} />
+                </div>
+
+                {/* QR Code renderer */}
+                {activeShareUrl && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "center", marginTop: "10px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: "750", color: "#64748b" }}>Or let them scan this QR code:</span>
+                    <div style={{ padding: "10px", backgroundColor: "#ffffff", border: "1.5px solid #e2e8f0", borderRadius: "16px" }}>
+                      <QRCodeSVG value={activeShareUrl} size={110} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", marginTop: "10px" }}>
+                  <button
+                    onClick={async () => {
+                      if (!activeShareUrl || !activeShareUrl.includes("token=")) {
+                        console.error("Invalid share URL:", activeShareUrl);
+                        setErrorMessage("Unable to generate secure share link.");
+                        return;
+                      }
+                      try {
+                        await navigator.clipboard.writeText(activeShareUrl);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 3000);
+                      } catch (err) {
+                        console.error("Copy failed:", err);
+                      }
+                    }}
+                    style={{ width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "14px", backgroundColor: "#ffffff", color: "#475569", fontWeight: "750", fontSize: "13px", cursor: "pointer" }}
+                  >
+                    {copied ? "✓ Link Copied!" : "Copy Link"}
+                  </button>
+                  <button
+                    onClick={handleShareAgain}
+                    style={{ width: "100%", padding: "12px", border: "none", borderRadius: "14px", backgroundColor: "#318616", color: "#ffffff", fontWeight: "750", fontSize: "13px", cursor: "pointer" }}
+                  >
+                    Share Again
+                  </button>
+                  <button
+                    onClick={handleCancelRequest}
+                    style={{ width: "100%", padding: "12px", border: "none", borderRadius: "14px", backgroundColor: "#fef2f2", color: "#ef4444", fontWeight: "750", fontSize: "13px", cursor: "pointer" }}
+                  >
+                    Cancel Request
+                  </button>
+                </div>
+              </motion.div>
+            ) : currentState === DRAWER_STATE.RECEIVED ? (
+              <motion.div
+                key="received"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{ textAlign: "center", padding: "10px", display: "flex", flexDirection: "column", gap: "20px" }}
+              >
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "900", color: "#318616" }}>
+                  ✅ Address received
+                </h3>
+
+                <div style={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "16px", textAlign: "left", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <span style={{ fontSize: "14px", fontWeight: "800", color: "#0f172a" }}>{receivedAddress?.fullName}</span>
+                  <span style={{ fontSize: "12px", color: "#64748b", fontWeight: "650" }}>{receivedAddress?.phone}</span>
+                  <div style={{ height: "1px", backgroundColor: "#f1f5f9", margin: "6px 0" }} />
+                  <span style={{ fontSize: "13px", fontWeight: "750", color: "#334155" }}>
+                    📍 {receivedAddress?.addressLine}
+                  </span>
+                </div>
+
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "#475569", fontSize: "13px", fontWeight: "750", textAlign: "left", margin: "10px 0" }}>
+                  <input
+                    type="checkbox"
+                    checked={saveReceivedForFuture}
+                    onChange={(e) => setSaveReceivedForFuture(e.target.checked)}
+                    style={{ cursor: "pointer" }}
+                  />
+                  Save this address for future deliveries
+                </label>
+
+                <button
+                  onClick={handleConfirmReceivedAddress}
+                  style={{ width: "100%", padding: "14px", border: "none", borderRadius: "16px", backgroundColor: "#318616", color: "#ffffff", fontWeight: "850", fontSize: "14px", cursor: "pointer" }}
+                >
+                  Continue
+                </button>
               </motion.div>
             ) : (
               /* Add / Edit state */
