@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTheme } from "../../context/ThemeContext";
 
 import banner1 from "../../images/Screenshot 2026-07-05 at 17.14.11.png";
 import banner2 from "../../images/Screenshot 2026-07-05 at 17.14.25.png";
@@ -23,6 +24,7 @@ const bannerSlides = [
 const slidesWithClone = [...bannerSlides, bannerSlides[0]];
 
 function MobileBannerCarousel() {
+  const { isDark } = useTheme();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [transitionEnabled, setTransitionEnabled] = useState(true);
 
@@ -131,8 +133,9 @@ function MobileBannerCarousel() {
           aspect-ratio: 16 / 7;
           border-radius: 20px;
           overflow: hidden;
-          background: #f8f8f8;
-          box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+          background: ${isDark ? "#242730" : "#f8f8f8"};
+          border: ${isDark ? "1px solid rgba(255,255,255,0.08)" : "none"};
+          box-shadow: ${isDark ? "0 6px 18px rgba(0,0,0,0.25)" : "0 6px 18px rgba(0,0,0,0.08)"};
           transition: transform 0.3s ease;
           box-sizing: border-box;
           height: 200px;
@@ -224,7 +227,7 @@ function MobileBannerCarousel() {
               width: idx === activeDotIndex ? "10px" : "6px",
               height: "6px",
               borderRadius: "50%",
-              background: idx === activeDotIndex ? "#4b5563" : "#d1d5db",
+              background: idx === activeDotIndex ? (isDark ? "#F5F5F5" : "#4b5563") : (isDark ? "rgba(255,255,255,0.2)" : "#d1d5db"),
               cursor: "pointer",
               transition: "all 0.3s ease",
             }}

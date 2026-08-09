@@ -543,27 +543,17 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
                   <div
                     key={item.name}
                     onClick={() => handleCardClick(item.name)}
-                    className={`category-discovery-card group ${isPremium ? "premium-collection-card" : ""}`}
-                    style={{
-                      background: getCategoryGradient(item.name, section.isStore),
-                      boxShadow: isPremium
-                        ? "0 10px 30px rgba(49, 134, 22, 0.06)"
-                        : "0 4px 20px rgba(49, 134, 22, 0.08)",
-                      border: isPremium
-                        ? `1px solid ${getCategoryBorder(item.name)}`
-                        : undefined
-                    }}
+                    className="category-discovery-item group"
                   >
-                    <span className={`category-discovery-badge ${isPremium ? "premium-glass-badge" : ""}`}>
-                      {getCategoryBadge(item.name, section.isStore)}
-                    </span>
-                    <div className={`category-discovery-image-wrapper ${isPremium ? "premium-image-wrapper" : ""}`}>
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="category-discovery-img"
-                        loading="lazy"
-                      />
+                    <div className="category-discovery-card">
+                      <div className="category-discovery-image-wrapper">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="category-discovery-img"
+                          loading="lazy"
+                        />
+                      </div>
                     </div>
                     <h3 className="category-discovery-text">{item.name}</h3>
                   </div>
@@ -578,147 +568,122 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
         .category-discovery-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
+          column-gap: 12px;
+          row-gap: 20px;
           background: white;
           padding: 16px;
           border-radius: 20px;
           border: 1px solid #e5e7eb;
         }
 
-        .category-discovery-card {
+        .dark .category-discovery-grid {
+          background: #0f172a !important;
+          border-color: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .category-discovery-item {
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
           cursor: pointer;
-          border-radius: 20px;
-          border: 1px solid #DCECC7;
-          transition: all 300ms ease;
-          padding: 12px;
-          gap: 8px;
-          position: relative;
           box-sizing: border-box;
-          aspect-ratio: 1 / 1.05;
+          text-decoration: none;
         }
 
-        .category-discovery-card:hover {
+        .category-discovery-card {
+          width: 100%;
+          aspect-ratio: 1 / 1;
+          border-radius: 18px;
+          background-color: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 300ms ease;
+          box-sizing: border-box;
+          overflow: hidden;
+          border: none;
+          position: relative;
+        }
+
+        .dark .category-discovery-card {
+          background-color: transparent !important;
+          border-color: transparent !important;
+        }
+
+        .category-discovery-item:hover .category-discovery-card {
           transform: translateY(-4px);
-          box-shadow: 0 12px 32px rgba(49, 134, 22, 0.15) !important;
-        }
-
-        .category-discovery-badge {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          background: rgba(255, 255, 255, 0.9);
-          color: #318616;
-          font-size: 8px;
-          font-weight: 700;
-          padding: 2px 6px;
-          border-radius: 99px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-          z-index: 5;
         }
 
         .category-discovery-image-wrapper {
-          width: 64px; /* w-16 */
-          height: 64px; /* h-16 */
-          border-radius: 16px; /* rounded-2xl */
-          background-color: #ffffff;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.06); /* shadow-md */
+          width: 90%;
+          height: 90%;
           display: flex;
           align-items: center;
           justify-content: center;
           transition: transform 300ms ease;
-          z-index: 2;
         }
 
-        .category-discovery-card:hover .category-discovery-image-wrapper {
+        .category-discovery-item:hover .category-discovery-image-wrapper {
           transform: scale(1.05);
         }
 
         .category-discovery-img {
-          width: 48px; /* w-12 */
-          height: 48px; /* h-12 */
+          max-width: 100%;
+          max-height: 100%;
           object-fit: contain;
-          transition: transform 300ms ease;
         }
 
         .category-discovery-text {
-          font-size: 11px;
+          font-size: 14.5px;
           font-weight: 600;
-          color: #1F2937;
-          line-height: 1.3;
+          color: #1f2937;
+          line-height: 1.25;
           text-align: center;
-          margin: 0;
+          margin: 8px 0 0 0;
           word-break: break-word;
-          min-height: 30px;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          z-index: 2;
+          min-height: 36px;
+        }
+
+        .dark .category-discovery-text {
+          color: #f3f4f6 !important;
         }
 
         @media (max-width: 767px) {
+          .category-discovery-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            column-gap: 10px;
+            row-gap: 16px;
+            padding: 10px;
+          }
           .category-discovery-card {
-            padding: 8px 4px !important;
-            gap: 6px !important;
-            border-radius: 18px !important;
-          }
-          .category-discovery-image-wrapper {
-            width: 46px !important;
-            height: 46px !important;
-            border-radius: 10px !important;
-          }
-          .category-discovery-img {
-            width: 34px !important;
-            height: 34px !important;
+            border-radius: 14px;
           }
           .category-discovery-text {
-            font-size: 9.5px !important;
-            min-height: 24px !important;
-            line-height: 1.15 !important;
-          }
-          .category-discovery-badge {
-            font-size: 7px !important;
-            padding: 1px 4px !important;
-            top: 4px !important;
-            right: 4px !important;
+            font-size: 13px;
+            margin-top: 6px;
+            min-height: 32px;
           }
         }
 
         @media (min-width: 768px) {
           .category-discovery-grid {
             grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-            gap: 18px;
+            column-gap: 18px;
+            row-gap: 28px;
+          }
+          .category-discovery-card {
+            border-radius: 22px;
+            background-color: transparent;
           }
           .category-discovery-text {
-            font-size: 14px;
+            font-size: 17.5px;
+            margin-top: 10px;
+            min-height: 44px;
           }
-        }
-
-        .premium-collection-card {
-          border-radius: 20px !important;
-          transition: transform .3s ease, box-shadow .3s ease, background .3s ease !important;
-        }
-
-        .premium-collection-card:hover {
-          transform: translateY(-6px) !important;
-          box-shadow: 0 18px 40px rgba(49, 134, 22, 0.10) !important;
-        }
-
-        .premium-glass-badge {
-          background: rgba(255, 255, 255, 0.88) !important;
-          backdrop-filter: blur(10px) !important;
-          -webkit-backdrop-filter: blur(10px) !important;
-          border: 1px solid rgba(255, 255, 255, 0.5) !important;
-        }
-
-        .premium-image-wrapper {
-          background: linear-gradient(135deg, #FFFFFF, #F8FAFC) !important;
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05) !important;
-          border-radius: 14px !important;
         }
       `}</style>
     </div>

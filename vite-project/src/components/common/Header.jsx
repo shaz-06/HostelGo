@@ -5,6 +5,7 @@ import { AuthContext } from "../../context/AuthContext";
 import { logoPath } from "../../config/branding";
 import { useHeaderTheme } from "../../hooks/useHeaderTheme";
 import { useCollapsingHeader } from "../../hooks/useCollapsingHeader";
+import { useTheme } from "../../context/ThemeContext";
 
 const searchSuggestions = [
   "Milk",
@@ -22,7 +23,7 @@ const searchSuggestions = [
 ];
 
 const LogoArea = ({ brandText = "Buyto", whiteText = false }) => {
-  const parts = brandText === "LetsBuyto" ? ["lets buy it ", "to"] : ["Buy", "to"];
+  const parts = brandText === "LetsBuyto" ? ["lets buy it", ""] : ["Buy", "to"];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
       <div className="premium-logo-container">
@@ -36,12 +37,12 @@ const LogoArea = ({ brandText = "Buyto", whiteText = false }) => {
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span className="premium-wordmark">
           <span style={{
-            color: whiteText ? "var(--logo-part1-color, #FFFFFF)" : "#F59E0B",
+            color: whiteText ? "#FFFFFF" : "#F59E0B",
             transition: "color 350ms ease-in-out",
             marginRight: brandText === "LetsBuyto" ? "5px" : "0px"
           }}>{parts[0]}</span>
           <span style={{
-            color: whiteText ? "var(--logo-part2-color, #FFFFFF)" : "#318616",
+            color: whiteText ? "#FFFFFF" : "#318616",
             transition: "color 350ms ease-in-out"
           }}>{parts[1]}</span>
         </span>
@@ -273,7 +274,7 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
                       width: "80%",
                       height: "80%",
                       objectFit: "contain",
-                      filter: whiteText ? "var(--category-icon-filter, none)" : "brightness(0)",
+                      filter: whiteText ? "brightness(0) invert(1)" : "brightness(0)",
                       transition: "filter 350ms ease-in-out"
                     }}
                     loading="lazy"
@@ -287,7 +288,7 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
                 style={{
                   fontSize: "11px",
                   fontWeight: "500",
-                  color: whiteText ? "var(--category-text-color, #FFFFFF)" : "var(--category-text-color, #374151)",
+                  color: whiteText ? "#FFFFFF" : "#374151",
                   textAlign: "center",
                   lineHeight: "1.2",
                   maxWidth: "64px",
@@ -343,6 +344,54 @@ const Header = React.memo(({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isDark } = useTheme();
+
+  const [welcomeBannerVisible, setWelcomeBannerVisible] = useState(() => {
+    return location.pathname === "/";
+  });
+
+  useEffect(() => {
+    let observer;
+    let checkInterval;
+
+    const setupObserver = () => {
+      const banner = document.querySelector('[data-welcome-banner]');
+      if (banner) {
+        observer = new IntersectionObserver(
+          ([entry]) => {
+            setWelcomeBannerVisible(entry.isIntersecting);
+          },
+          {
+            threshold: 0.05
+          }
+        );
+        observer.observe(banner);
+        if (checkInterval) clearInterval(checkInterval);
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately
+    const found = setupObserver();
+
+    // If not found (e.g. data is loading), check periodically
+    if (!found) {
+      checkInterval = setInterval(() => {
+        setupObserver();
+      }, 300);
+    }
+
+    // Default to false if not on homepage so it uses cream header styling
+    if (location.pathname !== "/") {
+      setWelcomeBannerVisible(false);
+    }
+
+    return () => {
+      if (observer) observer.disconnect();
+      if (checkInterval) clearInterval(checkInterval);
+    };
+  }, [location.pathname]);
 
   const headerGradients = [
     "linear-gradient(135deg, #edf7e5 0%, #e6f2db 60%, #dceccf 100%)",
@@ -623,37 +672,7 @@ const Header = React.memo(({
     let ticking = false;
 
     const updateOpacity = () => {
-      if (!heroEl) {
-        heroEl = document.getElementById("home-hero-banner");
-      }
-      if (!heroEl || !overlayRef.current) {
-        ticking = false;
-        return;
-      }
-
-      const rect = heroEl.getBoundingClientRect();
-      const headerRect = headerRef.current ? headerRef.current.getBoundingClientRect() : { height: 116 };
-
-      const visibleHeight = Math.max(0, rect.bottom - headerRect.height);
-      const progress = Math.min(1, Math.max(0, visibleHeight / rect.height));
-
-      overlayRef.current.style.opacity = progress;
-
-      if (headerRef.current) {
-        if (progress > 0.5) {
-          headerRef.current.style.setProperty("--header-text-color", "#FFFFFF");
-          headerRef.current.style.setProperty("--logo-part1-color", "#FFFFFF");
-          headerRef.current.style.setProperty("--logo-part2-color", "#FFFFFF");
-          headerRef.current.style.setProperty("--category-text-color", "#FFFFFF");
-          headerRef.current.style.setProperty("--category-icon-filter", "none");
-        } else {
-          headerRef.current.style.setProperty("--header-text-color", "#000000");
-          headerRef.current.style.setProperty("--logo-part1-color", "#F59E0B");
-          headerRef.current.style.setProperty("--logo-part2-color", "#318616");
-          headerRef.current.style.setProperty("--category-text-color", "#000000");
-          headerRef.current.style.setProperty("--category-icon-filter", "brightness(0)");
-        }
-      }
+      // Scroll-based header background and color shifts are disabled to keep golden background active in all states
       ticking = false;
     };
 
@@ -692,19 +711,19 @@ const Header = React.memo(({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           style={{
-            background: "rgba(255, 255, 255, 0.9)",
+            background: isDark ? "#242730" : "#FFFFFF",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
             borderRadius: "30px",
             padding: isMobile ? "9px 40px" : "12px 40px",
             width: "100%",
-            border: "1px solid rgba(255, 255, 255, 0.7)",
+            border: isDark ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(255, 255, 255, 0.7)",
             fontSize: "14px",
             fontWeight: "600",
-            color: "#1f2937",
+            color: isDark ? "#F5F5F5" : "#1f2937",
             outline: "none",
             boxSizing: "border-box",
-            boxShadow: "0 12px 35px rgba(0,0,0,0.08)"
+            boxShadow: isDark ? "0 12px 35px rgba(0,0,0,0.25)" : "0 12px 35px rgba(0,0,0,0.08)"
           }}
         />
         {(!localQuery && !isFocused) && (
@@ -719,7 +738,7 @@ const Header = React.memo(({
               pointerEvents: "none",
               fontSize: "14px",
               fontWeight: "600",
-              color: "#9ca3af",
+              color: isDark ? "#A7ACB8" : "#9ca3af",
               fontFamily: "inherit",
               height: "24px",
               overflow: "hidden"
@@ -751,7 +770,7 @@ const Header = React.memo(({
             </div>
           </div>
         )}
-        <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", display: "flex", alignItems: "center" }}>
+        <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: isDark ? "#D5D8DE" : "#9ca3af", display: "flex", alignItems: "center" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -767,14 +786,14 @@ const Header = React.memo(({
             background: "transparent",
             border: "none",
             cursor: "pointer",
-            color: isListening ? "#ef4444" : "#4b5563",
+            color: isListening ? "#ef4444" : (isDark ? "#D5D8DE" : "#4b5563"),
             display: "flex",
             alignItems: "center",
             padding: "4px"
           }}
         >
           <img
-            src="https://img.icons8.com/?size=100&id=IUGIR3D9OImC&format=png&color=000000"
+            src={`https://img.icons8.com/?size=100&id=IUGIR3D9OImC&format=png&color=${isDark ? "D5D8DE" : "000000"}`}
             alt="Mic"
             style={{
               width: "18px",
@@ -920,35 +939,7 @@ const Header = React.memo(({
   const DesktopHeaderContent = () => {
     return (
       <>
-        {/* Background blobs for premium depth */}
-        <div
-          style={{
-            position: "absolute",
-            top: "-80px",
-            right: "-60px",
-            width: "288px",
-            height: "288px",
-            borderRadius: "50%",
-            background: "rgba(255, 255, 255, 0.15)",
-            filter: "blur(48px)",
-            pointerEvents: "none",
-            zIndex: 1
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: "-60px",
-            left: "-60px",
-            width: "256px",
-            height: "256px",
-            borderRadius: "50%",
-            background: "rgba(255, 255, 255, 0.10)",
-            filter: "blur(48px)",
-            pointerEvents: "none",
-            zIndex: 1
-          }}
-        />
+
 
         <div
           ref={collapsibleRef}
@@ -1134,6 +1125,7 @@ const Header = React.memo(({
               displayCats={displayCats}
               selectedCategory={selectedCategory}
               onCategoryClick={onCategoryClick}
+              whiteText={welcomeBannerVisible}
             />
           )}
         </div>
@@ -1148,6 +1140,7 @@ const Header = React.memo(({
     return (
       <div
         ref={headerRef}
+        className="buyto-header"
         style={{
           position: "sticky",
           top: 0,
@@ -1158,37 +1151,23 @@ const Header = React.memo(({
           display: "flex",
           flexDirection: "column",
           fontFamily: "'Outfit', 'Inter', sans-serif",
-          backgroundImage: isHomepage
-            ? "linear-gradient(180deg, #FAF8F6 0%, #F5EDE3 100%)"
-            : "linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)), url('/images/mobile-header-bg.png?v=2')",
-          backgroundSize: isHomepage ? "auto" : "cover",
+          backgroundImage: welcomeBannerVisible ? "url('/images/mobile-header-bg.png?v=3')" : "none",
+          backgroundColor: welcomeBannerVisible ? "transparent" : (isDark ? "#181A20" : "#FFF1D2"),
+          backgroundSize: "cover",
           backgroundPosition: "center center",
           backgroundRepeat: "no-repeat",
-          backgroundColor: "#F7C600", // Fallback premium golden color
           borderBottomLeftRadius: "16px",
           borderBottomRightRadius: "16px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
-          overflow: "hidden"
+          boxShadow: isDark ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(0,0,0,0.06)",
+          overflow: "hidden",
+          transition: "background-color 250ms ease, background-image 250ms ease",
+          "--header-text-color": welcomeBannerVisible ? "#FFFFFF" : (isDark ? "#F5F5F5" : "#000000"),
+          "--logo-part1-color": welcomeBannerVisible ? "#FFFFFF" : "#F59E0B",
+          "--logo-part2-color": welcomeBannerVisible ? "#FFFFFF" : "#318616",
+          "--category-text-color": welcomeBannerVisible ? "#FFFFFF" : (isDark ? "#F5F5F5" : "#000000"),
+          "--category-icon-filter": welcomeBannerVisible ? "brightness(0) invert(1)" : (isDark ? "brightness(0) invert(1)" : "brightness(0)")
         }}
       >
-        {isHomepage && (
-          <div
-            ref={overlayRef}
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 0,
-              backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)), url('/images/mobile-header-bg.png?v=2')",
-              backgroundSize: "cover",
-              backgroundPosition: "center center",
-              backgroundRepeat: "no-repeat",
-              pointerEvents: "none",
-              transition: "opacity 350ms ease-in-out",
-              willChange: "opacity",
-              opacity: 1
-            }}
-          />
-        )}
         {/* CSS for logos/wordmark in mobile */}
         <style dangerouslySetInnerHTML={{
           __html: `
@@ -1240,7 +1219,7 @@ const Header = React.memo(({
         >
           {/* Row 1: Logo, Wallet, Profile */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-            <LogoArea brandText="LetsBuyto" whiteText={true} />
+            <LogoArea brandText="LetsBuyto" whiteText={welcomeBannerVisible} />
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <WalletButton balance={walletBalance} onClick={() => navigate("/wallet")} compact={true} />
               <ProfileButton onClick={() => navigate("/profile")} compact={true} />
@@ -1306,7 +1285,7 @@ const Header = React.memo(({
                 displayCats={displayCats}
                 selectedCategory={selectedCategory}
                 onCategoryClick={onCategoryClick}
-                whiteText={true}
+                whiteText={welcomeBannerVisible}
               />
             </div>
           )}
@@ -1318,14 +1297,17 @@ const Header = React.memo(({
   return (
     <div
       ref={headerRef}
+      className="buyto-header"
       style={{
         position: "sticky",
         top: 0,
         zIndex: 1000,
-        backgroundImage: isHomepage
-          ? "linear-gradient(180deg, #FAF8F6 0%, #F5EDE3 100%)"
-          : "linear-gradient(135deg, #D8F0B4 0%, #BEE08A 100%)",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
+        backgroundImage: welcomeBannerVisible ? "url('/images/mobile-header-bg.png?v=3')" : "none",
+        backgroundColor: welcomeBannerVisible ? "transparent" : (isDark ? "#181A20" : "#FFF1D2"),
+        backgroundSize: "cover",
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        boxShadow: isDark ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(0,0,0,0.04)",
         fontFamily: "'Outfit', 'Inter', sans-serif",
         paddingTop: "calc(env(safe-area-inset-top) + 24px)",
         paddingBottom: "20px",
@@ -1337,35 +1319,22 @@ const Header = React.memo(({
         transform: isDown ? `translate3d(0, -${collapsibleHeight + 10}px, 0)` : "translate3d(0, 0, 0)",
         willChange: "transform",
         transition: isDown
-          ? "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), background 300ms ease"
-          : "transform 320ms ease-in-out, background 300ms ease",
+          ? "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), background 300ms ease, background-color 250ms ease, background-image 250ms ease"
+          : "transform 320ms ease-in-out, background 300ms ease, background-color 250ms ease, background-image 250ms ease",
         width: "100%",
         maxWidth: "100%",
         overflow: "hidden",
         boxSizing: "border-box",
         borderBottomLeftRadius: isDown ? "20px" : "36px",
         borderBottomRightRadius: isDown ? "20px" : "36px",
-        minHeight: isDown ? "auto" : "280px"
+        minHeight: isDown ? "auto" : "280px",
+        "--header-text-color": welcomeBannerVisible ? "#FFFFFF" : (isDark ? "#F5F5F5" : "#000000"),
+        "--logo-part1-color": welcomeBannerVisible ? "#FFFFFF" : "#F59E0B",
+        "--logo-part2-color": welcomeBannerVisible ? "#FFFFFF" : "#318616",
+        "--category-text-color": welcomeBannerVisible ? "#FFFFFF" : (isDark ? "#F5F5F5" : "#000000"),
+        "--category-icon-filter": welcomeBannerVisible ? "brightness(0) invert(1)" : (isDark ? "brightness(0) invert(1)" : "brightness(0)")
       }}
     >
-      {isHomepage && (
-        <div
-          ref={overlayRef}
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 0,
-            backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)), url('/images/mobile-header-bg.png?v=2')",
-            backgroundSize: "cover",
-            backgroundPosition: "center center",
-            backgroundRepeat: "no-repeat",
-            pointerEvents: "none",
-            transition: "opacity 350ms ease-in-out",
-            willChange: "opacity",
-            opacity: 1
-          }}
-        />
-      )}
       <div style={{ position: "relative", zIndex: 1, width: "100%" }}>
         <DesktopHeaderContent />
       </div>

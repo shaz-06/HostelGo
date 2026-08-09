@@ -155,35 +155,19 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false,
           return;
         }
 
+        // Parse the token from the backend shareUrl and construct a clientShareUrl using window.location.origin
+        const urlObj = new URL(data.shareUrl);
+        const urlToken = urlObj.searchParams.get("token");
+        const clientShareUrl = `${window.location.origin}/address/request/${data.requestId}?token=${urlToken}`;
+
         // Debug Logging
-        console.log("Generated Share URL:", data.shareUrl);
+        console.log("Generated Client Share URL:", clientShareUrl);
 
         setActiveRequestId(data.requestId);
-        setActiveShareUrl(data.shareUrl);
+        setActiveShareUrl(clientShareUrl);
         sessionStorage.setItem("buyto_active_request_id", data.requestId);
-        sessionStorage.setItem("buyto_active_share_url", data.shareUrl);
+        sessionStorage.setItem("buyto_active_share_url", clientShareUrl);
         setCurrentState(DRAWER_STATE.WAITING);
-
-        // Share Link
-        const shareMsg = `📍 Share your delivery address\n\nHi! I'm placing an order on Buyto.\n\nPlease securely share your delivery address using the link below.\n\n${data.shareUrl}\n\n• One-time secure link\n• Valid for 24 hours\n• Used only for this delivery`;
-
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: "Share Delivery Address",
-              text: shareMsg,
-              url: data.shareUrl
-            });
-            console.log("Successful share");
-          } catch (err) {
-            console.log("Share cancelled or failed:", err);
-          }
-        } else {
-          // Fallback to clipboard
-          navigator.clipboard.writeText(data.shareUrl);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 3000);
-        }
       } else {
         setErrorMessage(data.message || "Failed to initiate address request");
       }
@@ -741,6 +725,27 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false,
                 {/* Actions */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", marginTop: "10px" }}>
                   <button
+                    onClick={() => {
+                      if (!activeShareUrl || !activeShareUrl.includes("token=")) {
+                        console.error("Invalid share URL:", activeShareUrl);
+                        setErrorMessage("Unable to generate secure share link.");
+                        return;
+                      }
+                      const shareMsg = `📍 Share your delivery address\n\nHi! I'm placing an order on Buyto.\n\nPlease securely share your delivery address using the link below.\n\n${activeShareUrl}\n\n• One-time secure link\n• Valid for 24 hours\n• Used only for this delivery`;
+                      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareMsg)}`, '_blank');
+                    }}
+                    style={{ width: "100%", padding: "12px", border: "none", borderRadius: "14px", backgroundColor: "#25D366", color: "#ffffff", fontWeight: "750", fontSize: "13px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.012 2c-5.506 0-9.988 4.482-9.988 9.988 0 1.76.459 3.474 1.33 4.988L2 22l5.184-1.361c1.474.804 3.129 1.229 4.82 1.229 5.506 0 9.988-4.482 9.988-9.988C22 6.482 17.518 2 12.012 2zm0 18.294c-1.494 0-2.96-.402-4.24-1.162l-.304-.18-3.15.827.84-3.07-.197-.314a8.272 8.272 0 0 1-1.266-4.407c0-4.57 3.717-8.288 8.292-8.288 2.215 0 4.296.864 5.86 2.43 1.564 1.564 2.426 3.646 2.426 5.858 0 4.57-3.717 8.288-8.293 8.288zm4.55-6.2c-.25-.124-1.476-.727-1.704-.81-.227-.083-.393-.124-.558.125-.165.248-.64.81-.784.975-.143.165-.288.185-.538.062-.25-.124-1.054-.388-2.008-1.24-.742-.662-1.243-1.48-1.39-1.728-.144-.25-.015-.385.11-.509.112-.112.25-.29.375-.434.124-.145.165-.248.25-.414.083-.165.04-.31-.02-.434-.063-.124-.559-1.347-.765-1.844-.2-.488-.4-.422-.558-.43-.145-.007-.31-.01-.476-.01-.166 0-.434.062-.66.31-.228.248-.868.85-.868 2.07 0 1.22.888 2.4 1.01 2.565.124.165 1.748 2.67 4.235 3.74.59.254 1.053.406 1.412.52.593.189 1.134.162 1.56.098.476-.072 1.476-.602 1.683-1.157.207-.554.207-1.03.145-1.127-.062-.097-.227-.165-.477-.289z"/></svg>
+                    Share via WhatsApp
+                  </button>
+                  <button
+                    onClick={handleShareAgain}
+                    style={{ width: "100%", padding: "12px", border: "none", borderRadius: "14px", backgroundColor: "#318616", color: "#ffffff", fontWeight: "750", fontSize: "13px", cursor: "pointer" }}
+                  >
+                    Share via other Apps
+                  </button>
+                  <button
                     onClick={async () => {
                       if (!activeShareUrl || !activeShareUrl.includes("token=")) {
                         console.error("Invalid share URL:", activeShareUrl);
@@ -748,7 +753,8 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false,
                         return;
                       }
                       try {
-                        await navigator.clipboard.writeText(activeShareUrl);
+                        const copyMsg = `🏠 Please share your delivery address with me.\n\nTap the link below to submit your address:\n${activeShareUrl}`;
+                        await navigator.clipboard.writeText(copyMsg);
                         setCopied(true);
                         setTimeout(() => setCopied(false), 3000);
                       } catch (err) {
@@ -758,12 +764,6 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false,
                     style={{ width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "14px", backgroundColor: "#ffffff", color: "#475569", fontWeight: "750", fontSize: "13px", cursor: "pointer" }}
                   >
                     {copied ? "✓ Link Copied!" : "Copy Link"}
-                  </button>
-                  <button
-                    onClick={handleShareAgain}
-                    style={{ width: "100%", padding: "12px", border: "none", borderRadius: "14px", backgroundColor: "#318616", color: "#ffffff", fontWeight: "750", fontSize: "13px", cursor: "pointer" }}
-                  >
-                    Share Again
                   </button>
                   <button
                     onClick={handleCancelRequest}

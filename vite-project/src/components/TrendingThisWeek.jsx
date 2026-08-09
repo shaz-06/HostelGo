@@ -258,12 +258,12 @@ function TrendingThisWeek() {
         .trending-this-week-section {
           padding: 20px;
           font-family: 'Outfit', 'Inter', sans-serif;
-          background: #ffffff;
+          background: var(--bg-card);
           border-radius: 32px;
           margin-bottom: 16px;
           width: 100%;
           box-sizing: border-box;
-          border: 1px solid #f3f4f6;
+          border: 1px solid var(--border-color);
           box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
         }
 
@@ -277,12 +277,12 @@ function TrendingThisWeek() {
         .trending-this-week-heading {
           font-size: 24px;
           font-weight: 800;
-          color: #111827;
+          color: var(--text-primary);
           margin: 0;
         }
 
         .trending-this-week-subheading {
-          color: #6b7280;
+          color: var(--text-secondary);
           font-size: 14px;
           margin: 4px 0 0 0;
         }
@@ -474,7 +474,8 @@ function TrendingThisWeek() {
             padding: 16px;
             margin: 12px 16px;
             border-radius: 24px;
-            border: 1px solid #f3f4f6;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
           }
 

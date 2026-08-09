@@ -16,7 +16,8 @@ export default function SearchResultsView({
   setSelectedProduct,
   setSearchQuery,
   openProduct,
-  getCartKey
+  getCartKey,
+  searchLoading = false
 }) {
   const query = searchQuery ? searchQuery.trim() : "";
 
@@ -110,7 +111,37 @@ export default function SearchResultsView({
           </span>
         </div>
 
-        {filteredProducts.length === 0 ? (
+        {searchLoading ? (
+          /* SKELETON LOADING STATE */
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : gridColumns,
+              gap: isMobile ? "10px" : "20px",
+              justifyItems: isMobile ? "center" : "normal"
+            }}
+          >
+            {[...Array(6)].map((_, idx) => (
+              <div
+                key={idx}
+                style={{
+                  background: "#f8fafc",
+                  borderRadius: "16px",
+                  height: isMobile ? "180px" : "280px",
+                  width: "100%",
+                  animation: "pulse-placeholder 1.5s infinite ease-in-out",
+                  border: "1px solid #f1f5f9"
+                }}
+              />
+            ))}
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes pulse-placeholder {
+                0%, 100% { opacity: 1; background-color: #f1f5f9; }
+                50% { opacity: .4; background-color: #e2e8f0; }
+              }
+            `}} />
+          </div>
+        ) : filteredProducts.length === 0 ? (
           /* ZERO-RESULT UI STATE */
           <div style={{ background: "#ffffff", borderRadius: "20px", padding: "32px 20px", textAlign: "center", border: "1px solid #f1f5f9", boxShadow: "0 4px 16px rgba(0,0,0,0.02)", marginBottom: "24px" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</div>

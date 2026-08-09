@@ -37,9 +37,10 @@ function MapEventsHandler({ onMapClick }) {
 }
 
 export default function RecipientAddressRequestPage() {
-  const { requestId } = useParams();
+  const { requestId: routeRequestId } = useParams();
+  const requestId = routeRequestId || window.location.pathname.split("/").pop();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const token = searchParams.get("token") || new URLSearchParams(window.location.search).get("token");
 
   // Flow steps: "loading" | "error" | "intro" | "form" | "preview" | "success"
   const [step, setStep] = useState("loading");

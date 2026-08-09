@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOptimizedImageUrl } from "../../utils/imageOptimizer";
+import { useTheme } from "../../context/ThemeContext";
 
 function MobileProductCard({
   product,
@@ -11,6 +12,7 @@ function MobileProductCard({
   searchQuery = "",
 }) {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
 
   if (!product) return null;
 
@@ -147,7 +149,7 @@ function MobileProductCard({
     <div
       onClick={handleCardClick}
       style={{
-        background: "white",
+        background: isDark ? "var(--bg-card)" : "white",
         borderRadius: "12px",
         padding: "8px",
         display: "flex",
@@ -160,8 +162,8 @@ function MobileProductCard({
         boxSizing: "border-box",
         fontFamily: "'Outfit', 'Inter', sans-serif",
         flexShrink: 0,
-        boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
-        border: "1px solid #f0f0f0",
+        boxShadow: isDark ? "0 4px 10px rgba(0,0,0,0.3)" : "0 2px 6px rgba(0,0,0,0.02)",
+        border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #f0f0f0",
       }}
     >
       <div>
@@ -170,7 +172,7 @@ function MobileProductCard({
           style={{
             width: "100%",
             height: "75px",
-            background: "#f9fafb",
+            background: isDark ? "var(--bg-secondary)" : "#f9fafb",
             borderRadius: "8px",
             display: "flex",
             alignItems: "center",
@@ -219,11 +221,11 @@ function MobileProductCard({
             </span>
           )}
           <div style={{ display: "flex", alignItems: "baseline", gap: "3px" }}>
-            <span style={{ fontWeight: "900", fontSize: "12px", color: "#1f2937" }}>
+            <span style={{ fontWeight: "900", fontSize: "12px", color: isDark ? "var(--text-primary)" : "#1f2937" }}>
               ₹{price}
             </span>
             {originalPrice > price && (
-              <span style={{ textDecoration: "line-through", color: "#9ca3af", fontSize: "10px", fontWeight: "500" }}>
+              <span style={{ textDecoration: "line-through", color: isDark ? "var(--text-secondary)" : "#9ca3af", fontSize: "10px", fontWeight: "500" }}>
                 ₹{originalPrice}
               </span>
             )}
@@ -231,7 +233,7 @@ function MobileProductCard({
         </div>
 
         {/* Brand name (subtle grey text) */}
-        <div style={{ fontSize: "8px", color: "#9ca3af", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.2px", marginTop: "4px" }}>
+        <div style={{ fontSize: "8px", color: isDark ? "var(--text-secondary)" : "#9ca3af", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.2px", marginTop: "4px" }}>
           {product.brand || "Buyto Fresh"}
         </div>
 
@@ -240,7 +242,7 @@ function MobileProductCard({
           style={{
             fontSize: "11px",
             fontWeight: "700",
-            color: "#1f2937",
+            color: isDark ? "var(--text-primary)" : "#1f2937",
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
@@ -269,7 +271,7 @@ function MobileProductCard({
         <span
           style={{
             fontSize: "9px",
-            color: "#6b7280",
+            color: isDark ? "var(--text-secondary)" : "#6b7280",
             fontWeight: "700",
             display: "block",
             marginTop: "2px",
@@ -361,8 +363,8 @@ function MobileProductCard({
             transition: "all 300ms cubic-bezier(0.16, 1, 0.3, 1)",
             borderRadius: "6px",
             overflow: "hidden",
-            border: isOutOfStock ? "1px solid #d1d5db" : "1px solid #318616",
-            backgroundColor: isOutOfStock ? "#f3f4f6" : ((quantity > 0 && !isAnimating) ? "#318616" : "white"),
+            border: isOutOfStock ? (isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #d1d5db") : "1px solid #318616",
+            backgroundColor: isOutOfStock ? (isDark ? "var(--bg-secondary)" : "#f3f4f6") : ((quantity > 0 && !isAnimating) ? "#318616" : (isDark ? "var(--bg-card)" : "white")),
             animation: isAnimating ? "buytoContainerBg 450ms forwards ease-out" : "none",
             boxSizing: "border-box",
             willChange: "width, background-color, border-color",

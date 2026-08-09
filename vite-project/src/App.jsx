@@ -30,6 +30,7 @@ import Footer from "./components/Footer";
 import HorizontalProductSection from "./HorizontalProductSection";
 import { cartDebug } from "./utils/cartDebug";
 import TrendingThisWeek from "./components/TrendingThisWeek";
+import BestsellersSection from "./components/BestsellersSection";
 import MobileBannerCarousel from "./components/mobile/MobileBannerCarousel";
 import Header, { CategoryStrip } from "./components/common/Header";
 import { useHeaderTheme } from "./hooks/useHeaderTheme";
@@ -934,6 +935,9 @@ function AppContent({ onReady }) {
   }, [location.pathname]);
 
   const [products, setProducts] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
@@ -1612,6 +1616,48 @@ function AppContent({ onReady }) {
       clearTimeout(timer);
     };
   }, [onReady]);
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearchLoading(true);
+    setSearchError(null);
+
+    const debounceTimer = setTimeout(() => {
+      const url = `${window.API_BASE_URL || ""}/api/products?search=${encodeURIComponent(trimmed)}&limit=40`;
+      
+      // Pass AbortController signal inside options
+      cachedFetch(url, { signal: controller.signal })
+        .then((data) => {
+          const preClassified = (data || []).map(p => ({
+            ...p,
+            _classifiedCategory: canonicalCategory(classifyProduct(p))
+          }));
+          setSearchResults(preClassified);
+          setSearchLoading(false);
+        })
+        .catch((err) => {
+          if (err.name === "AbortError" || err.message === "The user aborted a request." || err.message === "Fetch aborted") {
+            return; // Ignore aborted requests
+          }
+          console.error("Search fetch failed:", err);
+          setSearchError(err.message);
+          setSearchLoading(false);
+        });
+    }, 300); // 300ms debounce
+
+    return () => {
+      clearTimeout(debounceTimer);
+      controller.abort();
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     if (import.meta.env.PROD) return;
@@ -2384,6 +2430,7 @@ function AppContent({ onReady }) {
           <Suspense fallback={null}>
             <AddressSelectorModal
               isLoggedIn={isLoggedIn}
+              hideUseCurrentLocation={true}
               onClose={() => {
                 setShowAddressModal(false);
                 if (!localStorage.getItem("userLocation")) {
@@ -3049,7 +3096,7 @@ function AppContent({ onReady }) {
             element={
               <SearchResultsView
                 searchQuery={searchQuery}
-                filteredProducts={filteredProducts}
+                filteredProducts={searchQuery.trim() !== "" ? searchResults : []}
                 allProducts={products}
                 isMobile={false}
                 windowWidth={windowWidth}
@@ -3061,6 +3108,7 @@ function AppContent({ onReady }) {
                 setSearchQuery={setSearchQuery}
                 openProduct={openProduct}
                 getCartKey={getCartKey}
+                searchLoading={searchLoading}
               />
             }
           />
@@ -3151,9 +3199,12 @@ function AppContent({ onReady }) {
                     )}
                     {!searchQuery ? (
                       <div>
-                        <TrendingThisWeek />
-                        <div style={{ padding: "0 4px" }}>
-                          <MobileBannerCarousel />
+                        <div data-welcome-banner>
+                          <BestsellersSection />
+                          <TrendingThisWeek />
+                          <div style={{ padding: "0 4px" }}>
+                            <MobileBannerCarousel />
+                          </div>
                         </div>
                         <CategoryDiscovery products={products} />
                         <PromoBannerCarousel />
@@ -3623,7 +3674,7 @@ function AppContent({ onReady }) {
                     ) : (
                       <SearchResultsView
                         searchQuery={searchQuery}
-                        filteredProducts={filteredProducts}
+                        filteredProducts={searchQuery.trim() !== "" ? searchResults : []}
                         allProducts={products}
                         isMobile={false}
                         windowWidth={windowWidth}
@@ -3635,6 +3686,7 @@ function AppContent({ onReady }) {
                         setSearchQuery={setSearchQuery}
                         openProduct={openProduct}
                         getCartKey={getCartKey}
+                        searchLoading={searchLoading}
                       />
                     )}
                   </div>
@@ -3830,6 +3882,7 @@ function AppContent({ onReady }) {
         <Suspense fallback={null}>
           <AddressSelectorModal
             isLoggedIn={isLoggedIn}
+            hideUseCurrentLocation={true}
             onClose={() => {
               setShowAddressModal(false);
               if (!localStorage.getItem("userLocation")) {

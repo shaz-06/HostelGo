@@ -44,8 +44,11 @@ const categories = [
   }
 ];
 
+import { useTheme } from "../../context/ThemeContext";
+
 function MobileCategoryScroller({ setSelectedCategory }) {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
 
   const handleCategoryClick = (cat) => {
     if (cat.route) {
@@ -54,12 +57,12 @@ function MobileCategoryScroller({ setSelectedCategory }) {
   };
 
   return (
-    <div id="mobile-categories-anchor" style={{ padding: "16px 0 8px 0", background: "white", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+    <div id="mobile-categories-anchor" style={{ padding: "16px 0 8px 0", background: isDark ? "var(--bg-card)" : "white", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
       <h2
         style={{
           fontSize: "16px",
           fontWeight: "800",
-          color: "#1f2937",
+          color: isDark ? "var(--text-primary)" : "#1f2937",
           margin: "0 16px 12px 16px",
           letterSpacing: "-0.3px",
         }}
@@ -97,8 +100,8 @@ function MobileCategoryScroller({ setSelectedCategory }) {
                 height: "72px",
                 borderRadius: "50%",
                 overflow: "hidden",
-                border: "1px solid #f3f4f6",
-                background: "#fafaf9",
+                border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #f3f4f6",
+                background: isDark ? "var(--bg-secondary)" : "#fafaf9",
                 boxSizing: "border-box",
                 display: "flex",
                 alignItems: "center",
@@ -118,7 +121,7 @@ function MobileCategoryScroller({ setSelectedCategory }) {
             <span
               style={{
                 fontSize: "11px",
-                color: "#4b5563",
+                color: isDark ? "var(--text-secondary)" : "#4b5563",
                 fontWeight: "600",
                 textAlign: "center",
                 marginTop: "6px",

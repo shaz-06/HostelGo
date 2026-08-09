@@ -6,9 +6,12 @@ import MobileBannerCarousel from "./MobileBannerCarousel";
 import MobileProductCard from "./MobileProductCard";
 import CategoryDiscovery from "../CategoryDiscovery";
 import TrendingThisWeek from "../TrendingThisWeek";
+import BestsellersSection from "../BestsellersSection";
 import DynamicNewBanners from "../DynamicNewBanners";
 import PromoBannerCarousel from "../PromoBannerCarousel";
 import OffersBottomDrawer from "../common/OffersBottomDrawer";
+import { useTheme } from "../../context/ThemeContext";
+
 const DeliveryIllustration = "https://img.icons8.com/?size=100&id=uTI4SjCIkNJp&format=png&color=000000";
 const SearchResultsView = React.lazy(() => import("../SearchResultsView"));
 
@@ -33,6 +36,7 @@ function MobileHome({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isDark } = useTheme();
   const [trendingHover, setTrendingHover] = useState(false);
   const [dealsHover, setDealsHover] = useState(false);
   const [fruitsHover, setFruitsHover] = useState(false);
@@ -141,83 +145,85 @@ function MobileHome({
       ? {
         marginTop: "24px",
         marginBottom: "16px",
-        background: "#F5FCF4",
-        border: "1px solid #E7F5E5",
+        background: isDark ? "linear-gradient(135deg, #181A20 0%, #152212 100%)" : "#F5FCF4",
+        border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #E7F5E5",
         borderRadius: "28px",
         padding: "24px 16px",
-        boxShadow: "0 8px 30px rgba(49,134,22,0.06)",
+        boxShadow: isDark ? "0 8px 30px rgba(0,0,0,0.25)" : "0 8px 30px rgba(49,134,22,0.06)",
         position: "relative",
       }
       : isBestDeals
         ? {
           marginTop: "24px",
           marginBottom: "16px",
-          background:
-            "radial-gradient(circle at top right, rgba(255,255,255,.35), transparent 30%), " +
+          background: isDark
+            ? "linear-gradient(135deg, #181A20 0%, #2e2412 100%)"
+            : "radial-gradient(circle at top right, rgba(255,255,255,.35), transparent 30%), " +
             "radial-gradient(circle at bottom left, rgba(245,158,11,.08), transparent 35%), " +
             "linear-gradient(135deg, #FFF6D8 0%, #FFF3C4 40%, #FFEFB5 70%, #FFF6D8 100%)",
-          border: "1px solid rgba(245, 158, 11, 0.15)",
+          border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(245, 158, 11, 0.15)",
           borderRadius: "28px",
           padding: "24px 16px",
-          boxShadow: "0 8px 30px rgba(245, 158, 11, 0.08)",
+          boxShadow: isDark ? "0 8px 30px rgba(0,0,0,0.25)" : "0 8px 30px rgba(245, 158, 11, 0.08)",
           position: "relative",
-          animation: "gentle-shimmer 25s ease-in-out infinite",
+          animation: isDark ? undefined : "gentle-shimmer 25s ease-in-out infinite",
         }
         : isFruits
           ? {
             marginTop: "24px",
             marginBottom: "16px",
-            background: "#DDF8D4",
-            border: "1px solid rgba(49, 134, 22, 0.12)",
+            background: isDark ? "linear-gradient(135deg, #181A20 0%, #122110 100%)" : "#DDF8D4",
+            border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(49, 134, 22, 0.12)",
             borderRadius: "28px",
             padding: "24px 16px",
-            boxShadow: "0 8px 30px rgba(49, 134, 22, 0.06)",
+            boxShadow: isDark ? "0 8px 30px rgba(0,0,0,0.25)" : "0 8px 30px rgba(49, 134, 22, 0.06)",
             position: "relative",
           }
           : isMosquitoes
             ? {
               marginTop: "24px",
               marginBottom: "16px",
-              background: "#F3ECFF",
-              border: "1px solid rgba(147, 112, 219, 0.12)",
+              background: isDark ? "linear-gradient(135deg, #181A20 0%, #191428 100%)" : "#F3ECFF",
+              border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(147, 112, 219, 0.12)",
               borderRadius: "28px",
               padding: "24px 16px",
-              boxShadow: "0 8px 30px rgba(147, 112, 219, 0.06)",
+              boxShadow: isDark ? "0 8px 30px rgba(0,0,0,0.25)" : "0 8px 30px rgba(147, 112, 219, 0.06)",
               position: "relative",
             }
             : isSexualWellness
               ? {
                 marginTop: "24px",
                 marginBottom: "16px",
-                background: "#FCEFF5",
-                border: "1px solid rgba(233, 167, 197, 0.15)",
+                background: isDark ? "linear-gradient(135deg, #181A20 0%, #281420 100%)" : "#FCEFF5",
+                border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(233, 167, 197, 0.15)",
                 borderRadius: "28px",
                 padding: "24px 16px",
-                boxShadow: "0 8px 30px rgba(233, 167, 197, 0.08)",
+                boxShadow: isDark ? "0 8px 30px rgba(0,0,0,0.25)" : "0 8px 30px rgba(233, 167, 197, 0.08)",
                 position: "relative",
               }
               : isRecommended
                 ? {
                   marginTop: "24px",
                   marginBottom: "16px",
-                  background: "#FFF8D9",
-                  border: "1px solid rgba(245, 158, 11, 0.12)",
+                  background: isDark ? "linear-gradient(135deg, #181A20 0%, #2c2612 100%)" : "#FFF8D9",
+                  border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(245, 158, 11, 0.12)",
                   borderRadius: "28px",
                   padding: "24px 16px",
-                  boxShadow: "0 8px 30px rgba(245, 158, 11, 0.06)",
+                  boxShadow: isDark ? "0 8px 30px rgba(0,0,0,0.25)" : "0 8px 30px rgba(245, 158, 11, 0.06)",
                   position: "relative",
                 }
                 : {
                   marginBottom: "16px",
-                  background: "white",
+                  background: isDark ? "var(--bg-card)" : "white",
                   paddingTop: "8px",
                   position: "relative",
+                  borderBottom: isDark ? "1px solid rgba(255,255,255,0.08)" : undefined
                 };
 
     const headingStyle = {
       fontSize: "15px",
       fontWeight: "850",
-      color: (isTrendingNearYou || isBestDeals || isFruits || isMosquitoes || isSexualWellness || isRecommended) ? "#1b4314" : "#1f2937",
+      color: isDark ? "#F5F5F5" : ((isTrendingNearYou || isBestDeals || isFruits || isMosquitoes || isSexualWellness || isRecommended) ? "#1b4314" : "#1f2937"),
       margin: 0,
       zIndex: 1,
       position: "relative",
@@ -238,7 +244,7 @@ function MobileHome({
       : {
         border: "none",
         background: "transparent",
-        color: "#2563eb",
+        color: isDark ? "#318616" : "#2563eb",
         fontWeight: "800",
         fontSize: "12px",
         cursor: "pointer",
@@ -341,7 +347,7 @@ function MobileHome({
   const isSearchTab = forceSearchTab || location.search.includes("tab=search") || searchQuery.trim() !== "";
 
   return (
-    <div style={{ background: "#f7f8fa", minHeight: "calc(100vh - 64px)", paddingBottom: "80px", boxSizing: "border-box" }}>
+    <div style={{ background: isDark ? "var(--bg-primary)" : "#f7f8fa", minHeight: "calc(100vh - 64px)", paddingBottom: "80px", boxSizing: "border-box" }}>
 
       {isSearchTab ? (
         /* SEARCH LAYOUT VIEW */
@@ -350,7 +356,7 @@ function MobileHome({
           {searchQuery.trim() === "" ? (
             /* Popular search suggestions list */
             <div>
-              <h4 style={{ fontSize: "14px", fontWeight: "800", color: "#4b5563", marginBottom: "12px" }}>
+              <h4 style={{ fontSize: "14px", fontWeight: "800", color: isDark ? "var(--text-secondary)" : "#4b5563", marginBottom: "12px" }}>
                 Popular Searches
               </h4>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
@@ -359,13 +365,13 @@ function MobileHome({
                     key={idx}
                     onClick={() => setSearchQuery(sug)}
                     style={{
-                      background: "white",
-                      border: "1px solid #e5e7eb",
+                      background: isDark ? "var(--bg-card)" : "white",
+                      border: isDark ? "1px solid var(--border-color)" : "1px solid #e5e7eb",
                       borderRadius: "20px",
                       padding: "6px 12px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#4b5563",
+                      color: isDark ? "var(--text-primary)" : "#4b5563",
                       cursor: "pointer",
                     }}
                   >
@@ -394,7 +400,7 @@ function MobileHome({
         /* STANDARD DEDICATED MOBILE HOME LAYOUT */
         <>
           {/* Dark Gold Welcome Header */}
-          <div id="home-hero-banner" style={{
+          <div id="home-hero-banner" data-welcome-banner style={{
             height: "140px",
             backgroundImage: "url('/images/welcome-bg.png')",
             backgroundSize: "cover",
@@ -553,6 +559,9 @@ function MobileHome({
             `}</style>
           </div>
 
+          {/* Bestsellers Section */}
+          <BestsellersSection />
+
           {/* Trending This Week Section */}
           <TrendingThisWeek />
 
@@ -582,11 +591,11 @@ function MobileHome({
           {bestDealsList.length > 0 && renderProductSection("💸 Best Deals Today", bestDealsList, "/section/deals")}
 
           <div style={{
-            background: "#FFFFFF",
-            border: "1px solid rgba(49,134,22,.08)",
+            background: isDark ? "var(--bg-card)" : "#FFFFFF",
+            border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(49,134,22,.08)",
             borderRadius: "28px",
             padding: "28px 16px",
-            boxShadow: "0 10px 30px rgba(49,134,22,.06)",
+            boxShadow: isDark ? "0 10px 30px rgba(0,0,0,0.25)" : "0 10px 30px rgba(49,134,22,.06)",
             margin: "40px 16px 24px 16px",
             textAlign: "center",
             fontFamily: "'Outfit', 'Inter', sans-serif",
@@ -596,22 +605,22 @@ function MobileHome({
               .premium-footer-heading-mobile {
                 font-size: 20px;
                 font-weight: 850;
-                color: #1E293B;
+                color: ${isDark ? "#FFFFFF" : "#1E293B"};
                 margin: 0;
               }
               .premium-footer-subtitle-mobile {
-                color: #64748B;
+                color: ${isDark ? "#AEB3BF" : "#64748B"};
                 font-size: 14px;
                 margin: 6px 0 20px 0;
               }
               .premium-action-btn-mobile {
-                background: #F8FFF5;
-                border: 1px solid rgba(49,134,22,.10);
+                background: ${isDark ? "#242730" : "#F8FFF5"};
+                border: 1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(49,134,22,.10)"};
                 border-radius: 999px;
                 padding: 10px 18px;
                 font-weight: 600;
                 font-size: 13px;
-                color: #318616;
+                color: ${isDark ? "#FFFFFF" : "#318616"};
                 cursor: pointer;
                 transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
                 display: inline-flex;

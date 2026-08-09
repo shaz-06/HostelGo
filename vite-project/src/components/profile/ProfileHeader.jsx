@@ -1,9 +1,22 @@
 import React from "react";
 import { ArrowLeft, LogIn } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
 const ProfileHeader = React.memo(({ user, isLoggedIn, onBack, onLoginClick }) => {
+  const { isDark } = useTheme();
+
   return (
-    <div className="relative pt-12 pb-8 px-4 flex flex-col items-center justify-center bg-gradient-to-b from-[#FFF4B8] via-[#FFFBE3] to-[#F6F7FB] rounded-b-[40px] shadow-sm animate-fade-in">
+    <div
+      className="relative pt-12 pb-8 px-4 flex flex-col items-center justify-center rounded-b-[40px] shadow-sm animate-fade-in"
+      style={{
+        background: isDark
+          ? "linear-gradient(135deg, #6F4612 0%, #95651C 42%, #C08A32 72%, #8A5A18 100%)"
+          : "linear-gradient(to bottom, #FFF4B8, #FFFBE3, #F6F7FB)",
+        boxShadow: isDark
+          ? "inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18)"
+          : undefined
+      }}
+    >
       {/* Back Button */}
       <button
         onClick={onBack}
@@ -31,10 +44,16 @@ const ProfileHeader = React.memo(({ user, isLoggedIn, onBack, onLoginClick }) =>
       </div>
 
       {/* Account Info */}
-      <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-1">
+      <h1
+        className="text-2xl font-black text-gray-900 tracking-tight mb-1"
+        style={{ color: isDark ? "#FFFFFF" : undefined }}
+      >
         {isLoggedIn ? (user?.name || "Your account") : "Your account"}
       </h1>
-      <p className="text-sm font-semibold text-gray-500">
+      <p
+        className="text-sm font-semibold text-gray-500"
+        style={{ color: isDark ? "rgba(255, 255, 255, 0.8)" : undefined }}
+      >
         {isLoggedIn ? (user?.phone || "No phone number linked") : "Log in to manage your profile"}
       </p>
 

@@ -35,7 +35,7 @@ export default function ReferEarnPage() {
   const [hasOrders, setHasOrders] = useState(false);
   const [checkingOrders, setCheckingOrders] = useState(true);
   const referralLink = referralCode ? `https://www.buyto.co.in/?ref=${referralCode}` : "";
-  const shareMessage = referralCode ? `🎁 Join me on Buyto!\n\nUse my referral code ${referralCode} when you join Buyto.\n\nYou get ₹50 BuyCoins and I get ₹75 BuyCoins after your qualifying order.\n\n${referralLink}` : "";
+  const shareMessage = referralCode ? `🎁 Join me on Buyto!\n\nUse my referral code ${referralCode} when you join Buyto.\n\nYou get ₹50 BuyCoins.\n\n${referralLink}` : "";
 
   console.log("[ReferEarn] current AuthContext user:", user);
   console.log("[ReferEarn] calculated referralCode:", referralCode);
@@ -63,19 +63,19 @@ export default function ReferEarnPage() {
       const res = await fetch(`${window.API_BASE_URL}/api/users/referrals?page=${targetPage}&limit=10&_t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       console.log("[ReferEarn] Referral API HTTP status:", res.status);
       const data = await res.json();
       console.log("[ReferEarn] Referral API RESPONSE:", data);
       console.log("[ReferEarn] Referral code from API:", data?.referralCode);
       console.log("[ReferEarn] Referral code from nested user:", data?.user?.referralCode);
       console.log("[ReferEarn] Referral code from nested data:", data?.data?.referralCode);
-      
+
       if (res.ok && data.success) {
         setStats(data.stats);
         setTotalPages(data.pagination.totalPages);
         setPage(data.pagination.page);
-        
+
         const code = data.referralCode || data?.user?.referralCode || data?.data?.referralCode;
         if (code) {
           setReferralCode(code);
@@ -85,7 +85,7 @@ export default function ReferEarnPage() {
         } else {
           setReferralError(true);
         }
-        
+
         if (append) {
           setHistory(prev => [...prev, ...data.history]);
         } else {
@@ -292,8 +292,8 @@ export default function ReferEarnPage() {
         <div style={contentWrapperStyle}>
           {/* Refresh Action (Mobile visual helper) */}
           <div style={refreshRowStyle}>
-            <button 
-              onClick={handleRefresh} 
+            <button
+              onClick={handleRefresh}
               style={{ ...refreshBtnStyle, transform: refreshing ? "rotate(360deg)" : "none" }}
               aria-label="Pull to refresh"
             >
@@ -335,8 +335,8 @@ export default function ReferEarnPage() {
                 <span style={{ fontSize: "14px", color: "#ef4444", fontWeight: "600" }}>
                   Unable to load your referral code.
                 </span>
-                <button 
-                  onClick={() => fetchData(1, false)} 
+                <button
+                  onClick={() => fetchData(1, false)}
                   style={{
                     backgroundColor: "#16a34a",
                     color: "#ffffff",
