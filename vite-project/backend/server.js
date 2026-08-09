@@ -601,6 +601,79 @@ app.get("/api/products", async (req, res) => {
   }
 });
 
+app.get("/api/products/bestsellers", async (req, res) => {
+  try {
+    if (isConnected) {
+      const bestsellerMappings = [
+        {
+          name: "Vegetables & Fruits",
+          categories: ["The Veggie Store", "The Fruit Store"],
+          slug: "fresh-vegetables"
+        },
+        {
+          name: "Chips & Namkeen",
+          categories: ["Chips and Namkeens"],
+          slug: "chips-and-namkeens"
+        },
+        {
+          name: "Dairy, Bread & Eggs",
+          categories: ["Dairy, Bread & Eggs"],
+          slug: "dairy-bread-and-eggs"
+        },
+        {
+          name: "Oil, Ghee & Masala",
+          categories: ["Oils and Ghee", "Masalas"],
+          slug: "oils-and-ghee"
+        },
+        {
+          name: "Drinks & Juices",
+          categories: ["Cold Drinks and Juices", "Beverages"],
+          slug: "cold-drinks-and-juices"
+        },
+        {
+          name: "Ice Creams & More",
+          categories: ["Ice Creams & Desserts", "Ice-Cream"],
+          slug: "ice-creams-and-desserts"
+        }
+      ];
+
+      const results = [];
+      for (const mapping of bestsellerMappings) {
+        const count = await Product.countDocuments({ category: { $in: mapping.categories } });
+        
+        // Retrieve up to 4 distinct preview images of products in these categories with valid images
+        const sampleProducts = await Product.find({
+          category: { $in: mapping.categories },
+          image: { $regex: /^https?:\/\//i }
+        }, "image").limit(4).lean();
+        
+        const previewImages = sampleProducts.map(p => p.image);
+        
+        results.push({
+          name: mapping.name,
+          slug: mapping.slug,
+          count: count,
+          previewImages: previewImages
+        });
+      }
+      res.json(results);
+    } else {
+      // Offline fallback
+      res.json([
+        { name: "Vegetables & Fruits", slug: "fresh-vegetables", count: 204, previewImages: [] },
+        { name: "Chips & Namkeen", slug: "chips-and-namkeens", count: 490, previewImages: [] },
+        { name: "Dairy, Bread & Eggs", slug: "dairy-bread-and-eggs", count: 32, previewImages: [] },
+        { name: "Oil, Ghee & Masala", slug: "oils-and-ghee", count: 365, previewImages: [] },
+        { name: "Drinks & Juices", slug: "cold-drinks-and-juices", count: 273, previewImages: [] },
+        { name: "Ice Creams & More", slug: "ice-creams-and-desserts", count: 98, previewImages: [] }
+      ]);
+    }
+  } catch (error) {
+    console.error("Error in /api/products/bestsellers:", error);
+    res.status(500).json({ message: "Server error fetching bestsellers" });
+  }
+});
+
 app.get("/api/products/:id", async (req, res) => {
   try {
     const { id } = req.params;
