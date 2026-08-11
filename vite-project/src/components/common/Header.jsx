@@ -22,7 +22,7 @@ const searchSuggestions = [
   "Snacks"
 ];
 
-const LogoArea = ({ brandText = "Buyto", whiteText = false, brandColor = "#F59E0B" }) => {
+const LogoArea = ({ brandText = "Buyto", whiteText = false, brandColor = "#171614ff" }) => {
   const parts = brandText === "LetsBuyto" ? ["lets buy it", ""] : ["Buy", "to"];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
