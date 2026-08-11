@@ -374,12 +374,65 @@ async function sendPromotionalNotification({ title, body, image, target, selecte
   }
 }
 
+async function sendBirthdayNotification(user) {
+  if (!user) return;
+  try {
+    const { getISTYear } = require("../utils/birthdayCampaign");
+    const currentYear = getISTYear();
+
+    if (user.birthdayNotificationsSentYears && user.birthdayNotificationsSentYears.includes(currentYear)) {
+      console.log(`[Notification FCM] Birthday notification already sent to user ${user.email || user.phone} for year ${currentYear}`);
+      return;
+    }
+
+    const tokens = [];
+    if (Array.isArray(user.fcmTokens)) {
+      user.fcmTokens.forEach(t => {
+        const tokenStr = (t && typeof t === "object") ? t.token : t;
+        if (tokenStr) tokens.push(tokenStr);
+      });
+    }
+    if (user.fcmToken && !tokens.includes(user.fcmToken)) {
+      tokens.push(user.fcmToken);
+    }
+
+    const title = `🎂 Happy Birthday, ${user.name || "Shetty"}!`;
+    const body = `We've got a special birthday treat waiting for you on Buyto. 🎉`;
+    const deepLink = "/cart";
+
+    // Persist to NotificationHistory collection
+    const historyItem = new NotificationHistory({
+      user: user._id,
+      title,
+      body,
+      type: "ORDER",
+      deepLink
+    });
+    await historyItem.save();
+
+    // Mark as sent
+    await User.updateOne(
+      { _id: user._id },
+      { $addToSet: { birthdayNotificationsSentYears: currentYear } }
+    );
+
+    // Send push
+    if (tokens.length > 0) {
+      console.log(`Sending birthday push notification to user: ${user.name}`);
+      return await sendPushNotification(tokens, title, body, { deepLink });
+    }
+  } catch (error) {
+    console.error("Error dispatching birthday notification:", error);
+  }
+}
+
 module.exports = {
   sendPushNotification,
   sendOrderNotification,
   sendPromotionalNotification,
   sendCartReminder,
   sendBulkNotification,
+  sendBirthdayNotification,
   // Alias for backward compatibility
   sendOrderStatusNotification: sendOrderNotification,
   sendBroadcastNotification: async (params) => {

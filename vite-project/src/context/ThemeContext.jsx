@@ -24,12 +24,34 @@ export const ThemeProvider = ({ children }) => {
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
 
-  // Centralized setTheme handler
+  const [transitionState, setTransitionState] = useState({ visible: false, targetTheme: null });
+
+  // Centralized setTheme handler with visual transition experience
   const setTheme = useCallback((newTheme) => {
     if (newTheme !== "LIGHT" && newTheme !== "DARK" && newTheme !== "SYSTEM") return;
-    setThemeState(newTheme);
-    localStorage.setItem("buyto_theme", newTheme);
-  }, []);
+    if (newTheme === theme) return; // Prevent duplicate transition if clicking the same option
+
+    let targetMode = newTheme;
+    if (newTheme === "SYSTEM") {
+      targetMode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "DARK" : "LIGHT";
+    }
+
+    setTransitionState({
+      visible: true,
+      targetTheme: targetMode
+    });
+
+    // Short transition delay before applying the core theme state update
+    setTimeout(() => {
+      setThemeState(newTheme);
+      localStorage.setItem("buyto_theme", newTheme);
+    }, 450);
+
+    // Turn off transition overlay after the change is complete
+    setTimeout(() => {
+      setTransitionState({ visible: false, targetTheme: null });
+    }, 850);
+  }, [theme]);
 
   // Update theme helper
   useEffect(() => {
@@ -88,6 +110,52 @@ export const ThemeProvider = ({ children }) => {
 
   return (
     <ThemeContext.Provider value={value}>
+      {transitionState.visible && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: transitionState.targetTheme === "DARK" ? "#0F1115" : "#f7f8fa",
+            color: transitionState.targetTheme === "DARK" ? "#ffffff" : "#111827",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+            pointerEvents: "auto",
+            fontFamily: "'Outfit', 'Inter', sans-serif"
+          }}
+        >
+          <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
+            <div
+              style={{
+                width: "50px",
+                height: "50px",
+                border: `4px solid ${transitionState.targetTheme === "DARK" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}`,
+                borderTop: "4px solid #318616",
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite"
+              }}
+            />
+            <style dangerouslySetInnerHTML={{
+              __html: `
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              `
+            }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <h2 style={{ fontSize: "20px", fontWeight: "900", margin: 0, tracking: "tight" }}>
+                Switching to {transitionState.targetTheme === "DARK" ? "Dark" : "Light"} theme
+              </h2>
+              <p style={{ fontSize: "14px", fontWeight: "600", color: transitionState.targetTheme === "DARK" ? "#9CA3AF" : "#6B7280", margin: 0 }}>
+                Hold on...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {children}
     </ThemeContext.Provider>
   );

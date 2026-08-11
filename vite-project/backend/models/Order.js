@@ -218,6 +218,12 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: ""
   },
+  birthdayReward: {
+    applied: { type: Boolean, default: false },
+    productId: { type: String, default: "" },
+    year: { type: Number, default: null },
+    promotionalPrice: { type: Number, default: 0 }
+  },
   createdAt: {
     type: Date,
     default: Date.now

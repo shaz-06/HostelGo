@@ -11,9 +11,52 @@ import DynamicNewBanners from "../DynamicNewBanners";
 import PromoBannerCarousel from "../PromoBannerCarousel";
 import OffersBottomDrawer from "../common/OffersBottomDrawer";
 import { useTheme } from "../../context/ThemeContext";
+import ProgressiveSection from "../common/ProgressiveSection";
 
 const DeliveryIllustration = "https://img.icons8.com/?size=100&id=uTI4SjCIkNJp&format=png&color=000000";
 const SearchResultsView = React.lazy(() => import("../SearchResultsView"));
+
+function MobileProductCardSkeleton({ isDark }) {
+  return (
+    <div
+      style={{
+        background: isDark ? "var(--bg-card)" : "white",
+        borderRadius: "12px",
+        padding: "8px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        width: "120px",
+        height: "210px",
+        boxSizing: "border-box",
+        flexShrink: 0,
+        border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #f0f0f0",
+        position: "relative",
+        overflow: "hidden"
+      }}
+    >
+      <div style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 20%, rgba(255,255,255,0.5) 60%, rgba(255,255,255,0) 100%)",
+        animation: "shimmer 1.5s infinite",
+        transform: "translateX(-100%)"
+      }} />
+      <div>
+        <div style={{ width: "100%", height: "75px", background: isDark ? "var(--bg-secondary)" : "#f9fafb", borderRadius: "8px" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "8px" }}>
+          <div style={{ width: "60%", height: "10px", borderRadius: "4px", background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }} />
+          <div style={{ width: "40%", height: "12px", borderRadius: "4px", background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }} />
+        </div>
+        <div style={{ width: "80%", height: "24px", borderRadius: "4px", background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", marginTop: "12px" }} />
+      </div>
+      <div style={{ width: "100%", height: "26px", borderRadius: "6px", background: isDark ? "rgba(49, 134, 22, 0.2)" : "rgba(49, 134, 22, 0.1)" }} />
+    </div>
+  );
+}
 
 function MobileHome({
   products,
@@ -32,7 +75,10 @@ function MobileHome({
   displayCats = [],
   selectedCategory = "All",
   onCategoryClick = () => { },
-  forceSearchTab = false
+  forceSearchTab = false,
+  loading = false,
+  apiError = null,
+  onRefreshProducts = () => {}
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,6 +102,55 @@ function MobileHome({
   const closeOffer = React.useCallback(() => {
     setIsDrawerOpen(false);
   }, []);
+
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartRef = React.useRef(0);
+  const isPullingRef = React.useRef(false);
+
+  const handleTouchStart = React.useCallback((e) => {
+    if (window.scrollY === 0) {
+      touchStartRef.current = e.touches[0].clientY;
+      isPullingRef.current = true;
+    } else {
+      isPullingRef.current = false;
+    }
+  }, []);
+
+  const handleTouchMove = React.useCallback((e) => {
+    if (!isPullingRef.current || isRefreshing) return;
+
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartRef.current;
+
+    if (diff > 0 && window.scrollY === 0) {
+      const damped = Math.min(80, diff * 0.45);
+      setPullDistance(damped);
+      
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    }
+  }, [isRefreshing]);
+
+  const handleTouchEnd = React.useCallback(async () => {
+    if (!isPullingRef.current || isRefreshing) return;
+    isPullingRef.current = false;
+
+    if (pullDistance >= 55) {
+      setIsRefreshing(true);
+      setPullDistance(55);
+
+      if (onRefreshProducts) {
+        await onRefreshProducts();
+      }
+
+      setIsRefreshing(false);
+      setPullDistance(0);
+    } else {
+      setPullDistance(0);
+    }
+  }, [pullDistance, isRefreshing, onRefreshProducts]);
 
   useEffect(() => {
     if (location.search.includes("scroll=categories")) {
@@ -133,7 +228,8 @@ function MobileHome({
   ];
 
   const renderProductSection = (title, items, route) => {
-    if (!items || items.length === 0) return null;
+    const isSectionLoading = loading && (!items || items.length === 0);
+    if (!isSectionLoading && (!items || items.length === 0)) return null;
     const isTrendingNearYou = title && title.toLowerCase().includes("trending near you");
     const isBestDeals = title && title.toLowerCase().includes("best deals");
     const isFruits = title && title.toLowerCase().includes("fresh fruits");
@@ -329,15 +425,43 @@ function MobileHome({
           }}
           className="hide-scrollbar"
         >
-          {items.slice(0, 10).map((prod) => (
-            <MobileProductCard
-              key={prod._id || prod.id}
-              product={prod}
-              addToCart={addToCart}
-              removeFromCart={removeFromCart}
-              cartItems={cartItems}
-              setSelectedProduct={setSelectedProduct}
-            />
+          {isSectionLoading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <MobileProductCardSkeleton key={idx} isDark={isDark} />
+            ))
+          ) : (
+            items.slice(0, 10).map((prod) => (
+              <MobileProductCard
+                key={prod._id || prod.id}
+                product={prod}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cartItems={cartItems}
+                setSelectedProduct={setSelectedProduct}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderProductSectionSkeleton = (title, route) => {
+    return (
+      <div style={{
+        background: isDark ? "var(--bg-card)" : "white",
+        borderRadius: "24px",
+        margin: "12px 16px",
+        padding: "16px",
+        border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #f3f4f6"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: isDark ? "white" : "#1f2937" }}>{title}</h3>
+          <span style={{ fontSize: "12px", color: "#318616", fontWeight: "700" }}>See All &gt;</span>
+        </div>
+        <div style={{ display: "flex", gap: "12px", overflowX: "hidden" }}>
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <MobileProductCardSkeleton key={idx} isDark={isDark} />
           ))}
         </div>
       </div>
@@ -559,6 +683,28 @@ function MobileHome({
             `}</style>
           </div>
 
+          {apiError && (
+            <div
+              style={{
+                background: "#fef2f2",
+                border: "1px solid #fee2e2",
+                borderRadius: "16px",
+                padding: "16px",
+                color: "#991b1b",
+                margin: "12px 16px",
+                textAlign: "left",
+                fontFamily: "'Outfit', 'Inter', sans-serif"
+              }}
+            >
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "16px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span>⚠️</span> Connection Error
+              </h3>
+              <p style={{ margin: 0, fontSize: "14px", fontWeight: "500", opacity: 0.9 }}>
+                {apiError}
+              </p>
+            </div>
+          )}
+
           {/* Bestsellers Section */}
           <BestsellersSection />
 
@@ -579,208 +725,241 @@ function MobileHome({
           <DynamicNewBanners />
 
           {/* Product Scrolling Sections (compact gaps) */}
-          {renderProductSection("Top Picks For You", trendingProducts, "/section/trending")}
-          {renderProductSection("Fresh Fruits", fruitProducts, "/section/fruits")}
-          {renderProductSection("Fresh Vegetables", veggieProducts, "/section/veggies")}
-          {renderProductSection("Dairy & Breakfast", dairyProducts, "/section/dairy")}
-          {renderProductSection("Snacks & Drinks", [...snackProducts, ...beverageProducts], "/section/snacks")}
-          {renderProductSection("Atta, Rice & Dal", groceryProducts, "/section/grocery")}
+          <ProgressiveSection fallback={renderProductSectionSkeleton("Top Picks For You", "/section/trending")} minHeight="275px">
+            {renderProductSection("Top Picks For You", trendingProducts, "/section/trending")}
+          </ProgressiveSection>
 
-          {recommendedList.length > 0 && renderProductSection("✨ Recommended For You", recommendedList, "/section/recommended")}
-          {trendingList.length > 0 && renderProductSection("🔥 Trending Near You", trendingList, "/section/trending")}
-          {bestDealsList.length > 0 && renderProductSection("💸 Best Deals Today", bestDealsList, "/section/deals")}
+          <ProgressiveSection fallback={renderProductSectionSkeleton("Fresh Fruits", "/section/fruits")} minHeight="275px">
+            {renderProductSection("Fresh Fruits", fruitProducts, "/section/fruits")}
+          </ProgressiveSection>
 
-          <div style={{
-            background: isDark ? "var(--bg-card)" : "#FFFFFF",
-            border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(49,134,22,.08)",
-            borderRadius: "28px",
-            padding: "28px 16px",
-            boxShadow: isDark ? "0 10px 30px rgba(0,0,0,0.25)" : "0 10px 30px rgba(49,134,22,.06)",
-            margin: "40px 16px 24px 16px",
-            textAlign: "center",
-            fontFamily: "'Outfit', 'Inter', sans-serif",
-            boxSizing: "border-box"
-          }}>
-            <style>{`
-              .premium-footer-heading-mobile {
-                font-size: 20px;
-                font-weight: 850;
-                color: ${isDark ? "#FFFFFF" : "#1E293B"};
-                margin: 0;
-              }
-              .premium-footer-subtitle-mobile {
-                color: ${isDark ? "#AEB3BF" : "#64748B"};
-                font-size: 14px;
-                margin: 6px 0 20px 0;
-              }
-              .premium-action-btn-mobile {
-                background: ${isDark ? "#242730" : "#F8FFF5"};
-                border: 1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(49,134,22,.10)"};
-                border-radius: 999px;
-                padding: 10px 18px;
-                font-weight: 600;
-                font-size: 13px;
-                color: ${isDark ? "#FFFFFF" : "#318616"};
-                cursor: pointer;
-                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                outline: none;
-                user-select: none;
-              }
-              .premium-action-btn-mobile:hover {
-                background: #318616;
-                color: white;
-                transform: translateY(-2px);
-                box-shadow: 0 12px 24px rgba(49,134,22,.18);
-              }
-              .premium-action-btn-mobile:active {
-                transform: scale(0.95) translateY(0);
-              }
-            `}</style>
-            <h2 className="premium-footer-heading-mobile" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-              <img src="https://img.icons8.com/?size=100&id=49fnBL9r0HmF&format=png&color=318616" alt="Thank You" style={{ width: "24px", height: "24px", objectFit: "contain" }} /> Thank you for choosing Buyto
-            </h2>
-            <p className="premium-footer-subtitle-mobile">Built by Students, for Students.</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
-              <button
-                className="premium-action-btn-mobile"
-                onClick={() => {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                  setTimeout(() => {
-                    const searchInput = document.getElementById('main-search-input');
-                    if (searchInput) {
-                      searchInput.focus();
-                      searchInput.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
-                      searchInput.style.boxShadow = '0 0 15px rgba(49, 134, 22, 0.6)';
-                      searchInput.style.borderColor = '#318616';
-                      setTimeout(() => {
-                        searchInput.style.boxShadow = '';
-                        searchInput.style.borderColor = '';
-                      }, 800);
-                    }
-                    const catStrip = document.getElementById('category-strip-container');
-                    if (catStrip) {
-                      catStrip.style.transition = 'transform 0.4s ease';
-                      catStrip.style.transform = 'scale(1.03)';
-                      setTimeout(() => {
-                        catStrip.style.transform = 'scale(1)';
-                      }, 400);
-                    }
-                  }, 800);
-                }}
-              >
-                <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=318616" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
-              </button>
+          <ProgressiveSection fallback={renderProductSectionSkeleton("Fresh Vegetables", "/section/veggies")} minHeight="275px">
+            {renderProductSection("Fresh Vegetables", veggieProducts, "/section/veggies")}
+          </ProgressiveSection>
 
-              <button
-                className="premium-action-btn-mobile"
-                onClick={() => {
-                  const el = document.getElementById('best-deals-today');
-                  if (el) {
-                    el.scrollIntoView({ behavior: 'smooth' });
+          <ProgressiveSection fallback={renderProductSectionSkeleton("Dairy & Breakfast", "/section/dairy")} minHeight="275px">
+            {renderProductSection("Dairy & Breakfast", dairyProducts, "/section/dairy")}
+          </ProgressiveSection>
+
+          <ProgressiveSection fallback={renderProductSectionSkeleton("Snacks & Drinks", "/section/snacks")} minHeight="275px">
+            {renderProductSection("Snacks & Drinks", [...snackProducts, ...beverageProducts], "/section/snacks")}
+          </ProgressiveSection>
+
+          <ProgressiveSection fallback={renderProductSectionSkeleton("Atta, Rice & Dal", "/section/grocery")} minHeight="275px">
+            {renderProductSection("Atta, Rice & Dal", groceryProducts, "/section/grocery")}
+          </ProgressiveSection>
+
+          {recommendedList.length > 0 && (
+            <ProgressiveSection fallback={renderProductSectionSkeleton("✨ Recommended For You", "/section/recommended")} minHeight="275px">
+              {renderProductSection("✨ Recommended For You", recommendedList, "/section/recommended")}
+            </ProgressiveSection>
+          )}
+
+          {trendingList.length > 0 && (
+            <ProgressiveSection fallback={renderProductSectionSkeleton("🔥 Trending Near You", "/section/trending")} minHeight="275px">
+              {renderProductSection("🔥 Trending Near You", trendingList, "/section/trending")}
+            </ProgressiveSection>
+          )}
+
+          {bestDealsList.length > 0 && (
+            <ProgressiveSection fallback={renderProductSectionSkeleton("💸 Best Deals Today", "/section/deals")} minHeight="275px">
+              {renderProductSection("💸 Best Deals Today", bestDealsList, "/section/deals")}
+            </ProgressiveSection>
+          )}
+
+          <ProgressiveSection fallback={<div style={{ minHeight: "150px" }} />} minHeight="150px">
+            <div style={{
+              background: isDark ? "var(--bg-card)" : "#FFFFFF",
+              border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(49,134,22,.08)",
+              borderRadius: "28px",
+              padding: "28px 16px",
+              boxShadow: isDark ? "0 10px 30px rgba(0,0,0,0.25)" : "0 10px 30px rgba(49,134,22,.06)",
+              margin: "40px 16px 24px 16px",
+              textAlign: "center",
+              fontFamily: "'Outfit', 'Inter', sans-serif",
+              boxSizing: "border-box"
+            }}>
+              <style>{`
+                .premium-footer-heading-mobile {
+                  font-size: 20px;
+                  font-weight: 850;
+                  color: ${isDark ? "#FFFFFF" : "#1E293B"};
+                  margin: 0;
+                }
+                .premium-footer-subtitle-mobile {
+                  color: ${isDark ? "#AEB3BF" : "#64748B"};
+                  font-size: 14px;
+                  margin: 6px 0 20px 0;
+                }
+                .premium-action-btn-mobile {
+                  background: ${isDark ? "#242730" : "#F8FFF5"};
+                  border: 1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(49,134,22,.10)"};
+                  border-radius: 999px;
+                  padding: 10px 18px;
+                  font-weight: 600;
+                  font-size: 13px;
+                  color: ${isDark ? "#FFFFFF" : "#318616"};
+                  cursor: pointer;
+                  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 6px;
+                  outline: none;
+                  user-select: none;
+                }
+                .premium-action-btn-mobile:hover {
+                  background: #318616;
+                  color: white;
+                  transform: translateY(-2px);
+                  box-shadow: 0 12px 24px rgba(49,134,22,.18);
+                }
+                .premium-action-btn-mobile:active {
+                  transform: scale(0.95) translateY(0);
+                }
+              `}</style>
+              <h2 className="premium-footer-heading-mobile" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                <img src="https://img.icons8.com/?size=100&id=49fnBL9r0HmF&format=png&color=318616" alt="Thank You" style={{ width: "24px", height: "24px", objectFit: "contain" }} /> Thank you for choosing Buyto
+              </h2>
+              <p className="premium-footer-subtitle-mobile">Built by Students, for Students.</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
+                <button
+                  className="premium-action-btn-mobile"
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                     setTimeout(() => {
-                      el.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.4)';
-                      el.style.borderColor = 'rgba(245, 158, 11, 0.6)';
-                      setTimeout(() => {
-                        el.style.boxShadow = '';
-                        el.style.borderColor = '';
-                      }, 1000);
+                      const searchInput = document.getElementById('main-search-input');
+                      if (searchInput) {
+                        searchInput.focus();
+                        searchInput.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+                        searchInput.style.boxShadow = '0 0 15px rgba(49, 134, 22, 0.6)';
+                        searchInput.style.borderColor = '#318616';
+                        setTimeout(() => {
+                          searchInput.style.boxShadow = '';
+                          searchInput.style.borderColor = '';
+                        }, 800);
+                      }
+                      const catStrip = document.getElementById('category-strip-container');
+                      if (catStrip) {
+                        catStrip.style.transition = 'transform 0.4s ease';
+                        catStrip.style.transform = 'scale(1.03)';
+                        setTimeout(() => {
+                          catStrip.style.transform = 'scale(1)';
+                        }, 400);
+                      }
                     }, 800);
-                  }
-                }}
-              >
-                <img src="https://img.icons8.com/?size=100&id=pHehIn4Wlp05&format=png&color=318616" alt="Best Deals" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Best Deals
-              </button>
+                  }}
+                >
+                  <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=318616" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
+                </button>
 
-              <button
-                className="premium-action-btn-mobile"
-                onClick={() => {
-                  const el = document.getElementById('fresh-fruits');
-                  if (el) {
-                    el.scrollIntoView({ behavior: 'smooth' });
-                    setTimeout(() => {
-                      el.style.boxShadow = '0 0 30px rgba(49, 134, 22, 0.4)';
-                      el.style.borderColor = 'rgba(49, 134, 22, 0.6)';
-                      setTimeout(() => {
-                        el.style.boxShadow = '';
-                        el.style.borderColor = '';
-                      }, 1000);
-                    }, 800);
-                  }
-                }}
-              >
-                <img src="https://img.icons8.com/?size=100&id=tgmqacLfjsi4&format=png&color=318616" alt="Fresh Fruits" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Fresh Fruits
-              </button>
-
-              <button
-                className="premium-action-btn-mobile"
-                onClick={() => {
-                  const showSurpriseToast = () => {
-                    const toast = document.createElement("div");
-                    toast.innerHTML = "✨ Today's Pick for You";
-                    toast.style.position = "fixed";
-                    toast.style.bottom = "100px";
-                    toast.style.left = "50%";
-                    toast.style.transform = "translateX(-50%) translateY(20px)";
-                    toast.style.background = "rgba(17, 24, 39, 0.9)";
-                    toast.style.color = "white";
-                    toast.style.padding = "10px 20px";
-                    toast.style.borderRadius = "50px";
-                    toast.style.fontSize = "13px";
-                    toast.style.fontWeight = "600";
-                    toast.style.boxShadow = "0 8px 20px rgba(0,0,0,0.2)";
-                    toast.style.zIndex = "9999";
-                    toast.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
-                    toast.style.opacity = "0";
-                    document.body.appendChild(toast);
-
-                    requestAnimationFrame(() => {
-                      toast.style.transform = "translateX(-50%) translateY(0)";
-                      toast.style.opacity = "1";
-                    });
-
-                    setTimeout(() => {
-                      toast.style.transform = "translateX(-50%) translateY(-20px)";
-                      toast.style.opacity = "0";
-                      setTimeout(() => {
-                        toast.remove();
-                      }, 300);
-                    }, 2000);
-                  };
-
-                  const targetSections = [
-                    { id: 'trending-near-you', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
-                    { id: 'fresh-fruits', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
-                    { id: 'best-deals-today', color: 'rgba(245, 158, 11, 0.4)', border: 'rgba(245, 158, 11, 0.6)' },
-                    { id: 'fresh-vegetables', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
-                    { id: 'dairy-bread-eggs', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
-                    { id: 'snacks', color: 'rgba(245, 158, 11, 0.4)', border: 'rgba(245, 158, 11, 0.6)' }
-                  ];
-                  const available = targetSections.filter(s => document.getElementById(s.id));
-                  if (available.length > 0) {
-                    const randomSec = available[Math.floor(Math.random() * available.length)];
-                    const el = document.getElementById(randomSec.id);
+                <button
+                  className="premium-action-btn-mobile"
+                  onClick={() => {
+                    const el = document.getElementById('best-deals-today');
                     if (el) {
                       el.scrollIntoView({ behavior: 'smooth' });
-                      showSurpriseToast();
                       setTimeout(() => {
-                        el.style.boxShadow = `0 0 30px ${randomSec.color}`;
-                        el.style.borderColor = randomSec.border;
+                        el.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.4)';
+                        el.style.borderColor = 'rgba(245, 158, 11, 0.6)';
                         setTimeout(() => {
                           el.style.boxShadow = '';
                           el.style.borderColor = '';
                         }, 1000);
                       }, 800);
                     }
-                  }
-                }}
-              >
-                <img src="https://img.icons8.com/?size=100&id=EJGyTkY9EhhZ&format=png&color=318616" alt="Surprise Me" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Surprise Me
-              </button>
+                  }}
+                >
+                  <img src="https://img.icons8.com/?size=100&id=pHehIn4Wlp05&format=png&color=318616" alt="Best Deals" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Best Deals
+                </button>
+
+                <button
+                  className="premium-action-btn-mobile"
+                  onClick={() => {
+                    const el = document.getElementById('fresh-fruits');
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth' });
+                      setTimeout(() => {
+                        el.style.boxShadow = '0 0 30px rgba(49, 134, 22, 0.4)';
+                        el.style.borderColor = 'rgba(49, 134, 22, 0.6)';
+                        setTimeout(() => {
+                          el.style.boxShadow = '';
+                          el.style.borderColor = '';
+                        }, 1000);
+                      }, 800);
+                    }
+                  }}
+                >
+                  <img src="https://img.icons8.com/?size=100&id=tgmqacLfjsi4&format=png&color=318616" alt="Fresh Fruits" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Fresh Fruits
+                </button>
+
+                <button
+                  className="premium-action-btn-mobile"
+                  onClick={() => {
+                    const showSurpriseToast = () => {
+                      const toast = document.createElement("div");
+                      toast.innerHTML = "✨ Today's Pick for You";
+                      toast.style.position = "fixed";
+                      toast.style.bottom = "100px";
+                      toast.style.left = "50%";
+                      toast.style.transform = "translateX(-50%) translateY(20px)";
+                      toast.style.background = "rgba(17, 24, 39, 0.9)";
+                      toast.style.color = "white";
+                      toast.style.padding = "10px 20px";
+                      toast.style.borderRadius = "50px";
+                      toast.style.fontSize = "13px";
+                      toast.style.fontWeight = "600";
+                      toast.style.boxShadow = "0 8px 20px rgba(0,0,0,0.2)";
+                      toast.style.zIndex = "9999";
+                      toast.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
+                      toast.style.opacity = "0";
+                      document.body.appendChild(toast);
+
+                      requestAnimationFrame(() => {
+                        toast.style.transform = "translateX(-50%) translateY(0)";
+                        toast.style.opacity = "1";
+                      });
+
+                      setTimeout(() => {
+                        toast.style.transform = "translateX(-50%) translateY(-20px)";
+                        toast.style.opacity = "0";
+                        setTimeout(() => {
+                          toast.remove();
+                        }, 300);
+                      }, 2000);
+                    };
+
+                    const targetSections = [
+                      { id: 'trending-near-you', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
+                      { id: 'fresh-fruits', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
+                      { id: 'best-deals-today', color: 'rgba(245, 158, 11, 0.4)', border: 'rgba(245, 158, 11, 0.6)' },
+                      { id: 'fresh-vegetables', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
+                      { id: 'dairy-bread-eggs', color: 'rgba(49, 134, 22, 0.4)', border: 'rgba(49, 134, 22, 0.6)' },
+                      { id: 'snacks', color: 'rgba(245, 158, 11, 0.4)', border: 'rgba(245, 158, 11, 0.6)' }
+                    ];
+                    const available = targetSections.filter(s => document.getElementById(s.id));
+                    if (available.length > 0) {
+                      const randomSec = available[Math.floor(Math.random() * available.length)];
+                      const el = document.getElementById(randomSec.id);
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth' });
+                        showSurpriseToast();
+                        setTimeout(() => {
+                          el.style.boxShadow = `0 0 30px ${randomSec.color}`;
+                          el.style.borderColor = randomSec.border;
+                          setTimeout(() => {
+                            el.style.boxShadow = '';
+                            el.style.borderColor = '';
+                          }, 1000);
+                        }, 800);
+                      }
+                    }
+                  }}
+                >
+                  <img src="https://img.icons8.com/?size=100&id=EJGyTkY9EhhZ&format=png&color=318616" alt="Surprise Me" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Surprise Me
+                </button>
+              </div>
             </div>
-          </div>
+          </ProgressiveSection>
           {isDrawerOpen && (
             <OffersBottomDrawer
               offerId={selectedOffer}

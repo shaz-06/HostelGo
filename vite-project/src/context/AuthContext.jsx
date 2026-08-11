@@ -44,6 +44,17 @@ export const AuthProvider = ({ children }) => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeBonus, setWelcomeBonus] = useState(20);
   const [appConfig, setAppConfig] = useState(null);
+  const [hideSensitive, setHideSensitive] = useState(() => {
+    return localStorage.getItem("buyto_hide_sensitive") === "true";
+  });
+
+  const toggleHideSensitive = React.useCallback(() => {
+    setHideSensitive((prev) => {
+      const nextVal = !prev;
+      localStorage.setItem("buyto_hide_sensitive", nextVal ? "true" : "false");
+      return nextVal;
+    });
+  }, []);
 
   const updateUserInSession = React.useCallback((incomingUser) => {
     const existingUser = JSON.parse(
@@ -527,7 +538,9 @@ export const AuthProvider = ({ children }) => {
     showWelcomeModal,
     setShowWelcomeModal,
     welcomeBonus,
-    appConfig
+    appConfig,
+    hideSensitive,
+    toggleHideSensitive
   }), [
     user,
     isLoggedIn,
@@ -551,7 +564,9 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
     showWelcomeModal,
     welcomeBonus,
-    appConfig
+    appConfig,
+    hideSensitive,
+    toggleHideSensitive
   ]);
 
   return (

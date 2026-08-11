@@ -146,6 +146,31 @@ async function consumeOrderDiscounts(order) {
       // Recalculate wallet balance and sync
       await recalculateWallet(userId, email);
     }
+
+    // 3. Consume Birthday Reward if applied (atomic and idempotent)
+    if (order.birthdayReward && order.birthdayReward.applied) {
+      const year = order.birthdayReward.year;
+      const alreadyConsumedByThisOrder = user.birthdayRedemptions && user.birthdayRedemptions.some(r => r.year === year && r.orderId === order._id.toString());
+      if (!alreadyConsumedByThisOrder) {
+        const result = await User.updateOne(
+          {
+            _id: userId,
+            "birthdayRedemptions.year": { $ne: year }
+          },
+          {
+            $addToSet: {
+              birthdayRedemptions: { year, orderId: order._id.toString() }
+            }
+          }
+        );
+        if (result.modifiedCount === 0) {
+          throw new Error("Double redemption race condition detected. Birthday reward was already consumed for this year.");
+        }
+        console.log(`Birthday reward for year ${year} atomically consumed by Order ${order._id}`);
+      } else {
+        console.log(`Birthday reward for year ${year} was already consumed by this Order ${order._id} (idempotent bypass)`);
+      }
+    }
   } catch (error) {
     console.error("Error consuming order discounts:", error);
   }
@@ -237,6 +262,23 @@ async function handleOrderCancellationReversal(order) {
     // Recalculate wallet
     await recalculateWallet(userId, email);
 
+    // 3. Refund / Revert Birthday Reward if applied to this order
+    if (order.birthdayReward && order.birthdayReward.applied) {
+      const year = order.birthdayReward.year;
+      const result = await User.updateOne(
+        { _id: userId },
+        {
+          $pull: {
+            birthdayRedemptions: { year, orderId: order._id.toString() }
+          }
+        }
+      );
+      if (result.modifiedCount > 0) {
+        console.log(`Birthday reward for year ${year} reversed and restored from cancelled Order ${order._id}`);
+      } else {
+        console.log(`Birthday reward for year ${year} was not associated/restored from Order ${order._id} (idempotent or already reversed)`);
+      }
+    }
   } catch (error) {
     console.error("Error handling order cancellation reversal:", error);
   }

@@ -272,13 +272,26 @@ if (process.env.MONGODB_URI) {
             gstPercentage: 5,
             gstFixedCharges: 2,
             codConvenienceFee: 14,
-            codConvenienceFeeEnabled: true
+            codConvenienceFeeEnabled: true,
+            birthdayRewardEnabled: true,
+            birthdayRewardProductId: "DBE4",
+            birthdayMinOrderValue: 99,
+            birthdayRewardPrice: 1
           });
           await feeConfig.save();
           console.log("=== FEE CONFIG SEED SUCCESS ===");
           console.log("Config document:", JSON.stringify(feeConfig, null, 2));
         } else {
           console.log("=== FEE CONFIG SEED CHECK ===");
+          let updated = false;
+          if (feeConfig.birthdayRewardEnabled === undefined) { feeConfig.birthdayRewardEnabled = true; updated = true; }
+          if (feeConfig.birthdayRewardProductId === undefined) { feeConfig.birthdayRewardProductId = "DBE4"; updated = true; }
+          if (feeConfig.birthdayMinOrderValue === undefined) { feeConfig.birthdayMinOrderValue = 99; updated = true; }
+          if (feeConfig.birthdayRewardPrice === undefined) { feeConfig.birthdayRewardPrice = 1; updated = true; }
+          if (updated) {
+            await feeConfig.save();
+            console.log("Updated existing feeConfig with birthday reward fields.");
+          }
           console.log("Config exists");
           console.log("Config document:", JSON.stringify(feeConfig, null, 2));
         }
@@ -640,15 +653,15 @@ app.get("/api/products/bestsellers", async (req, res) => {
       const results = [];
       for (const mapping of bestsellerMappings) {
         const count = await Product.countDocuments({ category: { $in: mapping.categories } });
-        
+
         // Retrieve up to 4 distinct preview images of products in these categories with valid images
         const sampleProducts = await Product.find({
           category: { $in: mapping.categories },
           image: { $regex: /^https?:\/\//i }
         }, "image").limit(4).lean();
-        
+
         const previewImages = sampleProducts.map(p => p.image);
-        
+
         results.push({
           name: mapping.name,
           slug: mapping.slug,

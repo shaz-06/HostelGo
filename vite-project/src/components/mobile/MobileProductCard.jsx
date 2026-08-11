@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOptimizedImageUrl } from "../../utils/imageOptimizer";
 import { useTheme } from "../../context/ThemeContext";
+import { AuthContext } from "../../context/AuthContext";
+import { isProductSensitive } from "../../utils/productPrivacy";
 
 function MobileProductCard({
   product,
@@ -13,10 +15,17 @@ function MobileProductCard({
 }) {
   const navigate = useNavigate();
   const { isDark } = useTheme();
+  const { hideSensitive } = useContext(AuthContext);
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  // Support both backend/database 'id' and frontend '_id'
+  const productId = product?._id || product?.id || String(Math.random());
+
+  useEffect(() => {
+    setIsRevealed(false);
+  }, [productId]);
 
   if (!product) return null;
-
-  const productId = product._id || product.id;
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const isOutOfStock = hasVariants
     ? product.variants.every(v => v.stock === undefined ? false : v.stock <= 0)
@@ -199,18 +208,50 @@ function MobileProductCard({
               Out of Stock
             </span>
           )}
-          <img
-            src={getOptimizedImageUrl(product.image, "thumbnail", product)}
-            alt={product.name}
-            style={{
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-              borderRadius: "6px",
-              filter: isOutOfStock ? "grayscale(40%) opacity(0.6)" : "none",
-            }}
-            loading="lazy"
-          />
+          {isProductSensitive(product) && hideSensitive && !isRevealed ? (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsRevealed(true);
+              }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                background: isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(249, 250, 251, 0.98)",
+                borderRadius: "8px",
+                padding: "4px",
+                boxSizing: "border-box",
+                cursor: "pointer",
+                userSelect: "none",
+                zIndex: 10
+              }}
+            >
+              <div style={{ fontSize: "12px", marginBottom: "2px" }}>🔒</div>
+              <div style={{ fontSize: "8px", fontWeight: "900", color: isDark ? "#F3F4F6" : "#1F2937", textAlign: "center", lineHeight: "1" }}>
+                Sensitive Product
+              </div>
+              <div style={{ fontSize: "6px", fontWeight: "800", color: "#318616", marginTop: "2px", textDecoration: "underline" }}>
+                Tap to view
+              </div>
+            </div>
+          ) : (
+            <img
+              src={getOptimizedImageUrl(product.image, "thumbnail", product)}
+              alt={product.name}
+              style={{
+                maxWidth: "100%",
+                maxHeight: "100%",
+                objectFit: "contain",
+                borderRadius: "6px",
+                filter: isOutOfStock ? "grayscale(40%) opacity(0.6)" : "none",
+              }}
+              loading="lazy"
+            />
+          )}
         </div>
 
         {/* Discount Badge & Price */}

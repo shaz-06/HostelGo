@@ -50273,7 +50273,29 @@ if (require.main === module) {
     .then(async () => {
       console.log("MongoDB Connected");
       await Product.deleteMany();
-      await Product.insertMany(products);
+      
+      const preparedProducts = products.map(product => {
+        const category = (product.category || "").toLowerCase();
+        const subCategory = (product.subCategory || product.subcategory || "").toLowerCase();
+        const name = (product.name || "").toLowerCase();
+        const tags = Array.isArray(product.tags) ? product.tags.map(t => String(t).toLowerCase()) : [];
+        const sensitiveKeywords = ["condom", "lube", "lubricant", "sexual wellness", "intimate wellness", "intimate hygiene"];
+
+        const isSensitive = 
+          category.includes("sexual wellness") ||
+          category.includes("intimate wellness") ||
+          subCategory.includes("sexual wellness") ||
+          subCategory.includes("intimate hygiene") ||
+          sensitiveKeywords.some(keyword => name.includes(keyword)) ||
+          tags.some(tag => sensitiveKeywords.some(keyword => tag.includes(keyword)));
+
+        return {
+          ...product,
+          isSensitive
+        };
+      });
+
+      await Product.insertMany(preparedProducts);
       console.log("Products Added Successfully");
       process.exit();
     })

@@ -22,7 +22,7 @@ const searchSuggestions = [
   "Snacks"
 ];
 
-const LogoArea = ({ brandText = "Buyto", whiteText = false }) => {
+const LogoArea = ({ brandText = "Buyto", whiteText = false, brandColor = "#F59E0B" }) => {
   const parts = brandText === "LetsBuyto" ? ["lets buy it", ""] : ["Buy", "to"];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -37,7 +37,7 @@ const LogoArea = ({ brandText = "Buyto", whiteText = false }) => {
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span className="premium-wordmark">
           <span style={{
-            color: whiteText ? "#FFFFFF" : "#F59E0B",
+            color: whiteText ? "#FFFFFF" : brandColor,
             transition: "color 350ms ease-in-out",
             marginRight: brandText === "LetsBuyto" ? "5px" : "0px"
           }}>{parts[0]}</span>
@@ -160,24 +160,64 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
   const itemRefs = React.useRef({});
   const [indicatorStyle, setIndicatorStyle] = React.useState({ left: 0, width: 0, opacity: 0 });
   const [isReady, setIsReady] = React.useState(false);
+  const [scrollWidth, setScrollWidth] = React.useState(0);
+  const [isOverBanner, setIsOverBanner] = React.useState(true);
+
+  const location = useLocation();
+  const isElectronicsPage = location.pathname.includes("electronics");
+  const isBeautyPage = location.pathname.includes("beauty");
+  const isPharmacyPage = location.pathname.includes("pharmacy");
+  const isDecorPage = location.pathname.includes("decor");
+  const isKidsPage = location.pathname.includes("kids");
+  const isGiftPage = location.pathname.includes("gift");
+
+  const categoryBrandColor =
+    isElectronicsPage ? "#6F68B5" :
+      isBeautyPage ? "#7667A8" :
+        isPharmacyPage ? "#3A8F82" :
+          isDecorPage ? "#C47D68" :
+            isKidsPage ? "#4F8FBD" :
+              isGiftPage ? "#C46B83" :
+                "#F59E0B";
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      const heroEl = document.getElementById("home-hero-banner");
+      const stripEl = scrollerRef.current;
+      if (heroEl && stripEl) {
+        const heroRect = heroEl.getBoundingClientRect();
+        const stripRect = stripEl.getBoundingClientRect();
+        if (heroRect.bottom <= stripRect.bottom) {
+          setIsOverBanner(false);
+        } else {
+          setIsOverBanner(true);
+        }
+      } else {
+        setIsOverBanner(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    const timer = setTimeout(handleScroll, 100);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timer);
+    };
+  }, []);
 
   const updateIndicator = React.useCallback(() => {
     const activeItem = itemRefs.current[selectedCategory];
+    if (scrollerRef.current) {
+      setScrollWidth(scrollerRef.current.scrollWidth);
+    }
     if (activeItem && scrollerRef.current) {
       const left = activeItem.offsetLeft;
       const width = activeItem.offsetWidth;
 
-      // Indicator width is 50% of the active category item's width
-      // Sense bounds: min 20px, max 45px
-      let indicatorWidth = width * 0.5;
-      if (indicatorWidth < 20) indicatorWidth = 20;
-      if (indicatorWidth > 45) indicatorWidth = 45;
-
-      const indicatorLeft = left + (width - indicatorWidth) / 2;
-
       setIndicatorStyle({
-        left: indicatorLeft,
-        width: indicatorWidth,
+        left: left,
+        width: width,
         opacity: 1
       });
       setIsReady(true);
@@ -200,7 +240,6 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
         updateIndicator();
       }
     });
-
     resizeObserver.observe(scrollerRef.current);
     return () => {
       resizeObserver.disconnect();
@@ -209,8 +248,10 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
 
   if (!displayCats || displayCats.length === 0) return null;
 
+  const maskImageStyle = `linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 60px, rgba(0,0,0,1) calc(100% - 60px), rgba(0,0,0,0) 100%)`;
+
   return (
-    <div style={{ position: "relative", width: "100%" }}>
+    <div style={{ position: "relative", width: "100%", overflow: "hidden" }}>
       <div
         ref={scrollerRef}
         id="category-strip-container"
@@ -229,9 +270,55 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
           willChange: "transform",
           userSelect: "none",
           WebkitOverflowScrolling: "touch",
-          position: "relative"
+          position: "relative",
+          height: "62px"
         }}
       >
+        {/* ONE shared animated active indicator curve */}
+        <svg
+          style={{
+            position: "absolute",
+            left: 0,
+            bottom: 0,
+            width: scrollWidth || "100%",
+            height: "62px",
+            pointerEvents: "none",
+            zIndex: 0,
+            opacity: isReady ? indicatorStyle.opacity : 0,
+            transition: "opacity 200ms ease, mask-image 300ms ease, -webkit-mask-image 300ms ease",
+            overflow: "hidden",
+            maskImage: maskImageStyle,
+            WebkitMaskImage: maskImageStyle
+          }}
+        >
+          <path
+            d={`M 0 60 L ${indicatorStyle.left - 16} 60 C ${indicatorStyle.left - 6} 60, ${indicatorStyle.left - 10} 38, ${indicatorStyle.left} 38 L ${indicatorStyle.left + indicatorStyle.width} 38 C ${indicatorStyle.left + indicatorStyle.width + 10} 38, ${indicatorStyle.left + indicatorStyle.width + 6} 60, ${indicatorStyle.left + indicatorStyle.width + 16} 60 L ${scrollWidth || 2000} 60`}
+            fill="none"
+            stroke={
+              isOverBanner
+                ? "#FFFFFF"
+                : isElectronicsPage
+                  ? "#6F68B5"
+                  : isBeautyPage
+                    ? "#7667A8"
+                    : isPharmacyPage
+                      ? "#3A8F82"
+                      : isDecorPage
+                        ? "#C47D68"
+                        : isKidsPage
+                          ? "#4F8FBD"
+                          : isGiftPage
+                            ? "#C46B83"
+                            : "#318616"
+            } strokeWidth={2}
+            style={{
+              transition: isReady
+                ? "d 300ms cubic-bezier(0.16, 1, 0.3, 1)"
+                : "none"
+            }}
+          />
+        </svg>
+
         {displayCats.map((cat) => {
           return (
             <div
@@ -249,7 +336,9 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "flex-start",
-                cursor: "pointer"
+                cursor: "pointer",
+                position: "relative",
+                zIndex: 1
               }}
             >
               <div
@@ -304,25 +393,6 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
             </div>
           );
         })}
-
-        {/* ONE shared animated active indicator line */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: "0px",
-            left: 0,
-            height: "3px",
-            width: `${indicatorStyle.width}px`,
-            backgroundColor: "#318616",
-            borderRadius: "9999px",
-            transform: `translate3d(${indicatorStyle.left}px, 0, 0)`,
-            transition: isReady
-              ? "transform 300ms cubic-bezier(0.16, 1, 0.3, 1), width 300ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease"
-              : "none",
-            opacity: isReady ? indicatorStyle.opacity : 0,
-            pointerEvents: "none"
-          }}
-        />
       </div>
     </div>
   );
@@ -345,6 +415,12 @@ const Header = React.memo(({
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useTheme();
+  const isElectronicsPage = location.pathname.includes("electronics");
+  const isBeautyPage = location.pathname.includes("beauty");
+  const isPharmacyPage = location.pathname.includes("pharmacy");
+  const isDecorPage = location.pathname.includes("decor");
+  const isKidsPage = location.pathname.includes("kids");
+  const isGiftPage = location.pathname.includes("gift");
 
   const [welcomeBannerVisible, setWelcomeBannerVisible] = useState(() => {
     return location.pathname === "/";
@@ -1151,8 +1227,8 @@ const Header = React.memo(({
           display: "flex",
           flexDirection: "column",
           fontFamily: "'Outfit', 'Inter', sans-serif",
-          backgroundImage: welcomeBannerVisible ? "url('/images/mobile-header-bg.png?v=3')" : "none",
-          backgroundColor: welcomeBannerVisible ? "transparent" : (isDark ? "#181A20" : "#FFF1D2"),
+          backgroundImage: welcomeBannerVisible ? "url('/images/mobile-header-bg.png?v=3')" : (isElectronicsPage ? "linear-gradient(to bottom, #B8C0F0 0%, #EDE9F8 100%)" : (isBeautyPage ? "linear-gradient(to bottom, #C9BFF2 0%, #EEEAFB 100%)" : (isPharmacyPage ? "linear-gradient(to bottom, #CDEFE7 0%, #E8F8F5 100%)" : (isDecorPage ? "linear-gradient(to bottom, #F6D6C9 0%, #FBE9E2 100%)" : (isKidsPage ? "linear-gradient(to bottom, #CFE8FF 0%, #E8F4FF 100%)" : (isGiftPage ? "linear-gradient(to bottom, #F6D1DC 0%, #FBE8EE 100%)" : "none")))))),
+          backgroundColor: welcomeBannerVisible ? "transparent" : (isDark ? "#181A20" : (isElectronicsPage || isBeautyPage || isPharmacyPage || isDecorPage || isKidsPage || isGiftPage ? "#ffffff" : "#FFF1D2")),
           backgroundSize: "cover",
           backgroundPosition: "center center",
           backgroundRepeat: "no-repeat",
@@ -1302,8 +1378,8 @@ const Header = React.memo(({
         position: "sticky",
         top: 0,
         zIndex: 1000,
-        backgroundImage: welcomeBannerVisible ? "url('/images/mobile-header-bg.png?v=3')" : "none",
-        backgroundColor: welcomeBannerVisible ? "transparent" : (isDark ? "#181A20" : "#FFF1D2"),
+        backgroundImage: welcomeBannerVisible ? "url('/images/mobile-header-bg.png?v=3')" : (isElectronicsPage ? "linear-gradient(to bottom, #B8C0F0 0%, #EDE9F8 100%)" : (isBeautyPage ? "linear-gradient(to bottom, #C9BFF2 0%, #EEEAFB 100%)" : (isPharmacyPage ? "linear-gradient(to bottom, #CDEFE7 0%, #E8F8F5 100%)" : (isDecorPage ? "linear-gradient(to bottom, #F6D6C9 0%, #FBE9E2 100%)" : (isKidsPage ? "linear-gradient(to bottom, #CFE8FF 0%, #E8F4FF 100%)" : (isGiftPage ? "linear-gradient(to bottom, #F6D1DC 0%, #FBE8EE 100%)" : "none")))))),
+        backgroundColor: welcomeBannerVisible ? "transparent" : (isDark ? "#181A20" : (isElectronicsPage || isBeautyPage || isPharmacyPage || isDecorPage || isKidsPage || isGiftPage ? "#ffffff" : "#FFF1D2")),
         backgroundSize: "cover",
         backgroundPosition: "center center",
         backgroundRepeat: "no-repeat",

@@ -23,7 +23,11 @@ const ConfigSchema = new mongoose.Schema({
   referrerReward: { type: Number, default: 75 },
   referredUserReward: { type: Number, default: 50 },
   referralConfigVersion: { type: Number, default: 1 },
-  referralExpiryDays: { type: Number, default: 90 }
+  referralExpiryDays: { type: Number, default: 90 },
+  birthdayRewardEnabled: { type: Boolean, default: true },
+  birthdayRewardProductId: { type: String, default: "DBE4" },
+  birthdayMinOrderValue: { type: Number, default: 99 },
+  birthdayRewardPrice: { type: Number, default: 1 }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Config", ConfigSchema);

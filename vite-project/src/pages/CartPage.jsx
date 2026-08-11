@@ -79,12 +79,46 @@ export default function CartPage({
     };
 
     const navigate = useNavigate();
+    const isUserLoggedIn = isLoggedIn || !!token;
+
+    const birthdayRewardProductId = "DBE4";
+    const isBirthday = isUserLoggedIn && user && user.dateOfBirth && (() => {
+        const dob = new Date(user.dateOfBirth);
+        if (isNaN(dob.getTime())) return false;
+        const istDateStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+        const istDate = new Date(istDateStr);
+        return dob.getUTCDate() === istDate.getDate() && dob.getUTCMonth() === istDate.getMonth();
+    })();
+    const currentYear = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }).split(",")[0].split("/")[2] || new Date().getFullYear();
+    const hasRedeemedThisYear = isUserLoggedIn && user && user.birthdayRedemptions && user.birthdayRedemptions.some(r => Number(r.year) === Number(currentYear));
+    const isEligibleForBirthdayPromo = isBirthday && !hasRedeemedThisYear;
+
+    const rewardItem = cartItems.find(item => item.id === birthdayRewardProductId || item._id === birthdayRewardProductId || item.productId === birthdayRewardProductId);
+    
+    const eligibleSubtotal = cartItems.reduce((acc, item) => {
+        const isReward = item.id === birthdayRewardProductId || item._id === birthdayRewardProductId || item.productId === birthdayRewardProductId;
+        if (isReward) return acc;
+        return acc + item.price * item.quantity;
+    }, 0);
+
+    const birthdayPromoQualifies = isEligibleForBirthdayPromo && rewardItem && eligibleSubtotal >= 99;
+
     const subtotal = cartItems.reduce(
-        (acc, item) => acc + item.price * item.quantity,
+        (acc, item) => {
+            const isReward = item.id === birthdayRewardProductId || item._id === birthdayRewardProductId || item.productId === birthdayRewardProductId;
+            if (isReward && birthdayPromoQualifies) {
+                return acc + 1 + item.price * (item.quantity - 1);
+            }
+            return acc + item.price * item.quantity;
+        },
         0
     );
     const originalSubtotal = cartItems.reduce(
-        (acc, item) => acc + (item.originalPrice || item.price) * item.quantity,
+        (acc, item) => {
+            const isReward = item.id === birthdayRewardProductId || item._id === birthdayRewardProductId || item.productId === birthdayRewardProductId;
+            const itemPrice = isReward && birthdayPromoQualifies ? (1 + item.price * (item.quantity - 1)) / item.quantity : (item.originalPrice || item.price);
+            return acc + itemPrice * item.quantity;
+        },
         0
     );
     const [noBagPledge, setNoBagPledge] = useState(() => {
@@ -1112,6 +1146,107 @@ export default function CartPage({
                     <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#1f2937" }}>Cart Items</h3>
                     <span style={{ color: "#6b7280", fontSize: "13px", fontWeight: "600" }}>Standard Delivery: 10 Mins</span>
                 </div>
+
+                {isBirthday && (
+                  <div style={{
+                    background: "#FFFBEB",
+                    border: "1.5px dashed #FCD34D",
+                    borderRadius: "16px",
+                    padding: "16px",
+                    marginBottom: "16px",
+                    fontFamily: "'Outfit', 'Inter', sans-serif"
+                  }}>
+                    {hasRedeemedThisYear ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "24px" }}>🎉</span>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#78350F" }}>
+                            Birthday reward claimed!
+                          </h4>
+                          <p style={{ margin: "2px 0 0 0", fontSize: "11px", fontWeight: "600", color: "#92400E" }}>
+                            You already enjoyed your ₹1 birthday ice cream this year. ❤️
+                          </p>
+                        </div>
+                      </div>
+                    ) : eligibleSubtotal >= 99 ? (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "24px" }}>🍦</span>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#065F46" }}>
+                              Birthday Special Unlocked!
+                            </h4>
+                            <p style={{ margin: "2px 0 0 0", fontSize: "11px", fontWeight: "600", color: "#047857" }}>
+                              Get Amul Jambo Chocolate Brownie Ice Cream for just ₹1.
+                            </p>
+                          </div>
+                        </div>
+                        {rewardItem ? (
+                          <span style={{
+                            fontSize: "11px",
+                            fontWeight: "900",
+                            color: "#047857",
+                            background: "#D1FAE5",
+                            padding: "6px 12px",
+                            borderRadius: "10px"
+                          }}>
+                            ₹1 Price Applied!
+                          </span>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch((window.API_BASE_URL || "") + "/api/products/DBE4");
+                                if (res.ok) {
+                                  const prodData = await res.json();
+                                  if (prodData && addToCart) {
+                                    addToCart(prodData);
+                                  }
+                                } else {
+                                  const productsRes = await fetch((window.API_BASE_URL || "") + "/api/products");
+                                  if (productsRes.ok) {
+                                    const allProds = await productsRes.json();
+                                    const matched = allProds.find(p => p.id === "DBE4" || p._id === "DBE4");
+                                    if (matched && addToCart) {
+                                      addToCart(matched);
+                                    }
+                                  }
+                                }
+                              } catch (err) {
+                                console.error("Error adding birthday reward product:", err);
+                              }
+                            }}
+                            style={{
+                              background: "#318616",
+                              color: "white",
+                              border: "none",
+                              padding: "8px 16px",
+                              borderRadius: "10px",
+                              fontSize: "12px",
+                              fontWeight: "800",
+                              cursor: "pointer",
+                              boxShadow: "0 2px 6px rgba(49, 134, 22, 0.2)"
+                            }}
+                          >
+                            Add for ₹1
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "24px" }}>🎂</span>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#78350F" }}>
+                            Birthday Special
+                          </h4>
+                          <p style={{ margin: "2px 0 0 0", fontSize: "11px", fontWeight: "600", color: "#92400E" }}>
+                            Add <strong style={{ color: "#D97706" }}>₹{Math.max(1, 99 - eligibleSubtotal)}</strong> more of normal products to unlock your ₹1 birthday ice cream.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
 
 

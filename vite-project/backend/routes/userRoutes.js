@@ -350,7 +350,42 @@ const updateProfileHandler = async (req, res) => {
     }
 
     if (dateOfBirth !== undefined) {
-      req.user.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+      if (dateOfBirth) {
+        const dobDate = new Date(dateOfBirth);
+        if (isNaN(dobDate.getTime())) {
+          return res.status(400).json({ success: false, message: "Invalid date format for Date of Birth" });
+        }
+        
+        const { getISTDate, getISTYear } = require("../utils/birthdayCampaign");
+        const istToday = getISTDate();
+        if (dobDate > istToday) {
+          return res.status(400).json({ success: false, message: "Date of Birth cannot be in the future" });
+        }
+
+        const currentYear = getISTYear();
+        const hasRedeemed = req.user.birthdayRedemptions && req.user.birthdayRedemptions.some(r => r.year === currentYear);
+        
+        const oldDobStr = req.user.dateOfBirth ? req.user.dateOfBirth.toISOString().split("T")[0] : "";
+        const newDobStr = dobDate.toISOString().split("T")[0];
+        
+        if (oldDobStr !== newDobStr) {
+          if (hasRedeemed) {
+            return res.status(400).json({ success: false, message: "Cannot change birthday because you have already redeemed your birthday reward for this year." });
+          }
+          if (req.user.birthdayChangeCount >= 1 && req.user.birthdayLastChanged) {
+            const timeDiff = istToday.getTime() - new Date(req.user.birthdayLastChanged).getTime();
+            const daysDiff = timeDiff / (1000 * 3600 * 24);
+            if (daysDiff < 365) {
+              return res.status(400).json({ success: false, message: "Birthday can only be updated once every 365 days." });
+            }
+          }
+          req.user.birthdayChangeCount = (req.user.birthdayChangeCount || 0) + 1;
+          req.user.birthdayLastChanged = istToday;
+          req.user.dateOfBirth = dobDate;
+        }
+      } else {
+        req.user.dateOfBirth = null;
+      }
     }
 
     if (gender !== undefined) {

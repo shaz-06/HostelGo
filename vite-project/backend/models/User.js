@@ -45,6 +45,24 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    birthdayRedemptions: [
+      {
+        year: { type: Number, required: true },
+        orderId: { type: String, required: true }
+      }
+    ],
+    birthdayLastChanged: {
+      type: Date,
+      default: null
+    },
+    birthdayChangeCount: {
+      type: Number,
+      default: 0
+    },
+    birthdayNotificationsSentYears: {
+      type: [Number],
+      default: []
+    },
     avatar: {
       type: String,
       default: ""

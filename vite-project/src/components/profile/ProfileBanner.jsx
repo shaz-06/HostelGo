@@ -19,24 +19,9 @@ const ProfileBanner = React.memo(({ isLoggedIn, user, onClick }) => {
     );
   }
 
-  // If birthday is already added, display it beautifully
+  // If birthday is already added, do not show the banner at all
   if (user?.dateOfBirth) {
-    const dobDate = new Date(user.dateOfBirth);
-    const formattedDob = !isNaN(dobDate.getTime())
-      ? dobDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-      : "Not specified";
-
-    return (
-      <div 
-        className="mx-4 mt-4 p-5 bg-gradient-to-r from-[#FEFBE8] to-[#FFFbeb] border border-[#FEF3C7] rounded-[20px] flex items-center justify-between shadow-sm"
-      >
-        <div className="flex-1 pr-4">
-          <span className="text-[11px] font-black text-amber-800 tracking-wider uppercase block">Birthday</span>
-          <h3 className="text-[17px] font-black text-amber-950 mt-0.5">{formattedDob}</h3>
-        </div>
-        <div className="text-4xl">🎂</div>
-      </div>
-    );
+    return null;
   }
 
   return (

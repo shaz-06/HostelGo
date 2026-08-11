@@ -7,6 +7,7 @@ const productSchema = new mongoose.Schema({
   subCategory: { type: String, index: true },
   subcategory: String,
   tags: [String],
+  isSensitive: { type: Boolean, default: false },
   isTrending: Boolean,
   price: Number,
   originalPrice: Number,

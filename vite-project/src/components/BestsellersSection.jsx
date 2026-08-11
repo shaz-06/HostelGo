@@ -117,7 +117,95 @@ export default function BestsellersSection() {
   };
 
   if (bestsellersLoading || bestsellers.length === 0) {
-    return null;
+    return (
+      <div
+        className="bestsellers-container skeleton-active"
+        style={{
+          borderRadius: "24px",
+          padding: "20px 16px",
+          fontFamily: "'Outfit', 'Inter', sans-serif",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          background: "#FFFFFF",
+          border: "1px solid #f3f4f6"
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "18px",
+            fontWeight: "900",
+            color: "#111827",
+            margin: 0,
+            paddingLeft: "4px"
+          }}
+          className="bestsellers-heading"
+        >
+          Bestsellers
+        </h2>
+        <div className="bestsellers-grid">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="bestseller-item" style={{ width: "100%" }}>
+              <div className="bestseller-card skeleton-card" style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: "18px", padding: "8px", boxSizing: "border-box", position: "relative" }}>
+                <div className="bestseller-collage" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gridTemplateRows: "repeat(2, 1fr)", gap: "6px", width: "100%", height: "100%" }}>
+                  <div className="bestseller-collage-img-wrapper skeleton-img" style={{ borderRadius: "8px", overflow: "hidden", background: "#e2e8f0" }}></div>
+                  <div className="bestseller-collage-img-wrapper skeleton-img" style={{ borderRadius: "8px", overflow: "hidden", background: "#e2e8f0" }}></div>
+                  <div className="bestseller-collage-img-wrapper skeleton-img" style={{ borderRadius: "8px", overflow: "hidden", background: "#e2e8f0" }}></div>
+                  <div className="bestseller-collage-img-wrapper skeleton-img" style={{ borderRadius: "8px", overflow: "hidden", background: "#e2e8f0" }}></div>
+                </div>
+              </div>
+              <div className="skeleton-text" style={{ marginTop: "12px", width: "70%", height: "14px", backgroundColor: "#e2e8f0", borderRadius: "4px", position: "relative", overflow: "hidden" }}></div>
+            </div>
+          ))}
+        </div>
+        <style dangerouslySetInnerHTML={{ __html: `
+          .skeleton-card {
+            background-color: #f8fafc !important;
+            border: 1px solid #f1f5f9 !important;
+          }
+          .dark .skeleton-card {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+          }
+          .skeleton-img {
+            background-color: #e2e8f0 !important;
+          }
+          .dark .skeleton-img {
+            background-color: #374151 !important;
+          }
+          .skeleton-text {
+            background-color: #e2e8f0 !important;
+          }
+          .dark .skeleton-text {
+            background-color: #374151 !important;
+          }
+          /* Shimmer animation keyframes and classes */
+          .skeleton-active .skeleton-card::after,
+          .skeleton-active .skeleton-img::after,
+          .skeleton-active .skeleton-text::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 20%, rgba(255,255,255,0.6) 60%, rgba(255,255,255,0) 100%);
+            animation: shimmer 1.5s infinite;
+          }
+          .dark .skeleton-active .skeleton-card::after,
+          .dark .skeleton-active .skeleton-img::after,
+          .dark .skeleton-active .skeleton-text::after {
+            background-image: linear-gradient(90deg, rgba(31,41,55,0) 0%, rgba(31,41,55,0.3) 20%, rgba(31,41,55,0.5) 60%, rgba(31,41,55,0) 100%);
+          }
+          @keyframes shimmer {
+            100% {
+              transform: translateX(100%);
+            }
+          }
+        `}} />
+      </div>
+    );
   }
 
   return (

@@ -11,13 +11,13 @@ const inFlightRequests = new Map();
  */
 export async function cachedFetch(url, options = {}, ttlMs = 120000) {
   // Automatically apply 700ms minDelay for product-related GET API requests to ensure skeleton display consistency
-  if (url.includes("/api/products") && options.minDelay === undefined) {
+  if (url.includes("/api/products") && !url.includes("/api/products/bestsellers") && options.minDelay === undefined) {
     options.minDelay = 700;
   }
 
   // Only cache GET requests
   const method = (options.method || 'GET').toUpperCase();
-  if (method !== 'GET') {
+  if (method !== 'GET' || options.bypassCache) {
     return apiFetch(url, options).then(res => res.json());
   }
 

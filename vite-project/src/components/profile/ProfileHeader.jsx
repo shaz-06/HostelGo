@@ -54,7 +54,24 @@ const ProfileHeader = React.memo(({ user, isLoggedIn, onBack, onLoginClick }) =>
         className="text-sm font-semibold text-gray-500"
         style={{ color: isDark ? "rgba(255, 255, 255, 0.8)" : undefined }}
       >
-        {isLoggedIn ? (user?.phone || "No phone number linked") : "Log in to manage your profile"}
+        {isLoggedIn ? (
+          <>
+            {user?.phone || "No phone number linked"}
+            {user?.dateOfBirth ? (() => {
+              try {
+                const date = new Date(user.dateOfBirth);
+                if (isNaN(date.getTime())) return "";
+                const day = String(date.getDate()).padStart(2, "0");
+                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                const mon = months[date.getMonth()];
+                const year = date.getFullYear();
+                return ` • ${day} ${mon} ${year}`;
+              } catch (e) {
+                return "";
+              }
+            })() : ""}
+          </>
+        ) : "Log in to manage your profile"}
       </p>
 
       {/* Login CTA Button */}

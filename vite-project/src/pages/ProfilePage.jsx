@@ -21,7 +21,7 @@ import { Smartphone, Sun, EyeOff, ChevronDown } from "lucide-react";
 
 export default function ProfilePage({ defaultTab = "" }) {
   const navigate = useNavigate();
-  const { user, isLoggedIn, token, logout, openLogin, refreshUser } = useContext(AuthContext);
+  const { user, isLoggedIn, token, logout, openLogin, refreshUser, hideSensitive, toggleHideSensitive } = useContext(AuthContext);
   const { theme: globalTheme, setTheme: setGlobalTheme } = useTheme();
 
   // States
@@ -41,9 +41,6 @@ export default function ProfilePage({ defaultTab = "" }) {
   // Redesign Feature States (persisted locally)
   const [isAppUpdated, setIsAppUpdated] = useState(() => {
     return localStorage.getItem("buyto_app_updated") === "true";
-  });
-  const [hideSensitive, setHideSensitive] = useState(() => {
-    return localStorage.getItem("buyto_hide_sensitive") === "true";
   });
 
   // Handle defaultTab from routing
@@ -220,12 +217,8 @@ export default function ProfilePage({ defaultTab = "" }) {
 
   // Toggle handlers
   const handleToggleSensitive = useCallback(() => {
-    setHideSensitive(prev => {
-      const nextValue = !prev;
-      localStorage.setItem("buyto_hide_sensitive", nextValue ? "true" : "false");
-      return nextValue;
-    });
-  }, []);
+    toggleHideSensitive();
+  }, [toggleHideSensitive]);
 
   const handleSelectTheme = useCallback((selectedTheme) => {
     setGlobalTheme(selectedTheme.toUpperCase());
@@ -394,7 +387,7 @@ export default function ProfilePage({ defaultTab = "" }) {
 
 
         {/* 5. Appearance Card */}
-        <div className="mx-4 relative">
+        <div className="mx-4">
           <div className="bg-white rounded-[18px] border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] overflow-hidden">
             <ProfileRow
               icon="https://img.icons8.com/?size=100&id=nncre7HDghLc&format=png&color=000000"
@@ -411,59 +404,52 @@ export default function ProfilePage({ defaultTab = "" }) {
                 </div>
               }
               onClick={handleToggleAppearanceDropdown}
-              isLast={true}
+              isLast={!showAppearanceDropdown}
             />
-          </div>
 
-          {/* Dropdown Menu */}
-          <AnimatePresence>
-            {showAppearanceDropdown && (
-              <>
-                {/* Click outside backdrop overlay */}
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={handleCloseAppearanceDropdown}
-                />
-
+            {/* Dropdown Menu (now inline) */}
+            <AnimatePresence initial={false}>
+              {showAppearanceDropdown && (
                 <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1e293b] rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 z-50 p-1.5 flex flex-col overflow-hidden"
-                  role="menu"
+                  className="overflow-hidden border-t border-gray-100 dark:border-gray-800/60 flex flex-col bg-white dark:bg-[#1e293b]"
                 >
-                  <button
-                    ref={lightOptionRef}
-                    onClick={handleSelectLight}
-                    className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
-                    role="menuitem"
-                  >
-                    <span>Light</span>
-                    {globalTheme.toLowerCase() === "light" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
-                  </button>
-                  <button
-                    ref={darkOptionRef}
-                    onClick={handleSelectDark}
-                    className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
-                    role="menuitem"
-                  >
-                    <span>Dark</span>
-                    {globalTheme.toLowerCase() === "dark" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
-                  </button>
-                  <button
-                    ref={systemOptionRef}
-                    onClick={handleSelectSystem}
-                    className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
-                    role="menuitem"
-                  >
-                    <span>System</span>
-                    {globalTheme.toLowerCase() === "system" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
-                  </button>
+                  <div className="p-1.5 flex flex-col">
+                    <button
+                      ref={lightOptionRef}
+                      onClick={handleSelectLight}
+                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                      role="menuitem"
+                    >
+                      <span>Light</span>
+                      {globalTheme.toLowerCase() === "light" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                    </button>
+                    <button
+                      ref={darkOptionRef}
+                      onClick={handleSelectDark}
+                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                      role="menuitem"
+                    >
+                      <span>Dark</span>
+                      {globalTheme.toLowerCase() === "dark" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                    </button>
+                    <button
+                      ref={systemOptionRef}
+                      onClick={handleSelectSystem}
+                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                      role="menuitem"
+                    >
+                      <span>System</span>
+                      {globalTheme.toLowerCase() === "system" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                    </button>
+                  </div>
                 </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* 6. Settings Toggle (Hide Sensitive Products) */}

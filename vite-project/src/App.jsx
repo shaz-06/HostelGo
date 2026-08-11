@@ -40,6 +40,7 @@ import OtpLoginBottomSheet from "./components/common/OtpLoginBottomSheet";
 import OnboardingBottomSheet from "./components/common/OnboardingBottomSheet";
 import ReferralPromptModal from "./components/common/ReferralPromptModal";
 import WelcomeRewardModal from "./components/common/WelcomeRewardModal";
+import BirthdayGreetingModal from "./components/common/BirthdayGreetingModal";
 import { LoaderProvider, LoaderContext } from "./context/LoaderContext";
 import BuytoLoader from "./components/common/BuytoLoader";
 import SEO from "./components/common/SEO";
@@ -1576,6 +1577,9 @@ function AppContent({ onReady }) {
     console.log("=== API FETCH INITIATED ===", window.API_BASE_URL + "/api/products?limit=40");
     let active = true;
 
+    // Eagerly pre-fetch bestsellers in parallel to eliminate waterfall
+    cachedFetch((window.API_BASE_URL || "") + "/api/products/bestsellers").catch(() => {});
+
     // Set a timeout to dismiss the initial loading screen if the API is slow (e.g. after 1.5 seconds)
     const timer = setTimeout(() => {
       if (active) {
@@ -1613,9 +1617,29 @@ function AppContent({ onReady }) {
 
     return () => {
       active = false;
-      clearTimeout(timer);
     };
   }, [onReady]);
+
+  const handleRefreshProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await cachedFetch((window.API_BASE_URL || "") + "/api/products?limit=40", { bypassCache: true, minDelay: 700 });
+      const preClassified = (data || []).map(p => {
+        cartDebug.validateProductResponse(p);
+        return {
+          ...p,
+          _classifiedCategory: canonicalCategory(classifyProduct(p))
+        };
+      });
+      setProducts(preClassified);
+      setApiError(null);
+    } catch (err) {
+      console.error(err);
+      setApiError(`Failed to refresh products: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const trimmed = searchQuery.trim();
@@ -2202,7 +2226,7 @@ function AppContent({ onReady }) {
   };
 
   const wrapCustomerLayout = (element, showHeader = true) => {
-    const layoutLoading = loading || isNavigating;
+    const layoutLoading = isNavigating;
 
     return (
       <div style={{
@@ -2919,7 +2943,7 @@ function AppContent({ onReady }) {
             path="/category/:slug"
             element={
               <div>
-                <div style={{ position: "sticky", top: "var(--header-height, 60px)", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "clip", boxSizing: "border-box" }}>
+                <div style={{ position: "sticky", top: "var(--header-height, 60px)", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: location.pathname.includes("electronics") ? "linear-gradient(to bottom, #EDE9F8 0%, #FFFFFF 100%)" : (location.pathname.includes("beauty") ? "linear-gradient(to bottom, #EEEAFB 0%, #FFFFFF 100%)" : (location.pathname.includes("pharmacy") ? "linear-gradient(to bottom, #E8F8F5 0%, #FFFFFF 100%)" : (location.pathname.includes("decor") ? "linear-gradient(to bottom, #FBE9E2 0%, #FFFFFF 100%)" : (location.pathname.includes("kids") ? "linear-gradient(to bottom, #E8F4FF 0%, #FFFFFF 100%)" : (location.pathname.includes("gift") ? "linear-gradient(to bottom, #FBE8EE 0%, #FFFFFF 100%)" : "white"))))), padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "clip", boxSizing: "border-box" }}>
                   <CategoryStrip
                     displayCats={HEADER_CATEGORIES}
                     selectedCategory={selectedCategory}
@@ -2951,7 +2975,7 @@ function AppContent({ onReady }) {
             path="/products/:slug"
             element={
               <div>
-                <div style={{ position: "sticky", top: "var(--header-height, 60px)", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: "white", padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "clip", boxSizing: "border-box" }}>
+                <div style={{ position: "sticky", top: "var(--header-height, 60px)", zIndex: 1000, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", background: location.pathname.includes("electronics") ? "linear-gradient(to bottom, #EDE9F8 0%, #FFFFFF 100%)" : (location.pathname.includes("beauty") ? "linear-gradient(to bottom, #EEEAFB 0%, #FFFFFF 100%)" : (location.pathname.includes("pharmacy") ? "linear-gradient(to bottom, #E8F8F5 0%, #FFFFFF 100%)" : (location.pathname.includes("decor") ? "linear-gradient(to bottom, #FBE9E2 0%, #FFFFFF 100%)" : (location.pathname.includes("kids") ? "linear-gradient(to bottom, #E8F4FF 0%, #FFFFFF 100%)" : (location.pathname.includes("gift") ? "linear-gradient(to bottom, #FBE8EE 0%, #FFFFFF 100%)" : "white"))))), padding: "10px 16px", width: "100%", maxWidth: "100%", overflowX: "clip", boxSizing: "border-box" }}>
                   <CategoryStrip
                     displayCats={HEADER_CATEGORIES}
                     selectedCategory={selectedCategory}
@@ -3011,6 +3035,8 @@ function AppContent({ onReady }) {
                 selectedCategory={selectedCategory}
                 onCategoryClick={handleCategoryClick}
                 forceSearchTab={true}
+                loading={loading}
+                onRefreshProducts={handleRefreshProducts}
               />
             }
           />
@@ -3034,6 +3060,8 @@ function AppContent({ onReady }) {
                 displayCats={memoizedDisplayCats}
                 selectedCategory={selectedCategory}
                 onCategoryClick={handleCategoryClick}
+                loading={loading}
+                onRefreshProducts={handleRefreshProducts}
               />
             }
           />
@@ -3822,6 +3850,9 @@ function AppContent({ onReady }) {
       {/* WELCOME REWARD MODAL */}
       <WelcomeRewardModal />
 
+      {/* BIRTHDAY GREETING MODAL */}
+      <BirthdayGreetingModal />
+
       {/* GLOBAL FOREGROUND PUSH NOTIFICATION TOAST */}
       {pushToast.visible && (
         <div
@@ -4064,13 +4095,7 @@ function AppContent({ onReady }) {
     </div>
   );
 
-  if (!isAdminOrRiderRoute && loading) {
-    return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <BuytoLoader forceShow={true} statusMessage="Initializing Buyto..." />
-      </div>
-    );
-  }
+  // Global products loader is removed to allow Zero-Blocking Layout rendering with skeletons.
 
   return (
     <>

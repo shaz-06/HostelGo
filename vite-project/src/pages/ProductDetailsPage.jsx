@@ -5,6 +5,7 @@ import MobileProductCard from "../components/mobile/MobileProductCard";
 import { cachedFetch } from "../utils/apiCache";
 import { usePerfLogger, measureLoadingOperation } from "../utils/perfLogger";
 import { AuthContext } from "../context/AuthContext";
+import { isProductSensitive } from "../utils/productPrivacy";
 import { getOptimizedImageUrl } from "../utils/imageOptimizer";
 import SEO from "../components/common/SEO";
 import ProductDetailsSkeleton from "../components/common/ProductDetailsSkeleton";
@@ -73,7 +74,13 @@ export default function ProductDetailsPage({
   usePerfLogger("ProductDetailsPage");
   const { id } = useParams();
   const navigate = useNavigate();
-  const { saveForLaterIds, toggleSaveForLater } = useContext(AuthContext);
+  const { saveForLaterIds, toggleSaveForLater, hideSensitive } = useContext(AuthContext);
+  
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  useEffect(() => {
+    setIsRevealed(false);
+  }, [id]);
 
   const [activeProduct, setActiveProduct] = useState(null);
   const [allProducts, setAllProducts] = useState(products);
@@ -412,26 +419,32 @@ export default function ProductDetailsPage({
             <div style={{ display: "flex", flexDirection: isMobile ? "row" : "column", gap: "10px", justifyContent: "center" }}>
               {thumbnails.map((thumb, idx) => (
                 <div
-                  key={`${thumb}-${idx}`}
+                  key={idx}
                   onClick={() => {
-                    setSelectedImage(thumb);
-                    setActiveTab(idx);
+                    if (!(isProductSensitive(activeProduct) && hideSensitive && !isRevealed)) {
+                      setSelectedImage(thumb);
+                    }
                   }}
                   style={{
-                    width: "64px",
-                    height: "64px",
-                    border: activeTab === idx ? "2px solid #318616" : "1px solid #e5e7eb",
-                    borderRadius: "12px",
+                    width: !isMobile ? "60px" : "48px",
+                    height: !isMobile ? "60px" : "48px",
+                    border: selectedImage === thumb ? "2px solid #318616" : "1.5px solid #e5e7eb",
+                    borderRadius: "10px",
                     padding: "4px",
-                    cursor: "pointer",
-                    background: "white",
+                    cursor: (isProductSensitive(activeProduct) && hideSensitive && !isRevealed) ? "default" : "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    transition: "all 0.2s"
+                    background: "white",
+                    boxSizing: "border-box",
+                    flexShrink: 0
                   }}
                 >
-                  <img src={thumb} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                  {isProductSensitive(activeProduct) && hideSensitive && !isRevealed ? (
+                    <div style={{ fontSize: "14px" }}>🔒</div>
+                  ) : (
+                    <img src={thumb} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                  )}
                 </div>
               ))}
             </div>
@@ -455,7 +468,47 @@ export default function ProductDetailsPage({
                 justifyContent: "center"
               }}
             >
-              {isZooming ? (
+              {isProductSensitive(activeProduct) && hideSensitive && !isRevealed ? (
+                <div
+                  onClick={() => setIsRevealed(true)}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "rgba(249, 250, 251, 0.98)",
+                    padding: "20px",
+                    boxSizing: "border-box",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    zIndex: 20
+                  }}
+                >
+                  <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔒</div>
+                  <h3 style={{ fontSize: "16px", fontWeight: "900", color: "#1F2937", margin: "0 0 4px 0", textAlign: "center" }}>
+                    Sensitive Product
+                  </h3>
+                  <p style={{ fontSize: "12px", fontWeight: "600", color: "#6B7280", margin: "0 0 16px 0", textAlign: "center" }}>
+                    Hidden by your privacy setting
+                  </p>
+                  <button
+                    style={{
+                      background: "#318616",
+                      color: "white",
+                      border: "none",
+                      padding: "8px 16px",
+                      borderRadius: "10px",
+                      fontWeight: "800",
+                      fontSize: "12px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Tap to view
+                  </button>
+                </div>
+              ) : isZooming ? (
                 <div
                   style={{
                     position: "absolute",

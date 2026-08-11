@@ -148,10 +148,54 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
     throw new Error("One or more products are invalid, unavailable, or no longer exist. Please refresh your cart and try again.");
   }
 
+  const { getISTYear, isBirthdayToday } = require("../utils/birthdayCampaign");
+  const currentYear = getISTYear();
+
+  // Load configs
+  const configDoc = await Config.findOne({ key: "fees_config" }).lean() || {};
+  const birthdayRewardEnabled = configDoc.birthdayRewardEnabled !== false;
+  const birthdayRewardProductId = configDoc.birthdayRewardProductId || "DBE4";
+  const birthdayMinOrderValue = typeof configDoc.birthdayMinOrderValue === "number" ? configDoc.birthdayMinOrderValue : 99;
+  const birthdayRewardPrice = typeof configDoc.birthdayRewardPrice === "number" ? configDoc.birthdayRewardPrice : 1;
+
+  // Determine user eligibility
+  const isBirthday = reqUser && reqUser.dateOfBirth && isBirthdayToday(reqUser.dateOfBirth);
+  const hasRedeemed = reqUser && reqUser.birthdayRedemptions && reqUser.birthdayRedemptions.some(r => r.year === currentYear);
+  const isEligibleForBirthdayPromo = birthdayRewardEnabled && isBirthday && !hasRedeemed;
+
+  // First pass: check if the reward product is in the cart and calculate eligible subtotal excluding the reward product
+  let eligibleSubtotal = 0;
+  let hasRewardProductInCart = false;
+
+  for (const item of products) {
+    const pId = item.productId ? item.productId.toString() : item._id ? item._id.toString() : "";
+    const dbProd = dbProducts.find(p => p._id.toString() === pId);
+    if (!dbProd) {
+      throw new Error("One or more products are invalid, unavailable, or no longer exist. Please refresh your cart and try again.");
+    }
+    const isRewardProduct = dbProd.id === birthdayRewardProductId || dbProd._id.toString() === birthdayRewardProductId;
+    if (isRewardProduct) {
+      hasRewardProductInCart = true;
+    } else {
+      const { calculateSellingPrice } = require("../services/pricingEngine");
+      const priceCalc = await calculateSellingPrice(dbProd);
+      eligibleSubtotal += priceCalc.finalPrice * item.quantity;
+    }
+  }
+
+  const birthdayPromoQualifies = isEligibleForBirthdayPromo && hasRewardProductInCart && eligibleSubtotal >= birthdayMinOrderValue;
+
   const { calculateSellingPrice } = require("../services/pricingEngine");
 
   let subtotal = 0;
   const recalculatedProducts = [];
+  let birthdayRewardDetails = {
+    applied: false,
+    productId: "",
+    year: null,
+    promotionalPrice: 0
+  };
+
   for (const item of products) {
     const pId = item.productId ? item.productId.toString() : item._id ? item._id.toString() : "";
     const dbProd = dbProducts.find(p => p._id.toString() === pId);
@@ -184,7 +228,25 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
     const priceCalc = await calculateSellingPrice(dbProd);
     const dbPrice = priceCalc.finalPrice;
 
-    subtotal += dbPrice * item.quantity;
+    const isRewardProduct = dbProd.id === birthdayRewardProductId || dbProd._id.toString() === birthdayRewardProductId;
+
+    let finalItemPrice = dbPrice;
+    let itemTotal = dbPrice * item.quantity;
+
+    if (isRewardProduct && birthdayPromoQualifies) {
+      // 1 unit of reward product gets the promotional price of ₹1, any additional units are normal price
+      itemTotal = (birthdayRewardPrice * 1) + (dbPrice * (item.quantity - 1));
+      finalItemPrice = itemTotal / item.quantity;
+
+      birthdayRewardDetails = {
+        applied: true,
+        productId: dbProd._id.toString(),
+        year: currentYear,
+        promotionalPrice: birthdayRewardPrice
+      };
+    }
+
+    subtotal += itemTotal;
     
     // Ignore all client-supplied prices/metadata. Derive solely from database.
     recalculatedProducts.push({
@@ -194,7 +256,7 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
       weight: item.selectedWeight || item.weight || dbProd.weight,
       image: dbProd.image || "",
       imageUrl: dbProd.image || "",
-      price: dbPrice,
+      price: finalItemPrice,
       basePrice: priceCalc.originalBasePrice,
       pricingRuleId: priceCalc.activeRule ? priceCalc.activeRule._id : null,
       pricingRuleName: priceCalc.activeRule ? priceCalc.activeRule.name : "",
@@ -203,7 +265,6 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
   }
 
   // 2. Load configurations
-  const configDoc = await Config.findOne({ key: "fees_config" }).lean() || {};
   const deliverySettingsDoc = await DeliverySettings.findOne().lean() || {};
 
   const cfg = {
@@ -282,6 +343,7 @@ async function recalculateOrderSummary({ products, couponCode, buyCoinsRedeemed,
     couponDetails,
     buyCoinsDiscount,
     codConvenienceFee: codFee,
+    birthdayReward: birthdayRewardDetails,
     total: finalTotal
   };
 }
@@ -617,7 +679,8 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
         applied: Number(buyCoinsRedeemed || 0),
         discount: recalculated.buyCoinsDiscount
       },
-      noBagPledge: Boolean(noBagPledge)
+      noBagPledge: Boolean(noBagPledge),
+      birthdayReward: recalculated.birthdayReward
     });
 
     if (deliveryLatitude && deliveryLongitude) {
@@ -1021,7 +1084,8 @@ router.post("/orders", authMiddleware, async (req, res) => {
         applied: Number(buyCoinsRedeemed || 0),
         discount: recalculated.buyCoinsDiscount
       },
-      noBagPledge: Boolean(noBagPledge)
+      noBagPledge: Boolean(noBagPledge),
+      birthdayReward: recalculated.birthdayReward
     });
 
     if (deliveryLatitude && deliveryLongitude) {

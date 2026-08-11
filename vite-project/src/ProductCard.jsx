@@ -2,6 +2,8 @@ import React, { useState, useContext, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOptimizedImageUrl } from "./utils/imageOptimizer";
 import { AuthContext } from "./context/AuthContext";
+import { useTheme } from "./context/ThemeContext";
+import { isProductSensitive } from "./utils/productPrivacy";
 
 const BookmarkIcon = ({ filled, color }) => (
   <svg
@@ -52,17 +54,22 @@ function ProductCard({
   searchQuery = "",
 }) {
   const navigate = useNavigate();
-  const { saveForLaterIds, toggleSaveForLater } = useContext(AuthContext);
+  const { saveForLaterIds, toggleSaveForLater, hideSensitive } = useContext(AuthContext);
+  const { isDark } = useTheme();
   const [toastMsg, setToastMsg] = useState("");
   const [isSavedIconAnimating, setIsSavedIconAnimating] = useState(false);
   const toastTimeoutRef = useRef(null);
   const [showActions, setShowActions] = useState(false);
   const [isBookmarkHovered, setIsBookmarkHovered] = useState(false);
-
-  if (!product) return null;
+  
+  const [isRevealed, setIsRevealed] = useState(false);
 
   // Support both backend/database 'id' and frontend '_id'
   const productId = product._id || product.id || String(Math.random());
+
+  useEffect(() => {
+    setIsRevealed(false);
+  }, [productId]);
 
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const isOutOfStock = hasVariants
@@ -312,20 +319,53 @@ function ProductCard({
             Out of Stock
           </span>
         )}
-        <img
-          src={getOptimizedImageUrl(product.image, windowWidth < 768 ? "thumbnail" : "medium", product)}
-          alt={product.name || "Product"}
-          style={{
-            maxWidth: "100%",
-            maxHeight: "100%",
-            height: "auto",
-            width: "auto",
-            objectFit: "contain",
-            borderRadius: "8px",
-            filter: isOutOfStock ? "grayscale(40%) opacity(0.6)" : "none",
-          }}
-          loading="lazy"
-        />
+        {isProductSensitive(product) && hideSensitive && !isRevealed ? (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsRevealed(true);
+            }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(249, 250, 251, 0.98)",
+              borderRadius: "12px",
+              padding: "8px",
+              boxSizing: "border-box",
+              cursor: "pointer",
+              userSelect: "none",
+              zIndex: 10
+            }}
+          >
+            <div style={{ fontSize: "16px", marginBottom: "4px" }}>🔒</div>
+            <div style={{ fontSize: "10px", fontWeight: "900", color: isDark ? "#F3F4F6" : "#1F2937", textAlign: "center", lineHeight: "1.2" }}>
+              Sensitive Product
+            </div>
+            <div style={{ fontSize: "7px", fontWeight: "700", color: isDark ? "#9CA3AF" : "#6B7280", marginTop: "2px", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.2px" }}>
+              Hidden by privacy setting
+            </div>
+            <div style={{ fontSize: "8px", fontWeight: "800", color: "#318616", marginTop: "6px", textDecoration: "underline" }}>
+              Tap to view
+            </div>
+          </div>
+        ) : (
+          <img
+            src={getOptimizedImageUrl(product.image, windowWidth < 768 ? "thumbnail" : "medium", product)}
+            alt={product.name || "Product"}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+              borderRadius: "6px",
+              filter: isOutOfStock ? "grayscale(40%) opacity(0.6)" : "none",
+            }}
+            loading="lazy"
+          />
+        )}
       </div>
 
       {/* Card Details Body */}
