@@ -252,6 +252,7 @@ export default function BestsellersSection() {
                         alt=""
                         className="bestseller-collage-img"
                         loading="lazy"
+                        style={item.slug === "fresh-vegetables" ? { objectFit: "cover", transform: "scale(1.15)" } : {}}
                       />
                     </div>
                   ))}

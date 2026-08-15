@@ -479,7 +479,7 @@ function App() {
             <ScrollToTop />
             <GlobalLayout>
               <Suspense fallback={<SuspenseFallbackLoader />}>
-                <AppContent onReady={() => setAppReady(true)} />
+                <AppContent appReady={appReady} onReady={() => setAppReady(true)} />
               </Suspense>
             </GlobalLayout>
             <BuytoLoader />
@@ -493,7 +493,7 @@ function App() {
 
 
 
-function AppContent({ onReady }) {
+function AppContent({ appReady, onReady }) {
   usePerfLogger("AppContent");
   useHeaderTheme();
   const location = useLocation();
@@ -604,7 +604,7 @@ function AppContent({ onReady }) {
 
         const label = indicatorRef.current.querySelector(".pull-label");
         const circle = indicatorRef.current.querySelector(".pull-circle");
-        
+
         if (label && circle) {
           if (pull >= 75) {
             label.textContent = "Release to refresh";
@@ -841,24 +841,17 @@ function AppContent({ onReady }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsNavigating(false);
+      markRouteAsLoaded("/");
     }, 150);
     return () => clearTimeout(timer);
-  }, [setIsNavigating]);
+  }, [setIsNavigating, markRouteAsLoaded]);
 
   useEffect(() => {
     if (location.pathname !== prevPathRef.current) {
       const path = location.pathname;
       prevPathRef.current = path;
 
-      if (!isRouteLoaded(path) && !path.startsWith("/product/")) {
-        setIsNavigating(true);
-        const timer = setTimeout(() => {
-          setIsNavigating(false);
-        }, 150);
-        return () => clearTimeout(timer);
-      } else {
-        setIsNavigating(false);
-      }
+      setIsNavigating(false);
     }
   }, [location.pathname, setIsNavigating, isRouteLoaded]);
 
@@ -1196,7 +1189,11 @@ function AppContent({ onReady }) {
   }, [categories]);
 
   const handleCategoryClick = useCallback((category) => {
-    navigate(`/products/${getCategorySlug(category.name)}`);
+    if (category.name === "All") {
+      navigate("/");
+    } else {
+      navigate(`/products/${getCategorySlug(category.name)}`);
+    }
   }, [navigate]);
 
   useEffect(() => {
@@ -1578,7 +1575,7 @@ function AppContent({ onReady }) {
     let active = true;
 
     // Eagerly pre-fetch bestsellers in parallel to eliminate waterfall
-    cachedFetch((window.API_BASE_URL || "") + "/api/products/bestsellers").catch(() => {});
+    cachedFetch((window.API_BASE_URL || "") + "/api/products/bestsellers").catch(() => { });
 
     // Set a timeout to dismiss the initial loading screen if the API is slow (e.g. after 1.5 seconds)
     const timer = setTimeout(() => {
@@ -1656,7 +1653,7 @@ function AppContent({ onReady }) {
 
     const debounceTimer = setTimeout(() => {
       const url = `${window.API_BASE_URL || ""}/api/products?search=${encodeURIComponent(trimmed)}&limit=40`;
-      
+
       // Pass AbortController signal inside options
       cachedFetch(url, { signal: controller.signal })
         .then((data) => {
@@ -2783,8 +2780,7 @@ function AppContent({ onReady }) {
         products={products}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-      />,
-      false
+      />
     );
   }
 
@@ -2906,6 +2902,10 @@ function AppContent({ onReady }) {
         setSelectedProduct={setSelectedProduct}
       />
     );
+  }
+
+  if (!appReady) {
+    return <BuytoLoader forceShow={true} />;
   }
 
   if (location.pathname === "/saved-lists") {

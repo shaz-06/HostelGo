@@ -2982,12 +2982,13 @@ const fruitsSidebar = [
 ];
 
 const veggiesSidebar = [
-  { id: "All", name: "Show All", emoji: "🛍️" },
-  { id: "Fresh Vegetables", name: "Fresh Vegetables", emoji: "🥦" },
-  { id: "Leafy and Seasonings", name: "Leafy & Seasonings", emoji: "🥬" },
-  { id: "Exotic Vegetables", name: "Exotic Vegetables", emoji: "🍆" },
-  { id: "Certified Organics", name: "Certified Organics", emoji: "📦" },
-  { id: "Pooja & Festive", name: "Pooja & Festive", emoji: "🪔" },
+  { id: "All", name: "All", emoji: "🧺", image: "https://images.unsplash.com/photo-1610832958506-ee5633619141?w=100" },
+  { id: "Fresh Vegetables", name: "Fresh Vegetables", emoji: "🥦", image: "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=100" },
+  { id: "Fresh Fruits", name: "Fresh Fruits", emoji: "🍎", image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=100" },
+  { id: "Exotics", name: "Exotics", emoji: "🥝", image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=100" },
+  { id: "Flowers and Leaves", name: "Flowers and Leaves", emoji: "🌸", image: "https://images.unsplash.com/photo-1609137144813-2dbe44dcab14?w=100" },
+  { id: "Frozen Veggie", name: "Frozen Veggie", emoji: "❄️", image: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=100" },
+  { id: "Hydroponic", name: "Hydroponic", emoji: "🌱", image: "https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?w=100" },
 ];
 
 const dairySidebar = [
@@ -3284,20 +3285,80 @@ export default function SectionProductsPage({
 
     filtered = baseFruits;
   } else if (type === "veggies") {
-    sectionTitle = "🥦 Fresh Vegetables";
-    let baseVeggies = products.filter(p => matchesType(p, "veggies"));
+    sectionTitle = "Vegetables & Fruits";
+    let baseVeggies = products.filter(p => matchesType(p, "veggies") || matchesType(p, "fruits"));
+
+    // Helpers for precise classification matching the precedence rules
+    const getStructuredClassification = (p) => {
+      const sub = (p.subCategory || p.subcategory || "").toLowerCase();
+      if (sub.includes("exotic")) return "exotic";
+      if (sub.includes("pooja") || sub.includes("festive") || sub.includes("bouquet") || sub.includes("plants")) return "flower-leaf";
+      if (sub.includes("frozen")) return "frozen";
+      if (sub.includes("hydroponic")) return "hydroponic";
+      if (sub.includes("fresh vegetables") || sub.includes("leafy") || sub.includes("seasonings") || sub.includes("certified organics")) return "fresh-veg";
+      if (sub.includes("fresh fruits") || sub.includes("mango") || sub.includes("seasonal")) return "fresh-fruit";
+      return null;
+    };
+
+    const hasTag = (p, tag) => {
+      if (!p.tags) return false;
+      if (Array.isArray(p.tags)) return p.tags.some(t => String(t).toLowerCase() === tag);
+      return String(p.tags).toLowerCase().includes(tag);
+    };
+
+    const isHydroponic = (p) => {
+      const sc = getStructuredClassification(p);
+      if (sc !== null) return sc === "hydroponic";
+      if (hasTag(p, "hydroponic") || hasTag(p, "hydroponically")) return true;
+      const name = (p.name || "").toLowerCase();
+      return name.includes("hydroponic") || name.includes("hydroponically");
+    };
+
+    const isFrozen = (p) => {
+      const sc = getStructuredClassification(p);
+      if (sc !== null) return sc === "frozen";
+      if (hasTag(p, "frozen")) return true;
+      const name = (p.name || "").toLowerCase();
+      return name.includes("frozen");
+    };
+
+    const isFlowerOrLeaf = (p) => {
+      const sc = getStructuredClassification(p);
+      if (sc !== null) return sc === "flower-leaf";
+      if (hasTag(p, "pooja") || hasTag(p, "festive") || hasTag(p, "flowers") || hasTag(p, "garland") || hasTag(p, "leaves")) return true;
+      const name = (p.name || "").toLowerCase();
+      if (["flower", "gajra", "garland", "patta", "tulsi", "neem", "durva", "festive"].some(k => name.includes(k))) return true;
+      if (name.includes("leaf") && (name.includes("betel") || name.includes("banana") || name.includes("mango") || name.includes("curry") || name.includes("neem") || name.includes("bel"))) return true;
+      return false;
+    };
+
+    const isExotic = (p) => {
+      const sc = getStructuredClassification(p);
+      if (sc !== null) return sc === "exotic";
+      if (hasTag(p, "exotic") || hasTag(p, "exotics")) return true;
+      const name = (p.name || "").toLowerCase();
+      if (name.includes("exotic")) return true;
+      if (["avocado", "kiwi", "blueberries", "blackberry", "raspberries", "strawberry", "berries", "berry", "dragonfruit", "passionfruit", "asparagus", "broccoli", "mushroom", "zucchini"].some(k => name.includes(k))) {
+        return true;
+      }
+      return false;
+    };
 
     // Apply Left Sidebar Category Filter
     if (normalizedSearchQuery) {
       baseVeggies = baseVeggies.filter((p) => productMatchesSearch(p, normalizedSearchQuery));
-    } else if (activeSidebar === "Leafy and Seasonings") {
-      baseVeggies = baseVeggies.filter(p => matchCategoryOrSub(p, "Leafy and Seasonings") || ["Spinach", "Coriander", "Mint", "Curry", "Fenugreek", "Onion", "Radish"].some(k => p.name.includes(k)));
-    } else if (activeSidebar === "Exotic Vegetables") {
-      baseVeggies = baseVeggies.filter(p => matchCategoryOrSub(p, "Exotic Vegetables") || ["Capsicum", "Cauliflower", "Ginger", "Garlic", "Brinjal", "Beans", "Gourd", "Kateri"].some(k => p.name.includes(k)));
-    } else if (activeSidebar === "Certified Organics") {
-      baseVeggies = baseVeggies.filter(p => matchCategoryOrSub(p, "Certified Organics") || p.name.toLowerCase().includes("organic") || p.name.toLowerCase().includes("fresh") || p.name.toLowerCase().includes("baby") || p.name.toLowerCase().includes("ooty"));
-    } else if (activeSidebar === "Pooja & Festive") {
-      baseVeggies = baseVeggies.filter(p => matchCategoryOrSub(p, "Pooja & Festive") || ["Coconut", "Mango", "Banana", "Lemon", "Garlic"].some(k => p.name.includes(k)));
+    } else if (activeSidebar === "Fresh Vegetables") {
+      baseVeggies = baseVeggies.filter(p => matchesType(p, "veggies") && !isHydroponic(p) && !isFrozen(p) && !isFlowerOrLeaf(p) && !isExotic(p));
+    } else if (activeSidebar === "Fresh Fruits") {
+      baseVeggies = baseVeggies.filter(p => matchesType(p, "fruits") && !isFrozen(p) && !isFlowerOrLeaf(p) && !isExotic(p));
+    } else if (activeSidebar === "Exotics") {
+      baseVeggies = baseVeggies.filter(p => isExotic(p));
+    } else if (activeSidebar === "Flowers and Leaves") {
+      baseVeggies = baseVeggies.filter(p => isFlowerOrLeaf(p));
+    } else if (activeSidebar === "Frozen Veggie") {
+      baseVeggies = baseVeggies.filter(p => isFrozen(p));
+    } else if (activeSidebar === "Hydroponic") {
+      baseVeggies = baseVeggies.filter(p => isHydroponic(p));
     }
 
     // Apply Quick Filter Badges
@@ -6711,7 +6772,7 @@ export default function SectionProductsPage({
               ←
             </button>
             <h1 style={{ fontSize: "20px", fontWeight: "900", color: "#111827", margin: 0 }}>
-              Fresh Vegetables
+              Vegetables & Fruits
             </h1>
           </div>
 
@@ -6731,16 +6792,10 @@ export default function SectionProductsPage({
               flexDirection: "column",
               gap: "8px",
               flexShrink: 0,
+              overflowY: "auto",
             }}
           >
-            {[
-              { id: "All", name: "Show All", emoji: "🛍️" },
-              { id: "Fresh Vegetables", name: "Fresh Vegetables", emoji: "🥦", image: "https://images.unsplash.com/photo-1566385278603-605b637d384c?w=100" },
-              { id: "Leafy and Seasonings", name: "Leafy & Seasonings", emoji: "🥬", image: "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=100" },
-              { id: "Exotic Vegetables", name: "Exotic Vegetables", emoji: "🍆", image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=100" },
-              { id: "Certified Organics", name: "Certified Organics", emoji: "📦", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=100" },
-              { id: "Pooja & Festive", name: "Pooja & Festive", emoji: "🪔", image: "https://images.unsplash.com/photo-1609137144813-2dbe44dcab14?w=100" },
-            ].map((item) => {
+            {veggiesSidebar.map((item) => {
               const isActive = activeSidebar === item.id;
               return (
                 <div
@@ -6765,23 +6820,37 @@ export default function SectionProductsPage({
                     style={{
                       width: "48px",
                       height: "48px",
-                      borderRadius: "12px",
+                      borderRadius: "50%",
                       overflow: "hidden",
                       marginBottom: "8px",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       background: isActive ? "white" : "#f3f4f6",
-                      boxShadow: isActive ? "0 2px 8px rgba(219,39,119,0.1)" : "none",
+                      boxShadow: isActive ? "0 2px 8px rgba(31,134,22,0.15)" : "none",
                     }}
                   >
-                    <span style={{ fontSize: "24px" }}>{item.emoji}</span>
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: "24px" }}>{item.emoji}</span>
+                    )}
                   </div>
                   <span
                     style={{
                       fontSize: "12px",
                       fontWeight: "800",
                       color: isActive ? "#318616" : "#4b5563",
+                      whiteSpace: "normal",
+                      wordBreak: "break-word",
                     }}
                   >
                     {item.name}

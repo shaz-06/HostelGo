@@ -393,13 +393,17 @@ function CategoryDiscovery({ products = [] }) {
                   onClick={() => handleCardClick(item.name)}
                   className="category-discovery-item group"
                 >
-                  <div className="category-discovery-card">
-                    <div className="category-discovery-image-wrapper">
+                  <div className="category-discovery-card" style={section.isStore ? { overflow: "visible" } : {}}>
+                    <div
+                      className="category-discovery-image-wrapper"
+                      style={section.isStore ? { width: "100%", height: "100%", transform: "scale(1.25)", transformOrigin: "center center" } : {}}
+                    >
                       <img
                         src={item.image}
                         alt={item.name}
                         className="category-discovery-img"
                         loading="lazy"
+                        style={section.isStore ? { width: "100%", height: "100%", objectFit: "contain" } : {}}
                       />
                     </div>
                   </div>

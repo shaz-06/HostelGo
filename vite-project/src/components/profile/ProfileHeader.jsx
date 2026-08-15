@@ -11,7 +11,7 @@ const ProfileHeader = React.memo(({ user, isLoggedIn, onBack, onLoginClick }) =>
       style={{
         background: isDark
           ? "linear-gradient(135deg, #6F4612 0%, #95651C 42%, #C08A32 72%, #8A5A18 100%)"
-          : "linear-gradient(to bottom, #FFF4B8, #FFFBE3, #F6F7FB)",
+          : "linear-gradient(180deg, #CBEAF2 0%, #E2F3F7 55%, #FFFFFF 100%)",
         boxShadow: isDark
           ? "inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18)"
           : undefined

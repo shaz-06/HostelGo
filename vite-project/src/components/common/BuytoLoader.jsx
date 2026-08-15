@@ -103,21 +103,21 @@ export default function BuytoLoader({ mode = "fullscreen", forceShow = false, st
     boxSizing: "border-box",
   } : {
     position: "fixed",
-    top: (isMobile && hasHeader) ? "var(--header-height, 60px)" : "0",
-    bottom: (isMobile && hasBottomNav) ? "calc(var(--bottom-nav-height, 70px) + env(safe-area-inset-bottom, 0px))" : "0",
-    left: isMobile ? "50%" : "0",
-    transform: isMobile ? "translateX(-50%)" : "none",
+    top: "0",
+    bottom: "0",
+    left: "50%",
+    transform: "translateX(-50%)",
     maxWidth: isMobile ? "480px" : "100%",
     width: "100%",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 999, // below 1000 of Bottom Navigation / Header
+    zIndex: 9999, // covers both Bottom Navigation / Header
     padding: "20px",
-    backdropFilter: "blur(4px)",
-    pointerEvents: "none",
-    right: isMobile ? "auto" : "0",
+    backdropFilter: "blur(8px)",
+    pointerEvents: "auto",
+    right: "auto",
     boxSizing: "border-box",
   };
 
@@ -194,13 +194,7 @@ export default function BuytoLoader({ mode = "fullscreen", forceShow = false, st
         ) : (
           // Active Loading View
           <div style={loadingContainerStyle}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "180px", marginBottom: "16px" }}>
-              <img
-                src={logoPath}
-                alt="Buyto Logo"
-                className="loader-logo"
-                style={{ height: "64px", width: "auto", marginBottom: "24px", objectFit: "contain" }}
-              />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100px", marginBottom: "16px" }}>
               <div style={bouncingDotsStyle}>
                 <div className="dot"></div>
                 <div className="dot"></div>

@@ -164,6 +164,7 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
   const [isOverBanner, setIsOverBanner] = React.useState(true);
 
   const location = useLocation();
+  const isHomepage = location.pathname === "/";
   const isElectronicsPage = location.pathname.includes("electronics");
   const isBeautyPage = location.pathname.includes("beauty");
   const isPharmacyPage = location.pathname.includes("pharmacy");
@@ -251,7 +252,14 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
   const maskImageStyle = `linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 60px, rgba(0,0,0,1) calc(100% - 60px), rgba(0,0,0,0) 100%)`;
 
   return (
-    <div style={{ position: "relative", width: "100%", overflow: "hidden" }}>
+    <div style={{ 
+      position: "relative", 
+      width: "100%", 
+      overflow: "hidden",
+      background: whiteText 
+        ? "radial-gradient(ellipse 18% 70% at 7% 72%, rgba(220, 244, 252, 0.20) 0%, rgba(210, 240, 250, 0.10) 45%, transparent 100%), radial-gradient(ellipse 18% 70% at 22% 72%, rgba(220, 244, 252, 0.18) 0%, rgba(210, 240, 250, 0.08) 45%, transparent 100%), radial-gradient(ellipse 18% 70% at 38% 72%, rgba(220, 244, 252, 0.18) 0%, rgba(210, 240, 250, 0.08) 45%, transparent 100%), radial-gradient(ellipse 18% 70% at 54% 72%, rgba(220, 244, 252, 0.18) 0%, rgba(210, 240, 250, 0.08) 45%, transparent 100%), radial-gradient(ellipse 18% 70% at 70% 72%, rgba(220, 244, 252, 0.18) 0%, rgba(210, 240, 250, 0.08) 45%, transparent 100%), radial-gradient(ellipse 18% 70% at 86% 72%, rgba(220, 244, 252, 0.20) 0%, rgba(210, 240, 250, 0.10) 45%, transparent 100%)" 
+        : "transparent"
+    }}>
       <div
         ref={scrollerRef}
         id="category-strip-container"
@@ -295,7 +303,7 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
             d={`M 0 60 L ${indicatorStyle.left - 16} 60 C ${indicatorStyle.left - 6} 60, ${indicatorStyle.left - 10} 38, ${indicatorStyle.left} 38 L ${indicatorStyle.left + indicatorStyle.width} 38 C ${indicatorStyle.left + indicatorStyle.width + 10} 38, ${indicatorStyle.left + indicatorStyle.width + 6} 60, ${indicatorStyle.left + indicatorStyle.width + 16} 60 L ${scrollWidth || 2000} 60`}
             fill="none"
             stroke={
-              isOverBanner
+              (isHomepage || isOverBanner)
                 ? "#FFFFFF"
                 : isElectronicsPage
                   ? "#6F68B5"
@@ -352,7 +360,8 @@ export const CategoryStrip = React.memo(({ displayCats = [], selectedCategory, o
                   alignItems: "center",
                   justifyContent: "center",
                   overflow: "hidden",
-                  transition: "transform 0.2s ease"
+                  transition: "transform 0.2s ease",
+                  transform: selectedCategory === cat.name ? "translateY(-8px)" : "none"
                 }}
               >
                 {cat.image ? (
@@ -421,6 +430,8 @@ const Header = React.memo(({
   const isDecorPage = location.pathname.includes("decor");
   const isKidsPage = location.pathname.includes("kids");
   const isGiftPage = location.pathname.includes("gift");
+  const isCategoriesPage = location.pathname === "/categories";
+  const isHomepage = location.pathname === "/";
 
   const [welcomeBannerVisible, setWelcomeBannerVisible] = useState(() => {
     return location.pathname === "/";
@@ -739,7 +750,7 @@ const Header = React.memo(({
     return () => observer.disconnect();
   }, [isDown, collapsibleHeight, isMobile]);
 
-  const isHomepage = location.pathname === "/";
+
 
   useEffect(() => {
     if (!isHomepage) return;
@@ -814,7 +825,7 @@ const Header = React.memo(({
               pointerEvents: "none",
               fontSize: "14px",
               fontWeight: "600",
-              color: isDark ? "#A7ACB8" : "#9ca3af",
+              color: (welcomeBannerVisible || isHomepage) ? "#64748B" : (isDark ? "#A7ACB8" : "#9ca3af"),
               fontFamily: "inherit",
               height: "24px",
               overflow: "hidden"
@@ -846,7 +857,7 @@ const Header = React.memo(({
             </div>
           </div>
         )}
-        <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: isDark ? "#D5D8DE" : "#9ca3af", display: "flex", alignItems: "center" }}>
+        <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: (welcomeBannerVisible || isHomepage) ? "#64748B" : (isDark ? "#D5D8DE" : "#9ca3af"), display: "flex", alignItems: "center" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -869,7 +880,7 @@ const Header = React.memo(({
           }}
         >
           <img
-            src={`https://img.icons8.com/?size=100&id=IUGIR3D9OImC&format=png&color=${isDark ? "D5D8DE" : "000000"}`}
+            src={`https://img.icons8.com/?size=100&id=M0nvDJhT5w5g&format=png&color=${(welcomeBannerVisible || isHomepage) ? "64748B" : "000000"}`}
             alt="Mic"
             style={{
               width: "18px",
@@ -1090,7 +1101,7 @@ const Header = React.memo(({
                   color: #318616 !important;
                 }
               `}} />
-              <LogoArea brandText="Buyto" />
+              <LogoArea brandText="Buyto" whiteText={welcomeBannerVisible || isHomepage} />
 
               {/* Delivering Address (Directly Clickable Block) */}
               <div
@@ -1105,24 +1116,24 @@ const Header = React.memo(({
                   marginTop: "12px"
                 }}
               >
-                <span style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500", lineHeight: "1.2" }}>
+                <span style={{ fontSize: "12px", color: (welcomeBannerVisible || isHomepage) ? "rgba(255, 255, 255, 0.8)" : "#6B7280", fontWeight: "500", lineHeight: "1.2" }}>
                   Delivering to
                 </span>
-                <span className="address-val" style={{ fontSize: "16px", fontWeight: "700", color: "#111827", display: "inline-flex", alignItems: "center", gap: "4px", marginTop: "2px", transition: "color 200ms ease" }}>
+                <span className="address-val" style={{ fontSize: "16px", fontWeight: "700", color: (welcomeBannerVisible || isHomepage) ? "#FFFFFF" : "#111827", display: "inline-flex", alignItems: "center", gap: "4px", marginTop: "2px", transition: "color 200ms ease" }}>
                   {addressText}
-                  <span className="address-chevron" style={{ fontSize: "10px", color: "#6B7280", display: "inline-block", transition: "transform 200ms ease" }}>▼</span>
+                  <span className="address-chevron" style={{ fontSize: "10px", color: (welcomeBannerVisible || isHomepage) ? "#FFFFFF" : "#6B7280", display: "inline-block", transition: "transform 200ms ease" }}>▼</span>
                 </span>
               </div>
 
               {/* Greeting */}
               <div style={{ marginTop: "16px" }}>
-                <p style={{ fontSize: "13px", color: "#374151", margin: 0, fontWeight: "500" }}>
+                <p style={{ fontSize: "13px", color: (welcomeBannerVisible || isHomepage) ? "#FFFFFF" : "#374151", margin: 0, fontWeight: "500" }}>
                   {getGreeting()}
                 </p>
-                <h2 style={{ fontSize: "clamp(18px, 5vw, 24px)", fontWeight: "800", color: "#1F2937", margin: "4px 0 0 0", lineHeight: "1.2" }}>
+                <h2 style={{ fontSize: "clamp(18px, 5vw, 24px)", fontWeight: "800", color: (welcomeBannerVisible || isHomepage) ? "#FFFFFF" : "#1F2937", margin: "4px 0 0 0", lineHeight: "1.2" }}>
                   What can we get for you today?
                 </h2>
-                <p style={{ fontSize: "13px", color: "rgba(31, 41, 55, 0.65)", fontWeight: "500", margin: "4px 0 0 0" }}>
+                <p style={{ fontSize: "13px", color: (welcomeBannerVisible || isHomepage) ? "rgba(255, 255, 255, 0.85)" : "rgba(31, 41, 55, 0.65)", fontWeight: "500", margin: "4px 0 0 0" }}>
                   Fresh groceries, essentials & more delivered fast.
                 </p>
               </div>
@@ -1150,7 +1161,7 @@ const Header = React.memo(({
                   }}
                   title="Notifications"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={(welcomeBannerVisible || isHomepage) ? "#FFFFFF" : "#374151"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                   </svg>
@@ -1201,7 +1212,7 @@ const Header = React.memo(({
               displayCats={displayCats}
               selectedCategory={selectedCategory}
               onCategoryClick={onCategoryClick}
-              whiteText={welcomeBannerVisible}
+              whiteText={welcomeBannerVisible || isHomepage}
             />
           )}
         </div>
@@ -1210,7 +1221,6 @@ const Header = React.memo(({
   };
 
   if (isMobile) {
-    const isHomepage = location.pathname === "/";
     const stickyToolbarHeight = isHomepage ? 116 : 64;
 
     return (
@@ -1227,8 +1237,8 @@ const Header = React.memo(({
           display: "flex",
           flexDirection: "column",
           fontFamily: "'Outfit', 'Inter', sans-serif",
-          backgroundImage: welcomeBannerVisible ? "url('/images/mobile-header-bg.png?v=3')" : (isElectronicsPage ? "linear-gradient(to bottom, #B8C0F0 0%, #EDE9F8 100%)" : (isBeautyPage ? "linear-gradient(to bottom, #C9BFF2 0%, #EEEAFB 100%)" : (isPharmacyPage ? "linear-gradient(to bottom, #CDEFE7 0%, #E8F8F5 100%)" : (isDecorPage ? "linear-gradient(to bottom, #F6D6C9 0%, #FBE9E2 100%)" : (isKidsPage ? "linear-gradient(to bottom, #CFE8FF 0%, #E8F4FF 100%)" : (isGiftPage ? "linear-gradient(to bottom, #F6D1DC 0%, #FBE8EE 100%)" : "none")))))),
-          backgroundColor: welcomeBannerVisible ? "transparent" : (isDark ? "#181A20" : (isElectronicsPage || isBeautyPage || isPharmacyPage || isDecorPage || isKidsPage || isGiftPage ? "#ffffff" : "#FFF1D2")),
+          backgroundImage: (welcomeBannerVisible || isHomepage) ? (isDark ? "none" : "radial-gradient(circle at 80% 20%, rgba(56, 189, 248, 0.15) 0%, transparent 50%), linear-gradient(135deg, #075E7A 0%, #087EA4 45%, #1295B8 100%)") : (isCategoriesPage ? "linear-gradient(135deg, #FFE0A3 0%, #FFF0C9 45%, #FFF9E8 100%)" : (isElectronicsPage ? "linear-gradient(to bottom, #B8C0F0 0%, #EDE9F8 100%)" : (isBeautyPage ? "linear-gradient(to bottom, #C9BFF2 0%, #EEEAFB 100%)" : (isPharmacyPage ? "linear-gradient(to bottom, #CDEFE7 0%, #E8F8F5 100%)" : (isDecorPage ? "linear-gradient(to bottom, #F6D6C9 0%, #FBE9E2 100%)" : (isKidsPage ? "linear-gradient(to bottom, #CFE8FF 0%, #E8F4FF 100%)" : (isGiftPage ? "linear-gradient(to bottom, #F6D1DC 0%, #FBE8EE 100%)" : "none"))))))),
+          backgroundColor: (welcomeBannerVisible || isHomepage) ? (isDark ? "#181A20" : "transparent") : (isDark ? "#181A20" : (isCategoriesPage || isElectronicsPage || isBeautyPage || isPharmacyPage || isDecorPage || isKidsPage || isGiftPage ? "#ffffff" : "#FFF1D2")),
           backgroundSize: "cover",
           backgroundPosition: "center center",
           backgroundRepeat: "no-repeat",
@@ -1237,11 +1247,11 @@ const Header = React.memo(({
           boxShadow: isDark ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(0,0,0,0.06)",
           overflow: "hidden",
           transition: "background-color 250ms ease, background-image 250ms ease",
-          "--header-text-color": welcomeBannerVisible ? "#FFFFFF" : (isDark ? "#F5F5F5" : "#000000"),
-          "--logo-part1-color": welcomeBannerVisible ? "#FFFFFF" : "#F59E0B",
-          "--logo-part2-color": welcomeBannerVisible ? "#FFFFFF" : "#318616",
-          "--category-text-color": welcomeBannerVisible ? "#FFFFFF" : (isDark ? "#F5F5F5" : "#000000"),
-          "--category-icon-filter": welcomeBannerVisible ? "brightness(0) invert(1)" : (isDark ? "brightness(0) invert(1)" : "brightness(0)")
+          "--header-text-color": (welcomeBannerVisible || isHomepage) ? (isDark ? "#F5F5F5" : "#FFFFFF") : (isDark ? "#F5F5F5" : "#000000"),
+          "--logo-part1-color": (welcomeBannerVisible || isHomepage) ? (isDark ? "#F5F5F5" : "#FFFFFF") : "#F59E0B",
+          "--logo-part2-color": (welcomeBannerVisible || isHomepage) ? (isDark ? "#F5F5F5" : "#FFFFFF") : "#318616",
+          "--category-text-color": (welcomeBannerVisible || isHomepage) ? (isDark ? "#F5F5F5" : "#FFFFFF") : (isDark ? "#F5F5F5" : "#000000"),
+          "--category-icon-filter": (welcomeBannerVisible || isHomepage) ? "brightness(0) invert(1)" : (isDark ? "brightness(0) invert(1)" : "brightness(0)")
         }}
       >
         {/* CSS for logos/wordmark in mobile */}
@@ -1295,7 +1305,7 @@ const Header = React.memo(({
         >
           {/* Row 1: Logo, Wallet, Profile */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-            <LogoArea brandText="LetsBuyto" whiteText={welcomeBannerVisible} />
+            <LogoArea brandText="LetsBuyto" whiteText={welcomeBannerVisible || isHomepage} />
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <WalletButton balance={walletBalance} onClick={() => navigate("/wallet")} compact={true} />
               <ProfileButton onClick={() => navigate("/profile")} compact={true} />
@@ -1361,7 +1371,7 @@ const Header = React.memo(({
                 displayCats={displayCats}
                 selectedCategory={selectedCategory}
                 onCategoryClick={onCategoryClick}
-                whiteText={welcomeBannerVisible}
+                whiteText={welcomeBannerVisible || isHomepage}
               />
             </div>
           )}
@@ -1378,8 +1388,8 @@ const Header = React.memo(({
         position: "sticky",
         top: 0,
         zIndex: 1000,
-        backgroundImage: welcomeBannerVisible ? "url('/images/mobile-header-bg.png?v=3')" : (isElectronicsPage ? "linear-gradient(to bottom, #B8C0F0 0%, #EDE9F8 100%)" : (isBeautyPage ? "linear-gradient(to bottom, #C9BFF2 0%, #EEEAFB 100%)" : (isPharmacyPage ? "linear-gradient(to bottom, #CDEFE7 0%, #E8F8F5 100%)" : (isDecorPage ? "linear-gradient(to bottom, #F6D6C9 0%, #FBE9E2 100%)" : (isKidsPage ? "linear-gradient(to bottom, #CFE8FF 0%, #E8F4FF 100%)" : (isGiftPage ? "linear-gradient(to bottom, #F6D1DC 0%, #FBE8EE 100%)" : "none")))))),
-        backgroundColor: welcomeBannerVisible ? "transparent" : (isDark ? "#181A20" : (isElectronicsPage || isBeautyPage || isPharmacyPage || isDecorPage || isKidsPage || isGiftPage ? "#ffffff" : "#FFF1D2")),
+        backgroundImage: (welcomeBannerVisible || isHomepage) ? (isDark ? "none" : "radial-gradient(circle at 80% 20%, rgba(56, 189, 248, 0.15) 0%, transparent 50%), linear-gradient(135deg, #075E7A 0%, #087EA4 45%, #1295B8 100%)") : (isCategoriesPage ? "linear-gradient(135deg, #FFE0A3 0%, #FFF0C9 45%, #FFF9E8 100%)" : (isElectronicsPage ? "linear-gradient(to bottom, #B8C0F0 0%, #EDE9F8 100%)" : (isBeautyPage ? "linear-gradient(to bottom, #C9BFF2 0%, #EEEAFB 100%)" : (isPharmacyPage ? "linear-gradient(to bottom, #CDEFE7 0%, #E8F8F5 100%)" : (isDecorPage ? "linear-gradient(to bottom, #F6D6C9 0%, #FBE9E2 100%)" : (isKidsPage ? "linear-gradient(to bottom, #CFE8FF 0%, #E8F4FF 100%)" : (isGiftPage ? "linear-gradient(to bottom, #F6D1DC 0%, #FBE8EE 100%)" : "none"))))))),
+        backgroundColor: (welcomeBannerVisible || isHomepage) ? (isDark ? "#181A20" : "transparent") : (isDark ? "#181A20" : (isCategoriesPage || isElectronicsPage || isBeautyPage || isPharmacyPage || isDecorPage || isKidsPage || isGiftPage ? "#ffffff" : "#FFF1D2")),
         backgroundSize: "cover",
         backgroundPosition: "center center",
         backgroundRepeat: "no-repeat",
@@ -1404,11 +1414,11 @@ const Header = React.memo(({
         borderBottomLeftRadius: isDown ? "20px" : "36px",
         borderBottomRightRadius: isDown ? "20px" : "36px",
         minHeight: isDown ? "auto" : "280px",
-        "--header-text-color": welcomeBannerVisible ? "#FFFFFF" : (isDark ? "#F5F5F5" : "#000000"),
-        "--logo-part1-color": welcomeBannerVisible ? "#FFFFFF" : "#F59E0B",
-        "--logo-part2-color": welcomeBannerVisible ? "#FFFFFF" : "#318616",
-        "--category-text-color": welcomeBannerVisible ? "#FFFFFF" : (isDark ? "#F5F5F5" : "#000000"),
-        "--category-icon-filter": welcomeBannerVisible ? "brightness(0) invert(1)" : (isDark ? "brightness(0) invert(1)" : "brightness(0)")
+        "--header-text-color": (welcomeBannerVisible || isHomepage) ? (isDark ? "#F5F5F5" : "#FFFFFF") : (isDark ? "#F5F5F5" : "#000000"),
+        "--logo-part1-color": (welcomeBannerVisible || isHomepage) ? (isDark ? "#F5F5F5" : "#FFFFFF") : "#F59E0B",
+        "--logo-part2-color": (welcomeBannerVisible || isHomepage) ? (isDark ? "#F5F5F5" : "#FFFFFF") : "#318616",
+        "--category-text-color": (welcomeBannerVisible || isHomepage) ? (isDark ? "#F5F5F5" : "#FFFFFF") : (isDark ? "#F5F5F5" : "#000000"),
+        "--category-icon-filter": (welcomeBannerVisible || isHomepage) ? "brightness(0) invert(1)" : (isDark ? "brightness(0) invert(1)" : "brightness(0)")
       }}
     >
       <div style={{ position: "relative", zIndex: 1, width: "100%" }}>

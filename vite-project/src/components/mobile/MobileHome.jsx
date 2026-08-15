@@ -78,7 +78,7 @@ function MobileHome({
   forceSearchTab = false,
   loading = false,
   apiError = null,
-  onRefreshProducts = () => {}
+  onRefreshProducts = () => { }
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -126,7 +126,7 @@ function MobileHome({
     if (diff > 0 && window.scrollY === 0) {
       const damped = Math.min(80, diff * 0.45);
       setPullDistance(damped);
-      
+
       if (e.cancelable) {
         e.preventDefault();
       }
@@ -526,7 +526,7 @@ function MobileHome({
           {/* Dark Gold Welcome Header */}
           <div id="home-hero-banner" data-welcome-banner style={{
             height: "140px",
-            backgroundImage: "url('/images/welcome-bg.png')",
+            backgroundImage: "url('/images/offer-blue.png')",
             backgroundSize: "cover",
             backgroundPosition: "center",
             textAlign: "center",
@@ -540,8 +540,8 @@ function MobileHome({
           }}>
             {/* Overlapping Tab */}
             <div style={{
-              backgroundColor: "#ffc200",
-              color: "#1e293b",
+              backgroundColor: "#FFF3C4",
+              color: "#075E7A",
               padding: "6px 20px",
               borderTopLeftRadius: "12px",
               borderTopRightRadius: "12px",
@@ -562,7 +562,7 @@ function MobileHome({
           {/* Offers Cards Bar */}
           <div style={{
             padding: "0 16px 16px 16px",
-            backgroundColor: "#ffc200", // Solid bright gold/yellow container matching the screenshot exactly
+            background: "linear-gradient(135deg, #075E7A 0%, #087EA4 45%, #1295B8 100%)", // Solid Dark Azure gradient
             fontFamily: "'Outfit', 'Inter', sans-serif",
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -576,7 +576,7 @@ function MobileHome({
               className="offer-card-clickable"
               onClick={() => openOffer("discount")}
               style={{
-                backgroundColor: "#ffecbc", // Pale gold/cream card background matching the screenshot
+                background: "linear-gradient(135deg, #096D8D 0%, #0992BE 45%, #1AB3DD 100%)",
                 borderRadius: "16px",
                 padding: "12px 14px",
                 display: "flex",
@@ -612,10 +612,10 @@ function MobileHome({
               </div>
               {/* Right side: Texts */}
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ fontSize: "14px", fontWeight: "850", color: "#2d1d00", lineHeight: "1.2" }}>
+                <span style={{ fontSize: "14px", fontWeight: "850", color: "#FFFFFF", lineHeight: "1.2" }}>
                   Enjoy FLAT ₹50 OFF
                 </span>
-                <span style={{ fontSize: "11px", fontWeight: "650", color: "#7c6847", marginTop: "2px", lineHeight: "1.2" }}>
+                <span style={{ fontSize: "11px", fontWeight: "650", color: "rgba(255, 255, 255, 0.8)", marginTop: "2px", lineHeight: "1.2" }}>
                   On your first order above ₹249
                 </span>
               </div>
@@ -626,7 +626,7 @@ function MobileHome({
               className="offer-card-clickable"
               onClick={() => openOffer("delivery")}
               style={{
-                backgroundColor: "#ffecbc", // Pale gold/cream card background matching the screenshot
+                background: "linear-gradient(135deg, #096D8D 0%, #0992BE 45%, #1AB3DD 100%)",
                 borderRadius: "16px",
                 padding: "12px 14px",
                 display: "flex",
@@ -662,10 +662,10 @@ function MobileHome({
               </div>
               {/* Right side: Texts */}
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ fontSize: "14px", fontWeight: "850", color: "#2d1d00", lineHeight: "1.2" }}>
+                <span style={{ fontSize: "14px", fontWeight: "850", color: "#FFFFFF", lineHeight: "1.2" }}>
                   Enjoy FREE delivery
                 </span>
-                <span style={{ fontSize: "11px", fontWeight: "650", color: "#7c6847", marginTop: "2px", lineHeight: "1.2" }}>
+                <span style={{ fontSize: "11px", fontWeight: "650", color: "rgba(255, 255, 255, 0.8)", marginTop: "2px", lineHeight: "1.2" }}>
                   On all your orders
                 </span>
               </div>
