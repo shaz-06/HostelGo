@@ -26,14 +26,6 @@ const LogoArea = ({ brandText = "Buyto", whiteText = false, brandColor = "#17161
   const parts = brandText === "LetsBuyto" ? ["lets buy it", ""] : ["Buy", "to"];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-      <div className="premium-logo-container">
-        <BuytoLogo
-          responsive={true}
-          clickable={false}
-          imgClassName="premium-logo-img"
-          style={{ display: "flex" }}
-        />
-      </div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span className="premium-wordmark">
           <span style={{

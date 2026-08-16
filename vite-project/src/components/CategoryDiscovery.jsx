@@ -393,7 +393,14 @@ function CategoryDiscovery({ products = [] }) {
                   onClick={() => handleCardClick(item.name)}
                   className="category-discovery-item group"
                 >
-                  <div className="category-discovery-card" style={section.isStore ? { overflow: "visible" } : {}}>
+                  <div
+                    className="category-discovery-card"
+                    style={{
+                      background: getCategoryGradient(item.name, section.isStore),
+                      border: `1px solid ${getCategoryBorder(item.name)}`,
+                      ...(section.isStore ? { overflow: "visible" } : {})
+                    }}
+                  >
                     <div
                       className="category-discovery-image-wrapper"
                       style={section.isStore ? { width: "100%", height: "100%", transform: "scale(1.25)", transformOrigin: "center center" } : {}}
@@ -487,8 +494,8 @@ function CategoryDiscovery({ products = [] }) {
         .category-discovery-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
-          column-gap: 12px;
-          row-gap: 20px;
+          column-gap: 22px;
+          row-gap: 22px;
         }
 
         .category-discovery-item {
@@ -541,52 +548,36 @@ function CategoryDiscovery({ products = [] }) {
           max-width: 100%;
           max-height: 100%;
           object-fit: contain;
+          mix-blend-mode: multiply;
         }
 
         .category-discovery-text {
-          font-size: 14.5px;
+          font-size: 13px;
           font-weight: 600;
           color: #1f2937;
           line-height: 1.25;
           text-align: center;
-          margin: 8px 0 0 0;
+          margin: 6px 0 0 0;
           word-break: break-word;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          min-height: 36px;
+          min-height: 32px;
         }
 
         .dark .category-discovery-text {
           color: #f3f4f6 !important;
         }
 
-        @media (max-width: 767px) {
-          .category-discovery-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            column-gap: 10px;
-            row-gap: 16px;
-          }
-          .category-discovery-card {
-            border-radius: 14px;
-          }
-          .category-discovery-text {
-            font-size: 13px;
-            margin-top: 6px;
-            min-height: 32px;
-          }
-        }
-
         @media (min-width: 768px) {
           .category-discovery-grid {
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-            column-gap: 18px;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            column-gap: 20px;
             row-gap: 28px;
           }
           .category-discovery-card {
-            border-radius: 22px;
-            background-color: transparent;
+            border-radius: 20px;
           }
           .category-discovery-text {
             font-size: 17.5px;

@@ -305,6 +305,78 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
         width: "100%"
       }}
     >
+      <style>{`
+        .categories-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          column-gap: 22px;
+          row-gap: 22px;
+        }
+        .category-image-container {
+          width: 100%;
+          aspect-ratio: 1 / 1;
+          border-radius: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px;
+          box-sizing: border-box;
+          margin-bottom: 6px;
+          transition: transform 300ms ease;
+        }
+        .category-image-container:hover {
+          transform: translateY(-4px);
+        }
+        .category-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #1f2937;
+          text-align: center;
+          line-height: 1.2;
+          word-break: break-word;
+          padding: 0 2px;
+          min-height: 34px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .spotlight-card {
+          border-radius: 18px;
+          padding: 10px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          aspect-ratio: 1 / 1;
+          border: 1px solid rgba(0,0,0,0.03);
+          box-sizing: border-box;
+          transition: transform 300ms ease;
+        }
+        .spotlight-card:hover {
+          transform: translateY(-4px);
+        }
+        @media (min-width: 768px) {
+          .categories-grid {
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            column-gap: 20px;
+            row-gap: 28px;
+          }
+          .category-image-container {
+            border-radius: 20px;
+            padding: 12px;
+          }
+          .category-label {
+            font-size: 14.5px;
+            min-height: 40px;
+          }
+          .spotlight-card {
+            border-radius: 20px;
+            padding: 14px;
+          }
+        }
+      `}</style>
       <SEO title="Categories" description="Explore Buyto categories including Grocery, Snacks, Drinks, Beauty, and Household Essentials." />
       
       {/* Main Categories Grids */}
@@ -323,14 +395,7 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
               {section.title}
             </h2>
             
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                columnGap: "12px",
-                rowGap: "16px"
-              }}
-            >
+            <div className="categories-grid">
               {section.items.map((item) => (
                 <div
                   key={item.name}
@@ -344,17 +409,9 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
                   }}
                 >
                   <div
+                    className="category-image-container"
                     style={{
-                      width: "100%",
-                      aspectRatio: "1 / 1",
-                      borderRadius: "16px",
-                      background: getCategoryGradient(item.name),
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "8px",
-                      boxSizing: "border-box",
-                      marginBottom: "6px"
+                      background: getCategoryGradient(item.name)
                     }}
                   >
                     <img
@@ -367,22 +424,7 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
                       }}
                     />
                   </div>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      color: "#1f2937",
-                      textAlign: "center",
-                      lineHeight: "1.2",
-                      wordBreak: "break-word",
-                      padding: "0 2px",
-                      minHeight: "34px",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden"
-                    }}
-                  >
+                  <span className="category-label">
                     {item.name}
                   </span>
                 </div>
@@ -404,30 +446,14 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
           >
             Stores in spotlight
           </h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-              columnGap: "12px",
-              rowGap: "16px"
-            }}
-          >
+          <div className="categories-grid">
             {spotlightStores.map((store) => (
               <div
                 key={store.name}
                 onClick={() => navigate(store.route)}
+                className="spotlight-card"
                 style={{
-                  background: store.bg,
-                  borderRadius: "16px",
-                  padding: "10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  cursor: "pointer",
-                  aspectRatio: "1 / 1",
-                  border: "1px solid rgba(0,0,0,0.03)",
-                  boxSizing: "border-box"
+                  background: store.bg
                 }}
               >
                 <span
@@ -471,30 +497,15 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
           >
             Picks for your lifestyle
           </h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-              columnGap: "12px",
-              rowGap: "16px"
-            }}
-          >
+          <div className="categories-grid">
             {lifestylePicks.map((pick) => (
               <div
                 key={pick.name}
                 onClick={() => navigate(pick.route)}
+                className="spotlight-card"
                 style={{
                   background: pick.bg,
-                  borderRadius: "16px",
-                  padding: "10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  cursor: "pointer",
-                  aspectRatio: "1 / 1",
-                  border: "1px solid rgba(0,0,0,0.03)",
-                  boxSizing: "border-box"
+                  alignItems: "flex-start"
                 }}
               >
                 <span

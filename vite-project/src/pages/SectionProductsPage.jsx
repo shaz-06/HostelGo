@@ -7272,8 +7272,8 @@ export default function SectionProductsPage({
         }}>
           <div style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <button 
-                onClick={() => navigate("/")} 
+              <button
+                onClick={() => navigate("/")}
                 style={{
                   background: "rgba(0,0,0,0.04)",
                   border: "none",
@@ -7340,7 +7340,7 @@ export default function SectionProductsPage({
         </div>
 
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px 16px" }}>
-          
+
           {/* HERO BANNER */}
           <div style={{
             background: "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)",
@@ -7537,8 +7537,8 @@ export default function SectionProductsPage({
           background: "white",
           borderRadius: "20px",
           padding: "16px",
-          boxShadow: isHovered 
-            ? "0 12px 30px rgba(49, 134, 22, 0.12)" 
+          boxShadow: isHovered
+            ? "0 12px 30px rgba(49, 134, 22, 0.12)"
             : "0 4px 16px rgba(0, 0, 0, 0.03)",
           border: isHovered ? "1px solid rgba(49, 134, 22, 0.2)" : "1px solid #f1f5f9",
           display: "flex",
@@ -7557,7 +7557,7 @@ export default function SectionProductsPage({
           position: "absolute",
           top: "12px",
           left: "12px",
-          background: isBestseller 
+          background: isBestseller
             ? "linear-gradient(90deg, #F59E0B 0%, #D97706 100%)"
             : "linear-gradient(90deg, #10B981 0%, #059669 100%)",
           color: "white",
@@ -7647,7 +7647,7 @@ export default function SectionProductsPage({
             <div style={{ fontSize: "10px", color: "#94A3B8", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               {product.brand || "Buyto Fresh"}
             </div>
-            
+
             <h3 style={{
               fontSize: "14px",
               fontWeight: "800",

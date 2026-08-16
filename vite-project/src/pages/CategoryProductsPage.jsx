@@ -609,7 +609,7 @@ export default function CategoryProductsPage({
   const matchedCategory = useMemo(() => {
     if (!slug) return null;
     if (slug === "electronics") {
-      return { name: "Electronics", slug: "electronics", icon: "🎧" };
+      return { name: "Electronics & Appliances", slug: "electronics", icon: "🎧" };
     }
     if (slug === "beauty") {
       return { name: "Beauty", slug: "beauty", icon: "💄" };
@@ -652,7 +652,7 @@ export default function CategoryProductsPage({
     const key = getSubcategoryKey(slug);
     return categoryFilters[key] || {};
   }, [slug]);
-  
+
   // Pagination & Load More States
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -962,17 +962,27 @@ export default function CategoryProductsPage({
           setLoading(true);
         }
       }
-      
-      let url = `${window.API_BASE_URL}/api/products?category=${encodeURIComponent(categoryName)}&page=${pageNum}&limit=20`;
+
+      let url = `${window.API_BASE_URL}/api/products?page=${pageNum}&limit=20`;
+      if (categoryName === "Decor") {
+        url = `${window.API_BASE_URL}/api/products?subCategory=${encodeURIComponent("Bouquet & Plants")}&page=${pageNum}&limit=50`;
+      } else if (categoryName === "Beauty" || categoryName === "Kids") {
+        url = `${window.API_BASE_URL}/api/products?page=${pageNum}&limit=300`;
+      } else {
+        const queryCat = categoryName === "Pharmacy" ? "Health and Pharma" : categoryName;
+        url += `&category=${encodeURIComponent(queryCat)}`;
+      }
       if (subCat && subCat !== "Show All") {
         url += `&subCategory=${encodeURIComponent(subCat)}`;
       }
-      
+
+      console.log("=== [FETCH CATEGORY DATA] ===", { categoryName, url });
       const isBlocking = false;
       const res = await apiFetch(url, { signal, blocking: isBlocking, minDelay: 700 });
       if (!res.ok) throw new Error("Failed to fetch products");
       const data = await res.json();
-      
+      console.log("=== [FETCH CATEGORY DATA RESPONSE] ===", { length: data?.length });
+
       const enriched = (data || []).map(p => ({
         ...p,
         _classifiedCategory: canonicalCategory(classifyProduct(p))
@@ -1050,7 +1060,7 @@ export default function CategoryProductsPage({
     if (loadingMore || !hasMore) return;
     const nextPage = page + 1;
     setPage(nextPage);
-    
+
     const categoryName = matchedCategory ? matchedCategory.name : slug;
     fetchCategoryData(categoryName, nextPage, activeSubcategory);
   };
@@ -2143,7 +2153,8 @@ export default function CategoryProductsPage({
         fontFamily: "'Outfit', 'Inter', sans-serif",
         color: "#6b7280"
       }}>
-        <style dangerouslySetInnerHTML={{__html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -2182,13 +2193,13 @@ export default function CategoryProductsPage({
 
   if (slug === "kids") {
     // Dynamic grouping of toys and baby/kids products
-    const playtimeProducts = products.filter(p => {
+    const playtimeProducts = localProducts.filter(p => {
       const cat = (p.category || "").toLowerCase();
       const name = (p.name || "").toLowerCase();
       return cat.includes("toy") || name.includes("toy") || name.includes("crab") || name.includes("xylophone");
     });
 
-    const cuddlyProducts = products.filter(p => {
+    const cuddlyProducts = localProducts.filter(p => {
       const name = (p.name || "").toLowerCase();
       return name.includes("teddy") || name.includes("plush") || name.includes("stuffed");
     });
@@ -2232,7 +2243,7 @@ export default function CategoryProductsPage({
         }}
       >
         <SEO title="Kids Tiny Tots Store" description="Order diapering, baby care, toys and gifting needs for kids on Buyto." />
-        
+
         {/* Playful Blue Section - Attached directly below navigation bar */}
         <div
           style={{
@@ -2246,7 +2257,7 @@ export default function CategoryProductsPage({
           }}
         >
           <div style={{ width: "100%", maxWidth: "720px" }}>
-            
+
             {/* Playful TINY TOTS ZONE header */}
             <div style={{ textAlign: "center", marginBottom: "20px" }}>
               <div
@@ -2317,12 +2328,12 @@ export default function CategoryProductsPage({
                   >
                     TOP DEALS
                   </div>
-                  
+
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ textDecoration: "line-through", color: "#6b7280", fontSize: "12px" }}>₹195</span>
                     <span style={{ fontSize: "20px", fontWeight: "900", color: "#0284c7" }}>₹145</span>
                   </div>
-                  
+
                   <div style={{ fontSize: "14px", fontWeight: "750", color: "#1f2937", marginTop: "4px" }}>
                     Baby Soap
                   </div>
@@ -2427,7 +2438,7 @@ export default function CategoryProductsPage({
           {playtimeProducts.length > 0 && (
             <div style={{ marginBottom: "12px" }}>
               <HorizontalProductSection
-                title="For a happy playtime"
+                title="Happy playtime"
                 products={playtimeProducts}
                 openProduct={setSelectedProduct}
                 setSelectedProduct={setSelectedProduct}
@@ -2458,6 +2469,193 @@ export default function CategoryProductsPage({
               />
             </div>
           )}
+          {/* Happy playtime */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Happy playtime"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Diapering made easy */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Diapering made easy"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Feeding essentials */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Feeding essentials"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Body, Skin & face care */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Body, Skin & face care"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Hygiene is important */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Hygiene is important"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Toddler toys */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Toddler toys"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Fun with Brushing */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Fun with Brushing"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Toys */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Toys"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Activity Books for kids */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Activity Books for kids"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Best of baby feeding essentials */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Best of baby feeding essentials"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Shop diapers by size */}
+          {cuddlyProducts.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <HorizontalProductSection
+                title="Shop diapers by size"
+                products={cuddlyProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
         </div>
 
       </div>
@@ -2466,7 +2664,7 @@ export default function CategoryProductsPage({
 
   if (slug === "decor") {
     // Dynamic grouping of plant/greenery decor products
-    const plantProducts = products.filter(p => {
+    const plantProducts = localProducts.filter(p => {
       const name = (p.name || "").toLowerCase();
       return name.includes("plant") || name.includes("bamboo") || name.includes("lily") || name.includes("syngonium") || name.includes("palm") || name.includes("aglaonema");
     });
@@ -2483,7 +2681,7 @@ export default function CategoryProductsPage({
         }}
       >
         <SEO title="Decor Store" description="Reimagine your space with premium home decor and plants on Buyto." />
-        
+
         {/* Decor Hero Banner - Warm/Beige attached directly below category navigation */}
         <div
           style={{
@@ -2555,7 +2753,160 @@ export default function CategoryProductsPage({
           {plantProducts.length > 0 && (
             <div>
               <HorizontalProductSection
-                title="Infuse greenery in every room"
+                title="Fuse greenery in your rooms"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Give every room a glow-up */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Give every room a glow-up"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Furnish with style */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Furnish with style"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Create your dream room */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Create your dream room"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Make your bedroom a beautiful escape */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Make your bedroom a beautiful escape"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Party time */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Party time"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Bring the heat of your kitchen */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Bring the heat of your kitchen"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Decorate your bathroom */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Decorate your bathroom"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Gentle towels */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Gentle towels"
+                products={plantProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Party-decorations */}
+          {plantProducts.length > 0 && (
+            <div>
+              <HorizontalProductSection
+                title="Party-decorations"
                 products={plantProducts}
                 openProduct={setSelectedProduct}
                 setSelectedProduct={setSelectedProduct}
@@ -2605,7 +2956,7 @@ export default function CategoryProductsPage({
 
   if (slug === "pharmacy") {
     // Dynamic grouping of pharmacy products
-    const pharmaProducts = products.filter(p => {
+    const pharmaProducts = localProducts.filter(p => {
       const cat = p.category?.toLowerCase() || "";
       const classified = (p._classifiedCategory || canonicalCategory(classifyProduct(p)) || "").toLowerCase();
       return cat.includes("pharma") || cat.includes("health") || classified.includes("pharma") || classified.includes("health") || classified.includes("sexual");
@@ -2659,7 +3010,7 @@ export default function CategoryProductsPage({
         }}
       >
         <SEO title="Pharmacy Store" description="Order medicines and healthcare needs online on Buyto." />
-        
+
         {/* Pharmacy Hero Banner - Strong Teal/Blue attached directly below navigation */}
         <div
           style={{
@@ -2686,7 +3037,7 @@ export default function CategoryProductsPage({
             >
               Medicines and<br />insulins available
             </h1>
-            
+
             <div style={{ display: "flex", alignItems: "center", marginTop: "10px", flexWrap: "wrap", gap: "6px" }}>
               <span
                 style={{
@@ -2852,9 +3203,9 @@ export default function CategoryProductsPage({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                columnGap: "12px",
-                rowGap: "16px"
+                gridTemplateColumns: isMobile ? "repeat(4, minmax(0, 1fr))" : "repeat(auto-fill, minmax(130px, 1fr))",
+                columnGap: isMobile ? "22px" : "20px",
+                rowGap: isMobile ? "22px" : "28px"
               }}
             >
               {pharmacyCategories.map((cat) => (
@@ -2878,8 +3229,8 @@ export default function CategoryProductsPage({
                   <div
                     style={{
                       width: "100%",
-                      aspectRatio: "1 / 0.9",
-                      borderRadius: "16px",
+                      aspectRatio: "1 / 1",
+                      borderRadius: isMobile ? "18px" : "20px",
                       background: cat.bg,
                       display: "flex",
                       alignItems: "center",
@@ -2940,6 +3291,108 @@ export default function CategoryProductsPage({
               />
             </div>
           )}
+          {/* Hair & Skin care */}
+          {pharmaProducts.length > 0 && (
+            <div style={{ marginTop: "24px" }}>
+              <HorizontalProductSection
+                title="Hair & Skin care"
+                products={pharmaProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Medical Devices */}
+          {pharmaProducts.length > 0 && (
+            <div style={{ marginTop: "24px" }}>
+              <HorizontalProductSection
+                title="Medical Devices"
+                products={pharmaProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Get rid of your ache */}
+          {pharmaProducts.length > 0 && (
+            <div style={{ marginTop: "24px" }}>
+              <HorizontalProductSection
+                title="Get rid of your ache"
+                products={pharmaProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Stomach Care */}
+          {pharmaProducts.length > 0 && (
+            <div style={{ marginTop: "24px" }}>
+              <HorizontalProductSection
+                title="Stomach Care"
+                products={pharmaProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Women's health */}
+          {pharmaProducts.length > 0 && (
+            <div style={{ marginTop: "24px" }}>
+              <HorizontalProductSection
+                title="Women's health"
+                products={pharmaProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
+          {/* Cough and Cold */}
+          {pharmaProducts.length > 0 && (
+            <div style={{ marginTop: "24px" }}>
+              <HorizontalProductSection
+                title="Cough and Cold"
+                products={pharmaProducts}
+                openProduct={setSelectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                cart={cart}
+                windowWidth={windowWidth}
+                getCartKey={getCartKey}
+                cartItems={cartItems}
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -2947,19 +3400,19 @@ export default function CategoryProductsPage({
 
   if (slug === "beauty") {
     // Dynamic grouping of beauty products
-    const hairCareProducts = products.filter(p => {
+    const hairCareProducts = localProducts.filter(p => {
       const cat = p.category?.toLowerCase() || "";
       const classified = (p._classifiedCategory || canonicalCategory(classifyProduct(p)) || "").toLowerCase();
       return cat.includes("hair") || classified.includes("hair");
     });
 
-    const skincareProducts = products.filter(p => {
+    const skincareProducts = localProducts.filter(p => {
       const cat = p.category?.toLowerCase() || "";
       const classified = (p._classifiedCategory || canonicalCategory(classifyProduct(p)) || "").toLowerCase();
       return cat.includes("skin") || classified.includes("skin");
     });
 
-    const bathBodyProducts = products.filter(p => {
+    const bathBodyProducts = localProducts.filter(p => {
       const cat = p.category?.toLowerCase() || "";
       const classified = (p._classifiedCategory || canonicalCategory(classifyProduct(p)) || "").toLowerCase();
       return cat.includes("bath") || cat.includes("body") || classified.includes("bath") || classified.includes("body");
@@ -3001,7 +3454,67 @@ export default function CategoryProductsPage({
         products: skincareProducts
       },
       {
+        title: "Nourish & repair your hair",
+        subtitle: "Premium oils, serums, masks & more",
+        products: hairCareProducts
+      },
+      {
         title: "Bath and body specials",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "UV filter sunscreens",
+        subtitle: "Protect your skin from sunburns",
+        products: bathBodyProducts
+      },
+      {
+        title: "Protect, hydrate & glow",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Smell great",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Searching for best deals ?",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Trending nail paints",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Kajals & liners",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Skincare made easy",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Hairy essentials",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Hair care",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Salon at your home",
+        subtitle: "Get body milks, handwashes, soaps & more",
+        products: bathBodyProducts
+      },
+      {
+        title: "Last minute grooming needs",
         subtitle: "Get body milks, handwashes, soaps & more",
         products: bathBodyProducts
       }
@@ -3019,7 +3532,7 @@ export default function CategoryProductsPage({
         }}
       >
         <SEO title="Beauty Store" description="Browse premium beauty and personal care products on Buyto." />
-        
+
         {/* ONE SINGLE BEAUTY PROMOTIONAL SECTION - FULL WIDTH ATTACHED DIRECTLY UNDER NAVIGATION */}
         <div
           style={{
@@ -3034,7 +3547,7 @@ export default function CategoryProductsPage({
         >
           {/* Constrain inner content width to keep cards and text compact on desktop */}
           <div style={{ width: "100%", maxWidth: "720px" }}>
-            
+
             {/* Hero Content */}
             <div
               style={{
@@ -3065,7 +3578,7 @@ export default function CategoryProductsPage({
               >
                 Teej-Ready Look
               </h1>
-              
+
               {/* Decorative element */}
               <div
                 style={{
@@ -3125,7 +3638,7 @@ export default function CategoryProductsPage({
                   >
                     {card.discount}
                   </div>
-                  
+
                   <div
                     style={{
                       fontSize: isMobile ? "11px" : "13px",
@@ -3208,6 +3721,12 @@ export default function CategoryProductsPage({
 
     const electronicsSections = [
       {
+        title: "Top Deals",
+        categories: [
+          { name: "Top Deals", subcategory: "Top Deals", image: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=150", bg: "#FEF2F2" }
+        ]
+      },
+      {
         title: "Home and kitchen",
         categories: [
           { name: "Irons & More", subcategory: "Irons & More", image: kitchenImg, bg: "#EFEBF9" },
@@ -3245,6 +3764,94 @@ export default function CategoryProductsPage({
           { name: "Cables & Chargers", subcategory: "Cables & Chargers", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=150", bg: "#E6FAF0" },
           { name: "Power Banks", subcategory: "Power Banks", image: "https://images.unsplash.com/photo-1609592424109-dd2e1e0a2935?w=150", bg: "#F4EBF9" },
           { name: "Batteries", subcategory: "Batteries", image: duracellImg, bg: "#FAF0F0" }
+        ]
+      },
+      {
+        title: "Salon at your home",
+        categories: [
+          { name: "Hair & Styling", subcategory: "Hair Styling", image: hairImg, bg: "#EFEBF9" },
+          { name: "Grooming & Shaving", subcategory: "Grooming", image: groomingImg, bg: "#E6FAF0" },
+          { name: "Skincare Tools", subcategory: "Skincare Tools", image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=150", bg: "#FAF0EC" }
+        ]
+      },
+      {
+        title: "Trimmers of their Best",
+        categories: [
+          { name: "Beard Trimmers", subcategory: "Trimmers", image: groomingImg, bg: "#E6FAF0" },
+          { name: "Multi-Grooming Kits", subcategory: "Grooming Kits", image: groomingImg, bg: "#FAF0EC" },
+          { name: "Hair Clippers", subcategory: "Hair Clippers", image: hairImg, bg: "#EFEBF9" }
+        ]
+      },
+      {
+        title: "Premium gadgets",
+        categories: [
+          { name: "Smart Assistants", subcategory: "Smart Assistants", image: boAtImg, bg: "#EAF5FC" },
+          { name: "Wireless Chargers", subcategory: "Wireless Chargers", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=150", bg: "#FAF0EC" },
+          { name: "Premium Audio", subcategory: "Speakers", image: boAtImg, bg: "#E6FAF4" }
+        ]
+      },
+      {
+        title: "Daily Essentials",
+        categories: [
+          { name: "Batteries", subcategory: "Batteries", image: duracellImg, bg: "#FAF0F0" },
+          { name: "LED Bulbs", subcategory: "LED & Lamps", image: "https://images.unsplash.com/photo-1507646227500-4d389b0012be?w=150", bg: "#FAF6E2" },
+          { name: "Extension Cords", subcategory: "Extension Boards", image: extensionImg, bg: "#FAF0EC" }
+        ]
+      },
+      {
+        title: "Your Workspace",
+        categories: [
+          { name: "Study Lamps", subcategory: "LED & Lamps", image: "https://images.unsplash.com/photo-1507646227500-4d389b0012be?w=150", bg: "#FAF6E2" },
+          { name: "Extension Cords", subcategory: "Extension Boards", image: extensionImg, bg: "#EBF0FA" },
+          { name: "Cables & Organizers", subcategory: "Cables & Chargers", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=150", bg: "#E6FAF0" }
+        ]
+      },
+      {
+        title: "Best brands in audio & accessories",
+        categories: [
+          { name: "boAt", subcategory: "boAt", image: boAtImg, bg: "#FFF5F5" },
+          { name: "noise", subcategory: "noise", image: "https://images.unsplash.com/photo-1517502884422-41eaaced0168?w=150", bg: "#F0F7FF" },
+          { name: "PORTRONICS", subcategory: "Portronics", image: "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=150", bg: "#FAF6E2" }
+        ]
+      },
+      {
+        title: "Lighten up your space",
+        categories: [
+          { name: "LED Bulbs & Battens", subcategory: "LED & Lamps", image: "https://images.unsplash.com/photo-1507646227500-4d389b0012be?w=150", bg: "#FAF6E2" },
+          { name: "Study & Table Lamps", subcategory: "LED & Lamps", image: "https://images.unsplash.com/photo-1507646227500-4d389b0012be?w=150", bg: "#FAF0EC" },
+          { name: "Smart & Decorative Lights", subcategory: "LED & Lamps", image: "https://images.unsplash.com/photo-1507646227500-4d389b0012be?w=150", bg: "#EAF5FC" }
+        ]
+      },
+      {
+        title: "Chargers & more",
+        categories: [
+          { name: "Fast Chargers", subcategory: "Cables & Chargers", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=150", bg: "#FAF0EC" },
+          { name: "Charging Cables", subcategory: "Cables & Chargers", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=150", bg: "#E6FAF0" },
+          { name: "Wireless Chargers", subcategory: "Wireless Chargers", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=150", bg: "#FAF6E2" }
+        ]
+      },
+      {
+        title: "Running out of battery ?",
+        categories: [
+          { name: "Duracell Batteries", subcategory: "Batteries", image: duracellImg, bg: "#FEF2F2" },
+          { name: "Power Banks", subcategory: "Power Banks", image: "https://images.unsplash.com/photo-1609592424109-dd2e1e0a2935?w=150", bg: "#F0F7FF" },
+          { name: "Cables & Adapters", subcategory: "Cables & Chargers", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=150", bg: "#FAF6E2" }
+        ]
+      },
+      {
+        title: "Blend it with !",
+        categories: [
+          { name: "Juicers & Frothers", subcategory: "Juicers & Frothers", image: kitchenImg, bg: "#FAF0F4" },
+          { name: "Hand Blenders", subcategory: "Cookware", image: kitchenImg, bg: "#EAF6F3" },
+          { name: "Mixers & Grinders", subcategory: "Cookware", image: kitchenImg, bg: "#EBF1FA" }
+        ]
+      },
+      {
+        title: "Get Massaged",
+        categories: [
+          { name: "Juicers & Frothers", subcategory: "Juicers & Frothers", image: kitchenImg, bg: "#FAF0F4" },
+          { name: "Hand Blenders", subcategory: "Cookware", image: kitchenImg, bg: "#EAF6F3" },
+          { name: "Mixers & Grinders", subcategory: "Cookware", image: kitchenImg, bg: "#EBF1FA" }
         ]
       }
     ];
