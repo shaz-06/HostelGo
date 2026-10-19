@@ -121,6 +121,10 @@ const applyOverrides = (data) => {
   });
 };
 
+const hasProductDetails = (data) =>
+  Array.isArray(data) &&
+  data.every((category) => Array.isArray(category.products));
+
 export default function BestsellersSection({ initialData = null }) {
   const navigate = useNavigate();
   const [bestsellers, setBestsellers] = React.useState(() =>
@@ -146,7 +150,7 @@ export default function BestsellersSection({ initialData = null }) {
   }, [selectedCategory]);
 
   React.useEffect(() => {
-    if (initialData && initialData.length > 0) {
+    if (initialData && initialData.length > 0 && hasProductDetails(initialData)) {
       setBestsellers(applyOverrides(initialData));
       setBestsellersLoading(false);
       return;
@@ -458,48 +462,59 @@ export default function BestsellersSection({ initialData = null }) {
                 <div className="bestseller-drawer-products">
                   <div className="bestseller-drawer-products-grid">
                     {(selectedCategory.previewImages || []).map(
-                      (imgUrl, index) => (
-                        <button
-                          type="button"
-                          className="bestseller-drawer-product"
-                          key={`${imgUrl}-${index}`}
-                          onClick={() =>
-                            navigate(`/category/${selectedCategory.slug}`)
-                          }
-                          aria-label={`Explore ${selectedCategory.name}`}
-                        >
-                          <div className="bestseller-product-image-wrap">
-                            <img
-                              src={imgUrl}
-                              alt={selectedCategory.name}
-                              loading="lazy"
-                            />
-                            <span
-                              className="bestseller-product-heart"
-                              aria-hidden="true"
-                            >
-                              ♡
-                            </span>
-                            <span
-                              className="bestseller-product-dots"
-                              aria-hidden="true"
-                            >
-                              <i /> <i />
-                            </span>
-                          </div>
-                          <div className="bestseller-product-info">
-                            <span className="bestseller-product-name">
-                              {selectedCategory.name}
-                            </span>
-                            <span className="bestseller-product-subtitle">
-                              Explore available products
-                            </span>
-                            <span className="bestseller-product-link">
-                              VIEW PRODUCTS <b>›</b>
-                            </span>
-                          </div>
-                        </button>
-                      ),
+                      (previewImage, index) => {
+                        const product = selectedCategory.products?.[index];
+                        const image = product?.image || previewImage;
+                        const productName =
+                          typeof product?.name === "string" && product.name.trim()
+                            ? product.name.trim()
+                            : "Product";
+
+                        return (
+                          <button
+                            type="button"
+                            className="bestseller-drawer-product"
+                            key={product?._id || product?.id || `${image}-${index}`}
+                            onClick={() =>
+                              navigate(`/category/${selectedCategory.slug}`)
+                            }
+                            aria-label={`Explore ${productName}`}
+                          >
+                            <div className="bestseller-product-image-wrap">
+                              {image && (
+                                <img
+                                  src={image}
+                                  alt={productName}
+                                  loading="lazy"
+                                />
+                              )}
+                              <span
+                                className="bestseller-product-heart"
+                                aria-hidden="true"
+                              >
+                                ♡
+                              </span>
+                              <span
+                                className="bestseller-product-dots"
+                                aria-hidden="true"
+                              >
+                                <i /> <i />
+                              </span>
+                            </div>
+                            <div className="bestseller-product-info">
+                              <span className="bestseller-product-name">
+                                {productName}
+                              </span>
+                              <span className="bestseller-product-subtitle">
+                                Explore available products
+                              </span>
+                              <span className="bestseller-product-link">
+                                VIEW PRODUCTS <b>›</b>
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      },
                     )}
                   </div>
                   <button
@@ -548,8 +563,8 @@ export default function BestsellersSection({ initialData = null }) {
         .bestseller-drawer-products { min-width: 0; overflow-y: auto; padding: 14px 12px 24px; }
         .bestseller-drawer-products-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 22px 12px; }
         .bestseller-drawer-product { min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
-        .bestseller-product-image-wrap { position: relative; aspect-ratio: 1 / 1; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 14px; background: #f8f8f8; }
-        .bestseller-product-image-wrap > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .bestseller-product-image-wrap { position: relative; aspect-ratio: auto; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 14px; background: #f8f8f8; }
+        .bestseller-product-image-wrap > img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .bestseller-product-heart { position: absolute; top: 8px; right: 9px; color: #fff; text-shadow: 0 1px 4px #555; font-size: 26px; line-height: 1; }
         .bestseller-product-dots { position: absolute; left: 10px; bottom: 9px; display: flex; gap: 5px; }
         .bestseller-product-dots i { width: 7px; height: 7px; border-radius: 50%; background: #d1d5db; }

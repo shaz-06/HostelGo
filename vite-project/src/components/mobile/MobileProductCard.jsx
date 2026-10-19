@@ -4,7 +4,7 @@ import { getOptimizedImageUrl } from "../../utils/imageOptimizer";
 import { useTheme } from "../../context/ThemeContext";
 import { AuthContext } from "../../context/AuthContext";
 import { isProductSensitive } from "../../utils/productPrivacy";
-import { UIContext } from '../../context/UIContext';
+import { UIContext } from "../../context/UIContext";
 
 function MobileProductCard({
   product,
@@ -28,23 +28,35 @@ function MobileProductCard({
   }, [productId]);
 
   if (!product) return null;
-  const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+  const hasVariants =
+    Array.isArray(product.variants) && product.variants.length > 0;
   const isOutOfStock = hasVariants
-    ? product.variants.every(v => v.stock === undefined ? false : v.stock <= 0)
-    : (product.stock !== undefined && product.stock <= 0);
+    ? product.variants.every((v) =>
+        v.stock === undefined ? false : v.stock <= 0,
+      )
+    : product.stock !== undefined && product.stock <= 0;
 
-  const price = product.price !== undefined && product.price !== null
-    ? product.price
-    : (hasVariants && product.variants[0] ? product.variants[0].price : 0);
+  const price =
+    product.price !== undefined && product.price !== null
+      ? product.price
+      : hasVariants && product.variants[0]
+      ? product.variants[0].price
+      : 0;
 
-  const originalPrice = product.originalPrice !== undefined && product.originalPrice !== null
-    ? product.originalPrice
-    : (hasVariants && product.variants[0] && product.variants[0].originalPrice !== undefined
+  const originalPrice =
+    product.originalPrice !== undefined && product.originalPrice !== null
+      ? product.originalPrice
+      : hasVariants &&
+        product.variants[0] &&
+        product.variants[0].originalPrice !== undefined
       ? product.variants[0].originalPrice
-      : price);
+      : price;
 
-  const weight = product.weight || (hasVariants && product.variants[0] ? product.variants[0].weight : "");
-  const defaultWeight = hasVariants && product.variants[0] ? product.variants[0].weight : "";
+  const weight =
+    product.weight ||
+    (hasVariants && product.variants[0] ? product.variants[0].weight : "");
+  const defaultWeight =
+    hasVariants && product.variants[0] ? product.variants[0].weight : "";
 
   const activeItems = Array.isArray(cartItems) ? cartItems : [];
   const productIds = new Set(
@@ -64,9 +76,16 @@ function MobileProductCard({
       .filter((id) => id !== undefined && id !== null)
       .map(String);
     const itemWeight = item.selectedWeight || "";
-    return itemIds.some((id) => productIds.has(id)) && itemWeight === defaultWeight;
+    return (
+      itemIds.some((id) => productIds.has(id)) && itemWeight === defaultWeight
+    );
   });
-  const quantity = propQuantity !== undefined ? propQuantity : (cartItem ? cartItem.quantity : 0);
+  const quantity =
+    propQuantity !== undefined
+      ? propQuantity
+      : cartItem
+      ? cartItem.quantity
+      : 0;
 
   const hasDiscount = originalPrice > price;
   const discountPercentage = hasDiscount
@@ -78,10 +97,12 @@ function MobileProductCard({
     const cat = (category || "").toLowerCase();
     if (cat.includes("fruit")) return "#fff5f5"; // light pink/red
     if (cat.includes("veggie") || cat.includes("vegetable")) return "#eefaf2"; // light green
-    if (cat.includes("dairy") || cat.includes("milk") || cat.includes("bread")) return "#f0f7ff"; // light blue
+    if (cat.includes("dairy") || cat.includes("milk") || cat.includes("bread"))
+      return "#f0f7ff"; // light blue
     if (cat.includes("snack") || cat.includes("munchies")) return "#fff1f2"; // light red/pink
     if (cat.includes("drink") || cat.includes("beverage")) return "#f0fdf4"; // light green/cyan
-    if (cat.includes("meat") || cat.includes("fish") || cat.includes("seafood")) return "#fff7ed"; // light orange
+    if (cat.includes("meat") || cat.includes("fish") || cat.includes("seafood"))
+      return "#fff7ed"; // light orange
     return "#fafaf9"; // light grey/beige
   };
 
@@ -141,16 +162,25 @@ function MobileProductCard({
     const productToCart = {
       ...product,
       selectedWeight: defaultWeight,
-      price: product.variants && product.variants[0] ? product.variants[0].price : product.price
+      price:
+        product.variants && product.variants[0]
+          ? product.variants[0].price
+          : product.price,
     };
 
     const maxAvailable = hasVariants
-      ? (product.variants[0] && product.variants[0].stock !== undefined ? product.variants[0].stock : 30)
-      : (product.stock !== undefined ? product.stock : 30);
+      ? product.variants[0] && product.variants[0].stock !== undefined
+        ? product.variants[0].stock
+        : 30
+      : product.stock !== undefined
+      ? product.stock
+      : 30;
     if (quantity >= maxAvailable) {
-      window.dispatchEvent(new CustomEvent("showGlobalToast", {
-        detail: { message: `Only ${maxAvailable} items available` }
-      }));
+      window.dispatchEvent(
+        new CustomEvent("showGlobalToast", {
+          detail: { message: `Only ${maxAvailable} items available` },
+        }),
+      );
       return;
     }
 
@@ -166,7 +196,10 @@ function MobileProductCard({
     const productToCart = {
       ...product,
       selectedWeight: defaultWeight,
-      price: product.variants && product.variants[0] ? product.variants[0].price : product.price
+      price:
+        product.variants && product.variants[0]
+          ? product.variants[0].price
+          : product.price,
     };
 
     if (removeFromCart) {
@@ -191,8 +224,12 @@ function MobileProductCard({
         boxSizing: "border-box",
         fontFamily: "'Outfit', 'Inter', sans-serif",
         flexShrink: 0,
-        boxShadow: isDark ? "0 4px 10px rgba(0,0,0,0.3)" : "0 2px 6px rgba(0,0,0,0.02)",
-        border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #f0f0f0",
+        boxShadow: isDark
+          ? "0 4px 10px rgba(0,0,0,0.3)"
+          : "0 2px 6px rgba(0,0,0,0.02)",
+        border: isDark
+          ? "1px solid rgba(255,255,255,0.08)"
+          : "1px solid #f0f0f0",
       }}
     >
       <div>
@@ -212,19 +249,21 @@ function MobileProductCard({
           }}
         >
           {isOutOfStock && (
-            <span style={{
-              position: "absolute",
-              zIndex: 10,
-              background: "#ef4444",
-              color: "white",
-              padding: "2px 4px",
-              borderRadius: "4px",
-              fontSize: "8px",
-              fontWeight: "900",
-              textTransform: "uppercase",
-              letterSpacing: "0.3px",
-              boxShadow: "0 1.5px 4px rgba(239, 68, 68, 0.3)"
-            }}>
+            <span
+              style={{
+                position: "absolute",
+                zIndex: 10,
+                background: "#ef4444",
+                color: "white",
+                padding: "2px 4px",
+                borderRadius: "4px",
+                fontSize: "8px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                letterSpacing: "0.3px",
+                boxShadow: "0 1.5px 4px rgba(239, 68, 68, 0.3)",
+              }}
+            >
               Out of Stock
             </span>
           )}
@@ -241,25 +280,45 @@ function MobileProductCard({
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(249, 250, 251, 0.98)",
+                background: isDark
+                  ? "rgba(17, 24, 39, 0.95)"
+                  : "rgba(249, 250, 251, 0.98)",
                 borderRadius: "8px",
                 padding: "4px",
                 boxSizing: "border-box",
                 cursor: "pointer",
                 userSelect: "none",
-                zIndex: 10
+                zIndex: 10,
               }}
             >
               <div style={{ fontSize: "12px", marginBottom: "2px" }}>🔒</div>
-              <div style={{ fontSize: "8px", fontWeight: "900", color: isDark ? "#F3F4F6" : "#1F2937", textAlign: "center", lineHeight: "1" }}>
+              <div
+                style={{
+                  fontSize: "8px",
+                  fontWeight: "900",
+                  color: isDark ? "#F3F4F6" : "#1F2937",
+                  textAlign: "center",
+                  lineHeight: "1",
+                }}
+              >
                 Sensitive Product
               </div>
-              <div style={{ fontSize: "6px", fontWeight: "800", color: "#318616", marginTop: "2px", textDecoration: "underline" }}>
+              <div
+                style={{
+                  fontSize: "6px",
+                  fontWeight: "800",
+                  color: "#318616",
+                  marginTop: "2px",
+                  textDecoration: "underline",
+                }}
+              >
                 Tap to view
               </div>
             </div>
           ) : (
-            <img loading="lazy" decoding="async"
+            <img
+              loading="lazy"
+              decoding="async"
               src={getOptimizedImageUrl(product.image, "thumbnail", product)}
               alt={product.name}
               style={{
@@ -273,23 +332,32 @@ function MobileProductCard({
             />
           )}
           {/* ADD/Quantity Selector overlapping the bottom-right edge of the image container */}
-          <div style={{
-            position: "absolute",
-            bottom: "-8px",
-            right: "6px",
-            zIndex: 30,
-            boxSizing: "border-box",
-          }} onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{
+              position: "absolute",
+              bottom: "-8px",
+              right: "6px",
+              zIndex: 30,
+              boxSizing: "border-box",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div
               style={{
-                width: (quantity === 0 && !isAnimating) ? "54px" : "64px",
+                width: quantity === 0 && !isAnimating ? "54px" : "64px",
                 height: "22px",
                 position: "relative",
                 transition: "all 200ms ease-in-out",
                 borderRadius: "6px",
                 overflow: "hidden",
-                border: isOutOfStock ? "1px solid #d1d5db" : "1px solid #318616",
-                backgroundColor: isOutOfStock ? "#f3f4f6" : ((quantity > 0 && !isAnimating) ? "#318616" : "white"),
+                border: isOutOfStock
+                  ? "1px solid #d1d5db"
+                  : "1px solid #318616",
+                backgroundColor: isOutOfStock
+                  ? "#f3f4f6"
+                  : quantity > 0 && !isAnimating
+                  ? "#318616"
+                  : "white",
                 boxShadow: "0 1.5px 4px rgba(0,0,0,0.06)",
                 boxSizing: "border-box",
                 willChange: "width, background-color, border-color",
@@ -297,18 +365,21 @@ function MobileProductCard({
             >
               {/* Custom rising line element */}
               {isAnimating && (
-                <div style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: "100%",
-                  height: "100%",
-                  background: "#318616",
-                  transformOrigin: "bottom center",
-                  animation: "buytoLineGrow 450ms forwards cubic-bezier(0.25, 1, 0.5, 1)",
-                  zIndex: 2,
-                  willChange: "transform, opacity",
-                }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: "100%",
+                    height: "100%",
+                    background: "#318616",
+                    transformOrigin: "bottom center",
+                    animation:
+                      "buytoLineGrow 450ms forwards cubic-bezier(0.25, 1, 0.5, 1)",
+                    zIndex: 2,
+                    willChange: "transform, opacity",
+                  }}
+                />
               )}
 
               {/* ADD or Options Button */}
@@ -333,35 +404,47 @@ function MobileProductCard({
                 >
                   OUT
                 </button>
-              ) : ((quantity === 0 || isAnimating) && (
-                <button
-                  onClick={handleButtonClick}
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background: "transparent",
-                    border: "none",
-                    color: "#318616",
-                    fontSize: "8.5px",
-                    fontWeight: "900",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 3,
-                    pointerEvents: quantity === 0 ? "auto" : "none",
-                    animation: isAnimating ? "buytoTextFade 450ms forwards ease-in-out" : "none",
-                    boxSizing: "border-box",
-                  }}
-                  className="active:scale-95"
-                >
-                  {hasVariants ? (
-                    <span style={{ fontSize: "7px", fontWeight: "800", whiteSpace: "nowrap" }}>
-                      {product.variants.length} options
-                    </span>
-                  ) : "ADD"}
-                </button>
-              ))}
+              ) : (
+                (quantity === 0 || isAnimating) && (
+                  <button
+                    onClick={handleButtonClick}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "transparent",
+                      border: "none",
+                      color: "#318616",
+                      fontSize: "8.5px",
+                      fontWeight: "900",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      zIndex: 3,
+                      pointerEvents: quantity === 0 ? "auto" : "none",
+                      animation: isAnimating
+                        ? "buytoTextFade 450ms forwards ease-in-out"
+                        : "none",
+                      boxSizing: "border-box",
+                    }}
+                    className="active:scale-95"
+                  >
+                    {hasVariants ? (
+                      <span
+                        style={{
+                          fontSize: "7px",
+                          fontWeight: "800",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {product.variants.length} options
+                      </span>
+                    ) : (
+                      "ADD"
+                    )}
+                  </button>
+                )
+              )}
 
               {/* Quantity Selector */}
               {(quantity > 0 || isAnimating) && (
@@ -376,7 +459,9 @@ function MobileProductCard({
                     padding: "0 3px",
                     boxSizing: "border-box",
                     zIndex: 4,
-                    animation: isAnimating ? "buytoQtySelectorFade 450ms forwards cubic-bezier(0.34, 1.56, 0.64, 1)" : "none",
+                    animation: isAnimating
+                      ? "buytoQtySelectorFade 450ms forwards cubic-bezier(0.34, 1.56, 0.64, 1)"
+                      : "none",
                     opacity: isAnimating ? 0 : 1,
                   }}
                 >
@@ -407,7 +492,8 @@ function MobileProductCard({
                       fontSize: "9px",
                       display: "inline-block",
                       transform: isAnimatingQty ? "scale(1.2)" : "scale(1)",
-                      transition: "transform 150ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                      transition:
+                        "transform 150ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
                     }}
                   >
                     {quantity}
@@ -439,18 +525,45 @@ function MobileProductCard({
         </div>
 
         {/* Discount Badge & Price */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginTop: "6px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1px",
+            marginTop: "6px",
+          }}
+        >
           {hasDiscount && (
-            <span style={{ color: "#318616", fontWeight: "800", fontSize: "8px", textTransform: "uppercase" }}>
+            <span
+              style={{
+                color: "#318616",
+                fontWeight: "800",
+                fontSize: "8px",
+                textTransform: "uppercase",
+              }}
+            >
               {discountPercentage}% OFF
             </span>
           )}
           <div style={{ display: "flex", alignItems: "baseline", gap: "3px" }}>
-            <span style={{ fontWeight: "900", fontSize: "12px", color: isDark ? "var(--text-primary)" : "#1f2937" }}>
+            <span
+              style={{
+                fontWeight: "900",
+                fontSize: "12px",
+                color: isDark ? "var(--text-primary)" : "#1f2937",
+              }}
+            >
               ₹{price}
             </span>
             {originalPrice > price && (
-              <span style={{ textDecoration: "line-through", color: isDark ? "var(--text-secondary)" : "#9ca3af", fontSize: "10px", fontWeight: "500" }}>
+              <span
+                style={{
+                  textDecoration: "line-through",
+                  color: isDark ? "var(--text-secondary)" : "#9ca3af",
+                  fontSize: "10px",
+                  fontWeight: "500",
+                }}
+              >
                 ₹{originalPrice}
               </span>
             )}
@@ -458,7 +571,16 @@ function MobileProductCard({
         </div>
 
         {/* Brand name (subtle grey text) */}
-        <div style={{ fontSize: "8px", color: isDark ? "var(--text-secondary)" : "#9ca3af", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.2px", marginTop: "4px" }}>
+        <div
+          style={{
+            fontSize: "8px",
+            color: isDark ? "var(--text-secondary)" : "#9ca3af",
+            fontWeight: "600",
+            textTransform: "uppercase",
+            letterSpacing: "0.2px",
+            marginTop: "4px",
+          }}
+        >
           {product.brand || "Buyto Fresh"}
         </div>
 
@@ -477,19 +599,28 @@ function MobileProductCard({
             lineHeight: "14px",
           }}
         >
-          {searchQuery && searchQuery.trim() !== "" ? (
-            product.name.split(new RegExp(`(${searchQuery.trim()})`, "gi")).map((part, pIdx) =>
-              part.toLowerCase() === searchQuery.trim().toLowerCase() ? (
-                <span key={pIdx} style={{ background: "#fef08a", color: "#15803d", padding: "0 2px", borderRadius: "3px", fontWeight: "900" }}>
-                  {part}
-                </span>
-              ) : (
-                part
-              )
-            )
-          ) : (
-            product.name
-          )}
+          {searchQuery && searchQuery.trim() !== ""
+            ? product.name
+                .split(new RegExp(`(${searchQuery.trim()})`, "gi"))
+                .map((part, pIdx) =>
+                  part.toLowerCase() === searchQuery.trim().toLowerCase() ? (
+                    <span
+                      key={pIdx}
+                      style={{
+                        background: "#fef08a",
+                        color: "#15803d",
+                        padding: "0 2px",
+                        borderRadius: "3px",
+                        fontWeight: "900",
+                      }}
+                    >
+                      {part}
+                    </span>
+                  ) : (
+                    part
+                  ),
+                )
+            : product.name}
         </span>
 
         {/* Weight selector */}

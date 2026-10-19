@@ -999,12 +999,13 @@ app.get("/api/products/bestsellers", async (req, res) => {
         });
 
         // Retrieve up to 4 distinct preview images of products in these categories with valid images
+
         const sampleProducts = await Product.find(
           {
             category: { $in: mapping.categories },
             image: { $regex: /^https?:\/\//i },
           },
-          "image",
+          "name image price mrp brand unit weight",
         )
           .limit(4)
           .lean();
@@ -1016,6 +1017,7 @@ app.get("/api/products/bestsellers", async (req, res) => {
           slug: mapping.slug,
           count: count,
           previewImages: previewImages,
+          products: sampleProducts,
         });
       }
       res.json(results);
