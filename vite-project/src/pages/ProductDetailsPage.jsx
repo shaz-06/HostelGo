@@ -21,7 +21,11 @@ import {
   ShieldCheck,
   RotateCcw,
   Star,
-  Info,
+  Info
+} from "lucide-react";
+import { useAppStore, selectSaveForLaterIds } from '../store/appStore';
+import { UIContext } from '../context/UIContext';
+import {
   ThumbsUp,
   Plus,
   Check
@@ -74,8 +78,10 @@ export default function ProductDetailsPage({
   usePerfLogger("ProductDetailsPage");
   const { id } = useParams();
   const navigate = useNavigate();
-  const { saveForLaterIds, toggleSaveForLater, hideSensitive } = useContext(AuthContext);
-  
+  const { hideSensitive } = useContext(UIContext);
+  const saveForLaterIds = useAppStore(selectSaveForLaterIds);
+  const toggleSaveForLater = useAppStore((state) => state.toggleSaveForLater);
+
   const [isRevealed, setIsRevealed] = useState(false);
 
   useEffect(() => {
@@ -395,10 +401,10 @@ export default function ProductDetailsPage({
 
   return (
     <div className="page-with-bottom-nav" style={{ background: "#f7f8fa", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
-      <SEO 
-        title={activeProduct ? activeProduct.name : "Product Details"} 
-        description={activeProduct ? activeProduct.description || `Buy fresh ${activeProduct.name} online from Buyto with fast delivery.` : "View product details on Buyto."} 
-        image={activeProduct ? activeProduct.image : undefined} 
+      <SEO
+        title={activeProduct ? activeProduct.name : "Product Details"}
+        description={activeProduct ? activeProduct.description || `Buy fresh ${activeProduct.name} online from Buyto with fast delivery.` : "View product details on Buyto."}
+        image={activeProduct ? activeProduct.image : undefined}
       />
       {/* Top Breadcrumb */}
       <div style={{ padding: "12px 0", fontSize: "14px", color: "#6b7280", fontWeight: "500", display: "flex", gap: "6px" }}>
@@ -727,7 +733,9 @@ export default function ProductDetailsPage({
                             ? (currentVariant.stock !== undefined ? currentVariant.stock : 30)
                             : (activeProduct.stock !== undefined ? activeProduct.stock : 30);
                           if (cartQty >= maxAvailable) {
-                            alert(`Only ${maxAvailable} items available`);
+                            window.dispatchEvent(new CustomEvent("showGlobalToast", {
+                              detail: { message: `Only ${maxAvailable} items available` }
+                            }));
                             return;
                           }
                           addToCart({
@@ -792,7 +800,9 @@ export default function ProductDetailsPage({
                             ? (currentVariant.stock !== undefined ? currentVariant.stock : 30)
                             : (activeProduct.stock !== undefined ? activeProduct.stock : 30);
                           if (cartQty >= maxAvailable) {
-                            alert(`Only ${maxAvailable} items available`);
+                            window.dispatchEvent(new CustomEvent("showGlobalToast", {
+                              detail: { message: `Only ${maxAvailable} items available` }
+                            }));
                             return;
                           }
                           addToCart({

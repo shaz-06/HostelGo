@@ -12,7 +12,9 @@ const UnserviceableRequest = require("../models/UnserviceableRequest");
 const Category = require("../models/Category");
 const SentNotification = require("../models/SentNotification");
 const NotificationHistory = require("../models/NotificationHistory");
+const cacheService = require("../utils/cacheService");
 
+const getCategorySlug = (catName) => catName?.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-') || "";
 
 const STATUS_TIMESTAMP_KEYS = {
   "Pending": "pending",
@@ -886,6 +888,13 @@ router.post("/products", async (req, res) => {
 
     const savedProduct = await product.save();
     console.log("Product saved successfully:", savedProduct._id);
+
+    cacheService.invalidate("home:products");
+    cacheService.invalidate("home:bestsellers");
+    if (savedProduct.category) {
+      cacheService.invalidate(`category:${getCategorySlug(savedProduct.category)}:`);
+    }
+
     return res.status(201).json(savedProduct);
   } catch (error) {
     console.error("❌ Product Admin Post Error:", error);
@@ -935,6 +944,13 @@ router.put("/products/:id", async (req, res) => {
 
     const updatedProduct = await product.save();
     console.log("Product updated successfully:", updatedProduct._id);
+
+    cacheService.invalidate("home:products");
+    cacheService.invalidate("home:bestsellers");
+    if (updatedProduct.category) {
+      cacheService.invalidate(`category:${getCategorySlug(updatedProduct.category)}:`);
+    }
+
     return res.json(updatedProduct);
   } catch (error) {
     console.error("❌ Product Admin Put Error:", error);
@@ -959,6 +975,12 @@ router.delete("/products/:id", async (req, res) => {
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: "Product not found" });
     }
+
+    // Since we didn't fetch the product to get its category before deleting,
+    // we safely invalidate all category products and home products
+    cacheService.invalidate("home:products");
+    cacheService.invalidate("home:bestsellers");
+    cacheService.invalidate("category:");
 
     console.log("Product deleted successfully");
     return res.json({ success: true, message: "Product deleted successfully" });
@@ -1475,6 +1497,10 @@ router.post("/categories", async (req, res) => {
       priority: priority !== undefined ? Number(priority) : 0
     });
     const saved = await category.save();
+
+    cacheService.invalidate("home:categories");
+    cacheService.invalidate(`category:${getCategorySlug(saved.name)}:`);
+
     return res.status(201).json(saved);
   } catch (error) {
     return res.status(500).json({ message: "Failed to create category", error: error.message });
@@ -1496,6 +1522,10 @@ router.put("/categories/:id", async (req, res) => {
     if (priority !== undefined) category.priority = Number(priority);
 
     const updated = await category.save();
+
+    cacheService.invalidate("home:categories");
+    cacheService.invalidate(`category:${getCategorySlug(updated.name)}:`);
+
     return res.json(updated);
   } catch (error) {
     return res.status(500).json({ message: "Failed to update category", error: error.message });
@@ -1509,6 +1539,10 @@ router.delete("/categories/:id", async (req, res) => {
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: "Category not found" });
     }
+
+    cacheService.invalidate("home:categories");
+    cacheService.invalidate("category:");
+
     return res.json({ success: true, message: "Category deleted successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Failed to delete category", error: error.message });

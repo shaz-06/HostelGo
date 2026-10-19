@@ -512,76 +512,6 @@ const categoryFilters = {
   }
 };
 
-const matchPrice = (priceVal, priceStr) => {
-  const pVal = Number(priceVal) || 0;
-  const matchUnder = priceStr.match(/Under\s*₹\s*(\d+)/i);
-  if (matchUnder) {
-    return pVal < parseInt(matchUnder[1], 10);
-  }
-  const matchRange = priceStr.match(/₹\s*(\d+)\s*-\s*₹\s*(\d+)/i);
-  if (matchRange) {
-    return pVal >= parseInt(matchRange[1], 10) && pVal <= parseInt(matchRange[2], 10);
-  }
-  const matchPlus = priceStr.match(/₹\s*(\d+)\s*\+/i);
-  if (matchPlus) {
-    return pVal >= parseInt(matchPlus[1], 10);
-  }
-  return true;
-};
-
-const matchOffer = (p, offerStr) => {
-  const price = Number(p.price) || 0;
-  const originalPrice = Number(p.originalPrice) || 0;
-  if (!originalPrice || originalPrice <= price) return false;
-  const discount = ((originalPrice - price) / originalPrice) * 100;
-  const matchPct = offerStr.match(/(\d+)%\+\s*OFF/i);
-  if (matchPct) {
-    return discount >= parseInt(matchPct[1], 10);
-  }
-  if (offerStr.toLowerCase().includes("buy 1 get 1")) {
-    const nameMatch = p.name && String(p.name).toLowerCase().includes("buy 1 get 1");
-    const descMatch = p.description && String(p.description).toLowerCase().includes("bogo");
-    const tagsMatch = p.tags && (Array.isArray(p.tags)
-      ? p.tags.some(t => String(t).toLowerCase().includes("bogo"))
-      : String(p.tags).toLowerCase().includes("bogo"));
-    return nameMatch || descMatch || tagsMatch;
-  }
-  return true;
-};
-
-const matchType = (p, typeVal) => {
-  const val = typeVal.toLowerCase();
-  const nameMatch = p.name && String(p.name).toLowerCase().includes(val);
-  const subCategoryMatch = p.subCategory && String(p.subCategory).toLowerCase().includes(val);
-  const subcategoryMatch = p.subcategory && String(p.subcategory).toLowerCase().includes(val);
-  const descMatch = p.description && String(p.description).toLowerCase().includes(val);
-  const tagsMatch = p.tags && (Array.isArray(p.tags)
-    ? p.tags.some(t => String(t).toLowerCase().includes(val))
-    : String(p.tags).toLowerCase().includes(val));
-  return nameMatch || subCategoryMatch || subcategoryMatch || descMatch || tagsMatch;
-};
-
-const matchBrand = (p, brandVal) => {
-  const val = brandVal.toLowerCase();
-  return (p.brand && String(p.brand).toLowerCase().includes(val)) ||
-    (p.name && String(p.name).toLowerCase().includes(val));
-};
-
-const matchFreshness = (p, freshVal) => {
-  const val = freshVal.toLowerCase();
-  const nameMatch = p.name && String(p.name).toLowerCase().includes(val);
-  const descMatch = p.description && String(p.description).toLowerCase().includes(val);
-  const tagsMatch = p.tags && (Array.isArray(p.tags)
-    ? p.tags.some(t => String(t).toLowerCase().includes(val))
-    : String(p.tags).toLowerCase().includes(val));
-  return nameMatch || descMatch || tagsMatch;
-};
-
-const matchCuts = (p, cutVal) => {
-  const val = cutVal.toLowerCase();
-  return (p.name && String(p.name).toLowerCase().includes(val)) ||
-    (p.description && String(p.description).toLowerCase().includes(val));
-};
 
 export default function CategoryProductsPage({
   products = [],
@@ -692,6 +622,19 @@ export default function CategoryProductsPage({
   };
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (!searchQuery) {
+      setDebouncedSearchQuery("");
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const [selectedFilters, setSelectedFilters] = useState({});
   const [isFilterBottomSheetOpen, setIsFilterBottomSheetOpen] = useState(false);
   const [activeMobileFilterSection, setActiveMobileFilterSection] = useState("All");
@@ -699,6 +642,9 @@ export default function CategoryProductsPage({
   const [isSortOpen, setIsSortOpen] = useState(false);
 
   const activeItemRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const isFetchingRef = useRef(false);
+  const paginationAbortControllerRef = useRef(null);
 
   // Scroll to top on slug change
   useEffect(() => {
@@ -781,7 +727,7 @@ export default function CategoryProductsPage({
         "Show All",
         "Chips",
         "Bhujiya & Mixtures",
-        "Namkeens",
+        "Namkeens Snacks",
         "Nacjos",
         "Popcorn",
         "Papads"
@@ -936,24 +882,13 @@ export default function CategoryProductsPage({
       setHasLoadedSubcategories(true);
       return;
     }
+    // Subcategories are now fetched as part of the initial /api/category/:slug aggregation request
+    // We just set a loading state here
     setHasLoadedSubcategories(false);
-    const categoryName = matchedCategory.name;
-    const url = `${window.API_BASE_URL}/api/subcategories?category=${encodeURIComponent(categoryName)}`;
-    cachedFetch(url)
-      .then(data => {
-        const list = data?.subcategories || [];
-        setSubcategories(["Show All", ...list]);
-        setHasLoadedSubcategories(true);
-      })
-      .catch(err => {
-        console.error("Error fetching subcategories:", err);
-        setSubcategories(["Show All"]);
-        setHasLoadedSubcategories(true);
-      });
   }, [matchedCategory, slug]);
 
   // Helper fetch function supporting subcategory
-  const fetchCategoryData = async (categoryName, pageNum, subCat, isBackground = false, signal = null) => {
+  const fetchCategoryData = async (categoryName, pageNum, subCat, isBackground = false, signal = null, currentRequestId = null) => {
     try {
       if (!isBackground) {
         if (pageNum > 1) {
@@ -963,54 +898,107 @@ export default function CategoryProductsPage({
         }
       }
 
-      let url = `${window.API_BASE_URL}/api/products?page=${pageNum}&limit=20`;
-      if (categoryName === "Decor") {
-        url = `${window.API_BASE_URL}/api/products?subCategory=${encodeURIComponent("Bouquet & Plants")}&page=${pageNum}&limit=50`;
-      } else if (categoryName === "Beauty" || categoryName === "Kids") {
-        url = `${window.API_BASE_URL}/api/products?page=${pageNum}&limit=300`;
+      let url;
+      let isAggregation = false;
+
+      const queryCat = categoryName === "Pharmacy" ? "Health and Pharma" : categoryName;
+
+      if (pageNum === 1) {
+        url = `${window.API_BASE_URL}/api/category/${encodeURIComponent(slug)}?limit=20`;
+        url += `&category=${encodeURIComponent(queryCat)}`;
+        isAggregation = true;
       } else {
-        const queryCat = categoryName === "Pharmacy" ? "Health and Pharma" : categoryName;
+        url = `${window.API_BASE_URL}/api/products?page=${pageNum}&limit=20`;
         url += `&category=${encodeURIComponent(queryCat)}`;
       }
+
       if (subCat && subCat !== "Show All") {
         url += `&subCategory=${encodeURIComponent(subCat)}`;
+      }
+
+      if (Object.keys(selectedFilters).length > 0) {
+        url += `&filters=${encodeURIComponent(JSON.stringify(selectedFilters))}`;
+      }
+
+      if (sortBy) {
+        url += `&sortBy=${encodeURIComponent(sortBy)}`;
+      }
+
+      if (debouncedSearchQuery && debouncedSearchQuery.trim() !== "") {
+        url += `&search=${encodeURIComponent(debouncedSearchQuery.trim())}`;
       }
 
       console.log("=== [FETCH CATEGORY DATA] ===", { categoryName, url });
       const isBlocking = false;
       const res = await apiFetch(url, { signal, blocking: isBlocking, minDelay: 700 });
+
+      if (signal?.aborted) return;
+      if (currentRequestId !== null && currentRequestId !== requestIdRef.current) return;
+
       if (!res.ok) throw new Error("Failed to fetch products");
-      const data = await res.json();
-      console.log("=== [FETCH CATEGORY DATA RESPONSE] ===", { length: data?.length });
+      const rawData = await res.json();
+
+      // Support aggregation response
+      const isAggregationResponse = isAggregation && rawData && rawData.data;
+      const isPaginatedResponse = !isAggregationResponse && rawData && rawData.products && rawData.pagination;
+
+      let data = [];
+      let backendHasMore = false;
+
+      if (isAggregationResponse) {
+        data = rawData.data.products || [];
+        backendHasMore = rawData.data.pagination ? rawData.data.pagination.hasMore : data.length === 20;
+
+        // Populate subcategories if this was an aggregation call and no specific subCat filter was applied
+        if (rawData.data.subcategories && (!subCat || subCat === "Show All")) {
+          setSubcategories(["Show All", ...rawData.data.subcategories]);
+          setHasLoadedSubcategories(true);
+        }
+      } else {
+        data = isPaginatedResponse ? rawData.products : rawData;
+        backendHasMore = isPaginatedResponse ? rawData.pagination.hasMore : data.length === 20;
+      }
+
+      if (signal?.aborted) return;
+      if (currentRequestId !== null && currentRequestId !== requestIdRef.current) return;
+
+      console.log("=== [FETCH CATEGORY DATA RESPONSE] ===", { length: data?.length, isPaginatedResponse, isAggregationResponse, backendHasMore });
 
       const enriched = (data || []).map(p => ({
         ...p,
         _classifiedCategory: canonicalCategory(classifyProduct(p))
       }));
 
-      const cacheKey = `${slug}_${subCat || "Show All"}`;
+      const cacheKey = `${slug}_${subCat || "Show All"}_${JSON.stringify(selectedFilters)}_${sortBy}_${debouncedSearchQuery.trim()}`;
 
       setLocalProducts(prev => {
         const nextProducts = pageNum === 1 ? enriched : [...prev, ...enriched];
-        // Cache data
-        categoryProductsCache[cacheKey] = {
-          products: nextProducts,
-          page: pageNum,
-          hasMore: enriched.length === 20,
-          fetchedAt: Date.now()
-        };
+        // Cache data outside the strict render phase
+        Promise.resolve().then(() => {
+          categoryProductsCache[cacheKey] = {
+            products: nextProducts,
+            page: pageNum,
+            hasMore: backendHasMore,
+            fetchedAt: Date.now()
+          };
+        });
         return nextProducts;
       });
 
-      setHasMore(enriched.length === 20);
+      setHasMore(backendHasMore);
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error("Error loading category products:", err);
         setError("Failed to load products for this category.");
       }
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (currentRequestId === null || currentRequestId === requestIdRef.current) {
+        if (!signal?.aborted) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
+        isFetchingRef.current = false;
+      }
     }
   };
 
@@ -1030,8 +1018,15 @@ export default function CategoryProductsPage({
     const controller = new AbortController();
     const signal = controller.signal;
 
+    if (paginationAbortControllerRef.current) {
+      paginationAbortControllerRef.current.abort();
+    }
+
+    const currentRequestId = ++requestIdRef.current;
+    isFetchingRef.current = true;
+
     const categoryName = matchedCategory.name;
-    const cacheKey = `${slug}_${activeSubcategory}`;
+    const cacheKey = `${slug}_${activeSubcategory}_${JSON.stringify(selectedFilters)}_${sortBy}_${debouncedSearchQuery.trim()}`;
 
     if (categoryProductsCache[cacheKey]) {
       const cached = categoryProductsCache[cacheKey];
@@ -1039,21 +1034,22 @@ export default function CategoryProductsPage({
       setPage(cached.page);
       setHasMore(cached.hasMore);
       setLoading(false);
+      isFetchingRef.current = false;
 
       // Refresh in background if stale (> 30s)
       if (Date.now() - cached.fetchedAt > 30000) {
-        fetchCategoryData(categoryName, 1, activeSubcategory, true, signal);
+        fetchCategoryData(categoryName, 1, activeSubcategory, true, signal, currentRequestId);
       }
     } else {
       setLocalProducts([]);
       setLoading(true);
-      fetchCategoryData(categoryName, 1, activeSubcategory, false, signal);
+      fetchCategoryData(categoryName, 1, activeSubcategory, false, signal, currentRequestId);
     }
 
     return () => {
       controller.abort();
     };
-  }, [slug, localCategories, matchedCategory, activeSubcategory]);
+  }, [slug, localCategories, matchedCategory, activeSubcategory, selectedFilters, sortBy, debouncedSearchQuery]);
 
   // Load More function
   const loadMore = () => {
@@ -1286,839 +1282,7 @@ export default function CategoryProductsPage({
   }, [subcategories, localProducts, matchedCategory, slug]);
 
   // Filter category products based on dynamic subcategory, search query, and category specific checkbox filters
-  const filteredCategoryProducts = useMemo(() => {
-    if (!matchedCategory) return [];
-    const targetCanonical = canonicalCategory(matchedCategory.name);
-
-    // 1. Get all products belonging to this category
-    let list = [];
-    if (slug === "fresh-vegetables" || slug === "fresh-fruits") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Fresh Vegetables" || classified === "Fresh Fruits" ||
-          canonicalCategory(p.category) === "Fresh Vegetables" || canonicalCategory(p.category) === "Fresh Fruits" ||
-          canonicalCategory(p.category) === "The Veggie Store" || canonicalCategory(p.category) === "The Fruit Store";
-      });
-    } else if (slug === "oils-and-ghee" || slug === "oil-ghee") {
-      list = localProducts.filter(p => {
-        const cat = (p.category || "").toLowerCase();
-        const sub = (p.subCategory || p.subcategory || "").toLowerCase();
-        return cat.includes("oil") || cat.includes("ghee") || cat.includes("masala") || cat.includes("tea") || cat.includes("coffee") || cat.includes("drink") ||
-          sub.includes("oil") || sub.includes("ghee") || sub.includes("masala") || sub.includes("salt") || sub.includes("sugar") || sub.includes("jaggery") || sub.includes("tea") || sub.includes("coffee");
-      });
-    } else if (slug === "chips-namkeens" || slug === "chips-and-namkeens") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Chips and Namkeens" || canonicalCategory(p.category) === "Chips and Namkeens";
-      });
-    } else if (slug === "cold-drinks-juices" || slug === "cold-drinks-and-juices") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Beverages" || canonicalCategory(p.category) === "Beverages";
-      });
-    } else if (slug === "ice-cream" || slug === "ice-creams-frozen-desserts" || slug === "ice-creams-and-desserts") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Ice Creams & Desserts" || canonicalCategory(p.category) === "Ice Creams & Desserts";
-      });
-    } else if (slug === "meat-seafood" || slug === "meat-and-seafood") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Meat and Seafood" || canonicalCategory(p.category) === "Meat and Seafood";
-      });
-    } else if (slug === "chocolates") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Chocolates" || canonicalCategory(p.category) === "Chocolates";
-      });
-    } else if (slug === "noodles-pasta-vermicelli" || slug === "noodles-and-pasta") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Noodles & Pasta" || canonicalCategory(p.category) === "Noodles & Pasta";
-      });
-    } else if (slug === "paan-corner") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Pan Centre" || canonicalCategory(p.category) === "Pan Centre";
-      });
-    } else if (slug === "bath-body" || slug === "bath-and-body") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Bath and Body" || canonicalCategory(p.category) === "Bath and Body";
-      });
-    } else if (slug === "hair-care" || slug === "hair") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Hair Care" || canonicalCategory(p.category) === "Hair Care";
-      });
-    } else if (slug === "skin-care" || slug === "skincare") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Skincare" || canonicalCategory(p.category) === "Skincare";
-      });
-    } else if (slug === "makeup" || slug === "makeups") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Makeups" || canonicalCategory(p.category) === "Makeups";
-      });
-    } else if (slug === "feminine-hygiene") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Female Hygiene" || canonicalCategory(p.category) === "Female Hygiene";
-      });
-    } else if (slug === "baby-care") {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === "Baby Care" || canonicalCategory(p.category) === "Baby Care";
-      });
-    } else {
-      list = localProducts.filter(p => {
-        const classified = p._classifiedCategory || canonicalCategory(classifyProduct(p));
-        return classified === targetCanonical ||
-          canonicalCategory(p.category) === targetCanonical;
-      });
-    }
-
-    // 2. Filter by active left sidebar subcategory
-    if (activeSubcategory !== "Show All") {
-      if (slug === "fresh-vegetables" || slug === "fresh-fruits") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("exotic")) return "exotic";
-          if (sub.includes("pooja") || sub.includes("festive") || sub.includes("bouquet") || sub.includes("plants")) return "flower-leaf";
-          if (sub.includes("frozen")) return "frozen";
-          if (sub.includes("hydroponic")) return "hydroponic";
-          if (sub.includes("fresh vegetables") || sub.includes("leafy") || sub.includes("seasonings") || sub.includes("certified organics")) return "fresh-veg";
-          if (sub.includes("fresh fruits") || sub.includes("mango") || sub.includes("seasonal")) return "fresh-fruit";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const isHydroponic = (prod) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === "hydroponic";
-          if (hasTag(prod, "hydroponic") || hasTag(prod, "hydroponically")) return true;
-          const name = (prod.name || "").toLowerCase();
-          return name.includes("hydroponic") || name.includes("hydroponically");
-        };
-
-        const isFrozen = (prod) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === "frozen";
-          if (hasTag(prod, "frozen")) return true;
-          const name = (prod.name || "").toLowerCase();
-          return name.includes("frozen");
-        };
-
-        const isFlowerOrLeaf = (prod) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === "flower-leaf";
-          if (hasTag(prod, "pooja") || hasTag(prod, "festive") || hasTag(prod, "flowers") || hasTag(prod, "garland") || hasTag(prod, "leaves")) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (["flower", "gajra", "garland", "patta", "tulsi", "neem", "durva", "festive"].some(k => name.includes(k))) return true;
-          if (name.includes("leaf") && (name.includes("betel") || name.includes("banana") || name.includes("mango") || name.includes("curry") || name.includes("neem") || name.includes("bel"))) return true;
-          return false;
-        };
-
-        const isExotic = (prod) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === "exotic";
-          if (hasTag(prod, "exotic") || hasTag(prod, "exotics")) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (name.includes("exotic")) return true;
-          if (["avocado", "kiwi", "blueberries", "blackberry", "raspberries", "strawberry", "berries", "berry", "dragonfruit", "passionfruit", "asparagus", "broccoli", "mushroom", "zucchini"].some(k => name.includes(k))) {
-            return true;
-          }
-          return false;
-        };
-
-        const matchesType = (prod, store) => {
-          const cat = (prod.category || "").toLowerCase();
-          if (store === "veggies") return cat.includes("veggie");
-          if (store === "fruits") return cat.includes("fruit");
-          return false;
-        };
-
-        if (activeSubcategory === "Fresh Vegetables") {
-          list = list.filter(p => matchesType(p, "veggies") && !isHydroponic(p) && !isFrozen(p) && !isFlowerOrLeaf(p) && !isExotic(p));
-        } else if (activeSubcategory === "Fresh Fruits") {
-          list = list.filter(p => matchesType(p, "fruits") && !isFrozen(p) && !isFlowerOrLeaf(p) && !isExotic(p));
-        } else if (activeSubcategory === "Exotics") {
-          list = list.filter(p => isExotic(p));
-        } else if (activeSubcategory === "Flowers and Leaves") {
-          list = list.filter(p => isFlowerOrLeaf(p));
-        } else if (activeSubcategory === "Frozen Veggie") {
-          list = list.filter(p => isFrozen(p));
-        } else if (activeSubcategory === "Hydroponic") {
-          list = list.filter(p => isHydroponic(p));
-        }
-      } else if (slug === "dairy-bread-eggs" || slug === "dairy-bread-and-eggs") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("milkshake") || sub.includes("lassi") || sub.includes("buttermilk")) return "lassi-milkshakes";
-          if (sub.includes("paneer") || sub.includes("tofu")) return "paneer";
-          if (sub.includes("batter") || sub.includes("chutney")) return "batter";
-          if (sub.includes("cheese") || sub.includes("butter") || sub.includes("spread")) return "cheese-butter";
-          if (sub.includes("curd") || sub.includes("yogurt") || sub.includes("shrikhand")) return "curd-yogurt";
-          if (sub.includes("egg")) return "eggs";
-          if (sub.includes("bread") || sub.includes("pav") || sub.includes("bun") || sub.includes("toast")) return "bread-pav";
-          if (sub.includes("milk") || sub.includes("dairy")) return "milk";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchDairySub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "lassi-milkshakes") return name.includes("lassi") || name.includes("milkshake") || name.includes("buttermilk") || name.includes("shakes");
-          if (subKey === "paneer") return name.includes("paneer") || name.includes("tofu");
-          if (subKey === "batter") return name.includes("batter") || name.includes("idli") || name.includes("dosa");
-          if (subKey === "cheese-butter") return name.includes("cheese") || name.includes("butter") || name.includes("slice") || name.includes("spread");
-          if (subKey === "curd-yogurt") return name.includes("curd") || name.includes("yogurt") || name.includes("yoghurt") || name.includes("dahi");
-          if (subKey === "eggs") return name.includes("egg");
-          if (subKey === "bread-pav") return name.includes("bread") || name.includes("pav") || name.includes("bun") || name.includes("roti") || name.includes("toast") || name.includes("pav") || name.includes("rusk");
-          if (subKey === "milk") return name.includes("milk") || name.includes("cow") || name.includes("buffalo") || name.includes("tetra");
-          return false;
-        };
-
-        if (activeSubcategory === "Milk") {
-          list = list.filter(p => matchDairySub(p, "milk"));
-        } else if (activeSubcategory === "Bread & Pav") {
-          list = list.filter(p => matchDairySub(p, "bread-pav"));
-        } else if (activeSubcategory === "Eggs") {
-          list = list.filter(p => matchDairySub(p, "eggs"));
-        } else if (activeSubcategory === "Curd & Yogurt") {
-          list = list.filter(p => matchDairySub(p, "curd-yogurt"));
-        } else if (activeSubcategory === "Cheese & Butter") {
-          list = list.filter(p => matchDairySub(p, "cheese-butter"));
-        } else if (activeSubcategory === "Batter") {
-          list = list.filter(p => matchDairySub(p, "batter"));
-        } else if (activeSubcategory === "Paneer") {
-          list = list.filter(p => matchDairySub(p, "paneer"));
-        } else if (activeSubcategory === "Lassi & Milkshakes") {
-          list = list.filter(p => matchDairySub(p, "lassi-milkshakes"));
-        }
-      } else if (slug === "oils-and-ghee" || slug === "oil-ghee") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("tea") || sub.includes("coffee") || sub.includes("beverage")) return "tea-coffee";
-          if (sub.includes("salt") || sub.includes("sugar") || sub.includes("jaggery")) return "salt-sugar-jaggery";
-          if (sub.includes("ghee")) return "ghee";
-          if (sub.includes("oil")) return "oil";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchOilSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "tea-coffee") return name.includes("tea") || name.includes("coffee") || name.includes("greentea") || name.includes("bru") || name.includes("nescafe") || name.includes("tata tea") || name.includes("red label");
-          if (subKey === "salt-sugar-jaggery") return name.includes("salt") || name.includes("sugar") || name.includes("jaggery") || name.includes("gud");
-          if (subKey === "ghee") return name.includes("ghee");
-          if (subKey === "oil") return name.includes("oil") || name.includes("mustard") || name.includes("sunflower") || name.includes("olive") || name.includes("coconut oil") || name.includes("groundnut");
-          return false;
-        };
-
-        if (activeSubcategory === "Oil") {
-          list = list.filter(p => matchOilSub(p, "oil"));
-        } else if (activeSubcategory === "Ghee") {
-          list = list.filter(p => matchOilSub(p, "ghee"));
-        } else if (activeSubcategory === "Salt, Sugar & Jaggery") {
-          list = list.filter(p => matchOilSub(p, "salt-sugar-jaggery"));
-        } else if (activeSubcategory === "Tea, Coffee") {
-          list = list.filter(p => matchOilSub(p, "tea-coffee"));
-        }
-      } else if (slug === "chips-namkeens" || slug === "chips-and-namkeens") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("papad")) return "papads";
-          if (sub.includes("popcorn")) return "popcorn";
-          if (sub.includes("nacho") || sub.includes("nacjo")) return "nachos";
-          if (sub.includes("namkeen") || sub.includes("snack")) return "namkeens";
-          if (sub.includes("bhujiya") || sub.includes("mixture") || sub.includes("sev")) return "bhujiya-mixtures";
-          if (sub.includes("chip") || sub.includes("crisps") || sub.includes("wafer")) return "chips";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchChipsSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "papads") return name.includes("papad") || name.includes("pappadum");
-          if (subKey === "popcorn") return name.includes("popcorn") || name.includes("pop corn");
-          if (subKey === "nachos") return name.includes("nacho") || name.includes("nacjo") || name.includes("tortilla");
-          if (subKey === "namkeens") return name.includes("namkeen") || name.includes("snack") || name.includes("gathiya") || name.includes("dal moth") || name.includes("chanachur");
-          if (subKey === "bhujiya-mixtures") return name.includes("bhujiya") || name.includes("mixture") || name.includes("sev");
-          if (subKey === "chips") return name.includes("chip") || name.includes("crisp") || name.includes("wafer") || name.includes("lay's") || name.includes("lays") || name.includes("bingo") || name.includes("kurkure");
-          return false;
-        };
-
-        if (activeSubcategory === "Chips") {
-          list = list.filter(p => matchChipsSub(p, "chips"));
-        } else if (activeSubcategory === "Bhujiya & Mixtures") {
-          list = list.filter(p => matchChipsSub(p, "bhujiya-mixtures"));
-        } else if (activeSubcategory === "Namkeens") {
-          list = list.filter(p => matchChipsSub(p, "namkeens"));
-        } else if (activeSubcategory === "Nacjos") {
-          list = list.filter(p => matchChipsSub(p, "nachos"));
-        } else if (activeSubcategory === "Popcorn") {
-          list = list.filter(p => matchChipsSub(p, "popcorn"));
-        } else if (activeSubcategory === "Papads") {
-          list = list.filter(p => matchChipsSub(p, "papads"));
-        }
-      } else if (slug === "cold-drinks-juices" || slug === "cold-drinks-and-juices") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("coffee") || sub.includes("cafe")) return "cold-coffee";
-          if (sub.includes("ice") || sub.includes("cube") || sub.includes("water") || sub.includes("aqua")) return "water-ice";
-          if (sub.includes("soda") || sub.includes("tonic")) return "soda";
-          if (sub.includes("hydration") || sub.includes("electrolyte") || sub.includes("coconut") || sub.includes("ors") || sub.includes("sport")) return "hydration";
-          if (sub.includes("energy") || sub.includes("red bull") || sub.includes("monster")) return "energy-drinks";
-          if (sub.includes("zero") || sub.includes("sugar free") || sub.includes("diet") || sub.includes("lite") || sub.includes("no sugar")) return "zero-sugar";
-          if (sub.includes("juice") || sub.includes("nectar") || sub.includes("pulp")) return "fruit-juices";
-          if (sub.includes("soft") || sub.includes("cola") || sub.includes("carbonated") || sub.includes("drink")) return "soft-drinks";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchDrinksSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "cold-coffee") return name.includes("coffee") || name.includes("frappe") || name.includes("cappuccino") || name.includes("latte") || name.includes("nescafe") || name.includes("amul kool");
-          if (subKey === "water-ice") return name.includes("water") || name.includes("ice cube") || name.includes("bisleri") || name.includes("aquafina") || name.includes("kinley") || name.includes("vedica") || name.includes("himalayan");
-          if (subKey === "soda") return name.includes("soda") || name.includes("schweppes") || name.includes("tonic") || name.includes("ginger ale");
-          if (subKey === "hydration") return name.includes("hydration") || name.includes("coconut") || name.includes("nariyal") || name.includes("electrolyte") || name.includes("gatorade") || name.includes("ors") || name.includes("glucon");
-          if (subKey === "energy-drinks") return name.includes("energy") || name.includes("red bull") || name.includes("redbull") || name.includes("monster") || name.includes("sting");
-          if (subKey === "zero-sugar") return name.includes("zero") || name.includes("diet") || name.includes("sugar free") || name.includes("no sugar") || name.includes("sugar-free") || name.includes("coke zero") || name.includes("diet coke");
-          if (subKey === "fruit-juices") return name.includes("juice") || name.includes("real") || name.includes("tropicana") || name.includes("b-natural") || name.includes("paper boat");
-          if (subKey === "soft-drinks") return name.includes("coke") || name.includes("pepsi") || name.includes("sprite") || name.includes("fanta") || name.includes("thumbs up") || name.includes("thums up") || name.includes("limca") || name.includes("mountain dew") || name.includes("7up") || name.includes("drink") || name.includes("cola");
-          return false;
-        };
-
-        if (activeSubcategory === "Soft Drinks") {
-          list = list.filter(p => matchDrinksSub(p, "soft-drinks"));
-        } else if (activeSubcategory === "Fruit Juices") {
-          list = list.filter(p => matchDrinksSub(p, "fruit-juices"));
-        } else if (activeSubcategory === "Zero Sugar") {
-          list = list.filter(p => matchDrinksSub(p, "zero-sugar"));
-        } else if (activeSubcategory === "Energy Drinks") {
-          list = list.filter(p => matchDrinksSub(p, "energy-drinks"));
-        } else if (activeSubcategory === "Hydration") {
-          list = list.filter(p => matchDrinksSub(p, "hydration"));
-        } else if (activeSubcategory === "Soda") {
-          list = list.filter(p => matchDrinksSub(p, "soda"));
-        } else if (activeSubcategory === "Water & Ice Cubes") {
-          list = list.filter(p => matchDrinksSub(p, "water-ice"));
-        } else if (activeSubcategory === "Cold Coffee") {
-          list = list.filter(p => matchDrinksSub(p, "cold-coffee"));
-        }
-      } else if (slug === "ice-cream" || slug === "ice-creams-frozen-desserts" || slug === "ice-creams-and-desserts") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("gourmet") || sub.includes("premium") || sub.includes("artisan") || sub.includes("belgian")) return "gourmet";
-          if (sub.includes("cake") || sub.includes("dessert") || sub.includes("party")) return "cakes";
-          if (sub.includes("cone") || sub.includes("cornetto")) return "cones";
-          if (sub.includes("stick") || sub.includes("bar") || sub.includes("kulfi")) return "sticks";
-          if (sub.includes("tub") || sub.includes("pack") || sub.includes("family")) return "tubs";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchIceCreamSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "gourmet") return name.includes("gourmet") || name.includes("premium") || name.includes("artisan") || name.includes("belgian") || name.includes("london dairy") || name.includes("haagen") || name.includes("movenpick");
-          if (subKey === "cakes") return name.includes("cake") || name.includes("slice") || name.includes("gateau") || name.includes("pastry");
-          if (subKey === "cones") return name.includes("cone") || name.includes("cornetto") || name.includes("waffle");
-          if (subKey === "sticks") return name.includes("stick") || name.includes("bar") || name.includes("kulfi") || name.includes("pop") || name.includes("lollipop") || name.includes("chocobar");
-          if (subKey === "tubs") return name.includes("tub") || name.includes("family pack") || name.includes("cup") || name.includes("scoop") || name.includes("brick");
-          return false;
-        };
-
-        if (activeSubcategory === "Tubs") {
-          list = list.filter(p => matchIceCreamSub(p, "tubs"));
-        } else if (activeSubcategory === "Sticks") {
-          list = list.filter(p => matchIceCreamSub(p, "sticks"));
-        } else if (activeSubcategory === "Cones") {
-          list = list.filter(p => matchIceCreamSub(p, "cones"));
-        } else if (activeSubcategory === "Cakes") {
-          list = list.filter(p => matchIceCreamSub(p, "cakes"));
-        } else if (activeSubcategory === "Gourmet") {
-          list = list.filter(p => matchIceCreamSub(p, "gourmet"));
-        }
-      } else if (slug === "meat-seafood" || slug === "meat-and-seafood") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("egg")) return "eggs";
-          if (sub.includes("mutton") || sub.includes("lamb") || sub.includes("goat")) return "mutton";
-          if (sub.includes("fish") || sub.includes("seafood") || sub.includes("prawn") || sub.includes("crab")) return "fish";
-          if (sub.includes("chicken") || sub.includes("poultry")) return "chicken";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchMeatSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "eggs") return name.includes("egg");
-          if (subKey === "mutton") return name.includes("mutton") || name.includes("lamb") || name.includes("goat") || name.includes("keema") || name.includes("curry cut");
-          if (subKey === "fish") return name.includes("fish") || name.includes("seafood") || name.includes("prawn") || name.includes("shrimp") || name.includes("crab") || name.includes("salmon") || name.includes("surmai") || name.includes("pomfret");
-          if (subKey === "chicken") return name.includes("chicken") || name.includes("breast") || name.includes("lollipop") || name.includes("wings");
-          return false;
-        };
-
-        if (activeSubcategory === "Chicken") {
-          list = list.filter(p => matchMeatSub(p, "chicken"));
-        } else if (activeSubcategory === "Fish") {
-          list = list.filter(p => matchMeatSub(p, "fish"));
-        } else if (activeSubcategory === "Mutton") {
-          list = list.filter(p => matchMeatSub(p, "mutton"));
-        } else if (activeSubcategory === "Eggs") {
-          list = list.filter(p => matchMeatSub(p, "eggs"));
-        }
-      } else if (slug === "chocolates") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("energy") || sub.includes("bar") || sub.includes("granola") || sub.includes("protein")) return "energy-bars";
-          if (sub.includes("gift") || sub.includes("box") || sub.includes("celebration")) return "gift-pack";
-          if (sub.includes("pack") || sub.includes("multi") || sub.includes("bag")) return "packs";
-          if (sub.includes("chocolate") || sub.includes("cadbury") || sub.includes("nestle") || sub.includes("dairy milk")) return "chocolates";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchChocSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "energy-bars") return name.includes("energy bar") || name.includes("protein bar") || name.includes("granola bar") || name.includes("snicker") || name.includes("yoga bar") || name.includes("yogabar") || name.includes("bar");
-          if (subKey === "gift-pack") return name.includes("gift") || name.includes("box") || name.includes("celebrations") || name.includes("assorted") || name.includes("hamper");
-          if (subKey === "packs") return name.includes("pack") || name.includes("share bag") || name.includes("multi") || name.includes("home pack") || name.includes("bites");
-          if (subKey === "chocolates") return name.includes("chocolate") || name.includes("dairy milk") || name.includes("silk") || name.includes("kitkat") || name.includes("kit kat") || name.includes("munch") || name.includes("milkybar") || name.includes("milky bar") || name.includes("ferrero") || name.includes("mars") || name.includes("twix") || name.includes("toblerone") || name.includes("dark");
-          return false;
-        };
-
-        if (activeSubcategory === "Chocolates") {
-          list = list.filter(p => matchChocSub(p, "chocolates"));
-        } else if (activeSubcategory === "Chocolates Packs") {
-          list = list.filter(p => matchChocSub(p, "packs"));
-        } else if (activeSubcategory === "Chocolate Gift Pack") {
-          list = list.filter(p => matchChocSub(p, "gift-pack"));
-        } else if (activeSubcategory === "Energy Bars") {
-          list = list.filter(p => matchChocSub(p, "energy-bars"));
-        }
-      } else if (slug === "noodles-pasta-vermicelli" || slug === "noodles-and-pasta") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("soup") || sub.includes("shorba") || sub.includes("broth")) return "soup";
-          if (sub.includes("pasta") || sub.includes("macaroni") || sub.includes("spaghetti") || sub.includes("vermicelli")) return "pasta";
-          if (sub.includes("noodle") || sub.includes("ramen") || sub.includes("chowmein") || sub.includes("maggi")) return "noodles";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchNoodleSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "soup") return name.includes("soup") || name.includes("shorba") || name.includes("knorr") || name.includes("ching's secret") || name.includes("chings");
-          if (subKey === "pasta") return name.includes("pasta") || name.includes("macaroni") || name.includes("spaghetti") || name.includes("vermicelli") || name.includes("seviyan") || name.includes("penne") || name.includes("fusilli");
-          if (subKey === "noodles") return name.includes("noodle") || name.includes("ramen") || name.includes("maggi") || name.includes("yippee") || name.includes("wai wai") || name.includes("koka") || name.includes("chowmein");
-          return false;
-        };
-
-        if (activeSubcategory === "Noodles") {
-          list = list.filter(p => matchNoodleSub(p, "noodles"));
-        } else if (activeSubcategory === "Pasta") {
-          list = list.filter(p => matchNoodleSub(p, "pasta"));
-        } else if (activeSubcategory === "Soup") {
-          list = list.filter(p => matchNoodleSub(p, "soup"));
-        }
-      } else if (slug === "paan-corner") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("no smoking") || sub.includes("smoke") || sub.includes("nicotine") || sub.includes("gum") || sub.includes("lozenge")) return "no-smoking";
-          if (sub.includes("lighter") || sub.includes("matchbox") || sub.includes("flint")) return "lighters";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchPaanSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "no-smoking") return name.includes("no smoking") || name.includes("nicotine") || name.includes("nicotex") || name.includes("gum") || name.includes("lozenge") || name.includes("smoking cessation");
-          if (subKey === "lighters") return name.includes("lighter") || name.includes("matchbox") || name.includes("lighter fuel") || name.includes("zippo") || name.includes("cricket");
-          return false;
-        };
-
-        if (activeSubcategory === "Lighters") {
-          list = list.filter(p => matchPaanSub(p, "lighters"));
-        } else if (activeSubcategory === "No Smoking") {
-          list = list.filter(p => matchPaanSub(p, "no-smoking"));
-        }
-      } else if (slug === "bath-body" || slug === "bath-and-body") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("roll on") || sub.includes("roll-on") || sub.includes("deo") || sub.includes("deodorant")) return "roll-ons";
-          if (sub.includes("lotion") || sub.includes("oil") || sub.includes("cream")) return "lotions-oils";
-          if (sub.includes("conditioner")) return "conditioner";
-          if (sub.includes("shampoo")) return "shampoo";
-          if (sub.includes("accessory") || sub.includes("loofah") || sub.includes("scrubber") || sub.includes("sponge")) return "accessories";
-          if (sub.includes("handwash") || sub.includes("hand wash") || sub.includes("hand sanitiser") || sub.includes("sanitizer")) return "handwash";
-          if (sub.includes("shower gel") || sub.includes("scrub") || sub.includes("body wash")) return "gel-scrubs";
-          if (sub.includes("soap") || sub.includes("bathing bar")) return "soaps";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchBathSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "roll-ons") return name.includes("roll on") || name.includes("roll-on") || name.includes("deodorant") || name.includes("deo") || name.includes("nivea roll");
-          if (subKey === "lotions-oils") return name.includes("lotion") || name.includes("body oil") || name.includes("massage oil") || name.includes("moisturizer") || name.includes("vaseline") || name.includes("nivea body");
-          if (subKey === "conditioner") return name.includes("conditioner") || name.includes("hair conditioner");
-          if (subKey === "shampoo") return name.includes("shampoo") || name.includes("head & shoulders") || name.includes("pantene") || name.includes("dove shampoo");
-          if (subKey === "accessories") return name.includes("loofah") || name.includes("scrubber") || name.includes("pumice") || name.includes("bath accessory") || name.includes("sponge");
-          if (subKey === "handwash") return name.includes("handwash") || name.includes("hand wash") || name.includes("dettol") || name.includes("lifebuoy") || name.includes("savlon");
-          if (subKey === "gel-scrubs") return name.includes("shower gel") || name.includes("body wash") || name.includes("scrub") || name.includes("exfoliator") || name.includes("fiama");
-          if (subKey === "soaps") return name.includes("soap") || name.includes("bathing bar") || name.includes("lux") || name.includes("dove") || name.includes("pears") || name.includes("santoor");
-          return false;
-        };
-
-        if (activeSubcategory === "Bathing Soaps") {
-          list = list.filter(p => matchBathSub(p, "soaps"));
-        } else if (activeSubcategory === "Shower Gel & Scrubs") {
-          list = list.filter(p => matchBathSub(p, "gel-scrubs"));
-        } else if (activeSubcategory === "Handwash") {
-          list = list.filter(p => matchBathSub(p, "handwash"));
-        } else if (activeSubcategory === "Bath Accessories") {
-          list = list.filter(p => matchBathSub(p, "accessories"));
-        } else if (activeSubcategory === "Shampoo") {
-          list = list.filter(p => matchBathSub(p, "shampoo"));
-        } else if (activeSubcategory === "Conditioner") {
-          list = list.filter(p => matchBathSub(p, "conditioner"));
-        } else if (activeSubcategory === "Body Lotions & Oils") {
-          list = list.filter(p => matchBathSub(p, "lotions-oils"));
-        } else if (activeSubcategory === "Roll ons") {
-          list = list.filter(p => matchBathSub(p, "roll-ons"));
-        }
-      } else if (slug === "hair-care" || slug === "hair") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("accessory") || sub.includes("clip") || sub.includes("band") || sub.includes("brush") || sub.includes("comb")) return "accessories";
-          if (sub.includes("serum") || sub.includes("gel") || sub.includes("wax") || sub.includes("spray")) return "serums";
-          if (sub.includes("oil")) return "oils";
-          if (sub.includes("color") || sub.includes("colour") || sub.includes("dye") || sub.includes("henna") || sub.includes("mehendi")) return "color";
-          if (sub.includes("conditioner")) return "conditioner";
-          if (sub.includes("shampoo")) return "shampoo";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchHairSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "accessories") return name.includes("clip") || name.includes("rubber band") || name.includes("comb") || name.includes("hair brush") || name.includes("hair band") || name.includes("scrunchie");
-          if (subKey === "serums") return name.includes("serum") || name.includes("hair gel") || name.includes("hair wax") || name.includes("hair spray") || name.includes("livon") || name.includes("streax");
-          if (subKey === "oils") return name.includes("hair oil") || name.includes("coconut oil") || name.includes("almond oil") || name.includes("amla oil") || name.includes("oil") || name.includes("bajaj") || name.includes("parachute") || name.includes("dabur amla");
-          if (subKey === "color") return name.includes("color") || name.includes("colour") || name.includes("dye") || name.includes("henna") || name.includes("mehendi") || name.includes("loreal") || name.includes("garnier") || name.includes("godrej");
-          if (subKey === "conditioner") return name.includes("conditioner") || name.includes("hair conditioner");
-          if (subKey === "shampoo") return name.includes("shampoo") || name.includes("head & shoulders") || name.includes("pantene") || name.includes("dove shampoo");
-          return false;
-        };
-
-        if (activeSubcategory === "Shampoo") {
-          list = list.filter(p => matchHairSub(p, "shampoo"));
-        } else if (activeSubcategory === "Conditioner" || activeSubcategory === "Conditoner") {
-          list = list.filter(p => matchHairSub(p, "conditioner"));
-        } else if (activeSubcategory === "Hair color") {
-          list = list.filter(p => matchHairSub(p, "color"));
-        } else if (activeSubcategory === "Hair Oils") {
-          list = list.filter(p => matchHairSub(p, "oils"));
-        } else if (activeSubcategory === "Hair Serums") {
-          list = list.filter(p => matchHairSub(p, "serums"));
-        } else if (activeSubcategory === "Hair Accessories") {
-          list = list.filter(p => matchHairSub(p, "accessories"));
-        }
-      } else if (slug === "skin-care" || slug === "skincare") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("women") || sub.includes("female") || sub.includes("epilator") || sub.includes("wax") || sub.includes("razor women")) return "women-grooming";
-          if (sub.includes("men") || sub.includes("shave") || sub.includes("beard") || sub.includes("razor men") || sub.includes("aftershave")) return "men-grooming";
-          if (sub.includes("mask") || sub.includes("peel") || sub.includes("sheet")) return "masks";
-          if (sub.includes("lip") || sub.includes("eye") || sub.includes("balm") || sub.includes("under eye")) return "lip-eye";
-          if (sub.includes("serum") || sub.includes("essence") || sub.includes("ampoule")) return "serums";
-          if (sub.includes("clean") || sub.includes("wash") || sub.includes("scrub") || sub.includes("cleanser") || sub.includes("toner") || sub.includes("makeup remover")) return "cleaning";
-          if (sub.includes("sunscreen") || sub.includes("sun block") || sub.includes("spf")) return "sunscreen";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchSkinSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "women-grooming") return name.includes("women") || name.includes("female") || name.includes("epilator") || name.includes("wax strip") || name.includes("hair removal cream") || name.includes("razor for women");
-          if (subKey === "men-grooming") return name.includes("men") || name.includes("shaving") || name.includes("beard") || name.includes("razor for men") || name.includes("aftershave") || name.includes("foam") || name.includes("gel");
-          if (subKey === "masks") return name.includes("mask") || name.includes("peel off") || name.includes("sheet mask") || name.includes("clay mask");
-          if (subKey === "lip-eye") return name.includes("lip") || name.includes("eye") || name.includes("balm") || name.includes("under eye") || name.includes("kajal") || name.includes("mascara");
-          if (subKey === "serums") return name.includes("serum") || name.includes("essence") || name.includes("salicylic") || name.includes("niacinamide") || name.includes("vitamin c");
-          if (subKey === "cleaning") return name.includes("clean") || name.includes("wash") || name.includes("scrub") || name.includes("cleanser") || name.includes("toner") || name.includes("makeup remover") || name.includes("facewash") || name.includes("face wash");
-          if (subKey === "sunscreen") return name.includes("sunscreen") || name.includes("sun block") || name.includes("spf") || name.includes("sunscreen lotion");
-          return false;
-        };
-
-        if (activeSubcategory === "Sunscreen") {
-          list = list.filter(p => matchSkinSub(p, "sunscreen"));
-        } else if (activeSubcategory === "Face Cleaning") {
-          list = list.filter(p => matchSkinSub(p, "cleaning"));
-        } else if (activeSubcategory === "Face Serum") {
-          list = list.filter(p => matchSkinSub(p, "serums"));
-        } else if (activeSubcategory === "Lip & Eye") {
-          list = list.filter(p => matchSkinSub(p, "lip-eye"));
-        } else if (activeSubcategory === "Face Masks") {
-          list = list.filter(p => matchSkinSub(p, "masks"));
-        } else if (activeSubcategory === "Men's Grooming") {
-          list = list.filter(p => matchSkinSub(p, "men-grooming"));
-        } else if (activeSubcategory === "Women's Grooming") {
-          list = list.filter(p => matchSkinSub(p, "women-grooming"));
-        }
-      } else if (slug === "makeup" || slug === "makeups") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("accessory") || sub.includes("brush") || sub.includes("blender") || sub.includes("sponge") || sub.includes("curler")) return "accessories";
-          if (sub.includes("nail") || sub.includes("polish") || sub.includes("paint") || sub.includes("remover")) return "nail-paints";
-          if (sub.includes("eye") || sub.includes("liner") || sub.includes("kajal") || sub.includes("mascara") || sub.includes("shadow")) return "eyeliners";
-          if (sub.includes("blush") || sub.includes("highlighter") || sub.includes("bronzer")) return "blushes";
-          if (sub.includes("foundation") || sub.includes("compact") || sub.includes("concealer") || sub.includes("bb cream") || sub.includes("cc cream") || sub.includes("powder")) return "foundation";
-          if (sub.includes("lip") || sub.includes("lipstick") || sub.includes("gloss") || sub.includes("liner")) return "lipsticks";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchMakeupSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "accessories") return name.includes("brush") || name.includes("blender") || name.includes("sponge") || name.includes("curler") || name.includes("makeup tool");
-          if (subKey === "nail-paints") return name.includes("nail") || name.includes("polish") || name.includes("paint") || name.includes("remover");
-          if (subKey === "eyeliners") return name.includes("eye") || name.includes("liner") || name.includes("kajal") || name.includes("mascara") || name.includes("shadow");
-          if (subKey === "blushes") return name.includes("blush") || name.includes("highlighter") || name.includes("bronzer");
-          if (subKey === "foundation") return name.includes("foundation") || name.includes("compact") || name.includes("concealer") || name.includes("bb cream") || name.includes("cc cream") || name.includes("powder");
-          if (subKey === "lipsticks") return name.includes("lip") || name.includes("lipstick") || name.includes("gloss") || name.includes("liquid lipstick");
-          return false;
-        };
-
-        if (activeSubcategory === "Lipsticks") {
-          list = list.filter(p => matchMakeupSub(p, "lipsticks"));
-        } else if (activeSubcategory === "Foundations & Compact") {
-          list = list.filter(p => matchMakeupSub(p, "foundation"));
-        } else if (activeSubcategory === "Blushes") {
-          list = list.filter(p => matchMakeupSub(p, "blushes"));
-        } else if (activeSubcategory === "Eyeliners") {
-          list = list.filter(p => matchMakeupSub(p, "eyeliners"));
-        } else if (activeSubcategory === "Nail Paints") {
-          list = list.filter(p => matchMakeupSub(p, "nail-paints"));
-        } else if (activeSubcategory === "Accessories") {
-          list = list.filter(p => matchMakeupSub(p, "accessories"));
-        }
-      } else if (slug === "feminine-hygiene") {
-        const getStructuredClassification = (prod) => {
-          const sub = (prod.subCategory || prod.subcategory || "").toLowerCase();
-          if (sub.includes("mom") || sub.includes("mother") || sub.includes("pregnancy") || sub.includes("maternity")) return "mom-hygiene";
-          if (sub.includes("removal") || sub.includes("shave") || sub.includes("wax") || sub.includes("razor") || sub.includes("hair")) return "hair-removal";
-          if (sub.includes("tampon") || sub.includes("cup") || sub.includes("menstrual")) return "tampons-cups";
-          if (sub.includes("pad") || sub.includes("napkin") || sub.includes("sanitary")) return "pads";
-          return null;
-        };
-
-        const hasTag = (prod, tag) => {
-          if (!prod.tags) return false;
-          if (Array.isArray(prod.tags)) return prod.tags.some(t => String(t).toLowerCase() === tag);
-          return String(prod.tags).toLowerCase().includes(tag);
-        };
-
-        const matchHygieneSub = (prod, subKey) => {
-          const sc = getStructuredClassification(prod);
-          if (sc !== null) return sc === subKey;
-          if (hasTag(prod, subKey)) return true;
-          const name = (prod.name || "").toLowerCase();
-          if (subKey === "mom-hygiene") return name.includes("mom") || name.includes("mother") || name.includes("pregnancy") || name.includes("maternity") || name.includes("moms");
-          if (subKey === "hair-removal") return name.includes("removal") || name.includes("wax") || name.includes("razor") || name.includes("hair") || name.includes("epilator") || name.includes("shaving");
-          if (subKey === "tampons-cups") return name.includes("tampon") || name.includes("cup") || name.includes("menstrual");
-          if (subKey === "pads") return name.includes("pad") || name.includes("napkin") || name.includes("whisper") || name.includes("stayfree") || name.includes("sofy");
-          return false;
-        };
-
-        if (activeSubcategory === "Sanitary Pads") {
-          list = list.filter(p => matchHygieneSub(p, "pads"));
-        } else if (activeSubcategory === "Tampons & Menstrual Cups") {
-          list = list.filter(p => matchHygieneSub(p, "tampons-cups"));
-        } else if (activeSubcategory === "Hair Removal") {
-          list = list.filter(p => matchHygieneSub(p, "hair-removal"));
-        } else if (activeSubcategory === "Mom Hygiene") {
-          list = list.filter(p => matchHygieneSub(p, "mom-hygiene"));
-        }
-      } else {
-        if (activeSubcategory === "Top Deals") {
-          list = list.filter(p => p.originalPrice > p.price);
-        } else {
-          list = list.filter(p =>
-            getSubcategoryMatch(p.subCategory, activeSubcategory) ||
-            getSubcategoryMatch(p.subcategory, activeSubcategory)
-          );
-        }
-      }
-    }
-
-    // 3. Filter by search query within this category
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase().trim();
-      list = list.filter(p =>
-        (p.name && p.name.toLowerCase().includes(query)) ||
-        (p.brand && p.brand.toLowerCase().includes(query)) ||
-        (p.subCategory && p.subCategory.toLowerCase().includes(query)) ||
-        (p.subcategory && p.subcategory.toLowerCase().includes(query)) ||
-        (p.description && p.description.toLowerCase().includes(query))
-      );
-    }
-
-    // 4. Dynamic category-specific filters
-    Object.entries(selectedFilters).forEach(([section, selectedOptions]) => {
-      if (!selectedOptions || selectedOptions.length === 0) return;
-      list = list.filter(p => {
-        return selectedOptions.some(option => {
-          const lowerSection = section.toLowerCase();
-          if (lowerSection === "price") {
-            return matchPrice(p.price, option);
-          }
-          if (lowerSection === "offers") {
-            return matchOffer(p, option);
-          }
-          if (lowerSection === "type") {
-            return matchType(p, option);
-          }
-          if (lowerSection === "brand") {
-            return matchBrand(p, option);
-          }
-          if (lowerSection === "freshness") {
-            return matchFreshness(p, option);
-          }
-          if (lowerSection === "cuts") {
-            return matchCuts(p, option);
-          }
-          return true;
-        });
-      });
-    });
-
-    // 5. Sorting
-    if (sortBy === "price-asc") {
-      list.sort((a, b) => a.price - b.price);
-    } else if (sortBy === "price-desc") {
-      list.sort((a, b) => b.price - a.price);
-    } else if (sortBy === "discount") {
-      list.sort((a, b) => {
-        const discountA = a.originalPrice ? (a.originalPrice - a.price) / a.originalPrice : 0;
-        const discountB = b.originalPrice ? (b.originalPrice - b.price) / b.originalPrice : 0;
-        return discountB - discountA;
-      });
-    }
-
-    return list;
-  }, [localProducts, matchedCategory, activeSubcategory, searchQuery, selectedFilters, sortBy]);
+  const filteredCategoryProducts = localProducts;
 
 
 
@@ -2178,14 +1342,16 @@ export default function CategoryProductsPage({
   if (!matchedCategory) {
     return (
       <div style={{ padding: "40px 20px", textAlign: "center", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-        <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔍</div>
-        <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#1f2937", margin: "0 0 8px 0" }}>Category not found</h2>
-        <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 24px 0" }}>The category path "/category/{slug}" does not match any records.</p>
+        <div style={{ marginBottom: "16px", display: "flex", justifyContent: "center" }}>
+          <img src="https://img.icons8.com/?size=100&id=AkWWZBEgYZk6&format=png&color=000000" alt="Category not found" style={{ width: "80px", height: "80px" }} />
+        </div>
+        <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#1f2937", margin: "0 0 8px 0" }}>Category not available</h2>
+        <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 24px 0" }}>Sorry, this category is currently unavailable.</p>
         <button
           onClick={() => navigate("/")}
-          style={{ background: "#318616", color: "white", border: "none", padding: "10px 20px", borderRadius: "10px", fontWeight: "750", cursor: "pointer" }}
+          style={{ background: "#318616", color: "white", border: "none", padding: "10px 20px", borderRadius: "24px", fontWeight: "600", cursor: "pointer" }}
         >
-          Back to Shop Home
+          Back to Shop
         </button>
       </div>
     );
@@ -4391,12 +3557,25 @@ export default function CategoryProductsPage({
             }}
           >
             {filteredCategoryProducts.length === 0 ? (
-              <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "28px", border: "1px solid #f3f4f6", boxShadow: "0 8px 30px rgba(0,0,0,0.02)" }}>
-                <div style={{ fontSize: "40px", marginBottom: "12px" }}>📦</div>
-                <p style={{ color: "#6b7280", fontSize: "14px", fontWeight: "600" }}>
-                  No matching products found in this category or subcategory.
-                </p>
-              </div>
+              debouncedSearchQuery ? (
+                <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "28px", border: "1px solid #f3f4f6", boxShadow: "0 8px 30px rgba(0,0,0,0.02)" }}>
+                  <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</div>
+                  <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#1f2937", margin: "0 0 8px 0" }}>No products found for "{debouncedSearchQuery}"</h2>
+                  <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 24px 0" }}>Try checking the spelling or searching with a different keyword.</p>
+                </div>
+              ) : (
+                <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "28px", border: "1px solid #f3f4f6", boxShadow: "0 8px 30px rgba(0,0,0,0.02)" }}>
+                  <div style={{ fontSize: "40px", marginBottom: "12px" }}>📦</div>
+                  <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#1f2937", margin: "0 0 8px 0" }}>No products available</h2>
+                  <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 24px 0" }}>There are currently no products in this category.</p>
+                  <button
+                    onClick={() => navigate("/")}
+                    style={{ background: "#318616", color: "white", border: "none", padding: "10px 20px", borderRadius: "24px", fontWeight: "600", cursor: "pointer" }}
+                  >
+                    Browse All Products
+                  </button>
+                </div>
+              )
             ) : (
               <>
                 <div

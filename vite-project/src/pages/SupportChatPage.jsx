@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { initSocket } from "../utils/socket";
 import { AuthContext } from "../context/AuthContext";
-import { io } from "socket.io-client";
 
 export default function SupportChatPage() {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ export default function SupportChatPage() {
 
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
+  const cleanupListenersRef = useRef(null);
   const supportStatus = chatSession?.status;
 
   const chatContainerRef = useRef(null);
@@ -198,76 +198,104 @@ export default function SupportChatPage() {
   const initializeSocket = (chatId) => {
     if (socketRef.current) return;
 
-    const socket = io(window.API_BASE_URL);
-    socketRef.current = socket;
+    const setupSocket = async () => {
+      const socket = await initSocket();
+      socketRef.current = socket;
 
-    socket.on("connect", () => {
-      console.log("🔌 Support Socket connected. Joining Support Room:", chatId);
-      socket.emit("joinSupportRoom", chatId);
-    });
+      const handleConnect = () => {
+        console.log("🔌 Support Socket connected. Joining Support Room:", chatId);
+        socket.emit("joinSupportRoom", chatId);
+      };
 
-    socket.on("newSupportMessage", (msg) => {
-      console.log("🔌 Socket: New message received:", msg);
-      setLocalMessages((prev) => {
-        // Prevent duplicate messages
-        if (prev.some(m => m._id === msg._id || (m.timestamp === msg.timestamp && m.message === msg.message))) {
-          return prev;
+      const handleNewMessage = (msg) => {
+        console.log("🔌 Socket: New message received:", msg);
+        setLocalMessages((prev) => {
+          // Prevent duplicate messages
+          if (prev.some(m => m._id === msg._id || (m.timestamp === msg.timestamp && m.message === msg.message))) {
+            return prev;
+          }
+          return [...prev, msg];
+        });
+      };
+
+      const handleSupportConnected = (data) => {
+        console.log("🔌 Socket: Associate connected:", data);
+        setChatSession(data.chat);
+        setLocalMessages(data.chat.messages);
+        setPartnerName(data.adminName);
+        setQueueInfo(null);
+      };
+
+      const handleQueuePosition = (data) => {
+        console.log("🔌 Socket: Queue position updated:", data);
+        setQueueInfo(data);
+        setChatSession((prev) => prev ? { ...prev, status: "waiting", queuePosition: data.queuePosition } : prev);
+      };
+
+      const handleSupportWaiting = (data) => {
+        setChatSession(data.chat);
+        setLocalMessages(data.chat.messages);
+        setQueueInfo({
+          queuePosition: data.queuePosition,
+          estimatedWaitTime: data.estimatedWaitTime
+        });
+      };
+
+      const handleAvailability = (data) => {
+        setAvailability(data);
+      };
+
+      const handleTyping = (data) => {
+        if (data.role === "admin") {
+          setPartnerTyping(data.isTyping);
         }
-        return [...prev, msg];
-      });
-    });
+      };
 
-    socket.on("supportConnected", (data) => {
-      console.log("🔌 Socket: Associate connected:", data);
-      setChatSession(data.chat);
-      setLocalMessages(data.chat.messages);
-      setPartnerName(data.adminName);
-      setQueueInfo(null);
-    });
+      const handleSupportClosed = (data) => {
+        console.log("🔌 Socket: Support closed by associate:", data);
+        setChatSession(data.chat);
+        setLocalMessages(data.chat.messages);
+        setPartnerTyping(false);
+        setQueueInfo(null);
+        setShowRatingModal(data.reason !== "inactivity");
+      };
 
-    socket.on("queuePositionUpdated", (data) => {
-      console.log("🔌 Socket: Queue position updated:", data);
-      setQueueInfo(data);
-      setChatSession((prev) => prev ? { ...prev, status: "waiting", queuePosition: data.queuePosition } : prev);
-    });
+      socket.on("connect", handleConnect);
+      socket.on("newSupportMessage", handleNewMessage);
+      socket.on("supportConnected", handleSupportConnected);
+      socket.on("queuePositionUpdated", handleQueuePosition);
+      socket.on("supportWaiting", handleSupportWaiting);
+      socket.on("associateAvailabilityChanged", handleAvailability);
+      socket.on("supportTypingUpdated", handleTyping);
+      socket.on("supportClosed", handleSupportClosed);
 
-    socket.on("supportWaiting", (data) => {
-      setChatSession(data.chat);
-      setLocalMessages(data.chat.messages);
-      setQueueInfo({
-        queuePosition: data.queuePosition,
-        estimatedWaitTime: data.estimatedWaitTime
-      });
-    });
+      if (socket.connected) handleConnect();
 
-    socket.on("associateAvailabilityChanged", (data) => {
-      setAvailability(data);
-    });
+      return () => {
+        socket.off("connect", handleConnect);
+        socket.off("newSupportMessage", handleNewMessage);
+        socket.off("supportConnected", handleSupportConnected);
+        socket.off("queuePositionUpdated", handleQueuePosition);
+        socket.off("supportWaiting", handleSupportWaiting);
+        socket.off("associateAvailabilityChanged", handleAvailability);
+        socket.off("supportTypingUpdated", handleTyping);
+        socket.off("supportClosed", handleSupportClosed);
+      };
+    };
 
-    socket.on("supportTypingUpdated", (data) => {
-      if (data.role === "admin") {
-        setPartnerTyping(data.isTyping);
-      }
-    });
-
-    socket.on("supportClosed", (data) => {
-      console.log("🔌 Socket: Support closed by associate:", data);
-      setChatSession(data.chat);
-      setLocalMessages(data.chat.messages);
-      setPartnerTyping(false);
-      setQueueInfo(null);
-      setShowRatingModal(data.reason !== "inactivity");
-    });
-
-    socket.on("disconnect", () => {
-      console.log("🔌 Support Socket disconnected.");
+    setupSocket().then(cleanup => {
+      cleanupListenersRef.current = cleanup;
     });
   };
 
   useEffect(() => {
     return () => {
+      if (cleanupListenersRef.current) {
+        cleanupListenersRef.current();
+      }
       if (socketRef.current) {
-        socketRef.current.disconnect();
+         // Do not disconnect singleton
+         socketRef.current = null;
       }
     };
   }, []);

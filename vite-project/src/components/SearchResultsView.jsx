@@ -1,7 +1,8 @@
-import React, { useMemo } from "react";
-import ProductCard from "../ProductCard";
+import React, { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import SEO from "./common/SEO";
-import MobileProductCard from "./mobile/MobileProductCard";
+import { getOptimizedImageUrl } from "../utils/imageOptimizer";
+import BackToTop from "./common/BackToTop";
 
 export default function SearchResultsView({
   searchQuery,
@@ -19,73 +20,63 @@ export default function SearchResultsView({
   getCartKey,
   searchLoading = false
 }) {
-  const query = searchQuery ? searchQuery.trim() : "";
+  const navigate = useNavigate();
+  const [localQuery, setLocalQuery] = useState(searchQuery || "");
+  const [isListening, setIsListening] = useState(false);
 
-  // Compute multi-tier recommendations
-  const recommendedProducts = useMemo(() => {
-    if (!allProducts || allProducts.length === 0) return [];
+  useEffect(() => {
+    setLocalQuery(searchQuery || "");
+  }, [searchQuery]);
 
-    // 1. Exclude products already displayed in filteredProducts
-    const filteredIds = new Set(filteredProducts.map(p => String(p._id || p.id)));
-    const pool = allProducts.filter(p => !filteredIds.has(String(p._id || p.id)));
+  // Sync typed query with parent state immediately
+  useEffect(() => {
+    if (localQuery !== searchQuery) {
+      setSearchQuery(localQuery);
+    }
+  }, [localQuery, searchQuery, setSearchQuery]);
 
-    if (pool.length === 0) return [];
+  const handleVoiceSearch = async () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice search is not supported on this device.");
+      return;
+    }
 
-    // Extract subcategories & categories from matched search results
-    const matchedSubcategories = new Set(
-      filteredProducts.map(p => p.subCategory || p.subcategory).filter(Boolean)
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setLocalQuery(transcript);
+        setSearchQuery(transcript);
+      };
+      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => setIsListening(false);
+
+      recognition.start();
+    } catch (err) {
+      console.error("Speech recognition error:", err);
+      setIsListening(false);
+    }
+  };
+
+  const highlightMatch = (text, query) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query})`, "gi"));
+    return (
+      <span>
+        {parts.map((part, i) =>
+          part.toLowerCase() === query.toLowerCase()
+            ? <strong key={i} style={{ color: "#4B5E78", fontWeight: "750" }}>{part}</strong>
+            : <span key={i} style={{ opacity: 0.85 }}>{part}</span>
+        )}
+      </span>
     );
-    const matchedCategories = new Set(
-      filteredProducts.map(p => p.category).filter(Boolean)
-    );
-
-    // Tier 1: Same Subcategory (e.g. Chocolate Milk, Milkshake)
-    const tier1 = pool.filter(p => {
-      const sub = p.subCategory || p.subcategory;
-      return sub && matchedSubcategories.has(sub);
-    });
-    const tier1Ids = new Set(tier1.map(p => String(p._id || p.id)));
-
-    // Tier 2: Same Category (e.g. Butter, Paneer, Cheese, Curd)
-    const tier2 = pool.filter(p => {
-      const id = String(p._id || p.id);
-      return !tier1Ids.has(id) && p.category && matchedCategories.has(p.category);
-    });
-    const tier2Ids = new Set(tier2.map(p => String(p._id || p.id)));
-
-    // Tier 3: Frequently Bought Together (e.g. Bread, Cornflakes, Biscuits, Coffee when searching Milk/Breakfast)
-    const frequentlyBoughtKeywords = ["bread", "biscuit", "cookie", "cornflake", "cereal", "coffee", "tea", "jam", "butter", "egg"];
-    const tier3 = pool.filter(p => {
-      const id = String(p._id || p.id);
-      if (tier1Ids.has(id) || tier2Ids.has(id)) return false;
-      const nameLower = (p.name || "").toLowerCase();
-      const catLower = (p.category || "").toLowerCase();
-      return frequentlyBoughtKeywords.some(kw => nameLower.includes(kw) || catLower.includes(kw));
-    });
-    const tier3Ids = new Set(tier3.map(p => String(p._id || p.id)));
-
-    // Tier 4: Trending / Featured Products
-    const tier4 = pool.filter(p => {
-      const id = String(p._id || p.id);
-      return !tier1Ids.has(id) && !tier2Ids.has(id) && !tier3Ids.has(id) && p.isTrending;
-    });
-    const tier4Ids = new Set(tier4.map(p => String(p._id || p.id)));
-
-    // Tier 5: Best Sellers / Catalog Fallback
-    const tier5 = pool.filter(p => {
-      const id = String(p._id || p.id);
-      return !tier1Ids.has(id) && !tier2Ids.has(id) && !tier3Ids.has(id) && !tier4Ids.has(id);
-    });
-
-    // Concatenate all 5 tiers in exact priority sequence
-    return [...tier1, ...tier2, ...tier3, ...tier4, ...tier5].slice(0, 18);
-  }, [filteredProducts, allProducts]);
-
-  const gridColumns = isMobile
-    ? "repeat(2, 1fr)"
-    : windowWidth < 1024
-      ? "repeat(4, 1fr)"
-      : "repeat(6, 1fr)";
+  };
 
   const suggestionsList = [
     "Fresh Fruits",
@@ -98,181 +89,192 @@ export default function SearchResultsView({
   ];
 
   return (
-    <div style={{ fontFamily: "'Outfit', 'Inter', sans-serif", width: "100%" }}>
-      <SEO title={query ? `Search "${query}"` : "Search"} description={query ? `Search results for "${query}" on Buyto.` : "Search across thousands of daily essentials and groceries on Buyto."} />
-      {/* SECTION 1: SEARCH RESULTS */}
-      <div style={{ marginBottom: "32px" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "800", color: "#1f2937", margin: 0 }}>
-            Search Results for "{query}"
-          </h2>
-          <span style={{ fontSize: "13px", fontWeight: "700", color: "#6b7280" }}>
-            {filteredProducts.length} {filteredProducts.length === 1 ? "product found" : "products found"}
-          </span>
-        </div>
+    <div style={{
+      width: "100%",
+      maxWidth: "680px",
+      margin: "0 auto",
+      padding: isMobile ? "0px 24px 140px 24px" : "0px 24px 100px 24px",
+      boxSizing: "border-box",
+      fontFamily: "'Outfit', 'Inter', sans-serif"
+    }}>
+      <SEO
+        title={localQuery ? `Search "${localQuery}"` : "Search"}
+        description={localQuery ? `Search results for "${localQuery}" on Buyto.` : "Search across thousands of daily essentials and groceries on Buyto."}
+      />
 
+      {/* RESULTS / SUGGESTIONS CONTAINER */}
+      <div>
         {searchLoading ? (
-          /* SKELETON LOADING STATE */
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : gridColumns,
-              gap: isMobile ? "10px" : "20px",
-              justifyItems: isMobile ? "center" : "normal"
-            }}
-          >
-            {[...Array(6)].map((_, idx) => (
+          /* SKELETON / LOADING LOADER */
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
+            {[...Array(5)].map((_, idx) => (
               <div
                 key={idx}
                 style={{
-                  background: "#f8fafc",
-                  borderRadius: "16px",
-                  height: isMobile ? "180px" : "280px",
-                  width: "100%",
-                  animation: "pulse-placeholder 1.5s infinite ease-in-out",
-                  border: "1px solid #f1f5f9"
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "4px 8px"
                 }}
-              />
+              >
+                <div style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "8px",
+                  background: "#FFFBF2",
+                  animation: "pulse-loader 1.5s infinite ease-in-out"
+                }} />
+                <div style={{
+                  width: "140px",
+                  height: "16px",
+                  background: "#FFFBF2",
+                  borderRadius: "4px",
+                  animation: "pulse-loader 1.5s infinite ease-in-out"
+                }} />
+              </div>
             ))}
-            <style dangerouslySetInnerHTML={{__html: `
-              @keyframes pulse-placeholder {
-                0%, 100% { opacity: 1; background-color: #f1f5f9; }
-                50% { opacity: .4; background-color: #e2e8f0; }
+            <style dangerouslySetInnerHTML={{
+              __html: `
+              @keyframes pulse-loader {
+                0%, 100% { background-color: #F3F1E8; }
+                50% { background-color: #E6E4DB; }
               }
             `}} />
           </div>
-        ) : filteredProducts.length === 0 ? (
-          /* ZERO-RESULT UI STATE */
-          <div style={{ background: "#ffffff", borderRadius: "20px", padding: "32px 20px", textAlign: "center", border: "1px solid #f1f5f9", boxShadow: "0 4px 16px rgba(0,0,0,0.02)", marginBottom: "24px" }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</div>
-            <h3 style={{ fontSize: "16px", fontWeight: "800", color: "#1e293b", margin: "0 0 6px 0" }}>
-              No products found for "{query}"
-            </h3>
-            <p style={{ color: "#64748b", fontSize: "13px", margin: "0 0 16px 0", fontWeight: "500" }}>
-              We couldn't find exact matches. Try:
-            </p>
-            <div style={{ display: "inline-flex", flexDirection: "column", gap: "6px", textAlign: "left", fontSize: "12px", color: "#475569", fontWeight: "600", marginBottom: "20px" }}>
-              <span>• Checking for spelling errors</span>
-              <span>• Using shorter or more general keywords</span>
-              <span>• Exploring suggested categories below</span>
+        ) : localQuery.trim() === "" ? (
+          /* POPULAR SEARCH SUGGESTIONS WHEN EMPTY QUERY */
+          <div>
+            <h4 style={{ fontSize: "14px", fontWeight: "800", color: "#4B5563", marginBottom: "16px", marginTop: "8px" }}>
+              Popular Searches
+            </h4>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+              {suggestionsList.map((sug, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setLocalQuery(sug);
+                    setSearchQuery(sug);
+                  }}
+                  style={{
+                    background: "white",
+                    border: "1px solid #E5E7EB",
+                    borderRadius: "20px",
+                    padding: "8px 16px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "#4B5563",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                    outline: "none"
+                  }}
+                >
+                  🔍 {sug}
+                </button>
+              ))}
             </div>
-            {setSearchQuery && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
-                {suggestionsList.map((sug, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSearchQuery(sug)}
-                    style={{
-                      background: "#f8fafc",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "20px",
-                      padding: "6px 14px",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                      color: "#334155",
-                      cursor: "pointer"
-                    }}
-                  >
-                    🔍 {sug}
-                  </button>
-                ))}
-              </div>
-            )}
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          /* NO RESULTS FOUND STATE */
+          <div style={{
+            textAlign: "center",
+            padding: "48px 24px",
+            marginTop: "12px",
+            background: "white",
+            borderRadius: "24px",
+            border: "1px solid #E5E7EB",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.02)"
+          }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</div>
+            <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#1F2937", margin: "0 0 8px 0" }}>
+              No products found for "{localQuery}"
+            </h3>
+            <p style={{ color: "#6B7280", fontSize: "14px", margin: "0 0 16px 0", fontWeight: "500" }}>
+              Try checking the spelling or searching with a different keyword.
+            </p>
           </div>
         ) : (
-          /* MATCHING SEARCH RESULTS GRID */
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : gridColumns,
-              gap: isMobile ? "10px" : "20px",
-              justifyItems: isMobile ? "center" : "normal"
-            }}
-          >
-            {filteredProducts.map((product) => {
-              if (isMobile) {
-                return (
-                  <MobileProductCard
-                    key={product._id || product.id}
-                    product={product}
-                    addToCart={addToCart}
-                    removeFromCart={removeFromCart}
-                    cartItems={cartItems}
-                    setSelectedProduct={setSelectedProduct}
-                    searchQuery={query}
-                  />
-                );
-              }
-              if (renderProductCard) return renderProductCard(product);
+          /* RESULTS LIST VIEW */
+          <div style={{ 
+            display: "flex", 
+            flexDirection: "column", 
+            background: "white",
+            borderRadius: "16px",
+            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.12)",
+            border: "1px solid #e2e8f0",
+            padding: "4px 0",
+            marginTop: "2px",
+            maxHeight: "400px",
+            height: "fit-content",
+            flex: "0 0 auto",
+            overflowY: "auto",
+            WebkitOverflowScrolling: "touch"
+          }}>
+            {filteredProducts.slice(0, 8).map((product) => {
+              const productId = product._id || product.id;
+              const imageUrl = getOptimizedImageUrl(product.image, "thumbnail");
+
               return (
-                <ProductCard
-                  key={product._id || product.id}
-                  product={product}
-                  openProduct={openProduct}
-                  setSelectedProduct={setSelectedProduct}
-                  addToCart={addToCart}
-                  removeFromCart={removeFromCart}
-                  windowWidth={windowWidth}
-                  getCartKey={getCartKey}
-                  searchQuery={query}
-                />
+                <div
+                  key={productId}
+                  onClick={() => {
+                    navigate(`/product/${productId}`);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    cursor: "pointer",
+                    padding: "8px 16px",
+                    transition: "background-color 0.15s ease"
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = "#F9FAFB";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  {/* Image Container */}
+                  <div style={{
+                    width: "48px",
+                    height: "48px",
+                    background: "white",
+                    border: "1px solid #E5E7EB",
+                    borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    flexShrink: 0
+                  }}>
+                    <img
+                      src={imageUrl}
+                      alt={product.name}
+                      style={{
+                        width: "85%",
+                        height: "85%",
+                        objectFit: "contain"
+                      }}
+                      loading="lazy"
+                    />
+                  </div>
+
+                  {/* Product/Search Name */}
+                  <span style={{
+                    fontSize: isMobile ? "14px" : "15px",
+                    fontWeight: "600",
+                    color: "#1D2A3A",
+                    textAlign: "left"
+                  }}>
+                    {highlightMatch(product.name, localQuery)}
+                  </span>
+                </div>
               );
             })}
           </div>
         )}
       </div>
-
-      {/* SECTION 2: DIVIDER & RECOMMENDED FOR YOU */}
-      {recommendedProducts.length > 0 && (
-        <div style={{ marginTop: "40px" }}>
-          {/* Section Divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
-            <div style={{ flexGrow: 1, height: "1px", background: "#e2e8f0" }} />
-            <span style={{ fontSize: "14px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              ✨ Recommended For You
-            </span>
-            <div style={{ flexGrow: 1, height: "1px", background: "#e2e8f0" }} />
-          </div>
-
-          {/* Recommendations Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : gridColumns,
-              gap: isMobile ? "10px" : "20px",
-              justifyItems: isMobile ? "center" : "normal"
-            }}
-          >
-            {recommendedProducts.map((product) => {
-              if (isMobile) {
-                return (
-                  <MobileProductCard
-                    key={product._id || product.id}
-                    product={product}
-                    addToCart={addToCart}
-                    removeFromCart={removeFromCart}
-                    cartItems={cartItems}
-                    setSelectedProduct={setSelectedProduct}
-                  />
-                );
-              }
-              if (renderProductCard) return renderProductCard(product);
-              return (
-                <ProductCard
-                  key={product._id || product.id}
-                  product={product}
-                  openProduct={openProduct}
-                  setSelectedProduct={setSelectedProduct}
-                  addToCart={addToCart}
-                  removeFromCart={removeFromCart}
-                  windowWidth={windowWidth}
-                  getCartKey={getCartKey}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <BackToTop />
     </div>
   );
 }

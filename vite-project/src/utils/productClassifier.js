@@ -52,6 +52,12 @@ const checkField = (val) => {
 export const classifyProduct = (p) => {
   if (!p) return "Other Products";
 
+  // Direct check for "Drinks, Juice & More" to prevent heuristic overrides
+  const normCat = canonicalCategory(p.category);
+  if (normCat === "Drinks, Juice & More") {
+    return "Drinks, Juice & More";
+  }
+
   // Priority 1: product.subCategory
   if (p.subCategory) {
     const matched = checkField(p.subCategory);
@@ -246,6 +252,9 @@ export const canonicalCategory = (name) => {
   }
   if (lower === "other" || lower === "other products") {
     return "Other Products";
+  }
+  if (lower === "drinks, juice & more" || lower === "drinks, juice and more" || lower === "drinks-juice-and-more") {
+    return "Drinks, Juice & More";
   }
   if (lower === "hostel essentials") {
     return "Hostel Essentials";

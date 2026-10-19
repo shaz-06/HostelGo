@@ -8,9 +8,10 @@ const authMiddleware = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(" ")[1];
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "buyto_super_secret_key");
-      console.log("=== [JWT VERIFY SUCCESS] ===");
-      console.log("Decoded Token Payload:", decoded);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (process.env.NODE_ENV !== "production") {
+        console.log("=== [JWT VERIFY SUCCESS] ===");
+      }
 
       req.user = await User.findById(decoded.id).select("-password");
       req.tokenPayload = decoded;
@@ -32,7 +33,9 @@ const authMiddleware = async (req, res, next) => {
     } catch (error) {
       console.error("❌ === [JWT VERIFY ERROR] ===");
       console.error(error.message);
-      return res.status(401).json({ message: "Not authorized, token failed", error: error.message });
+      return res.status(401).json({
+        message: "Not authorized, token failed"
+      });
     }
   } else {
     console.error("❌ JWT Verify: Bearer token is missing in request headers");

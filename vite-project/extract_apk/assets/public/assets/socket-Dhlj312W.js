@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/index-D2EfKH85.js","assets/index-DYGxF3D6.css"])))=>i.map(i=>d[i]);
+import{H as e}from"./index-D2EfKH85.js";var t=null,n=null,r=async()=>t||(n||=e(async()=>{let{io:e}=await import(`./index-D2EfKH85.js`).then(e=>e.O);return{io:e}},__vite__mapDeps([0,1])).then(({io:e})=>(t=e(window.API_BASE_URL),t)),n);export{r as t};

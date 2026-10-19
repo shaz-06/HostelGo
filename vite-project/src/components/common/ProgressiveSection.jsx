@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 
-export default function ProgressiveSection({ children, fallback, rootMargin = "600px", minHeight = "180px" }) {
+export default function ProgressiveSection({ children, fallback, rootMargin = "100px", minHeight = "180px" }) {
   const [shouldRender, setShouldRender] = useState(false);
   const containerRef = useRef(null);
 
@@ -32,7 +32,14 @@ export default function ProgressiveSection({ children, fallback, rootMargin = "6
   }, [shouldRender, rootMargin]);
 
   return (
-    <div ref={containerRef} style={{ minHeight: shouldRender ? "auto" : minHeight }}>
+    <div
+      ref={containerRef}
+      style={{
+        minHeight: shouldRender ? "auto" : minHeight,
+        contentVisibility: "auto",
+        containIntrinsicSize: `auto ${minHeight}`
+      }}
+    >
       {shouldRender ? children : fallback}
     </div>
   );

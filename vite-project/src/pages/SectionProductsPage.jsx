@@ -6,6 +6,8 @@ import { cachedFetch } from "../utils/apiCache";
 import { getOptimizedImageUrl } from "../utils/imageOptimizer";
 import { usePerfLogger } from "../utils/perfLogger";
 import SEO from "../components/common/SEO";
+import BackToTop from "../components/common/BackToTop";
+import { useAppStore, selectSaveForLaterIds } from '../store/appStore';
 
 const DAIRY_PRODUCTS = [
   {
@@ -2147,7 +2149,7 @@ const DYNAMIC_PRODUCTS = [
     description: "Spicy and tangy potato and gram flour chickpea noodles deep fried.",
     stock: 100,
     eta: "30 MINS",
-    image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=500&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=500&auto=format&fit=crop",
   },
   {
     _id: "chips_3",
@@ -2162,7 +2164,7 @@ const DYNAMIC_PRODUCTS = [
     description: "Spicy and crunchy cornmeal puff twists seasoned with authentic spices.",
     stock: 150,
     eta: "30 MINS",
-    image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=500&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=500&auto=format&fit=crop",
   },
   {
     _id: "chips_4",
@@ -2178,7 +2180,7 @@ const DYNAMIC_PRODUCTS = [
     stock: 80,
     eta: "30 MINS",
     isAd: true,
-    image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=500&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=500&auto=format&fit=crop",
   },
 
   // Chocolates
@@ -3180,8 +3182,9 @@ export default function SectionProductsPage({
     console.log("=== SECTION API FETCH INITIATED ===", window.API_BASE_URL + "/api/products");
     cachedFetch(window.API_BASE_URL + "/api/products")
       .then((data) => {
-        console.log("=== SECTION API FETCH SUCCESS ===", data.length, "products loaded");
-        setProducts(data);
+        const fetchedProducts = Array.isArray(data) ? data : (data?.products || []);
+        console.log("=== SECTION API FETCH SUCCESS ===", fetchedProducts.length, "products loaded");
+        setProducts(fetchedProducts);
         setApiError(null);
         setLoading(false);
       })
@@ -7075,6 +7078,7 @@ export default function SectionProductsPage({
             )}
           </main>
         </div>
+        <BackToTop />
       </div>
     );
   }
@@ -7485,6 +7489,7 @@ export default function SectionProductsPage({
           )}
 
         </div>
+        <BackToTop />
       </div>
     );
   }
@@ -7493,7 +7498,8 @@ export default function SectionProductsPage({
   // PREMIUM PRODUCT CARD COMPONENT
   // ==========================================
   function PremiumProductCard({ product }) {
-    const { saveForLaterIds, toggleSaveForLater } = useContext(AuthContext);
+    const saveForLaterIds = useAppStore(selectSaveForLaterIds);
+    const toggleSaveForLater = useAppStore((state) => state.toggleSaveForLater);
     const [isHovered, setIsHovered] = useState(false);
     const [isHeartPop, setIsHeartPop] = useState(false);
 

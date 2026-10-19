@@ -10,11 +10,6 @@ const inFlightRequests = new Map();
  * @param {number} ttlMs - Cache expiration duration in milliseconds (default 2 minutes).
  */
 export async function cachedFetch(url, options = {}, ttlMs = 120000) {
-  // Automatically apply 700ms minDelay for product-related GET API requests to ensure skeleton display consistency
-  if (url.includes("/api/products") && !url.includes("/api/products/bestsellers") && options.minDelay === undefined) {
-    options.minDelay = 700;
-  }
-
   // Only cache GET requests
   const method = (options.method || 'GET').toUpperCase();
   if (method !== 'GET' || options.bypassCache) {
@@ -26,14 +21,17 @@ export async function cachedFetch(url, options = {}, ttlMs = 120000) {
   // 1. Check if we have a valid cached response
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < ttlMs) {
+    console.log(`[CACHE HIT] ${url}`);
     return cached.data;
   }
 
   // 2. Check if there is already a matching request in flight
   if (inFlightRequests.has(cacheKey)) {
+    console.log(`[CACHE FLIGHT] ${url}`);
     return inFlightRequests.get(cacheKey);
   }
 
+  console.log(`[CACHE MISS] ${url}`);
   // 3. Initiate the request with timing instrumentation
   const reqStart = performance.now();
   const requestPromise = apiFetch(url, options)

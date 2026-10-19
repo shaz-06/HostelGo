@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import DiscountIcon from "../../assets/illustrations/discount_offer_icon.png";
+import DiscountIcon from "../../assets/illustrations/discount_offer_icon.webp";
 const DeliveryIllustration = "https://img.icons8.com/?size=100&id=uTI4SjCIkNJp&format=png&color=000000";
 
 // Centralized offers configuration for scalability

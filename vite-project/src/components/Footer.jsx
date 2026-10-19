@@ -202,7 +202,7 @@ export default function Footer() {
                         <div>
                             <h3 style={{ fontSize: "17px", fontWeight: "850", color: "#FFFFFF", margin: "0 0 15px 0" }}>Contact Us</h3>
                             <div style={{ display: "flex", flexDirection: "column", gap: "10px", color: "rgba(255,255,255,0.75)", fontSize: "14px", fontWeight: "500", lineHeight: "1.5" }}>
-                                <p style={{ margin: 0 }}>📧 support@buyto.co.in</p>
+                                <p style={{ margin: 0 }}>📧 supportbuyto@gmail.com</p>
                                 <p style={{ margin: 0 }}>🌐 www.buyto.co.in</p>
                                 <p style={{ margin: 0 }}>📍 Bengaluru, Karnataka</p>
                             </div>

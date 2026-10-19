@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { io } from "socket.io-client";
+import { useNavigate, useLocation } from "react-router-dom";
+import { initSocket } from "../utils/socket";
 import { motion } from "framer-motion";
 import { AuthContext } from "../context/AuthContext";
 import { apiFetch } from "../utils/apiClient";
@@ -272,12 +272,29 @@ export default function PaymentPage({
       .catch(err => console.error("Failed to load delivery settings in PaymentPage:", err));
 
     // Connect to Socket.IO for real-time updates
-    const socket = io(window.API_BASE_URL);
-    socket.on("deliverySettingsUpdated", (updatedSettings) => {
-        console.log("🔌 Socket: delivery settings updated in real-time (payment):", updatedSettings);
-        if (updatedSettings) {
-            setDeliverySettings(updatedSettings);
-        }
+    let cancelled = false;
+    let cleanupListeners = null;
+
+    const setupSocket = async () => {
+        const socket = await initSocket();
+        if (cancelled) return;
+
+        const handleDeliverySettings = (updatedSettings) => {
+            console.log("🔌 Socket: delivery settings updated in real-time (payment):", updatedSettings);
+            if (updatedSettings) {
+                setDeliverySettings(updatedSettings);
+            }
+        };
+
+        socket.on("deliverySettingsUpdated", handleDeliverySettings);
+
+        return () => {
+            socket.off("deliverySettingsUpdated", handleDeliverySettings);
+        };
+    };
+
+    setupSocket().then(cleanup => {
+        cleanupListeners = cleanup;
     });
 
     // Fallback polling every 30 seconds
@@ -293,7 +310,8 @@ export default function PaymentPage({
     }, 30000);
 
     return () => {
-        socket.disconnect();
+        cancelled = true;
+        if (cleanupListeners) cleanupListeners();
         clearInterval(pollInterval);
     };
   }, []);

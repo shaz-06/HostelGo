@@ -39,7 +39,7 @@ const orderSchema = new mongoose.Schema({
   paymentMethod: { type: String, required: true }, // 'cod' or 'razorpay'
   paymentStatus: {
     type: String,
-    enum: ["Pending", "Paid", "Failed", "Refunded"],
+    enum: ["Pending", "Processing", "Paid", "Failed", "Refunded"],
     default: "Pending"
   },
   paymentId: { type: String },
@@ -133,6 +133,7 @@ const orderSchema = new mongoose.Schema({
   },
   borzoDeliveryStatus: {
     type: String,
+    enum: ["pending_dispatch", "dispatching", "new", "courier_assigned", "picked_up", "on_the_way", "delivered", "cancelled", "delivery_failed", null],
     default: null
   },
   borzoRiderName: {
@@ -234,5 +235,7 @@ orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ "assignedRider.riderId": 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ "user.phone": 1 });
+orderSchema.index({ trackingSessionActive: 1, estimatedDeliveryTime: 1 });
+orderSchema.index({ adminNotificationStatus: 1, adminNotificationRetries: 1 });
 
 module.exports = mongoose.model("Order", orderSchema);

@@ -1,6 +1,9 @@
 import React, { createContext, useState, useEffect } from "react";
+import { useAppStore } from "../store/appStore";
 import { syncTokenWithBackend } from "../services/pushNotifications";
 import { apiFetch } from "../utils/apiClient";
+import { cachedFetch } from "../utils/apiCache";
+import { UIContext } from '../context/UIContext';
 
 export const AuthContext = createContext();
 
@@ -41,21 +44,8 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [loading, setLoading] = useState(true);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeBonus, setWelcomeBonus] = useState(20);
   const [appConfig, setAppConfig] = useState(null);
-  const [hideSensitive, setHideSensitive] = useState(() => {
-    return localStorage.getItem("buyto_hide_sensitive") === "true";
-  });
-
-  const toggleHideSensitive = React.useCallback(() => {
-    setHideSensitive((prev) => {
-      const nextVal = !prev;
-      localStorage.setItem("buyto_hide_sensitive", nextVal ? "true" : "false");
-      return nextVal;
-    });
-  }, []);
-
   const updateUserInSession = React.useCallback((incomingUser) => {
     const existingUser = JSON.parse(
       localStorage.getItem("buyto_user") || "null"
@@ -116,12 +106,9 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const res = await fetch(window.API_BASE_URL + "/api/config");
-        if (res.ok) {
-          const data = await res.json();
-          setAppConfig(data);
-          console.log("Cached configuration loaded successfully:", data);
-        }
+        const data = await cachedFetch(window.API_BASE_URL + "/api/config");
+        setAppConfig(data);
+        console.log("Cached configuration loaded successfully:", data);
       } catch (err) {
         console.error("Failed to load app configuration:", err);
       }
@@ -179,114 +166,7 @@ export const AuthProvider = ({ children }) => {
 
 
 
-  const [saveForLaterIds, setSaveForLaterIds] = useState([]);
-
-  // Fetch or load Save For Later list
-  useEffect(() => {
-    const loadSaveForLater = async () => {
-      if (token) {
-        try {
-          const res = await fetch(window.API_BASE_URL + "/api/save-for-later", {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.savedProducts) {
-              const ids = data.savedProducts.map(p => {
-                const prod = p.productId;
-                return prod ? String(prod._id || prod.id || prod) : "";
-              }).filter(Boolean);
-              setSaveForLaterIds(ids);
-            }
-          }
-        } catch (err) {
-          console.error("Failed to load Save For Later list:", err);
-        }
-      } else {
-        const guestSaved = localStorage.getItem("buyto_save_for_later");
-        if (guestSaved) {
-          try {
-            setSaveForLaterIds(JSON.parse(guestSaved));
-          } catch (e) {
-            setSaveForLaterIds([]);
-          }
-        } else {
-          setSaveForLaterIds([]);
-        }
-      }
-    };
-    loadSaveForLater();
-  }, [token]);
-
-  const syncGuestSavedProducts = React.useCallback(async (userToken) => {
-    const guestSaved = localStorage.getItem("buyto_save_for_later");
-    if (guestSaved) {
-      try {
-        const ids = JSON.parse(guestSaved);
-        if (Array.isArray(ids) && ids.length > 0) {
-          console.log("Syncing guest Save For Later products to backend...", ids);
-          await Promise.all(
-            ids.map(productId =>
-              fetch(window.API_BASE_URL + `/api/save-for-later/${productId}`, {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${userToken}`
-                }
-              }).catch(err => console.error("Sync failed for", productId, err))
-            )
-          );
-        }
-      } catch (err) {
-        console.error("Failed to sync guest products:", err);
-      } finally {
-        localStorage.removeItem("buyto_save_for_later");
-      }
-    }
-  }, []);
-
-  const toggleSaveForLater = React.useCallback(async (product) => {
-    const productId = String(product._id || product.id);
-    const isSaved = saveForLaterIds.includes(productId);
-
-    if (token) {
-      try {
-        const method = isSaved ? "DELETE" : "POST";
-        const res = await fetch(window.API_BASE_URL + `/api/save-for-later/${productId}`, {
-          method,
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.savedProducts) {
-            const ids = data.savedProducts.map(p => {
-              const prod = p.productId;
-              return prod ? String(prod._id || prod.id || prod) : "";
-            }).filter(Boolean);
-            setSaveForLaterIds(ids);
-          }
-          return { success: true, isSaved: !isSaved };
-        } else {
-          const errData = await res.json();
-          return { success: false, message: errData.message };
-        }
-      } catch (err) {
-        console.error("Toggle Save For Later API call failed:", err);
-        return { success: false, message: err.message };
-      }
-    } else {
-      let updatedIds;
-      if (isSaved) {
-        updatedIds = saveForLaterIds.filter(id => id !== productId);
-      } else {
-        updatedIds = [...saveForLaterIds, productId];
-      }
-      setSaveForLaterIds(updatedIds);
-      localStorage.setItem("buyto_save_for_later", JSON.stringify(updatedIds));
-      return { success: true, isSaved: !isSaved };
-    }
-  }, [saveForLaterIds, token]);
+  // UI states and Save For Later moved to UIContext and appStore respectively
 
   const login = React.useCallback(async (email, password) => {
     console.log("=== [FRONTEND AUTH LOGIN] ===");
@@ -303,7 +183,7 @@ export const AuthProvider = ({ children }) => {
       throw new Error(data.message || "Login authentication failed");
     }
 
-    await syncGuestSavedProducts(data.token);
+    await useAppStore.getState().syncGuestSavedProducts(data.token);
 
     setToken(data.token);
     updateUserInSession(data.user);
@@ -317,19 +197,9 @@ export const AuthProvider = ({ children }) => {
     }, 100);
 
     return data;
-  }, [syncGuestSavedProducts]);
-
-  const [loginBottomSheetOpen, setLoginBottomSheetOpen] = useState(false);
-  const [onLoginSuccessCallback, setOnLoginSuccessCallback] = useState(null);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
-
-  const openOnboarding = React.useCallback(() => {
-    setOnboardingOpen(true);
   }, []);
 
-  const closeOnboarding = React.useCallback(() => {
-    setOnboardingOpen(false);
-  }, []);
+
 
 
 
@@ -353,20 +223,11 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  const openLogin = React.useCallback((onSuccess) => {
-    console.log("Opening OTP bottom sheet");
-    setOnLoginSuccessCallback(() => typeof onSuccess === "function" ? onSuccess : null);
-    setLoginBottomSheetOpen(true);
-  }, []);
 
-  const closeLogin = React.useCallback(() => {
-    setLoginBottomSheetOpen(false);
-    setOnLoginSuccessCallback(null);
-  }, []);
 
   const setAuthSession = React.useCallback(async (authToken, authUser, isNewUser = false, welcomeBonusAmount = 20) => {
     console.log("LOGIN SUCCESS");
-    await syncGuestSavedProducts(authToken);
+    await useAppStore.getState().syncGuestSavedProducts(authToken);
     setToken(authToken);
     updateUserInSession(authUser);
     localStorage.setItem("buyto_token", authToken);
@@ -375,23 +236,13 @@ export const AuthProvider = ({ children }) => {
 
     if (isNewUser) {
       setWelcomeBonus(welcomeBonusAmount);
-      setShowWelcomeModal(true);
     }
 
     setTimeout(() => {
       syncTokenWithBackend(authToken);
     }, 100);
 
-    if (onLoginSuccessCallback) {
-      try {
-        onLoginSuccessCallback();
-      } catch (e) {
-        console.error("Error executing login success callback:", e);
-      }
-    }
-    setLoginBottomSheetOpen(false);
-    setOnLoginSuccessCallback(null);
-  }, [onLoginSuccessCallback, syncGuestSavedProducts]);
+  }, []);
 
   const signup = React.useCallback(async (name, email, phone, password) => {
     console.log("=== [FRONTEND AUTH SIGNUP] ===");
@@ -408,7 +259,7 @@ export const AuthProvider = ({ children }) => {
       throw new Error(data.message || "Signup failed");
     }
 
-    await syncGuestSavedProducts(data.token);
+    await useAppStore.getState().syncGuestSavedProducts(data.token);
 
     setToken(data.token);
     updateUserInSession(data.user);
@@ -419,30 +270,21 @@ export const AuthProvider = ({ children }) => {
 
     if (data.isNewUser) {
       setWelcomeBonus(data.welcomeBonus || 20);
-      setShowWelcomeModal(true);
     }
 
     setTimeout(() => {
       syncTokenWithBackend(data.token);
     }, 100);
 
-    if (onLoginSuccessCallback) {
-      try {
-        onLoginSuccessCallback();
-      } catch (e) {}
-    }
-    setLoginBottomSheetOpen(false);
-    setOnLoginSuccessCallback(null);
-
     return data;
-  }, [onLoginSuccessCallback, syncGuestSavedProducts]);
+  }, []);
 
   const logout = React.useCallback(() => {
     console.log("=== [FRONTEND AUTH LOGOUT] ===");
 
     setToken(null);
     setUser(guestUser);
-    setSaveForLaterIds([]);
+    useAppStore.getState().clearSaveForLater();
     localStorage.removeItem("buyto_token");
     localStorage.removeItem("buyto_login_token");
     sessionStorage.removeItem("buyto_admin_token");
@@ -523,24 +365,10 @@ export const AuthProvider = ({ children }) => {
     setAuthSession,
     verifyAdmin,
     isAdminVerified,
-    saveForLaterIds,
-    toggleSaveForLater,
-    loginBottomSheetOpen,
-    isLoginOpen: loginBottomSheetOpen,
-    openLogin,
-    closeLogin,
-    onboardingOpen,
-    isOnboardingOpen: onboardingOpen,
-    openOnboarding,
-    closeOnboarding,
     updateUserInSession,
     refreshUser,
-    showWelcomeModal,
-    setShowWelcomeModal,
     welcomeBonus,
-    appConfig,
-    hideSensitive,
-    toggleHideSensitive
+    appConfig
   }), [
     user,
     isLoggedIn,
@@ -552,21 +380,10 @@ export const AuthProvider = ({ children }) => {
     setAuthSession,
     verifyAdmin,
     isAdminVerified,
-    saveForLaterIds,
-    toggleSaveForLater,
-    loginBottomSheetOpen,
-    openLogin,
-    closeLogin,
-    onboardingOpen,
-    openOnboarding,
-    closeOnboarding,
     updateUserInSession,
     refreshUser,
-    showWelcomeModal,
     welcomeBonus,
-    appConfig,
-    hideSensitive,
-    toggleHideSensitive
+    appConfig
   ]);
 
   return (

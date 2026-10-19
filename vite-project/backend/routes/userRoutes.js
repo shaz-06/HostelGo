@@ -433,14 +433,19 @@ router.post("/request-phone-otp", authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: "Phone number is already linked to another account" });
     }
 
-    const otp = "123456"; // Default OTP for development / demo
-    phoneOtpStore.set(String(req.user._id), { newPhone: cleanPhone, otp, expiresAt: Date.now() + 10 * 60 * 1000 });
+    const otp = String(Math.floor(100000 + Math.random() * 900000)); // Default OTP for development / demo
+    phoneOtpStore.set(String(req.user._id), {
+      newPhone: cleanPhone,
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      attempts: 0
+    });
 
-    console.log(`📱 [PHONE UPDATE OTP] Generated OTP for user ${req.user._id} to update phone to ${cleanPhone}: ${otp}`);
+    console.log(`📱 [PHONE UPDATE OTP] OTP generated for user ${req.user._id}`);
 
     return res.status(200).json({
       success: true,
-      message: "OTP sent to new phone number (Default OTP: 123456)"
+      message: "OTP sent to new phone number"
     });
   } catch (error) {
     console.error("Error requesting phone OTP:", error);
@@ -458,7 +463,16 @@ router.post("/verify-phone-otp", authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: "OTP expired or not requested. Please request a new OTP." });
     }
 
+    if (record.attempts >= 5) {
+      phoneOtpStore.delete(String(req.user._id));
+      return res.status(429).json({
+        success: false,
+        message: "Too many invalid OTP attempts. Please request a new OTP."
+      });
+    }
+
     if (String(otp).trim() !== record.otp) {
+      record.attempts += 1;
       return res.status(400).json({ success: false, message: "Invalid OTP code" });
     }
 
@@ -478,7 +492,7 @@ router.post("/verify-phone-otp", authMiddleware, async (req, res) => {
 });
 
 // POST /api/notifications/register-token
-router.post("/register-token", async (req, res) => {
+router.post("/register-token", authMiddleware, async (req, res) => {
   try {
     const { phone, fcmToken } = req.body;
     if (!phone || !fcmToken) {

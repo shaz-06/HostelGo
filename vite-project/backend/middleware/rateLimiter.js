@@ -24,7 +24,8 @@ const globalLimiter = rateLimit({
       url.startsWith("/api/categories") ||
       url.startsWith("/api/search") ||
       url.startsWith("/api/banners") ||
-      url.startsWith("/api/promotions")
+      url.startsWith("/api/promotions") ||
+      url.startsWith("/api/home")
     );
   },
   handler: customHandler
@@ -82,8 +83,9 @@ const forgotPasswordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 3,
   keyGenerator: (req) => {
-    return req.body.email ? req.body.email.toLowerCase().trim() : req.ip;
-  },
+  const email = req.body?.email?.toLowerCase().trim() || "unknown";
+  return `${req.ip}:${email}`;
+},
   standardHeaders: true,
   legacyHeaders: false,
   handler: customHandler

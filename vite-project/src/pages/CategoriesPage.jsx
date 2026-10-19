@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { classifyProduct, canonicalCategory } from "../utils/productClassifier";
 import SEO from "../components/common/SEO";
-import { ArrowUp } from "lucide-react";
+import BackToTop from "../components/common/BackToTop";
 
 const getCategoryGradient = (name, isStore = false) => {
   const lower = name.toLowerCase();
@@ -124,7 +124,7 @@ const discoverySections = [
       { name: "Oil, Ghee & Masala", slug: "oils-and-ghee", image: "https://images.unsplash.com/photo-1532407191490-e847be1540c6?w=150" },
       { name: "Dairy, Bread & Eggs", slug: "dairy-bread-eggs", image: "https://images.unsplash.com/photo-1588710922810-ee4047b470d9?w=150" },
       { name: "Bakery & Biscuits", slug: "biscuits-and-cakes", image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=150" },
-      { name: "Dry Fruits & Cereals", slug: "cereals-breakfast", image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=150" },
+      { name: "Dry Fruits & Cereals", slug: "cereals-breakfast", image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=150" },
       { name: "Chicken, Meat & Fish", slug: "meat-seafood", image: "https://images.unsplash.com/photo-1532407191490-e847be1540c6?w=150" },
       { name: "Kitchenware & Appliances", slug: "home-kitchen", image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=150" }
     ]
@@ -132,7 +132,7 @@ const discoverySections = [
   {
     title: "Snacks & Drinks",
     items: [
-      { name: "Chips & Namkeen", slug: "chips-namkeens", image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=150" },
+      { name: "Chips & Namkeen", slug: "chips-namkeens", image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=150" },
       { name: "Sweets & Chocolates", slug: "chocolates", image: "https://images.unsplash.com/photo-1549007994-cb92ca8a7a72?w=150" },
       { name: "Drinks & Juices", slug: "cold-drinks-juices", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=150" },
       { name: "Tea, Coffee & Milk Drinks", slug: "tea-coffee-drinks", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=150" },
@@ -212,27 +212,6 @@ const generateSlug = (name) => {
 
 export default function CategoriesPage({ products = [], searchQuery = "", setSearchQuery = () => {} }) {
   const navigate = useNavigate();
-  const [showBackToTop, setShowBackToTop] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 300) {
-        setShowBackToTop(true);
-      } else {
-        setShowBackToTop(false);
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const handleScrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
-  };
-
   const [searchIndex, setSearchIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [localQuery, setLocalQuery] = useState(searchQuery);
@@ -537,49 +516,7 @@ export default function CategoriesPage({ products = [], searchQuery = "", setSea
         </div>
       </main>
 
-      {/* Floating Back to Top Button */}
-      <button
-        onClick={handleScrollToTop}
-        style={{
-          position: "fixed",
-          bottom: "140px",
-          left: "50%",
-          transform: showBackToTop ? "translate3d(-50%, 0, 0)" : "translate3d(-50%, 15px, 0)",
-          background: "#333333",
-          color: "#ffffff",
-          border: "none",
-          borderRadius: "30px",
-          padding: "10px 22px",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          fontSize: "14px",
-          fontWeight: "750",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-          cursor: "pointer",
-          zIndex: 9999,
-          opacity: showBackToTop ? 1 : 0,
-          visibility: showBackToTop ? "visible" : "hidden",
-          transition: "opacity 300ms ease, transform 300ms ease, visibility 300ms ease",
-          outline: "none"
-        }}
-      >
-        <span
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "20px",
-            height: "20px",
-            borderRadius: "50%",
-            border: "1.5px solid #ffffff",
-            boxSizing: "border-box"
-          }}
-        >
-          <ArrowUp size={12} strokeWidth={3} />
-        </span>
-        <span>Back to top</span>
-      </button>
+      <BackToTop />
     </div>
   );
 }

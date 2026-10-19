@@ -3,12 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import SEO from "./SEO";
 import { msg91Login } from "../../services/otpService";
-import phoneIllustration from "../../assets/illustrations/phone-verification.png";
+import phoneIllustration from "../../assets/illustrations/phone-verification.webp";
 import { RotateCw } from "lucide-react";
 import { logoPath } from "../../config/branding";
+import { UIContext } from "../../context/UIContext";
 
 export default function OtpLoginBottomSheet() {
-  const { isLoginOpen, closeLogin, setAuthSession, openOnboarding } = useContext(AuthContext);
+  const { setAuthSession } = useContext(AuthContext);
+  const {
+    isLoginOpen,
+    closeLogin,
+    openOnboarding,
+    onLoginSuccessCallback,
+    setShowWelcomeModal,
+  } = useContext(UIContext);
   const loginBottomSheetOpen = isLoginOpen;
   const navigate = useNavigate();
 
@@ -19,7 +27,9 @@ export default function OtpLoginBottomSheet() {
   const [retrying, setRetrying] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isActive, setIsActive] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 768);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 768,
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -52,24 +62,38 @@ export default function OtpLoginBottomSheet() {
 
     // Define success verification handler
     window.configuration = {
-      widgetId: "366676677233393137373632",
+      widgetId: "3666766e344c303637363735",
       tokenAuth: "543604TezJRg0EB6a38de05P1",
+      exposeMethods: true,
       success: async (data) => {
         console.log("OTP SUCCESS CALLBACK", Date.now());
 
         // Dynamic search for token property names
-        const accessToken = data?.accessToken || data?.access_token || data?.token || data?.message || (data?.data && (data.data.accessToken || data.data.access_token || data.data.token));
+        const accessToken =
+          data?.accessToken ||
+          data?.access_token ||
+          data?.token ||
+          data?.message ||
+          (data?.data &&
+            (data.data.accessToken ||
+              data.data.access_token ||
+              data.data.token));
         console.log("accessToken:", accessToken);
         console.log("verification in progress:", hasVerifiedRef.current);
 
         if (!accessToken) {
-          setError("Failed to fetch verified access token from widget. Payload: " + JSON.stringify(data));
+          setError(
+            "Failed to fetch verified access token from widget. Payload: " +
+              JSON.stringify(data),
+          );
           return;
         }
 
         // Prevent duplicate verification attempts for the same token
         if (hasVerifiedRef.current) {
-          console.log("[DEBUG-SHEET] Verification already succeeded or in progress, ignoring duplicate success callback.");
+          console.log(
+            "[DEBUG-SHEET] Verification already succeeded or in progress, ignoring duplicate success callback.",
+          );
           return;
         }
         hasVerifiedRef.current = true;
@@ -83,7 +107,12 @@ export default function OtpLoginBottomSheet() {
           // Log user in using access token validation route
           const loginData = await msg91Login(accessToken);
 
-          await setAuthSession(loginData.token, loginData.user, loginData.isNewUser, loginData.welcomeBonus);
+          await setAuthSession(
+            loginData.token,
+            loginData.user,
+            loginData.isNewUser,
+            loginData.welcomeBonus,
+          );
 
           const redirectTarget = sessionStorage.getItem("redirectAfterLogin");
           sessionStorage.removeItem("redirectAfterLogin");
@@ -91,7 +120,11 @@ export default function OtpLoginBottomSheet() {
           if (redirectTarget && redirectTarget.startsWith("/")) {
             console.log("REDIRECT TARGET (sessionStorage):", redirectTarget);
             navigate(redirectTarget);
-          } else if (loginData.user && loginData.user.role === "admin" && loginData.user.isFounder) {
+          } else if (
+            loginData.user &&
+            loginData.user.role === "admin" &&
+            loginData.user.isFounder
+          ) {
             console.log("PHONE:", loginData.user.phone);
             console.log("ROLE:", loginData.user.role);
             console.log("FOUNDER:", loginData.user.isFounder);
@@ -108,6 +141,19 @@ export default function OtpLoginBottomSheet() {
           if (!loginData.profileCompleted) {
             openOnboarding();
           }
+
+          if (loginData.isNewUser) {
+            setShowWelcomeModal(true);
+          }
+
+          if (onLoginSuccessCallback) {
+            try {
+              onLoginSuccessCallback();
+            } catch (e) {
+              console.error(e);
+            }
+          }
+          closeLogin();
         } catch (err) {
           console.error("Backend Session Validation Error:", err);
           setError(err.message || "Failed to log in. Please try again.");
@@ -118,57 +164,121 @@ export default function OtpLoginBottomSheet() {
       },
       failure: (err) => {
         console.error("OTP Widget Failure:", err);
-        const errMsg = err.message || (typeof err === "string" ? err : JSON.stringify(err)) || "";
-        if (errMsg.toLowerCase().includes("cancelled") || errMsg.toLowerCase().includes("canceled")) {
+        const errMsg =
+          err.message ||
+          (typeof err === "string" ? err : JSON.stringify(err)) ||
+          "";
+        if (
+          errMsg.toLowerCase().includes("cancelled") ||
+          errMsg.toLowerCase().includes("canceled")
+        ) {
           setInfoMsg({
             heading: "Phone verification was cancelled",
-            body: "Please verify your mobile number to continue with checkout."
+            body: "Please verify your mobile number to continue with checkout.",
           });
           setError("");
         } else {
           setError("Verification Error: " + errMsg);
           setInfoMsg(null);
         }
-      }
+      },
     };
 
-    // 1. Inject intl-tel-input CSS
-    const linkEl = document.createElement("link");
+    // Load intl-tel-input and MSG91 scripts
+    const loadScript = (id, src) =>
+      new Promise((resolve, reject) => {
+        const existing = document.getElementById(id);
+
+        if (existing?.dataset.loaded === "true") {
+          resolve(existing);
+          return;
+        }
+
+        const script = existing || document.createElement("script");
+
+        const handleLoad = () => {
+          script.dataset.loaded = "true";
+          resolve(script);
+        };
+
+        const handleError = () => {
+          reject(new Error(`Failed to load script: ${src}`));
+        };
+
+        script.addEventListener("load", handleLoad, { once: true });
+        script.addEventListener("error", handleError, { once: true });
+
+        if (!existing) {
+          script.id = id;
+          script.src = src;
+          script.async = true;
+          document.body.appendChild(script);
+        }
+      });
+
+    const linkEl =
+      document.getElementById("intl-tel-css") || document.createElement("link");
+
     linkEl.id = "intl-tel-css";
     linkEl.rel = "stylesheet";
-    linkEl.href = "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.min.css";
-    document.head.appendChild(linkEl);
+    linkEl.href =
+      "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.min.css";
 
-    // 2. Load intl-tel-input JS
-    const intlScript = document.createElement("script");
-    intlScript.id = "intl-tel-js";
-    intlScript.src = "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js";
-    intlScript.async = true;
+    if (!linkEl.isConnected) {
+      document.head.appendChild(linkEl);
+    }
 
-    intlScript.onload = () => {
-      console.log("[DEBUG-SHEET] intlTelInput successfully loaded. Type =", typeof window.intlTelInput);
+    let cancelled = false;
 
-      // 3. Load MSG91 loader script only after dependencies are verified
-      const loaderScript = document.createElement("script");
-      loaderScript.id = "msg91-widget-loader-sheet";
-      loaderScript.src = "https://control.msg91.com/app/assets/otp-provider/otp-provider.js";
-      loaderScript.async = true;
-      loaderScript.onload = () => {
-        console.log("[DEBUG-SHEET] MSG91 otp-provider loaded. initSendOTP type =", typeof window.initSendOTP);
+    (async () => {
+      try {
+        await loadScript(
+          "intl-tel-js",
+          "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js",
+        );
+
+        if (cancelled) return;
+
+        console.log(
+          "[DEBUG-SHEET] intlTelInput type =",
+          typeof window.intlTelInput,
+        );
+
+        await loadScript(
+          "msg91-widget-loader-sheet",
+          "https://control.msg91.com/app/assets/otp-provider/otp-provider.js",
+        );
+
+        if (cancelled) return;
+
+        console.log(
+          "[DEBUG-SHEET] MSG91 initSendOTP type =",
+          typeof window.initSendOTP,
+        );
+
         if (typeof window.initSendOTP === "function") {
-          window.initSendOTP(window.configuration);
+          console.log("MSG91 custom UI methods:", {
+            sendOtp: typeof window.sendOtp,
+            retryOtp: typeof window.retryOtp,
+            verifyOtp: typeof window.verifyOtp,
+            getWidgetData: typeof window.getWidgetData,
+            isCaptchaVerified: typeof window.isCaptchaVerified,
+          });
+        } else {
+          setError("MSG91 OTP widget could not initialize. Please retry.");
         }
-      };
-      document.body.appendChild(loaderScript);
-    };
-
-    document.body.appendChild(intlScript);
+      } catch (err) {
+        console.error("[DEBUG-SHEET] Script loading failed:", err);
+        if (!cancelled) {
+          setError("Unable to load phone verification. Please try again.");
+        }
+      }
+    })();
 
     // Cleanup scripts on component unmount
+
     return () => {
-      document.getElementById("intl-tel-css")?.remove();
-      document.getElementById("intl-tel-js")?.remove();
-      document.getElementById("msg91-widget-loader-sheet")?.remove();
+      cancelled = true;
       delete window.configuration;
     };
   }, [loginBottomSheetOpen]);
@@ -199,7 +309,8 @@ export default function OtpLoginBottomSheet() {
 
   if (!loginBottomSheetOpen) return null;
 
-  const isCheckoutRedirect = sessionStorage.getItem("redirectAfterLogin") !== null;
+  const isCheckoutRedirect =
+    sessionStorage.getItem("redirectAfterLogin") !== null;
 
   const activeRetryButtonStyle = {
     ...retryButtonStyle,
@@ -230,7 +341,10 @@ export default function OtpLoginBottomSheet() {
 
   return (
     <div style={responsiveBackdropStyle} onClick={closeLogin}>
-      <SEO title="Login" description="Sign in securely with your mobile number to continue shopping on Buyto." />
+      <SEO
+        title="Login"
+        description="Sign in securely with your mobile number to continue shopping on Buyto."
+      />
       <style>{`
         /* MSG91 Custom overrides to match Buyto Premium UI */
         #msg91-otp-widget-container {
@@ -448,7 +562,14 @@ export default function OtpLoginBottomSheet() {
 
         <div style={contentWrapperStyle}>
           {/* Brand Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "16px",
+            }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <img
                 src={logoPath}
@@ -456,12 +577,26 @@ export default function OtpLoginBottomSheet() {
                 style={{
                   height: "36px",
                   width: "auto",
-                  objectFit: "contain"
+                  objectFit: "contain",
                 }}
               />
-              <span style={{ fontSize: "18px", fontWeight: "900", color: "#1e5e0f" }}>Buyto</span>
+              <span
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "900",
+                  color: "#1e5e0f",
+                }}
+              >
+                Buyto
+              </span>
             </div>
-            <button onClick={closeLogin} style={closeButtonStyle} className="close-btn-react">×</button>
+            <button
+              onClick={closeLogin}
+              style={closeButtonStyle}
+              className="close-btn-react"
+            >
+              ×
+            </button>
           </div>
 
           <h2 style={titleStyle}>Welcome to Buyto 👋</h2>
@@ -470,13 +605,23 @@ export default function OtpLoginBottomSheet() {
           {error && <div style={errorBannerStyle}>⚠️ {error}</div>}
           {infoMsg && (
             <div style={infoBannerStyle}>
-              <div style={{ fontWeight: "750", marginBottom: "4px" }}>ℹ️ {infoMsg.heading}</div>
-              <div style={{ fontSize: "12px", opacity: 0.95, fontWeight: "550" }}>{infoMsg.body}</div>
+              <div style={{ fontWeight: "750", marginBottom: "4px" }}>
+                ℹ️ {infoMsg.heading}
+              </div>
+              <div
+                style={{ fontSize: "12px", opacity: 0.95, fontWeight: "550" }}
+              >
+                {infoMsg.body}
+              </div>
             </div>
           )}
           {successMsg && <div style={successBannerStyle}>✨ {successMsg}</div>}
 
-          <img src={phoneIllustration} alt="Phone Verification" style={illustrationStyle} />
+          <img
+            src={phoneIllustration}
+            alt="Phone Verification"
+            style={illustrationStyle}
+          />
 
           {infoMsg ? (
             <button
@@ -488,23 +633,39 @@ export default function OtpLoginBottomSheet() {
               onMouseUp={() => setIsActive(false)}
               style={activeRetryButtonStyle}
             >
-              <RotateCw size={18} className={retrying ? "animate-spin" : ""} style={{ marginRight: "8px" }} />
+              <RotateCw
+                size={18}
+                className={retrying ? "animate-spin" : ""}
+                style={{ marginRight: "8px" }}
+              />
               {retrying ? "Retrying..." : "Retry Login"}
             </button>
           ) : (
             /* MSG91 Widget Mount Target */
-            <div id="msg91-otp-widget-container" style={{ minHeight: "220px", marginTop: "16px" }}>
+            <div
+              id="msg91-otp-widget-container"
+              style={{ minHeight: "220px", marginTop: "16px" }}
+            >
               {loading && (
-                <div style={{ display: "flex", justifyContent: "center", padding: "20px", fontSize: "14px", fontWeight: "600", color: "#6b7280" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    padding: "20px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#6b7280",
+                  }}
+                >
                   Verifying session with backend server...
                 </div>
               )}
             </div>
           )}
 
-
           <p style={footerDisclaimerStyle}>
-            By continuing, you agree to Buyto's Terms & Conditions and Privacy Policy.
+            By continuing, you agree to Buyto's Terms & Conditions and Privacy
+            Policy.
           </p>
         </div>
       </div>
@@ -523,7 +684,7 @@ const backdropStyle = {
   backdropFilter: "blur(4px)",
   zIndex: 1000,
   display: "flex",
-  justifyContent: "center"
+  justifyContent: "center",
 };
 
 const sheetStyle = {
@@ -534,7 +695,7 @@ const sheetStyle = {
   padding: "28px 24px 34px 24px",
   boxShadow: "0 -8px 30px rgba(0, 0, 0, 0.08)",
   animation: "slideUp 0.3s ease-out-back",
-  fontFamily: "'Outfit', 'Inter', sans-serif"
+  fontFamily: "'Outfit', 'Inter', sans-serif",
 };
 
 const dragIndicatorStyle = {
@@ -543,12 +704,12 @@ const dragIndicatorStyle = {
   backgroundColor: "#e5e7eb",
   borderRadius: "3px",
   margin: "0 auto 20px auto",
-  cursor: "pointer"
+  cursor: "pointer",
 };
 
 const contentWrapperStyle = {
   display: "flex",
-  flexDirection: "column"
+  flexDirection: "column",
 };
 
 const titleStyle = {
@@ -556,7 +717,7 @@ const titleStyle = {
   fontWeight: "850",
   color: "#1f2937",
   margin: 0,
-  letterSpacing: "-0.5px"
+  letterSpacing: "-0.5px",
 };
 
 const subtitleStyle = {
@@ -564,7 +725,7 @@ const subtitleStyle = {
   color: "#6b7280",
   margin: "4px 0 0 0",
   lineHeight: "1.5",
-  fontWeight: "550"
+  fontWeight: "550",
 };
 
 const closeButtonStyle = {
@@ -580,7 +741,7 @@ const closeButtonStyle = {
   alignItems: "center",
   justifyContent: "center",
   boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-  transition: "all 0.2s ease"
+  transition: "all 0.2s ease",
 };
 
 const errorBannerStyle = {
@@ -591,7 +752,7 @@ const errorBannerStyle = {
   fontSize: "13px",
   fontWeight: "750",
   marginTop: "16px",
-  border: "1px solid #fee2e2"
+  border: "1px solid #fee2e2",
 };
 
 const infoBannerStyle = {
@@ -601,7 +762,7 @@ const infoBannerStyle = {
   borderRadius: "14px",
   fontSize: "13px",
   marginTop: "16px",
-  border: "1px solid #fde68a"
+  border: "1px solid #fde68a",
 };
 
 const successBannerStyle = {
@@ -612,7 +773,7 @@ const successBannerStyle = {
   fontSize: "13px",
   fontWeight: "750",
   marginTop: "16px",
-  border: "1px solid #dcfce7"
+  border: "1px solid #dcfce7",
 };
 
 const illustrationStyle = {
@@ -621,7 +782,7 @@ const illustrationStyle = {
   display: "block",
   margin: "24px auto",
   maxWidth: "100%",
-  objectFit: "contain"
+  objectFit: "contain",
 };
 
 const retryButtonStyle = {
@@ -648,5 +809,5 @@ const footerDisclaimerStyle = {
   textAlign: "center",
   margin: "24px 0 0 0",
   lineHeight: "1.6",
-  fontWeight: "500"
+  fontWeight: "500",
 };

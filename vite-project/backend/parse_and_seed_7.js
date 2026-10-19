@@ -200,7 +200,7 @@ function getProductImage(subCategory, name) {
     return "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=500&auto=format&fit=crop";
   }
   if (subCategory === "Namkeen & Bhujia") {
-    return "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=500&auto=format&fit=crop";
+    return "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=500&auto=format&fit=crop";
   }
   if (subCategory === "Puffs & Popcorn") {
     return "https://images.unsplash.com/photo-1536680465769-2365207b035e?w=500&auto=format&fit=crop";

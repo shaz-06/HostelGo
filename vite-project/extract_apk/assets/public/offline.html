@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline | Buyto Instant</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f9fafb;
+      color: #111827;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: white;
+      padding: 40px 32px;
+      border-radius: 28px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.04);
+      max-width: 440px;
+      width: 100%;
+      border: 1px solid #f3f4f6;
+    }
+    .logo {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 30px;
+      letter-spacing: -0.5px;
+    }
+    .logo-flash {
+      color: #F8CB46;
+    }
+    .logo-green {
+      color: #318616;
+    }
+    .icon {
+      font-size: 72px;
+      margin-bottom: 20px;
+      filter: drop-shadow(0 8px 16px rgba(49, 134, 22, 0.15));
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0 0 10px 0;
+      color: #111827;
+    }
+    p {
+      color: #6b7280;
+      font-size: 15px;
+      line-height: 1.6;
+      margin: 0 0 32px 0;
+      font-weight: 500;
+    }
+    button {
+      background: linear-gradient(135deg, #318616 0%, #286f12 100%);
+      color: white;
+      border: none;
+      padding: 16px 32px;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(49, 134, 22, 0.25);
+      transition: all 0.2s ease;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(49, 134, 22, 0.35);
+    }
+    button:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <span>⚡ </span><span class="logo-flash">Buyto</span> <span class="logo-green">Instant</span>
+    </div>
+    <div class="icon">🔌</div>
+    <h1>No Connection</h1>
+    <p>It seems you are currently offline. Check your network connection and tap below to retry.</p>
+    <button onclick="window.location.reload()">Retry Connection</button>
+  </div>
+</body>
+</html>

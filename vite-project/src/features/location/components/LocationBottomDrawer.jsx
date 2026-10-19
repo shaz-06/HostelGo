@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { initSocket } from "../../../utils/socket";
 import { QRCodeSVG } from "qrcode.react";
-import { io } from "socket.io-client";
 import { useAddress } from "../context/AddressContext";
 import { AuthContext } from "../../../context/AuthContext";
 import { DRAWER_STATE } from "../constants/addressConstants";
@@ -48,32 +48,55 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false,
 
   // Socket connection and lifecycle
   useEffect(() => {
+    let cancelled = false;
+    let cleanupSocket = null;
+    let interval = null;
+
     if (activeRequestId && isOpen) {
-      const socket = io(window.API_BASE_URL);
-      socketRef.current = socket;
+      const setupSocket = async () => {
+        const socket = await initSocket();
+        if (cancelled) return;
+        socketRef.current = socket;
 
-      socket.on("connect", () => {
-        socket.emit("joinAddressRequestRoom", activeRequestId);
-      });
+        const handleConnect = () => {
+          socket.emit("joinAddressRequestRoom", activeRequestId);
+        };
 
-      socket.on("address-request-completed", (data) => {
-        if (data.requestId === activeRequestId) {
-          console.log("[Socket] Received completed address request:", data);
-          setReceivedAddress(data.address);
-          setCurrentState(DRAWER_STATE.RECEIVED);
-          // Auto-select immediately
-          selectAddress(data.address);
-          // Invalidate session storage
-          sessionStorage.removeItem("buyto_active_request_id");
-          sessionStorage.removeItem("buyto_active_share_url");
-        }
-      });
+        const handleAddressCompleted = (data) => {
+          if (data.requestId === activeRequestId) {
+            console.log("[Socket] Received completed address request:", data);
+            setReceivedAddress(data.address);
+            setCurrentState(DRAWER_STATE.RECEIVED);
+            // Auto-select immediately
+            selectAddress(data.address);
+            // Invalidate session storage
+            sessionStorage.removeItem("buyto_active_request_id");
+            sessionStorage.removeItem("buyto_active_share_url");
+          }
+        };
 
-      socket.on("address-request-cancelled", (data) => {
-        if (data.requestId === activeRequestId) {
-          console.log("[Socket] Request cancelled by other client");
-          handleCancelClean();
-        }
+        const handleAddressCancelled = (data) => {
+          if (data.requestId === activeRequestId) {
+            console.log("[Socket] Request cancelled by other client");
+            handleCancelClean();
+          }
+        };
+
+        socket.on("connect", handleConnect);
+        socket.on("address-request-completed", handleAddressCompleted);
+        socket.on("address-request-cancelled", handleAddressCancelled);
+
+        if (socket.connected) handleConnect();
+
+        return () => {
+          socket.off("connect", handleConnect);
+          socket.off("address-request-completed", handleAddressCompleted);
+          socket.off("address-request-cancelled", handleAddressCancelled);
+        };
+      };
+
+      setupSocket().then(cleanup => {
+        cleanupSocket = cleanup;
       });
 
       // Polling fallback
@@ -96,14 +119,15 @@ export function LocationBottomDrawer({ isOpen, onClose, restrictDismiss = false,
       };
 
       checkStatus();
-      const interval = setInterval(checkStatus, 5000);
-
-      return () => {
-        clearInterval(interval);
-        socket.disconnect();
-        socketRef.current = null;
-      };
+      interval = setInterval(checkStatus, 5000);
     }
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+      if (cleanupSocket) cleanupSocket();
+      socketRef.current = null;
+    };
   }, [activeRequestId, isOpen]);
 
   const handleShareAgain = async () => {

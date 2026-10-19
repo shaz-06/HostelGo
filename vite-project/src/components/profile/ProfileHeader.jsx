@@ -20,8 +20,7 @@ const ProfileHeader = React.memo(({ user, isLoggedIn, onBack, onLoginClick }) =>
       {/* Back Button */}
       <button
         onClick={onBack}
-        className="absolute top-4 left-4 w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition-all duration-200 focus:outline-none"
-        aria-label="Go back"
+className="absolute top-4 left-4 w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition-all duration-200"        aria-label="Go back"
       >
         <ArrowLeft className="w-5 h-5" />
       </button>

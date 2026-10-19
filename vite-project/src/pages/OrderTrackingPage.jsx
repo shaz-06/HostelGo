@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import SEO from "../components/common/SEO";
 import { apiFetch } from "../utils/apiClient";
-import { io } from "socket.io-client";
+import { initSocket } from "../utils/socket";
 import BuytoRiderAvatar from "../components/common/BuytoRiderAvatar";
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -705,78 +705,109 @@ export default function OrderTrackingPage({ orderId }) {
   // Socket setup
   useEffect(() => {
     let active = true;
+    let cancelled = false;
+    let cleanupListeners = null;
+
     loadInitialTracking().then((success) => {
       if (!success || !active) return;
 
-      // Connect to Socket.IO immediately after initial load
-      const socket = io(window.API_BASE_URL, {
-        reconnectionDelayMax: 10000,
-        reconnectionAttempts: 5
-      });
-      socketRef.current = socket;
+      const setupSocket = async () => {
+        const socket = await initSocket();
+        if (cancelled) return;
+        socketRef.current = socket;
 
-      socket.on("connect", () => {
-        console.log("🔌 Connected to Socket.IO room order_" + orderId);
-        setConnectionStatus(connectionStatus === "reconnecting" ? "online" : "connected");
-        stopFallbackPolling();
-        socket.emit("joinOrderRoom", { orderId, token });
-      });
+        const handleConnect = () => {
+          console.log("🔌 Connected to Socket.IO room order_" + orderId);
+          setConnectionStatus(connectionStatus === "reconnecting" ? "online" : "connected");
+          stopFallbackPolling();
+          socket.emit("joinOrderRoom", { orderId, token });
+        };
 
-      socket.on("disconnect", () => {
-        console.warn("🔌 Socket.IO disconnected.");
-        setConnectionStatus("reconnecting");
-        startFallbackPolling();
-      });
+        const handleDisconnect = () => {
+          console.warn("🔌 Socket.IO disconnected.");
+          setConnectionStatus("reconnecting");
+          startFallbackPolling();
+        };
 
-      socket.on("connect_error", () => {
-        setConnectionStatus("reconnecting");
-        startFallbackPolling();
-      });
+        const handleConnectError = () => {
+          setConnectionStatus("reconnecting");
+          startFallbackPolling();
+        };
 
-      // Split event listeners
-      socket.on("order:statusUpdated", (data) => {
-        console.log("Received order:statusUpdated:", data);
-        processLiveEvent(data);
-      });
+        const handleStatusUpdated = (data) => {
+          console.log("Received order:statusUpdated:", data);
+          processLiveEvent(data);
+        };
 
-      socket.on("order:riderAssigned", (data) => {
-        console.log("Received order:riderAssigned:", data);
-        processLiveEvent(data);
-      });
+        const handleRiderAssigned = (data) => {
+          console.log("Received order:riderAssigned:", data);
+          processLiveEvent(data);
+        };
 
-      socket.on("order:locationUpdated", (data) => {
-        console.log("Received order:locationUpdated:", data);
-        processLiveEvent(data);
-      });
+        const handleLocationUpdated = (data) => {
+          console.log("Received order:locationUpdated:", data);
+          processLiveEvent(data);
+        };
 
-      socket.on("order:delivered", (data) => {
-        console.log("Received order:delivered:", data);
-        processLiveEvent(data);
-      });
+        const handleDelivered = (data) => {
+          console.log("Received order:delivered:", data);
+          processLiveEvent(data);
+        };
 
-      // Legacy socket update support
-      socket.on("tracking:update", (data) => {
-        if (data && data.orderId === orderId) {
-          const legacyPayload = {
-            type: "status",
-            status: data.tracking.stage,
-            eta: data.tracking.etaMinutes,
-            tracking: data.tracking,
-            version: data.tracking.version,
-            updatedAt: data.tracking.lastUpdated
-          };
-          processLiveEvent(legacyPayload);
+        const handleTrackingUpdate = (data) => {
+          if (data && data.orderId === orderId) {
+            const legacyPayload = {
+              type: "status",
+              status: data.tracking.stage,
+              eta: data.tracking.etaMinutes,
+              tracking: data.tracking,
+              version: data.tracking.version,
+              updatedAt: data.tracking.lastUpdated
+            };
+            processLiveEvent(legacyPayload);
+          }
+        };
+
+        socket.on("connect", handleConnect);
+        socket.on("disconnect", handleDisconnect);
+        socket.on("connect_error", handleConnectError);
+        socket.on("order:statusUpdated", handleStatusUpdated);
+        socket.on("order:riderAssigned", handleRiderAssigned);
+        socket.on("order:locationUpdated", handleLocationUpdated);
+        socket.on("order:delivered", handleDelivered);
+        socket.on("tracking:update", handleTrackingUpdate);
+
+        // If it was already connected, join the room immediately
+        if (socket.connected) {
+           handleConnect();
         }
+
+        return () => {
+          socket.off("connect", handleConnect);
+          socket.off("disconnect", handleDisconnect);
+          socket.off("connect_error", handleConnectError);
+          socket.off("order:statusUpdated", handleStatusUpdated);
+          socket.off("order:riderAssigned", handleRiderAssigned);
+          socket.off("order:locationUpdated", handleLocationUpdated);
+          socket.off("order:delivered", handleDelivered);
+          socket.off("tracking:update", handleTrackingUpdate);
+        };
+      };
+
+      setupSocket().then(cleanup => {
+        cleanupListeners = cleanup;
       });
     });
 
     // Cleanup resources
     return () => {
       active = false;
+      cancelled = true;
       stopFallbackPolling();
+      if (cleanupListeners) cleanupListeners();
       if (socketRef.current) {
         socketRef.current.emit("leaveOrderRoom", orderId);
-        socketRef.current.disconnect();
+        // We do NOT disconnect the singleton here.
       }
     };
   }, [orderId, loadInitialTracking, startFallbackPolling, stopFallbackPolling, processLiveEvent]);

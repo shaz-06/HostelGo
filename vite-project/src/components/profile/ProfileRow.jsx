@@ -14,8 +14,7 @@ const ProfileRow = React.memo(({
     <div className="w-full">
       <button
         onClick={onClick}
-        className={`w-full min-h-[58px] px-4 py-3.5 flex items-center justify-between text-left transition-all duration-150 focus:outline-none focus:bg-gray-50 active:bg-gray-100/80 ${danger ? "text-red-600" : "text-gray-800"
-          }`}
+className={`w-full min-h-[58px] px-4 py-3.5 flex items-center justify-between text-left transition-all duration-150 focus:bg-gray-50 active:bg-gray-100/80 ${danger ? "text-red-600" : "text-gray-800"}`}
       >
         <div className="flex items-center gap-3.5 flex-1 min-w-0">
           {Icon && (

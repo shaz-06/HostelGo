@@ -1,0 +1,370 @@
+name:Fit Me Matte+Poreless Liquid Foundation ,price:329 ,weight:18 ml - 128 Warm Nude, brand: Maybelline New York
+name:Mehendi Cone ,price:40 ,weight:100 g - (4 * 25 g), brand: Neha Herbals
+name:Everstay Hydrating Longstay Matte Lipstick ,price:749 ,weight:4.2 g - 03 Mauve Muse, brand: Renee
+name:Sunkisser A Highlighter + Blush - 12H Wear ,price:699, brand: Maybelline New York
+name:Dip & Twist Nail Paint Remover ,price:115 ,originalPrice:125 ,weight:40 ml, brand: Maybelline New York
+name:Matte Box Lipsticks ,price:427 ,originalPrice:447 ,weight:9.6 g - (3 * 3.2 g), brand:Blue Heaven
+Name:9 to 5 Primer + Matte Powder Foundation ,price:559 ,originalPrice:599, brand:MARS Cosmetics
+Name:9 to 5 Eyeconic Kajal Twin Pack ,price:450 ,weight:0.35 g - (Pack of 2), brand: Lakme
+name:Clean Girl Aesthetic Nail Paint ,price:645 ,weight:55 ml - (Set of 5), brand: Lakme
+name:Fit Me Matte + Poreless Powder - 310 Sun Beige ,price:577, brand:Maybelline New York
+name:Eyeconic Kajal ,price:225 ,weight:0.35 g - Depp Black, brand: Lakme
+name:Get Bold Pencil Kajal ,price:75 ,weight:3.2 g - Black, brand: Blue Heaven
+name:Intense Matte Lipstick ,price:587.50 ,originalPrice:650.00,weight:3.6 g - Burgundy Passion, brand: Lakme
+name:Oil Blotter Gel Compact ,price:399 ,weight:5 g, brand: MARS Cosmetics
+name:Colossal Bold Eyeliner - Black ,price:319 ,weight:3 g, brand: Maybelline New York
+name:LNC-03 Large Nail Clipper With Anti-Slip Grip , price:150 , weight:1 pcs , brand:Veg
+name:Lash Sensational Waterproof Mascara - Black , price:599 , weight:10 g , brand:Maybelline New York
+name:Oil Infused Cleaning Water - Waterproof Makeup , price:309 , weight:125 ml , brand:Garnier
+name:Forever Matte Liquid Lip Colour - Nude Dream , price:425 ,originalPrice: 450, brand:Lakme
+Name:9 to 5 CC Cream - SPF 30 PA++ , price:389 ,originalPrice: 399,brand:Lakme
+name:Stainless Steel Facial Hair Cutting Scissors , price:69 , weight:1 pcs , brand:Se7en
+name:Kajal , price:140 , weight:2.6 g , brand:Himalaya
+name:All-in-1 Micellar Cleansing Water , price:285 , weight:125 ml , brand:Ganier
+name:Forever Matte Compact Powder - With Vitamin E , price:269 ,brand:Lakme
+name:Saj Dhaj Festive Makeup Kit , price:649 ,originalPrice: 749, weight:10 pcs , brand:Blue Heaven
+name:Eyeconic Volumizing Mascara , price:456 ,originalPrice:475, weight:12 ml - Black , brand:Lakme
+name:Face Powder - Matte Finish, Oil Control, For Rosy Glow , price:245 ,brand:Lakme
+name:Instant Nail Paint Remover , price:49 , weight:28 ml , brand:Blue Heaven
+name:Nail Polish Remove Wipes , price:99 , weight:30 pcs , brand:CoCaBo
+name:Cotton Pads - For MakeUp & Nail Polish Removal , price:180 , weight:100 pcs , brand:Tulips
+name:BB+ Cream - With SPF 30 PA++, For Spot Coverage , price:189 , weight:18 g , brand:Ponds
+name:Eye Drama Kajal , price:125 , weight:0.35 g - Bold Black , brand:Eile 18
+name:Creamy Matte Long Stay Lipstick , price:399 , weight:4.2 g - 04 Mauve Bloom , brand:Mamaearth
+name:Water Resistant Black Out Liner , price:110 , weight:5 ml , brand:Eile 18
+name:BB+ Cream - SPF 30 PA++ with Niacinamide , price:310 ,originalPrice: 315, weight:30 g - Light , brand:Ponds
+name:Forever Matte Liquid Sindoor , price:199 , weight:5 ml - Red , brand:Lakme
+name:Liquid Lip Colour , price:160 ,brand:Eile 18
+name:Cotton Pads , price:60 ,originalPrice:99, weight:30 pcs , brand:buyto
+name:Face Soft Pad Pink Tone- Cotton Powder Puff , price:129 , weight:1 pcs , brand:Majestique
+name:Nail Clipper, price:99 , weight:1 pcs , brand:Majestique
+name:Curved Wide Hair Dye Brush - With Comfortable , price:89 , weight:1 pcs , brand:Majestique
+name:Nail Pops Nail Colour , price:65 , weight:5 ml - Shade 30 , brand:Eile 18
+name:Powder Puff - Cotton, PP- 75, price:170 , weight:1 pcs , brand:Vega
+name:Nail Colour Remover , price:110 , weight:27 ml , brand:Lakme
+name:DS-XL 18 Full Hand Mehndi Stencil Stickers - Black , price:99 , weight:1 pair , brand:DailySo
+name:LNC -02 Large Nail Clipper/Cutter , price:140 , weight:1 pcs , brand:Vega
+name:Lash Twist Curling Mascara , price:149 ,brand:Blue Heaven
+name:Volumax Mascara , price:449 , weight:10 ml , brand:Renee
+Name:10X Volumising MAscara , price:90 , weight:8 ml - Black , brand:Blue Heaven
+name:BB Bright SPF 15 Face Cream , price:125 , weight:18 g - Shade 01 , brand:Glow & Lovely
+name:EV-19 Blush Brush With Wooden Handle , price:210 , weight:1 pcs , brand:Vega
+name:Stainless Steel Toenail Clipper , price:185 , weight:1 pcs , brand:Gubb
+name:Ds-SM 20 Hand Mehndi Stencil Stickers - Black , price:80 , weight:2 pcs (1 pair) , brand:DailySo
+name:Gold Oil Base Mehandi Cones , price:30 , weight:2 pcs , brand:Neha Herbals
+name:Baby Nail Clipper/Cutter with Skin Guard , price:170 , weight:1 pcs , brand:Vega
+
+				Hair Care
+
+name:Excellence Creme Hair Color , price:769 , brand: L’Oreal Paris
+name: Pure Coconut Oil ,price:349 ,weight:600 ml - Bottle ,brand:Parachute
+name:Casting Creme Gloss Hair Colour ,price:705 ,originalPrice:729,brand:L’Oreal Paris
+name:Keratin Smooth Shampoo ,price:189 ,weight:180 ml ,brand:Tresemme
+name:Casting Creme Gloss Hair Colour ,price:269 ,brand:L’Oreal Paris
+name:Anti Hairfall Regime Serum, Shampoo & Conditioner Combo,price:999 ,weight:3 pcs - (200 ml + 135 ml + 30 ml) ,brand:Plix
+name:100 % Pure Coconut Oil ,price:575 ,weight:1 litre - PET Jar ,brand:Parachute
+name:Kerala Virgin Coconut Oil - Cold ,price:499 ,weight:500 ml ,brand:Kapiva
+name:Ready-To-Apply Henna Paste ,price:370 ,weight:220 g - (Pack of 2) ,brand:Nat Habit
+name:Hair Fall Rescue Shampoo ,price:1299 ,originalPrice:1370,weight:1 litre ,brand:Dove
+name:Organically Natural Gel Hair Colour Trial ,price:249 ,weight:65 g ,brand:Indus Valley
+name:Coconut Milk & Peptides Shampoo ,price:665 ,weight:2 pcs ,brand:Plum
+name:Strong & Long Shampoo With Milk ,price:999 ,originalPrice:1075,weight:1 L ,brand:Clinic Plus
+name:Daily Shine Shampoo ,price:999 ,originalPrice:1030,weight:1 L ,brand:Dove
+name:Aloe Vera, Enriched Coconut Hair Oil ,price:165 ,weight:250 ml ,brand:Parachute Advansed
+name:Shampoo + Conditioner - 2- in - 1,price:1299 ,originalPrice:1511,weight:1 L ,brand:Head & Shoulders
+name:Hair Growth Serum Roll-On ,price:599 ,weight:25 ml ,brand:Be Bodywise
+name:Bringha Scalp Serum ,price:576 ,weight:30 ml ,brand:Indulekha
+name:Dryness Care Conditioner ,price:313 ,weight:175 ml ,brand:Dove
+name:Anti-Hairfall Shampoo - Scalp & Hair Medicine , Nourishes Deep ,price:155 ,weight:200 ml ,brand:Kesh King
+name:Easy-Do-It Yourself 10 Minutes Hair ,price:126 ,weight:100 ml - Natural Black,brand:Indica
+name:Dandruff Care Shampoo ,price:435 ,weight:340 ml ,brand:Dove
+name:Hairfall Rescue 1 Minute Conditioner ,price:499 ,originalPrice:555,weight:335 ml ,brand:Dove
+name:Anti-Dandruff Shampoo-Lemon ,price:218 ,weight:180 ml ,brand:Head & Shoulders
+name:Anti-Hairfall Shampoo With Bhringraj , For All Type of Hairs ,price:335 ,weight:340 ml ,brand:Himalaya
+name:Gold Biotin Coconut Hair Oil ,price:356 ,weight:300 ml ,brand:Parachute Advansed
+name:Anti-Hairfall Anti-Dandruff Shampoo ,price:477 ,weight:340 ml ,brand:Head & Shoulders
+Name:2-in-1 Anti-Dandruff Shampoo + Conditioner,price:499,originalPrice:526 ,weight:340 ml ,brand:Head & Shoulders
+name:Hair Science Silky Smooth Shampoo ,price:899,originalPrice:999 ,weight:650 ml ,brand:Pantene
+name:Bringha Hair Oil ,price:513 ,weight:100 ml,brand:Indulekha
+name:Strong & Healthy Shampoo ,price:435 ,weight:340 ml ,brand:Meera
+name:Smooth & Shine Shampoo With Rice Kanji and Aloe Vera,price:199 ,weight:180 ml ,brand:Meera
+name:Ayurvedic Oil - Cool ,price:165,weight:200 ml ,brand:Navratna
+name:Advansed Ayurvedic Coconut Hair Oil ,price:264 ,weight:300 ml ,brand:Parachute
+name:Gentle Daily Care Protein Shampoo ,price:335 ,weight:340 ml ,brand:Himalaya
+name:Anti-Dandruff Cooling Mint ,price:359 ,weight:340 ml ,brand:Himalaya
+name:Anti-Dandruff Shampoo - Smooth ,price:218 ,weight:180 ml ,brand:Head & Shoulders
+name:Advansed Gold Coconut Hair Oil ,price:399 ,originalPrice:400,weight:400 ml ,brand:Parachute Advansed
+name:Gold Keratin Coconut Hair Oil ,price:356 ,weight:300 ml ,brand:Parachute Advansed
+name:Organically Natural Gel Hair Colour Trial ,price:249 ,weight:65 g ,brand:Indus Valley
+name:Onion Shampoo For Hair Growth & Hairfall Control ,price:349 ,weight:250 ml ,brand:Mamaearth
+name:Onion & jojoba OIl Blends Shampoo ,price:399,originalPrice:429 ,weight:370 ml ,brand:Sunsilk
+name:Rich Creme Hair Colour ,price:40 ,brand:Godrej Expert
+name:Colors Natural Mini ,price:109 ,brand:Garnier
+name:Radiant Black Shine Shampoo ,price:173 ,weight:180 ml ,brand:Sunsilk
+name:Bringha Shampoo - Proprietary ,price:135 ,weight:100 ml ,brand:135
+name:Almond Oil - Roghan Badam Shirin ,price:254 ,weight:50 ml ,brand:Hamdard
+name:Color Naturals Long  Lasting Creme Hair ,price:229 ,brand:Garnier
+name:Natural Rosemary Hair Oil ,price:345 ,weight:100 ml ,brand:Brillare
+name:Rich Creme Hair Colour - Natural ,price:15 ,brand:Godrej Expert
+name:Strong Scalp Anti-Dandruff Shampoo ,price:169 ,weight:175 ml ,brand:Clinic Plus
+name:Hairfall Defense+ Professional ,price:1199 ,originalPrice:1370,weight:1 L ,brand:Tresemme
+name:Hair Highlighting Kit ,price:390 ,brand:Streax
+name:Keratin Smooth Conditioner ,price:320 ,weight:175 ml ,brand:Tresemme
+name:Anti-Dandruff Shampoo- Cool ,price:1599 ,weight:1 L ,brand:Head & Shoulders
+name:Bringha Hairfall Control Shampoo ,price:972 ,weight:580 ml ,brand:Indulekha
+name:Intense Repair 1 Minute Conditioner ,price:313 ,weight:175 ml ,brand:Dove
+name:Shampoo Based Hair Colour ,price:35 ,brand:Garnier Men
+name:Deep Cleanse Anti-Dandruff Shampoo ,price:434 ,weight:340 ml ,brand:Head & Shoulders
+name:Flowy Silk Smooth Shampoo ,price:166 ,weight:180 ml ,brand:Sunsilk
+name:Natural Shine Henna ,price:75 ,weight:120 g ,brand:Himalaya
+name:Natural Henna Paste - Ready To Apply ,price:249 ,weight:200 g ,brand:Mamaearth
+name:Fresh Neem Anti-Dandruff Shampoo ,price:205 ,weight:180 ml ,brand:BIOTIQUE
+name:Kesh Kanti Natural Hair Cleanser ,price:89 ,weight:180 ml ,brand:Patanjali
+name:Jasmine Gold Coconut Hair Oil ,price:218 ,weight:300 ml ,brand:Parachute Advansed
+name:Dandruff Defense Shampoo With Tea Tree Oil ,price:293 ,weight:200 ml ,brand:Naturali
+name:Easy Hair Color ,price:42 ,weight:25 ml ,brand:Indica
+name:Bio Neem Margosa Anti-Dandruff ,price:155 ,weight:120 ml ,brand:BIOTIQUE
+name:Ocean Kelp Anti-Hairfall Shampoo ,price:199 ,weight:180 ml ,brand:BIOTIQUE
+name:Anti-Dandruff Hair Cream ,price:100 ,weight:100 ml ,brand:Himalaya
+name:Coconut Oil ,price:110 ,weight:200 ml ,brand:Patanjali
+name:Thyme Volume & Bounce Conditioner ,price:260 ,weight:200 ml ,brand:BIOTIQUE
+name:Xpress Shampoo Hair Colour ,price:120 ,weight:18 ml - (Pack of 4) ,brand:Godrej Selfie
+
+				Bathing
+
+name:Skin Moisturizing Sandal & Turmeric Bathing Soap ,price:399 ,originalPrice:410weight:125 g - (Pack of 8) ,brand:Santoor
+name:Cream Beauty Soap Bar ,price:499 ,originalPrice:519,weight:125 g - (Buy 4 Get 1 Free) ,brand:Dove
+name:Original Glycerin Soap Bar - Pure & Gentle Glow ,price:399 ,originalPrice:401,weight:125 g - (Buy 4 Get 1 Free) ,brand:Pears
+name:Skincare Liquid Handwash ,price:219 ,weight:1350 ml - Pouch ,brand:Dettol
+name:Original Liquid Handwash ,price:219 ,weight:1350 ml - Pouch ,brand:Dettol
+name:Total Soap ,price:152 ,weight:125 g - (Pack of 4) ,brand:Lifebuoy
+name:Pure & Gentle Body Wash ,price:130 ,weight:250 ml ,brand:Pears
+name:Almond Oil Nourishing Bathing Bar ,price:173 ,weight:75 g - (Pack of 3),brand:BIOTIQUE
+name:Sensitive Liquid Handwash ,price:219 ,weight:1.35 L ,brand:Dettol
+name:Bathing Soap - Gold ,price:90 ,weight:125 g ,brand:Mysore Sandal
+name:Moisturising Liquid Handwash - Mahogany ,price:119 ,weight:675 ml - Refill Pack ,brand:Beco
+name:Handwash - Fresh ,price:99 ,weight:600 ml ,brand:Santoor
+name:Orchid & Lily Fragrance Foaming Handwash ,price:135 ,weight:250 ml ,brand:Dettol
+name:Deep Moisture Body Wash ,price:520 ,originalPrice:580,weight:800 ml ,brand:Dove
+name:Renew Nourishing Body Wash - Raspberry & Lime ,price:899 ,originalPrice:949,weight:1 L ,brand:Dove Body Wash
+name:International Smooth & Radiant Bathing Soap ,price:320 ,weight:520 g - (4 * 130 g) ,brand:Lux
+name:Bathing Soap ,price:75 ,weight:150 g - Carton ,brand:Mysore Sandal
+name:Sandal, Jasmine, Rose Soap ,price:200 ,weight:150 g - (Pack of 3) ,brand:Mysore Sandal
+name:Classic Ayurvedic Bathing Soap ,price:52 ,weight:125 g ,brand:Medimix
+name:Sandal & Almond Milk Bathing Soap ,price:310 ,originalPrice:336,weight:150 g - (Pack of 6) ,brand:Santoor
+name:Skincare Liquid Handwash ,price:79 ,weight:200 ml - Pump ,brand:Dettol
+name:Neem Bathing Soap Bar With Pure Neem Oil ,price:126 ,weight:300 g - (Buy 3 Get 1 Free) ,brand:Dettol
+name:Mild Gentle Hand Wash With Goodness of Lotus & Tulsi,price:105 ,weight:200 ml - (Pack of 2) ,brand:Santoor
+name:Beauty Perfumed Talc with Sandalwood Extracts ,price:370 ,weight:400 g - (Pack of 2) ,brand:Santoor
+name:Icy Cool Soap ,price:298 ,weight:125 g - (Pack of 5) ,brand:Dettol
+name:Glow Lush Rose Bathing Soap Bar With Vitamin C ,price:185 ,weight:450 g - (3 * 150 g) ,brand:Lux
+name:Body Wash ,price:175,weight:200 ml ,brand:Mysore Sandal
+name:Germ Protection Handwash - Moisture ,price:99 ,weight:650 ml ,brand:Salvon
+name:Orchid & Lily Fragrance Foaming Handwash ,price:179 ,weight:700 ml ,brand:Dettol
+name:Syndet Bar ,price:249 ,weight:75 ml ,brand:Cetaphil
+name:Dreamflower Pink Lily Perfume Powder ,price:59 ,weight:40 g ,brand:Pond’s
+name:Bathing Bar - Multi Variant (Buy 4 & Get 1 Free) ,price:480 ,weight:625 g ,brand:Fiama
+name:Total 10 Protect Liquid Handwash - With Vitamins ,price:199 ,weight:675 ml - (Buy 1 Get 1 Free) ,brand:Lifebuoy
+name:Bathing Soap - Neem & Turmeric ,price:124 ,weight:75 g - (Pack of 4) ,brand:Himalaya
+name:Cool Bath Soap - 99.9% Germ Protection, (Buy 4 Get 1) ,price:210 ,weight:100 g ,brand:Cinthol
+name:Shower Gel - Waterlily & Oil ,price:110 ,weight:125 ml ,brand:Nivea
+name:Original Bath Soap - 99.9% Germ Protection ,price:270 ,weight:150 g - (Pack of 4) ,brand:Cinthol
+name:Classic Gentle Handwash - Sandalwood & Tulsi ,price:209 ,weight:1200 ml ,brand:Santoor
+name:Lime Foam Body Wash ,price:120 ,weight:200 ml ,brand:Cinthol
+name:Clear Glycerine Deep Hydration Bathing Soap ,price:50 ,weight:100 g ,brand:Medimix
+name:Clear Glycerine Oil Balance Bathing Soap Bar ,price:50 ,weight:100 g ,brand:Medimix
+name:Pure & Gentle Body Wash Refill ,price:199 ,weight:400 ml - Pouch ,brand:Pears
+name:Liquid Handwash - Soap Free Formula, Everyday Use ,price:99 ,weight:200 ml ,brand:Dettol
+name:Gentle Exfoliating Body wash ,price:235 ,weight:250 ml ,brand:Dove
+name:Ayurvedic Soap ,price:156 ,weight:125 g - (Pack of 3) ,brand:Chandrika
+name:Magic Body Wash - Saffron + Lactic Acid ,price:499 ,weight:250 ml ,brand:Ghar Soaps
+name:Naturale Pomegranate Brightening Body Wash ,price:180 ,weight:250 ml ,brand:Pears
+name:Hand Sanitiser ,price:140 ,weight:200 ml ,brand:Dettol
+name:Gel Bathing Bar - Men, Refreshing Pulse ,price:84 ,weight:125 g ,brand:Fiama
+name:Sensitive Care Pro-Ceramide Serum Bar ,price:330 ,weight:125 g - (Pack of 3) ,brand:Dove
+name:Men Active Clean 3 in 1 Shower Gel ,price:499 ,originalPrice:599,weight:500 ml ,brand:Nivea
+name:Soft & Fresh Glycerine & Mint Extracts Bathing Bar ,price:380 ,weight:125 g - (Pack of 4) ,brand:Pears
+name:Fresh Hydrate Hydration Serum Bar ,price:70 ,weight:75 g ,brand:Dove
+name:Hand Wash Liquid - Jojoba,Vanilla & Almond ,price:399 ,weight:500 ml ,brand:Baylis & Harding
+name:Magnolia Magic Radiant Body Wash with Niacinemaid,price:99 ,weight: 245 ml,brand:Lux
+name:Handwash - Rose,price: 90,weight:250 ml ,brand:Mysore Sandal
+name:Pink Rosa Beauty Bathing Bar, 1/4th Moisturizing ,price:70 ,weight:100 g ,brand:Dove
+name:Original Bathing Soap Bar with 12 Hr Germ Protection,price:170 ,weight:400 g - (Pack of 4) ,brand:Dettol
+name:Brightening Body Wash - Rose & Aloe Vera for Soft ,price:355 ,weight:400 ml ,brand:Lux
+name:Glow Lush Rose Bathing Soap Bar with Vitamin C ,price:345 ,weight:750 g ,brand:Lux
+name:Refreshing Bodywash with Triple Hydration ,price:235 ,weight:300 ml ,brand:Dove
+name:Men Pure Impact3 in 1 Shower Gel,price:293 ,weight:250 ml ,brand:Nivea
+name:Foaming Handwash - 10x Better Germ Protection ,price:179 ,weight:700 ml ,brand:Dettol
+name:Strawberry Fragnance Foaming Handwash ,price:109 ,weight: 250 ml,brand:Dettol
+name:Shower Gel Freesia Scent & Aloe Vera Bodywash ,price:109 ,weight:245 ml ,brand:Lux
+name:Sandalwood Bar for Glowing Skin Natural Origin Sandalwood and Saffron,price:330 ,weight:125 - (Pack of 3) ,brand:Dove
+name:Original Soap ,price:40 ,weight:100 g ,brand:Dettol
+name:Original Foam Body Wash ,price:330 ,weight:750 ml ,brand:Cinthol
+name:Sandal Foam Body Wash ,price:120 ,weight:200 ml ,brand:Cinthol
+name:Soft Fresh Body Wash ,price:499 ,weight:750 ml ,brand:Pears
+name:Creme Berries & Tulsi Handwash ,price:99,weight:600 ml ,brand:Santoor
+name:Foaming Handwash Combo - Aloe Coconut & Strawberry Fragnance ,price:218 ,weight:250 ml - (Pack of 2) ,brand:Dettol
+name:Lime & Aloe Vera Bathing Soap ,price:315 ,weight:125 g - (Pack of 6) ,brand: Santoor
+name:Relax Hand Wash - Lavender & Ylang ,price:289 ,weight:750 ml ,brand:Fiama
+name:Haldi Chandan Kanti Body Cleanser ,price:99 ,weight:75 g - (Buy 4 Get 1 Free) ,brand:Patanjali
+name:Original Liquid Handwash ,price:155 ,weight:875 ml - Refill Pack ,brand:Dettol
+name:Hand Wash - Sensitive ,price:79 ,weight:200 ml ,brand:Dettol
+name:Bathing Soap - Honey & Cream ,price:36 ,weight:75 g ,brand:Himalaya
+name: Body Back / Neck/Feet Scrubber - Brown,price:169,originalPrice:189,weight:1 pcs ,brand:buyto home
+name:Almond & Rose Bathing Soap ,price:60 ,weight:125 g ,brand:Himalaya
+name:Hand Wash - Herbal ,price:60 ,weight:250 ml ,brand:Patanjali
+name:Perfumed Talc - Fresh Flower Shower ,price:60 ,weight:100 g ,brand:Eva
+name:Foaming Handwash - Pump + Refill Combo ,price:159 ,weight:250 ml ,brand:Dettol
+name:Original Germ Defence Liquid Handwash ,price:129 ,weight:210 ml - (Buy 1 Get 1 Free) ,brand:Dettol
+name:Germ Expert Prickly Heat Powder - Cool,price:50 ,weight:50 g ,brand:Nycil
+name:Perfumed Deo Talc - Fantasy ,price:60 ,weight:100 g ,brand:Eva
+name:Neem Kanti - Body Cleanser Soap ,price:22 ,weight:75 g - Carton,brand:Patanjali
+name:Aloe Vera Kanti - Body Cleanser Soap ,price:22 ,weight:75 g ,brand:Patanjali
+name:Neem & Aloe Vera Soap Bar , 100 % Better Skin ,price:42 ,weight:100 g ,brand:Lifebuoy
+name:Perfumed Talc - Sweet Exotic Rose ,price:60 ,weight:100 g ,brand:Eva
+name:Ice Bath Bodywash with Cool Sense Actives ,price:390 ,weight:750 ml ,brand:Lifebuoy
+name:Icy Cool Soap ,price:72 ,weight:150 g ,brand:Dettol
+name:Apricot Body Wash - Soap Free ,price:449 ,weight:500 ml ,brand:BIOTIQUE
+name:Sandal Glow Serum Bar ,price:108 ,weight:125 g ,brand:Dove
+
+
+				Feminine Hygine
+
+
+name:Secure Nights Sanitary Pad - With Cottony Soft ,price:299 ,originalPrice:328,weight:40 pcs ,brand:STAYFREE
+name:Mint Toilet Seat Sanitizer Spray ,price:180 ,weight:75 ml ,brand:Pee Safe
+name:Choice Ultra Sanitary Pads - Xl , For Heavy Flow ,price:299 ,originalPrice:320,weight:40 pcs ,brand:Whisper
+name:Thick Bindazz Nights Sanitary Pads - XXXL ,price:502 ,originalPrice:800,weight:20 pcs ,brand:Whisper
+name:Choice Nights Pads - All Night Protection, 4X Back Coverage , XXL,price:130 ,weight:16 pcs ,brand:Whisper
+name:Sanitary Pads - Secure XI Cottony Soft, with Wings ,price:45 ,weight:6 pcs ,brand:STAYFREE
+name:Ultra Bindazz Nights Sanitary Pads - XXl ,price:110 ,originalPrice:115,weight:7 pcs ,brand:Whisper
+name:Super Absorbent Period Panty 360 Degree ,price:656 ,originalPrice:957,weight:18 pcs ,brand:Whisper
+name:Ultra Soft Air Fresh Sanitary Pads - With Wider and Longer back,price:449,originalPrice:699 ,weight:50 pcs ,brand:Whisper
+name:Secure Cottony XL - Sanitary Pads For Women ,price:273 ,weight:40 pcs ,brand:STAYFREE
+name:Ultra Bindazz Nights Sanitary Pads - XXL+ ,price:549,originalPrice:655 ,weight:30 pcs ,brand:Whisper
+name:Anti-Bacteria Sanitary Pads - XL ,price:470 ,weight:48 pcs ,brand:Sofy
+name:Advanced Sanitary Napkins ,price:499, originalPrice:575 ,weight:42 pcs ,brand:STAYFREE
+name:Plus Expert Intimate Hygiene Liquid Wash ,price:440 ,weight:200 ml ,brand:Vwash
+name:Thick Bindazz Nights Sanitary Pads - XXXL ,price:719 ,weight:30 pcs ,brand:Whisper
+name:Secure Dry Cover With Wings Xl ,price:37 ,weight:6 pcs ,brand:STAYFREE
+name:Period Panty,M/L ,price:219 ,weight:5 pcs ,brand:Plush
+name:Reusable Menstrual Cup - Medium ,price:327 ,weight:1 pcs ,brand:Pee Safe
+name:Pure Aloe Vera Hair Removal Cream For Womens ,price:325 ,weight:100 g ,brand:Veet
+name:Smooth Sensitive Hair Removal Razor for Womens ,price:325 ,weight:1 pcs ,brand:Gillete Venus
+name:Breeze Hair Removal Razor for Women ,price:399 ,weight:1 pcs ,brand:Gillete Venus
+name:Smooth & Precise Face Razor for women ,price:119 ,weight:3 pcs ,brand:Azah
+name:Body Wax Strips - For Sensitive Skin ,price:119 ,weight:1 pcs ,brand:Bombay Shaving Company
+name:Period Panty, L/XL ,price:229 ,weight:5 pcs ,brand:Plush
+name:Facial Wax Strips Sakura ,price:299 ,weight:16 pcs ,brand:Sanfe
+name:Smooth Glide Body Razor For Women - Pain Free Instant Hair Removal,price:169 ,weight:3 pcs ,brand:Azah
+name:Pain Relief Heat Patches ,price:349 ,weight:3 pcs ,brand:SIRONA
+name:Eyebrow Touch Up Face 5 in 1 Razor - For Upper Lip , Chin , Bikini Line,price:99 ,weight:3 pcs ,brand:Sanfe
+name:Ready To Use Wax Strips For Normal Skin ,price:129 ,weight:8 pcs ,brand:Veet
+name:Gold Honey Wax ,price:399 ,weight:600 g ,brand:Namyaa
+name:Ready To Use Wax Strips For Sensitive Skin ,price:129 ,weight:8 pcs ,brand:Veet
+name:Ready To Use Wax Strips For Normal Skin ,price:299 ,weight:20 pcs ,brand:Veet
+name:Shave Gel - Sensitive Skin ,price:299 ,weight:195 g ,brand:Gillete Venus
+name:Evior Bikini Line Trimming Razor For Women ,price:199 ,weight:3 pcs ,brand:LetsShave
+name:Daily Fresh Pantyliner ,price:185 ,weight:40 pcs ,brand:Sofy
+name:Pure Hair Removal Cream For Dry to Normal Skin ,price:115 ,weight:30 g ,brand:Veet
+name:100 % Organic Biodgradable Cotton ,price:99 ,weight:6 pcs ,brand:Pee Safe
+name:Floral Toilet Seat Sanitizer Spray ,price:180 ,weight:75 ml ,brand:Pee Safe
+name:Prega News Value Pack - HCG Home Pregnancy Test ,price:200 ,weight:1 pack - (2N * 3 pcs) ,brand:Mankind
+name:Portable Jet Spray ,price:2899 ,originalPrice:2999,weight:1 pcs ,brand:Pee Safe
+name:Natural Skincare Intimate Hygiene Wash ,price:350 ,weight:100 ml ,brand:Namyaa
+name:Natural Intimate Wipes For Women ,price:65 ,weight:10 pcs ,brand:Pee Safe
+name:Refreshing Intimate Wash ,price:75 ,weight:15 ml ,brand:SIRONA
+name:Intimate Hygiene Spray For Women & Men ,price:399 ,weight:60 ml ,brand:hi Life
+name:Feminine Intimate Wipes - Flushable ,price:399 ,weight:28 pcs ,brand:Hi Life
+name:Daily Intimate Foam Wash ,price: 299 ,weight:85 g ,brand:Clean & Dry
+name:Comfort Period Panties- L-XL ,price:349 ,weight:8 pcs ,brand:Pee Safe
+name:Comfort Period Panties- XL-XXL ,price:380 ,weight:8 pcs ,brand:Pee Safe
+name:Ultra Thin Panty Liners-155 mm ,price:99 ,weight:20 pcs ,brand:Pee Safe
+name:EaseFit Zero Irritation Tampons For Heavy ,price:220 ,weight:12 pcs ,brand:Nua
+name:Reusable Menstrual Cup - Medium ,price:327 ,weight:1 pcs ,brand:Pee Safe
+name:FDA Approved Reusable Menstrual ,price:349 ,weight:1 pcs ,brand:SIRONA
+name:EaseFit Tampons - Heavy Flow ,price:275 ,weight:16 pcs ,brand:Nua
+name:Premium Applicator Tampons - Heavy Flow ,price:449 ,weight:16 pcs ,brand:SIRONA
+name:Natural Menstrual Cup Wash,price:249 ,weight:100 ml ,brand:SIRONA
+name:Biodegradable Tampons - Light Flow ,price:279 ,weight:16 pcs ,brand:Pee Safe
+name:Super Biodegradable Tampons - Medium Flow,price:320 ,weight:16 pcs ,brand:Pee Safe
+name:Ultra-Soft Menstrual Cup - Reusable , Large ,price:499 ,weight:50 g ,brand:Namyaa
+name:Menstrual Cup Sterilizer ,price:399 ,weight:1 pcs ,brand:SIRONA
+name:Tampons for Average Flow ,price:299 ,weight:20 pcs - Carton ,brand:STAYFREE
+name:Tampons - Super , For Heavy Flow ,price:199 ,weight:16 pcs - Carton ,brand:Bella
+name:Pumic Stone No 4 ,price:400 ,weight:1 pcs ,brand:Ceramic
+name:Shower Cap - BA206 Ideal For All Hair ,price:99 ,weight:1 pcs - Pouch ,brand:Majestique
+name:Rose Pink Luxe Premium Bathing ,price:99 ,weight:1 pcs ,brand:buyto home
+name:Pink Pearl Dual Colour Premium Bathing ,price:99 ,weight:1 pcs ,brand:buyto home
+name:Soap Case - Glamour ,price:200 ,weight:1 pcs ,brand:Plasto World
+name:Spa Bath Shower Face Head/Hair Cap - Grey ,price:319 ,weight:1 pcs,brand:buyto home
+name:Lavender Dream Premium Bathing ,price:149 ,weight:1 pcs ,brand:buyto home
+name:Puff-A-Loofah - Bath Essentials ,price:125 ,weight:1 pcs ,brand:Fiama
+name:Deep Moisture Body Wash ,price:580 ,weight:800 ml ,brand:Dove
+name:Pure & Gentle Shower Gel ,price:460 ,weight:750 ml ,brand:Pears
+name:Renew Nourishing Body Wash ,price:949 ,weight:1 L ,brand:Dove Body Wash
+name:Lime Foam Body Wash ,price:120 ,weight:200 ml ,brand:Cinthol
+name:Magnolia Magic Radiant Body Wash ,price:99 ,weight:245 ml ,brand:Lux
+name:Orchid Obsession Radiant Body Wash ,price:99 ,weight:245 ml ,brand:Lux
+name:Shower Gel - Waterlily & Oil ,price:110 ,weight:125 ml ,brand:Nivea
+name:Gentle Exfoliating Body Wash ,price:235 ,weight:250 ml ,brand:Dove
+name:Antifungal Tea Tree Bath & Body Wash ,price:899 ,weight:500 ml ,brand:ST. Dvence
+name:Magic Body Wash - Saffron + Lactic Acid ,price:499,weight:250 ml ,brand:Ghar Soaps
+name:Radiant Body Wash With Niacinamide ,price:109 ,weight:245 ml ,brand:Lux
+name:Lime Foam Body Wash ,price:330 ,weight:750 ml ,brand:Cinthol
+name:Body Wash ,price:175 ,weight:200 ml ,brand:Mysore Sandal
+name:Shower Gel Freesia Scent & Aloe Vera ,price:109 ,weight:245 ml ,brand:Lux
+name:Brightening Body Wash - Rose & Aloe Vera,price:355 ,weight:400 ml ,brand:Lux
+name:Refreshing Bodywash with Triple Hydration ,price:235 ,weight:300 ml ,brand:Dove
+name:Original Foam Body Wash ,price:330 ,weight:750 ml ,brand:Cinthol
+name:Cool Foam Body Wash ,price:120 ,weight:200 ml ,brand:Cinthol
+name:Relaxing Care Nourishing Body Wash ,price:898,originalPrice:949 ,weight:1 L ,brand:Dove Body Wash
+name:Guava Tini De-Tan Body Wash ,price:449 ,weight:300 ml ,brand:mCaffeine
+name:Naturale Nourishing Coconut Water Body ,price:180 ,weight:250 ml ,brand:Pears
+name:Soft & Fresh Body Wash ,price:180 ,weight:250 ml ,brand:Pears
+name:Men Refreshing Pulse Shower Gel ,price:159 ,weight:250 ml ,brand:Fiama
+name:Lavender Fresh Shower Gel ,price:200 ,weight:250 ml ,brand:Dettol
+name:Caramel Crunch Exfoliating Body Wash ,price:449 ,weight:300 ml ,brand:mCaffeine
+name:Acne Clear Body Wash with1% Salicylic Acid ,price:560 ,weight:300 ml ,brand:Dove
+name:Dreamflower Pink Lily Perfume Powder ,price:59 ,weight:40 g ,brand:Pond’s
+name:Beauty Perfumed Talc with Sandalwood ,price:370 ,weight:400 g - (Pack of 2) ,brand:Santoor
+name:Germ Expert Prickly Heat Powder - Cool Classic ,price:50 ,weight:50 g ,brand:Nycil
+name:Romantic Perfumed Talcum Powder with Floral Fragnance for women,price:240 ,weight:250 g ,brand:Enchanteur
+name:Antifungal Powder - Treats Skin Infection ,price:95.62 ,weight:75 g ,brand:Clocip
+name:Talc ,price:44 ,weight:100 g ,brand:Mysore Sandal
+name:Imperial Jasmine Perfumed Talc for Women,price:139 ,weight:100 g ,brand:Yardley London
+name:Germ Expert Prickly Heat Powder - Cool Herbal,price:50 ,weight:50 g ,brand:Nycil
+name:Perfumed Talc - Sweet Exotic Rose ,price:60 ,weight:100 g ,brand:Eva
+name:Germ Expert Prickly Heat Powder - Cool Gulabjal ,price:50 ,weight:50 g ,brand:Nycil
+name:Sandal Natural Sunscreen Powder ,price:135 ,weight:80 g ,brand:Pond’s
+name:Magic Lavender Bloom Perfume Powder ,price:69 ,weight:40 g ,brand:Pond’s
+
+
+
+
+					Pharmacy
+
+
+name:Ashwagandha Gold Capsule - Ayurvedic ,price:562 ,weight:60 pcs ,brand:Kalpva
+name:Gold Standard Double Rich Chocolate Whey Protein Chocolate Whey Chocolate Whey Protein ,price:5079 ,weight:907 g ,brand:Optimum Nutrition
+name:Antiseptic Liquid ,price:591.20 ,weight:1.3 L ,brand:Dettol
+name:Wellness Hemp Migraine Pain Relief Roll On ,price:449 ,weight:10 ml ,brand:Hampa
+name:Non-Contact Infrared Thermometer ,price:1895,originalPrice:1995 ,weight:1 pcs ,brand:Accusure
+name:Wellness Hemp Muscle Pain Relief Oil ,price:1299 ,weight:100 ml ,brand:Hampa
+name:Choco Almond & Cranberry High Protein Muesli+ ,price:588,originalPrice:790 ,weight:350 g * 2 ,brand:Yoga Bar
+name:Orthotics Posture Corrector - Slim Lightweight Adjustable ,price:1343 ,weight:1 pcs ,brand:Frido
+name:Ayurveda Castor Oil ,price:140 ,weight:200 ml ,brand:Mamta Swastik Ayurveda
+name:Chocolate Flavour Fermented Yeast Protein Powder ,price:1299 ,weight:500 g ,brand:Yoga Bar
+name:Abdominal Support 23 cm, Grey, Large ,price:861 ,weight:1 pcs ,brand:Tynor
+name:LLHC09 Electric Hot Water Bag With Panda Cover ,price:1999,originalPrice:2249 ,weight:1 Unit ,brand:Lifelong
+name:Omron BP Monitor HEM 7121-J ,price:2316 ,weight:1 Unit ,brand:Omron
+name:Himalayan Shilajit Resin ,price:1199 ,weight:20 g ,brand:Kaplva
+name:Gulkand ,price:150 ,weight:400 g ,brand:Patanjali
+name:ORS Ready To Drink - Apple Flavour ,price:32.26 ,weight:200 ml ,brand:ORSL
+name:Pro Clean Chocolate Flavour With Monk Fruit Plant Protein ,price:1599,originalPrice:1645 ,weight:500 g ,brand:Yoga Bar
+name:Pulse Oximeter ,price:1999 ,weight:1 pcs ,brand:Microtek
+name:Dry + Wet Cough Syrup ,price:121 ,weight:100 ml ,brand:Vicks
+name:Wheat Grass Powder - Natural,price:425 ,weight:100 g ,brand:Organic India
+name:Washproof Plaster Medicated Dressings,price:55 ,weight:20 pcs ,brand:Hansaplast
+name:Micronised Creatine Powder - Unflavoured ,price:619 ,weight:100 g ,brand:Optimum Nutrition
+name:Original Multi-use Skin & Surface Wipes ,price:259 ,weight:80 pcs ,brand:Dettol

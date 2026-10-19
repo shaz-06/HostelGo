@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Circle,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -9,6 +16,7 @@ import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import AdminNotificationQueue from "./AdminNotificationQueue";
 import PricingRulesAdminPanel from "../components/admin/PricingRulesAdminPanel";
 import ReferralsAdminPanel from "../components/admin/ReferralsAdminPanel";
+import UserManagement from "../components/admin/UserManagement";
 
 // Resolve default marker icon bug
 delete L.Icon.Default.prototype._getIconUrl;
@@ -64,13 +72,15 @@ export default function AdminDashboard() {
     gap: "24px",
     maxWidth: "100%",
     minWidth: 0,
-    overflow: "hidden"
+    overflow: "hidden",
   };
 
   const statsGrid = {
     display: "grid",
-    gridTemplateColumns: isMobile 
-      ? (windowWidth < 640 ? "1fr" : "repeat(2, 1fr)") 
+    gridTemplateColumns: isMobile
+      ? windowWidth < 640
+        ? "1fr"
+        : "repeat(2, 1fr)"
       : "repeat(auto-fit, minmax(220px, 1fr))",
     gap: isMobile ? "12px" : "20px",
   };
@@ -86,7 +96,7 @@ export default function AdminDashboard() {
   const [deliverySettings, setDeliverySettings] = useState(null);
   const [feesConfig, setFeesConfig] = useState({
     codConvenienceFee: 14,
-    codConvenienceFeeEnabled: true
+    codConvenienceFeeEnabled: true,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -125,23 +135,26 @@ export default function AdminDashboard() {
     newOrderAlerts: true,
     riderAlerts: true,
     lowStockAlerts: true,
-    newUserRegistrations: true
+    newUserRegistrations: true,
   });
 
   const fetchAdminPreferences = async () => {
     try {
       const token = localStorage.getItem("buyto_token");
       const res = await fetch(window.API_BASE_URL + "/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         if (data.user && data.user.notificationPreferences) {
           setAdminPreferences({
-            newOrderAlerts: data.user.notificationPreferences.newOrderAlerts ?? true,
+            newOrderAlerts:
+              data.user.notificationPreferences.newOrderAlerts ?? true,
             riderAlerts: data.user.notificationPreferences.riderAlerts ?? true,
-            lowStockAlerts: data.user.notificationPreferences.lowStockAlerts ?? true,
-            newUserRegistrations: data.user.notificationPreferences.newUserRegistrations ?? true
+            lowStockAlerts:
+              data.user.notificationPreferences.lowStockAlerts ?? true,
+            newUserRegistrations:
+              data.user.notificationPreferences.newUserRegistrations ?? true,
           });
         }
       }
@@ -151,9 +164,9 @@ export default function AdminDashboard() {
   };
 
   const handleTogglePref = async (key, val) => {
-    setAdminPreferences(prev => ({
+    setAdminPreferences((prev) => ({
       ...prev,
-      [key]: val
+      [key]: val,
     }));
 
     try {
@@ -162,11 +175,11 @@ export default function AdminDashboard() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          [key]: val
-        })
+          [key]: val,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -174,17 +187,17 @@ export default function AdminDashboard() {
           setAdminPreferences(data.preferences);
         }
       } else {
-        setAdminPreferences(prev => ({
+        setAdminPreferences((prev) => ({
           ...prev,
-          [key]: !val
+          [key]: !val,
         }));
         alert("Failed to update preferences on server");
       }
     } catch (err) {
       console.error("Error updating admin preferences:", err);
-      setAdminPreferences(prev => ({
+      setAdminPreferences((prev) => ({
         ...prev,
-        [key]: !val
+        [key]: !val,
       }));
     }
   };
@@ -195,11 +208,11 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("buyto_token");
       const [statsRes, historyRes] = await Promise.all([
         fetch(window.API_BASE_URL + "/api/admin/notifications/stats", {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(window.API_BASE_URL + "/api/admin/notifications/history", {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       if (statsRes.ok && historyRes.ok) {
@@ -207,7 +220,14 @@ export default function AdminDashboard() {
         const historyData = await historyRes.json();
         console.log("history API response:", historyData);
         setNotifStats(statsData);
-        setNotifHistory(Array.isArray(historyData) ? historyData : (historyData?.history || historyData?.campaigns || historyData?.notifications || []));
+        setNotifHistory(
+          Array.isArray(historyData)
+            ? historyData
+            : historyData?.history ||
+                historyData?.campaigns ||
+                historyData?.notifications ||
+                [],
+        );
       }
     } catch (err) {
       console.error("Failed to fetch notification stats/history:", err);
@@ -237,27 +257,32 @@ export default function AdminDashboard() {
     try {
       setNotifSending(true);
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch(window.API_BASE_URL + "/api/admin/notifications/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        window.API_BASE_URL + "/api/admin/notifications/send",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: notifTitle,
+            message: notifBody,
+            body: notifBody,
+            type: "Announcement",
+            image: notifImage || null,
+            target: notifTarget,
+            selectedEmails: notifTarget === "selected" ? notifEmails : null,
+          }),
         },
-        body: JSON.stringify({
-          title: notifTitle,
-          message: notifBody,
-          body: notifBody,
-          type: "Announcement",
-          image: notifImage || null,
-          target: notifTarget,
-          selectedEmails: notifTarget === "selected" ? notifEmails : null
-        })
-      });
+      );
 
       const data = await res.json();
       if (res.ok && (data.success || data.recipientCount !== undefined)) {
         const recipients = data.recipientCount || data.recipientsCount || 0;
-        alert(`Notification campaign dispatched successfully to ${recipients} customers!`);
+        alert(
+          `Notification campaign dispatched successfully to ${recipients} customers!`,
+        );
         setNotifTitle("");
         setNotifBody("");
         setNotifImage("");
@@ -278,16 +303,19 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("buyto_token");
       const nextValue = !deliverySettings?.lateNightDeliveryEnabled;
-      const res = await fetch(window.API_BASE_URL + "/api/admin/delivery-settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+      const res = await fetch(
+        window.API_BASE_URL + "/api/admin/delivery-settings",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            lateNightDeliveryEnabled: nextValue,
+          }),
         },
-        body: JSON.stringify({
-          lateNightDeliveryEnabled: nextValue
-        })
-      });
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -306,16 +334,19 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("buyto_token");
       const nextValue = !deliverySettings?.rainyDeliveryEnabled;
-      const res = await fetch(window.API_BASE_URL + "/api/admin/delivery-settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+      const res = await fetch(
+        window.API_BASE_URL + "/api/admin/delivery-settings",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            rainyDeliveryEnabled: nextValue,
+          }),
         },
-        body: JSON.stringify({
-          rainyDeliveryEnabled: nextValue
-        })
-      });
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -337,9 +368,9 @@ export default function AdminDashboard() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(updatedFields)
+        body: JSON.stringify(updatedFields),
       });
       if (res.ok) {
         const data = await res.json();
@@ -355,7 +386,6 @@ export default function AdminDashboard() {
     }
   };
 
-
   useEffect(() => {
     console.log("DASHBOARD OPENED");
     const fetchData = async () => {
@@ -364,11 +394,14 @@ export default function AdminDashboard() {
         const token = localStorage.getItem("buyto_token");
 
         // Fetch analytics
-        const analyticsRes = await fetch(window.API_BASE_URL + "/api/admin/analytics", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
+        const analyticsRes = await fetch(
+          window.API_BASE_URL + "/api/admin/analytics",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
 
         if (!analyticsRes.ok) {
           const status = analyticsRes.status;
@@ -376,7 +409,7 @@ export default function AdminDashboard() {
           try {
             const errData = await analyticsRes.json();
             errMsg = errData.message || errMsg;
-          } catch (e) { }
+          } catch (e) {}
           console.error("=== [FRONTEND ANALYTICS FETCH ERROR] ===");
           console.error("Status Code:", status);
           console.error("Response Message:", errMsg);
@@ -386,11 +419,14 @@ export default function AdminDashboard() {
         setAnalytics(analyticsData);
 
         // Fetch recent orders
-        const ordersRes = await fetch(window.API_BASE_URL + "/api/admin/orders", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
+        const ordersRes = await fetch(
+          window.API_BASE_URL + "/api/admin/orders",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
 
         if (!ordersRes.ok) {
           const status = ordersRes.status;
@@ -398,7 +434,7 @@ export default function AdminDashboard() {
           try {
             const errData = await ordersRes.json();
             errMsg = errData.message || errMsg;
-          } catch (e) { }
+          } catch (e) {}
           console.error("=== [FRONTEND ORDERS FETCH ERROR] ===");
           console.error("Status Code:", status);
           console.error("Response Message:", errMsg);
@@ -408,11 +444,14 @@ export default function AdminDashboard() {
         setRecentOrders(ordersData.slice(0, 5)); // Keep latest 5 orders
 
         // Fetch delivery settings
-        const settingsRes = await fetch(window.API_BASE_URL + "/api/admin/delivery-settings", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
+        const settingsRes = await fetch(
+          window.API_BASE_URL + "/api/admin/delivery-settings",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json();
           setDeliverySettings(settingsData);
@@ -429,7 +468,9 @@ export default function AdminDashboard() {
       } catch (err) {
         console.error("=== [FRONTEND DASHBOARD NETWORK ERROR] ===");
         console.error("Network / Load Error:", err.message);
-        setError(err.message || "Something went wrong loading dashboard details.");
+        setError(
+          err.message || "Something went wrong loading dashboard details.",
+        );
         setLoading(false);
       }
     };
@@ -442,11 +483,11 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("buyto_token");
       const [analyticsRes, txRes] = await Promise.all([
         fetch(window.API_BASE_URL + "/api/buycoins/admin/analytics", {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(window.API_BASE_URL + "/api/buycoins/admin/transactions", {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       if (analyticsRes.ok && txRes.ok) {
@@ -480,19 +521,22 @@ export default function AdminDashboard() {
     try {
       setIsAdjusting(true);
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch(window.API_BASE_URL + "/api/buycoins/admin/adjust", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+      const res = await fetch(
+        window.API_BASE_URL + "/api/buycoins/admin/adjust",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            email: adjustEmail,
+            coins: Number(adjustCoins),
+            type: adjustType,
+            reason: adjustReason,
+          }),
         },
-        body: JSON.stringify({
-          email: adjustEmail,
-          coins: Number(adjustCoins),
-          type: adjustType,
-          reason: adjustReason
-        })
-      });
+      );
 
       const data = await res.json();
       if (res.ok && data.success) {
@@ -519,9 +563,15 @@ export default function AdminDashboard() {
     try {
       setBcIsSearching(true);
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch(window.API_BASE_URL + `/api/buycoins/admin/users?query=${encodeURIComponent(bcSearchQuery)}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(
+        window.API_BASE_URL +
+          `/api/buycoins/admin/users?query=${encodeURIComponent(
+            bcSearchQuery,
+          )}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.users) {
@@ -539,9 +589,12 @@ export default function AdminDashboard() {
     const token = localStorage.getItem("buyto_token");
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(window.API_BASE_URL + `/api/buycoins/admin/reconcile/status/${jobId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await fetch(
+          window.API_BASE_URL + `/api/buycoins/admin/reconcile/status/${jobId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         if (res.ok) {
           const data = await res.json();
           if (data.success && data.job) {
@@ -572,14 +625,17 @@ export default function AdminDashboard() {
       setIsReconciling(true);
       setReconcileResult(null);
       const token = localStorage.getItem("buyto_token");
-      const res = await fetch(window.API_BASE_URL + "/api/buycoins/admin/reconcile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        window.API_BASE_URL + "/api/buycoins/admin/reconcile",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ mode: reconcileMode, async: true }),
         },
-        body: JSON.stringify({ mode: reconcileMode, async: true })
-      });
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.jobId) {
@@ -602,28 +658,76 @@ export default function AdminDashboard() {
 
   const renderNotificationsView = () => {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "24px", fontFamily: "'Outfit', 'Inter', sans-serif", maxWidth: "800px", margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", borderBottom: "2px solid #f1f5f9", paddingBottom: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "24px",
+          fontFamily: "'Outfit', 'Inter', sans-serif",
+          maxWidth: "800px",
+          margin: "0 auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            borderBottom: "2px solid #f1f5f9",
+            paddingBottom: "16px",
+          }}
+        >
           <span style={{ fontSize: "32px" }}>🔔</span>
           <div>
-            <h2 style={{ fontSize: "24px", fontWeight: "900", color: "#0f172a", margin: 0 }}>Push Notification Broadcast</h2>
-            <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "14px", fontWeight: "550" }}>
-              Manually compose and send push notifications directly to all registered users' mobile devices instantly.
+            <h2
+              style={{
+                fontSize: "24px",
+                fontWeight: "900",
+                color: "#0f172a",
+                margin: 0,
+              }}
+            >
+              Push Notification Broadcast
+            </h2>
+            <p
+              style={{
+                margin: "4px 0 0 0",
+                color: "#64748b",
+                fontSize: "14px",
+                fontWeight: "550",
+              }}
+            >
+              Manually compose and send push notifications directly to all
+              registered users' mobile devices instantly.
             </p>
           </div>
         </div>
 
-        <div style={{
-          background: "#ffffff",
-          borderRadius: "24px",
-          padding: "32px",
-          border: "1.5px solid #e2e8f0",
-          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.03)"
-        }}>
-          <form onSubmit={handleSendNotification} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label style={{ fontSize: "13px", fontWeight: "800", color: "#334155", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+        <div
+          style={{
+            background: "#ffffff",
+            borderRadius: "24px",
+            padding: "32px",
+            border: "1.5px solid #e2e8f0",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.03)",
+          }}
+        >
+          <form
+            onSubmit={handleSendNotification}
+            style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+          >
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <label
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "800",
+                  color: "#334155",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
                 Notification Title
               </label>
               <input
@@ -640,13 +744,23 @@ export default function AdminDashboard() {
                   fontWeight: "600",
                   color: "#1e293b",
                   outline: "none",
-                  transition: "border-color 0.2s"
+                  transition: "border-color 0.2s",
                 }}
               />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label style={{ fontSize: "13px", fontWeight: "800", color: "#334155", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <label
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "800",
+                  color: "#334155",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
                 Notification Message Body
               </label>
               <textarea
@@ -665,13 +779,23 @@ export default function AdminDashboard() {
                   resize: "vertical",
                   outline: "none",
                   lineHeight: "1.5",
-                  transition: "border-color 0.2s"
+                  transition: "border-color 0.2s",
                 }}
               />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label style={{ fontSize: "13px", fontWeight: "800", color: "#334155", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <label
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "800",
+                  color: "#334155",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
                 Image URL (Optional)
               </label>
               <input
@@ -687,12 +811,18 @@ export default function AdminDashboard() {
                   fontWeight: "600",
                   color: "#1e293b",
                   outline: "none",
-                  transition: "border-color 0.2s"
+                  transition: "border-color 0.2s",
                 }}
               />
             </div>
 
-            <div style={{ marginTop: "12px", borderTop: "1.5px solid #f1f5f9", paddingTop: "24px" }}>
+            <div
+              style={{
+                marginTop: "12px",
+                borderTop: "1.5px solid #f1f5f9",
+                paddingTop: "24px",
+              }}
+            >
               <button
                 type="submit"
                 disabled={notifSending}
@@ -700,20 +830,25 @@ export default function AdminDashboard() {
                   width: "100%",
                   padding: "16px 24px",
                   borderRadius: "16px",
-                  background: notifSending ? "#94a3b8" : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  background: notifSending
+                    ? "#94a3b8"
+                    : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                   color: "white",
                   border: "none",
                   fontWeight: "900",
                   fontSize: "16px",
                   cursor: notifSending ? "not-allowed" : "pointer",
-                  boxShadow: notifSending ? "none" : "0 8px 20px rgba(16, 185, 129, 0.25)",
-                  transition: "all 0.2s ease"
+                  boxShadow: notifSending
+                    ? "none"
+                    : "0 8px 20px rgba(16, 185, 129, 0.25)",
+                  transition: "all 0.2s ease",
                 }}
               >
-                {notifSending ? "Dispatching Broadcast Push..." : "🚀 Send Broadcast Notification"}
+                {notifSending
+                  ? "Dispatching Broadcast Push..."
+                  : "🚀 Send Broadcast Notification"}
               </button>
             </div>
-
           </form>
         </div>
       </div>
@@ -722,50 +857,136 @@ export default function AdminDashboard() {
 
   const renderSettingsView = () => {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "24px", fontFamily: "'Outfit', 'Inter', sans-serif" }}>
-        <h2 style={{ fontSize: "22px", fontWeight: "850", color: "#0f172a", margin: 0 }}>⚙️ Admin Settings</h2>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "24px",
+          fontFamily: "'Outfit', 'Inter', sans-serif",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "22px",
+            fontWeight: "850",
+            color: "#0f172a",
+            margin: 0,
+          }}
+        >
+          ⚙️ Admin Settings
+        </h2>
 
         <div style={cardLayoutStyle}>
           <h3 style={cardTitleStyle}>Alert Preferences</h3>
-          <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
-            Toggle preferences to receive real-time updates and push notifications.
+          <p
+            style={{
+              color: "#6B7280",
+              fontSize: "12px",
+              marginTop: "4px",
+              fontWeight: "600",
+            }}
+          >
+            Toggle preferences to receive real-time updates and push
+            notifications.
           </p>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "24px" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              marginTop: "24px",
+            }}
+          >
             {[
-              { key: "newOrderAlerts", label: "New Order Alerts", desc: "Notify when a customer places a new order" },
-              { key: "riderAlerts", label: "Rider Alerts", desc: "Notify when a rider changes status or updates delivery" },
-              { key: "lowStockAlerts", label: "Low Stock Alerts", desc: "Notify when products fall below safe stock levels" },
-              { key: "newUserRegistrations", label: "New User Registrations", desc: "Notify when a new customer registers on Buyto" }
+              {
+                key: "newOrderAlerts",
+                label: "New Order Alerts",
+                desc: "Notify when a customer places a new order",
+              },
+              {
+                key: "riderAlerts",
+                label: "Rider Alerts",
+                desc: "Notify when a rider changes status or updates delivery",
+              },
+              {
+                key: "lowStockAlerts",
+                label: "Low Stock Alerts",
+                desc: "Notify when products fall below safe stock levels",
+              },
+              {
+                key: "newUserRegistrations",
+                label: "New User Registrations",
+                desc: "Notify when a new customer registers on Buyto",
+              },
             ].map((pref) => (
-              <div key={pref.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", borderRadius: "12px", border: "1.5px solid #F3F4F6", background: "#FAFBFD" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <span style={{ fontSize: "14px", fontWeight: "800", color: "#1F2937" }}>{pref.label}</span>
-                  <span style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>{pref.desc}</span>
+              <div
+                key={pref.key}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "16px",
+                  borderRadius: "12px",
+                  border: "1.5px solid #F3F4F6",
+                  background: "#FAFBFD",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "800",
+                      color: "#1F2937",
+                    }}
+                  >
+                    {pref.label}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "#6B7280",
+                      fontWeight: "500",
+                    }}
+                  >
+                    {pref.desc}
+                  </span>
                 </div>
                 <div
-                  onClick={() => handleTogglePref(pref.key, !adminPreferences?.[pref.key])}
+                  onClick={() =>
+                    handleTogglePref(pref.key, !adminPreferences?.[pref.key])
+                  }
                   style={{
                     width: "50px",
                     height: "26px",
                     borderRadius: "13px",
-                    background: adminPreferences?.[pref.key] ? "#318616" : "#E5E7EB",
+                    background: adminPreferences?.[pref.key]
+                      ? "#318616"
+                      : "#E5E7EB",
                     position: "relative",
                     cursor: "pointer",
-                    transition: "background-color 0.2s"
+                    transition: "background-color 0.2s",
                   }}
                 >
-                  <div style={{
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "50%",
-                    background: "white",
-                    position: "absolute",
-                    top: "3px",
-                    left: adminPreferences?.[pref.key] ? "27px" : "3px",
-                    transition: "left 0.2s",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
-                  }} />
+                  <div
+                    style={{
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "50%",
+                      background: "white",
+                      position: "absolute",
+                      top: "3px",
+                      left: adminPreferences?.[pref.key] ? "27px" : "3px",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                    }}
+                  />
                 </div>
               </div>
             ))}
@@ -775,47 +996,120 @@ export default function AdminDashboard() {
         {/* Payments Settings Card */}
         <div style={cardLayoutStyle}>
           <h3 style={cardTitleStyle}>💳 Payments Configuration</h3>
-          <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
-            Configure fees and convenience charges for different payment methods.
+          <p
+            style={{
+              color: "#6B7280",
+              fontSize: "12px",
+              marginTop: "4px",
+              fontWeight: "600",
+            }}
+          >
+            Configure fees and convenience charges for different payment
+            methods.
           </p>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "24px" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px",
+              marginTop: "24px",
+            }}
+          >
             {/* Enable/Disable Toggle */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", borderRadius: "12px", border: "1.5px solid #F3F4F6", background: "#FAFBFD" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <span style={{ fontSize: "14px", fontWeight: "800", color: "#1F2937" }}>Enable COD Convenience Fee</span>
-                <span style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>Charge an additional convenience fee for Cash on Delivery orders</span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "16px",
+                borderRadius: "12px",
+                border: "1.5px solid #F3F4F6",
+                background: "#FAFBFD",
+              }}
+            >
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "2px" }}
+              >
+                <span
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "800",
+                    color: "#1F2937",
+                  }}
+                >
+                  Enable COD Convenience Fee
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "#6B7280",
+                    fontWeight: "500",
+                  }}
+                >
+                  Charge an additional convenience fee for Cash on Delivery
+                  orders
+                </span>
               </div>
               <div
-                onClick={() => updateFeesConfig({ codConvenienceFeeEnabled: !feesConfig?.codConvenienceFeeEnabled })}
+                onClick={() =>
+                  updateFeesConfig({
+                    codConvenienceFeeEnabled:
+                      !feesConfig?.codConvenienceFeeEnabled,
+                  })
+                }
                 style={{
                   width: "50px",
                   height: "26px",
                   borderRadius: "13px",
-                  background: feesConfig?.codConvenienceFeeEnabled ? "#318616" : "#E5E7EB",
+                  background: feesConfig?.codConvenienceFeeEnabled
+                    ? "#318616"
+                    : "#E5E7EB",
                   position: "relative",
                   cursor: "pointer",
-                  transition: "background-color 0.2s"
+                  transition: "background-color 0.2s",
                 }}
               >
-                <div style={{
-                  width: "20px",
-                  height: "20px",
-                  borderRadius: "50%",
-                  background: "white",
-                  position: "absolute",
-                  top: "3px",
-                  left: feesConfig?.codConvenienceFeeEnabled ? "27px" : "3px",
-                  transition: "left 0.2s",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
-                }} />
+                <div
+                  style={{
+                    width: "20px",
+                    height: "20px",
+                    borderRadius: "50%",
+                    background: "white",
+                    position: "absolute",
+                    top: "3px",
+                    left: feesConfig?.codConvenienceFeeEnabled ? "27px" : "3px",
+                    transition: "left 0.2s",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                  }}
+                />
               </div>
             </div>
 
             {/* Fee Amount Input */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "16px", borderRadius: "12px", border: "1.5px solid #F3F4F6", background: "#FAFBFD" }}>
-              <label style={{ fontSize: "14px", fontWeight: "800", color: "#1F2937" }}>Cash on Delivery Fee (₹)</label>
-              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                padding: "16px",
+                borderRadius: "12px",
+                border: "1.5px solid #F3F4F6",
+                background: "#FAFBFD",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: "14px",
+                  fontWeight: "800",
+                  color: "#1F2937",
+                }}
+              >
+                Cash on Delivery Fee (₹)
+              </label>
+              <div
+                style={{ display: "flex", gap: "12px", alignItems: "center" }}
+              >
                 <input
                   type="number"
                   min="0"
@@ -824,7 +1118,10 @@ export default function AdminDashboard() {
                   onChange={(e) => {
                     const val = Number(e.target.value);
                     if (val >= 0 && val <= 999) {
-                      setFeesConfig(prev => ({ ...prev, codConvenienceFee: val }));
+                      setFeesConfig((prev) => ({
+                        ...prev,
+                        codConvenienceFee: val,
+                      }));
                     }
                   }}
                   style={{
@@ -834,11 +1131,15 @@ export default function AdminDashboard() {
                     fontSize: "14px",
                     fontWeight: "600",
                     width: "100px",
-                    fontFamily: "inherit"
+                    fontFamily: "inherit",
                   }}
                 />
                 <button
-                  onClick={() => updateFeesConfig({ codConvenienceFee: feesConfig?.codConvenienceFee })}
+                  onClick={() =>
+                    updateFeesConfig({
+                      codConvenienceFee: feesConfig?.codConvenienceFee,
+                    })
+                  }
                   style={{
                     background: "#318616",
                     color: "white",
@@ -848,15 +1149,23 @@ export default function AdminDashboard() {
                     fontSize: "13px",
                     fontWeight: "750",
                     cursor: "pointer",
-                    transition: "opacity 0.2s"
+                    transition: "opacity 0.2s",
                   }}
-                  onMouseOver={(e) => e.target.style.opacity = "0.9"}
-                  onMouseOut={(e) => e.target.style.opacity = "1"}
+                  onMouseOver={(e) => (e.target.style.opacity = "0.9")}
+                  onMouseOut={(e) => (e.target.style.opacity = "1")}
                 >
                   Save Fee
                 </button>
               </div>
-              <span style={{ fontSize: "11px", color: "#9CA3AF", fontWeight: "500" }}>Allows values between ₹0 and ₹999</span>
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: "#9CA3AF",
+                  fontWeight: "500",
+                }}
+              >
+                Allows values between ₹0 and ₹999
+              </span>
             </div>
           </div>
         </div>
@@ -868,7 +1177,9 @@ export default function AdminDashboard() {
     return (
       <div style={loadingContainerStyle}>
         <div style={spinnerStyle}></div>
-        <span style={{ color: "#6B7280", fontWeight: "600", fontSize: "16px" }}>Analyzing Buyto Metrics...</span>
+        <span style={{ color: "#6B7280", fontWeight: "600", fontSize: "16px" }}>
+          Analyzing Buyto Metrics...
+        </span>
       </div>
     );
   }
@@ -896,55 +1207,152 @@ export default function AdminDashboard() {
           <div style={sidebarHeaderStyle}>
             <div style={avatarStyle}>AD</div>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ color: "#111827", fontWeight: "800", fontSize: "14px" }}>Admin Control</span>
-              <span style={{ color: "#6B7280", fontSize: "12px", fontWeight: "600" }}>Administrator</span>
+              <span
+                style={{
+                  color: "#111827",
+                  fontWeight: "800",
+                  fontSize: "14px",
+                }}
+              >
+                Admin Control
+              </span>
+              <span
+                style={{
+                  color: "#6B7280",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                }}
+              >
+                Administrator
+              </span>
             </div>
           </div>
 
           <div style={navGroupStyle}>
-            <button onClick={() => setActiveView("overview")} style={activeView === "overview" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("overview")}
+              style={
+                activeView === "overview" ? activeNavLinkStyle : navLinkStyle
+              }
+            >
               📊 Dashboard Overview
             </button>
-            <button onClick={() => setActiveView("rewards")} style={activeView === "rewards" ? activeNavLinkStyle : navLinkStyle}>
+
+            <button
+              onClick={() => setActiveView("users")}
+              style={activeView === "users" ? activeNavLinkStyle : navLinkStyle}
+            >
+              👥 User Management
+            </button>
+
+            <button
+              onClick={() => setActiveView("rewards")}
+              style={
+                activeView === "rewards" ? activeNavLinkStyle : navLinkStyle
+              }
+            >
               🎁 Customer Rewards
             </button>
-            <button onClick={() => setActiveView("buycoins")} style={activeView === "buycoins" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("buycoins")}
+              style={
+                activeView === "buycoins" ? activeNavLinkStyle : navLinkStyle
+              }
+            >
               💰 BuyCoins Management
             </button>
-            <button onClick={() => setActiveView("pricingRules")} style={activeView === "pricingRules" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("pricingRules")}
+              style={
+                activeView === "pricingRules"
+                  ? activeNavLinkStyle
+                  : navLinkStyle
+              }
+            >
               🏷️ Pricing Rules & Festival
             </button>
-            <button onClick={() => setActiveView("coupons")} style={activeView === "coupons" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("coupons")}
+              style={
+                activeView === "coupons" ? activeNavLinkStyle : navLinkStyle
+              }
+            >
               🎟️ Coupon Management
             </button>
-            <button onClick={() => setActiveView("notifications")} style={activeView === "notifications" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("notifications")}
+              style={
+                activeView === "notifications"
+                  ? activeNavLinkStyle
+                  : navLinkStyle
+              }
+            >
               🔔 Notification Center
             </button>
-            <button onClick={() => setActiveView("notificationQueue")} style={activeView === "notificationQueue" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("notificationQueue")}
+              style={
+                activeView === "notificationQueue"
+                  ? activeNavLinkStyle
+                  : navLinkStyle
+              }
+            >
               📋 Notification Queue
             </button>
-            <button onClick={() => navigate("/admin/orders")} style={navLinkStyle}>
+            <button
+              onClick={() => navigate("/admin/orders")}
+              style={navLinkStyle}
+            >
               📦 Orders Lifecycle
             </button>
-            <button onClick={() => navigate("/admin/products")} style={navLinkStyle}>
+            <button
+              onClick={() => navigate("/admin/products")}
+              style={navLinkStyle}
+            >
               🍎 Inventory Catalog
             </button>
-            <button onClick={() => navigate("/admin/riders")} style={navLinkStyle}>
+            <button
+              onClick={() => navigate("/admin/riders")}
+              style={navLinkStyle}
+            >
               🛵 Riders Management
             </button>
-            <button onClick={() => navigate("/admin/support")} style={navLinkStyle}>
+            <button
+              onClick={() => navigate("/admin/support")}
+              style={navLinkStyle}
+            >
               💬 Customer Support
             </button>
-            <button onClick={() => setActiveView("delivery")} style={activeView === "delivery" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("delivery")}
+              style={
+                activeView === "delivery" ? activeNavLinkStyle : navLinkStyle
+              }
+            >
               📍 Delivery Services
             </button>
-            <button onClick={() => setActiveView("categories")} style={activeView === "categories" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("categories")}
+              style={
+                activeView === "categories" ? activeNavLinkStyle : navLinkStyle
+              }
+            >
               🗂️ Navigation Categories
             </button>
-            <button onClick={() => setActiveView("referrals")} style={activeView === "referrals" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("referrals")}
+              style={
+                activeView === "referrals" ? activeNavLinkStyle : navLinkStyle
+              }
+            >
               👥 Referral Campaign
             </button>
-            <button onClick={() => setActiveView("settings")} style={activeView === "settings" ? activeNavLinkStyle : navLinkStyle}>
+            <button
+              onClick={() => setActiveView("settings")}
+              style={
+                activeView === "settings" ? activeNavLinkStyle : navLinkStyle
+              }
+            >
               ⚙️ Admin Settings
             </button>
             <button
@@ -956,7 +1364,7 @@ export default function AdminDashboard() {
                 borderRadius: "0",
                 paddingTop: "12px",
                 color: "#318616",
-                fontWeight: "800"
+                fontWeight: "800",
               }}
             >
               🏪 Open Customer App
@@ -977,7 +1385,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("💰", "#FFF1F0", "#FF4D4F")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Total Sales</span>
-                    <span style={statValStyle}>₹{analytics?.totalSales || 0}</span>
+                    <span style={statValStyle}>
+                      ₹{analytics?.totalSales || 0}
+                    </span>
                   </div>
                 </div>
                 {/* Today Orders */}
@@ -985,7 +1395,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("⚡", "#F0FDF4", "#22C55E")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Orders Today</span>
-                    <span style={statValStyle}>{analytics?.ordersToday || 0}</span>
+                    <span style={statValStyle}>
+                      {analytics?.ordersToday || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -994,7 +1406,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("⏳", "#FEF3C7", "#F59E0B")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Active Processing</span>
-                    <span style={statValStyle}>{analytics?.pendingOrders || 0}</span>
+                    <span style={statValStyle}>
+                      {analytics?.pendingOrders || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -1003,7 +1417,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("🛍️", "#EEF2FF", "#6366F1")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Catalog Products</span>
-                    <span style={statValStyle}>{analytics?.totalProducts || 0}</span>
+                    <span style={statValStyle}>
+                      {analytics?.totalProducts || 0}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1014,7 +1430,10 @@ export default function AdminDashboard() {
                 <div style={cardLayoutStyle}>
                   <div style={cardHeaderStyle}>
                     <h3 style={cardTitleStyle}>Recent Transactions</h3>
-                    <button onClick={() => navigate("/admin/orders")} style={viewAllBtnStyle}>
+                    <button
+                      onClick={() => navigate("/admin/orders")}
+                      style={viewAllBtnStyle}
+                    >
                       View All Orders →
                     </button>
                   </div>
@@ -1034,30 +1453,62 @@ export default function AdminDashboard() {
                       <tbody>
                         {recentOrders.length === 0 ? (
                           <tr>
-                            <td colSpan="6" style={emptyTdStyle}>No recent orders recorded.</td>
+                            <td colSpan="6" style={emptyTdStyle}>
+                              No recent orders recorded.
+                            </td>
                           </tr>
                         ) : (
                           recentOrders.map((order) => (
                             <tr key={order._id} style={trStyle}>
-                              <td style={tdIdStyle}>{order._id.substring(order._id.length - 8)}</td>
+                              <td style={tdIdStyle}>
+                                {order._id.substring(order._id.length - 8)}
+                              </td>
                               <td style={tdCustomerStyle}>
-                                <div style={{ display: "flex", flexDirection: "column" }}>
-                                  <span style={{ fontWeight: "800", color: "#111827" }}>{order.user?.name}</span>
-                                  <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{order.user?.phone}</span>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontWeight: "800",
+                                      color: "#111827",
+                                    }}
+                                  >
+                                    {order.user?.name}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      color: "#6B7280",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {order.user?.phone}
+                                  </span>
                                 </div>
                               </td>
-                              <td style={tdAmountStyle}>₹{order.totalAmount}</td>
+                              <td style={tdAmountStyle}>
+                                ₹{order.totalAmount}
+                              </td>
                               <td>
-                                <span style={payBadgeStyle(order.paymentStatus)}>
+                                <span
+                                  style={payBadgeStyle(order.paymentStatus)}
+                                >
                                   {order.paymentStatus}
                                 </span>
                               </td>
                               <td>
-                                <span style={statusBadgeStyle(order.orderStatus)}>
+                                <span
+                                  style={statusBadgeStyle(order.orderStatus)}
+                                >
                                   {order.orderStatus}
                                 </span>
                               </td>
-                              <td style={tdDateStyle}>{new Date(order.createdAt).toLocaleDateString()}</td>
+                              <td style={tdDateStyle}>
+                                {new Date(order.createdAt).toLocaleDateString()}
+                              </td>
                             </tr>
                           ))
                         )}
@@ -1067,23 +1518,58 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Quick Summary Cards */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px",
+                  }}
+                >
                   <div style={cardLayoutStyle}>
                     <h3 style={cardTitleStyle}>Store Operations</h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                        marginTop: "16px",
+                      }}
+                    >
                       <div style={storeInfoRowStyle}>
-                        <span style={{ color: "#6B7280", fontWeight: 600 }}>Delivered Orders</span>
-                        <span style={storeInfoValStyle(analytics?.deliveredOrders > 0 ? "#10B981" : "#6B7280")}>
+                        <span style={{ color: "#6B7280", fontWeight: 600 }}>
+                          Delivered Orders
+                        </span>
+                        <span
+                          style={storeInfoValStyle(
+                            analytics?.deliveredOrders > 0
+                              ? "#10B981"
+                              : "#6B7280",
+                          )}
+                        >
                           {analytics?.deliveredOrders || 0}
                         </span>
                       </div>
                       <div style={storeInfoRowStyle}>
-                        <span style={{ color: "#6B7280", fontWeight: 600 }}>Store Status</span>
-                        <span style={storeInfoValStyle("#10B981")}>🟢 ONLINE</span>
+                        <span style={{ color: "#6B7280", fontWeight: 600 }}>
+                          Store Status
+                        </span>
+                        <span style={storeInfoValStyle("#10B981")}>
+                          🟢 ONLINE
+                        </span>
                       </div>
                       <div style={storeInfoRowStyle}>
-                        <span style={{ color: "#6B7280", fontWeight: 600 }}>System Mode</span>
-                        <span style={{ color: "#FF4D4F", fontWeight: "800", fontSize: "13px" }}>Production Ready</span>
+                        <span style={{ color: "#6B7280", fontWeight: 600 }}>
+                          System Mode
+                        </span>
+                        <span
+                          style={{
+                            color: "#FF4D4F",
+                            fontWeight: "800",
+                            fontSize: "13px",
+                          }}
+                        >
+                          Production Ready
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1091,15 +1577,44 @@ export default function AdminDashboard() {
                   {/* Delivery Settings Card */}
                   <div style={cardLayoutStyle}>
                     <h3 style={cardTitleStyle}>Delivery Settings</h3>
-                    <p style={{ color: "#6B7280", fontSize: "13px", marginTop: "4px", lineHeight: "1.5", fontWeight: 500 }}>
+                    <p
+                      style={{
+                        color: "#6B7280",
+                        fontSize: "13px",
+                        marginTop: "4px",
+                        lineHeight: "1.5",
+                        fontWeight: 500,
+                      }}
+                    >
                       Manage delivery surcharges dynamically.
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "16px",
+                        marginTop: "16px",
+                      }}
+                    >
                       {/* Late Night Delivery Toggle */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
                         <div>
-                          <div style={{ fontWeight: "700", fontSize: "14px" }}>🌙 Late Night Delivery</div>
-                          <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
+                          <div style={{ fontWeight: "700", fontSize: "14px" }}>
+                            🌙 Late Night Delivery
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "#6B7280",
+                              marginTop: "2px",
+                            }}
+                          >
                             Apply ₹30 surcharge for orders placed after 10 PM
                           </div>
                         </div>
@@ -1108,11 +1623,14 @@ export default function AdminDashboard() {
                           style={{
                             width: "50px",
                             height: "26px",
-                            background: deliverySettings?.lateNightDeliveryEnabled ? "#318616" : "#E5E7EB",
+                            background:
+                              deliverySettings?.lateNightDeliveryEnabled
+                                ? "#318616"
+                                : "#E5E7EB",
                             borderRadius: "999px",
                             position: "relative",
                             cursor: "pointer",
-                            transition: "background-color 0.2s ease"
+                            transition: "background-color 0.2s ease",
                           }}
                         >
                           <div
@@ -1123,19 +1641,35 @@ export default function AdminDashboard() {
                               borderRadius: "50%",
                               position: "absolute",
                               top: "3px",
-                              left: deliverySettings?.lateNightDeliveryEnabled ? "27px" : "3px",
+                              left: deliverySettings?.lateNightDeliveryEnabled
+                                ? "27px"
+                                : "3px",
                               boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                              transition: "left 0.2s ease"
+                              transition: "left 0.2s ease",
                             }}
                           />
                         </div>
                       </div>
 
                       {/* Rainy Delivery Toggle */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
                         <div>
-                          <div style={{ fontWeight: "700", fontSize: "14px" }}>🌧️ Rainy Delivery</div>
-                          <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
+                          <div style={{ fontWeight: "700", fontSize: "14px" }}>
+                            🌧️ Rainy Delivery
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "#6B7280",
+                              marginTop: "2px",
+                            }}
+                          >
                             Apply ₹30 surcharge during rainy conditions
                           </div>
                         </div>
@@ -1144,11 +1678,13 @@ export default function AdminDashboard() {
                           style={{
                             width: "50px",
                             height: "26px",
-                            background: deliverySettings?.rainyDeliveryEnabled ? "#318616" : "#E5E7EB",
+                            background: deliverySettings?.rainyDeliveryEnabled
+                              ? "#318616"
+                              : "#E5E7EB",
                             borderRadius: "999px",
                             position: "relative",
                             cursor: "pointer",
-                            transition: "background-color 0.2s ease"
+                            transition: "background-color 0.2s ease",
                           }}
                         >
                           <div
@@ -1159,9 +1695,11 @@ export default function AdminDashboard() {
                               borderRadius: "50%",
                               position: "absolute",
                               top: "3px",
-                              left: deliverySettings?.rainyDeliveryEnabled ? "27px" : "3px",
+                              left: deliverySettings?.rainyDeliveryEnabled
+                                ? "27px"
+                                : "3px",
                               boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                              transition: "left 0.2s ease"
+                              transition: "left 0.2s ease",
                             }}
                           />
                         </div>
@@ -1171,17 +1709,42 @@ export default function AdminDashboard() {
 
                   <div style={cardLayoutStyle}>
                     <h3 style={cardTitleStyle}>Quick Controls</h3>
-                    <p style={{ color: "#6B7280", fontSize: "13px", marginTop: "4px", lineHeight: "1.5", fontWeight: 500 }}>
-                      Directly modify products catalog stock, add variants, or update order dispatch details.
+                    <p
+                      style={{
+                        color: "#6B7280",
+                        fontSize: "13px",
+                        marginTop: "4px",
+                        lineHeight: "1.5",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Directly modify products catalog stock, add variants, or
+                      update order dispatch details.
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
-                      <button onClick={() => navigate("/admin/orders")} style={quickBtnStyle}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px",
+                        marginTop: "16px",
+                      }}
+                    >
+                      <button
+                        onClick={() => navigate("/admin/orders")}
+                        style={quickBtnStyle}
+                      >
                         📦 Dispatch Orders
                       </button>
-                      <button onClick={() => navigate("/admin/products")} style={quickBtnStyle}>
+                      <button
+                        onClick={() => navigate("/admin/products")}
+                        style={quickBtnStyle}
+                      >
                         🍎 Restock Products
                       </button>
-                      <button onClick={() => navigate("/admin/riders")} style={quickBtnStyle}>
+                      <button
+                        onClick={() => navigate("/admin/riders")}
+                        style={quickBtnStyle}
+                      >
                         🛵 Manage Riders
                       </button>
                     </div>
@@ -1192,7 +1755,9 @@ export default function AdminDashboard() {
           )}
 
           {activeView === "rewards" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+            >
               {/* Rewards Statistics Cards */}
               <div style={statsGrid}>
                 {/* Total Coupons Generated */}
@@ -1200,7 +1765,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("🎟️", "#eff6ff", "#3b82f6")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Coupons Issued</span>
-                    <span style={statValStyle}>{analytics?.totalCouponsGenerated || 0}</span>
+                    <span style={statValStyle}>
+                      {analytics?.totalCouponsGenerated || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -1209,7 +1776,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("🎁", "#ecfdf5", "#10b981")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Coupons Redeemed</span>
-                    <span style={statValStyle}>{analytics?.totalCouponsRedeemed || 0}</span>
+                    <span style={statValStyle}>
+                      {analytics?.totalCouponsRedeemed || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -1218,7 +1787,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("🪙", "#fffbeb", "#d97706")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>BuyCoins Issued</span>
-                    <span style={statValStyle}>{analytics?.totalBuyCoinsIssued || 0}</span>
+                    <span style={statValStyle}>
+                      {analytics?.totalBuyCoinsIssued || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -1227,7 +1798,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("🪙", "#fef2f2", "#dc2626")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>BuyCoins Redeemed</span>
-                    <span style={statValStyle}>{analytics?.totalBuyCoinsRedeemed || 0}</span>
+                    <span style={statValStyle}>
+                      {analytics?.totalBuyCoinsRedeemed || 0}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1250,9 +1823,12 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {!analytics?.recentCoupons || analytics.recentCoupons.length === 0 ? (
+                        {!analytics?.recentCoupons ||
+                        analytics.recentCoupons.length === 0 ? (
                           <tr>
-                            <td colSpan="4" style={emptyTdStyle}>No coupon activity recorded.</td>
+                            <td colSpan="4" style={emptyTdStyle}>
+                              No coupon activity recorded.
+                            </td>
                           </tr>
                         ) : (
                           analytics.recentCoupons.map((coupon) => {
@@ -1275,32 +1851,70 @@ export default function AdminDashboard() {
                             return (
                               <tr key={coupon._id} style={trStyle}>
                                 <td style={tdCustomerStyle}>
-                                  <div style={{ display: "flex", flexDirection: "column" }}>
-                                    <span style={{ fontWeight: "800", color: "#111827" }}>{coupon.userId?.name || "Guest"}</span>
-                                    <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{coupon.userId?.phone || ""}</span>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontWeight: "800",
+                                        color: "#111827",
+                                      }}
+                                    >
+                                      {coupon.userId?.name || "Guest"}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: "11px",
+                                        color: "#6B7280",
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {coupon.userId?.phone || ""}
+                                    </span>
                                   </div>
                                 </td>
                                 <td>
-                                  <span style={{ fontFamily: "monospace", fontWeight: "800", color: "#FF4D4F" }}>{coupon.couponCode}</span>
+                                  <span
+                                    style={{
+                                      fontFamily: "monospace",
+                                      fontWeight: "800",
+                                      color: "#FF4D4F",
+                                    }}
+                                  >
+                                    {coupon.couponCode}
+                                  </span>
                                 </td>
                                 <td>
-                                  <span style={{
-                                    fontSize: "10px",
-                                    fontWeight: "855",
-                                    padding: "3px 8px",
-                                    borderRadius: "6px",
-                                    color: statusColor,
-                                    background: statusBg,
-                                    textTransform: "uppercase"
-                                  }}>
+                                  <span
+                                    style={{
+                                      fontSize: "10px",
+                                      fontWeight: "855",
+                                      padding: "3px 8px",
+                                      borderRadius: "6px",
+                                      color: statusColor,
+                                      background: statusBg,
+                                      textTransform: "uppercase",
+                                    }}
+                                  >
                                     {statusLabel}
                                   </span>
                                 </td>
-                                <td style={{ fontSize: "12px", color: "#6B7280", fontWeight: "600" }}>
+                                <td
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#6B7280",
+                                    fontWeight: "600",
+                                  }}
+                                >
                                   {(() => {
                                     try {
                                       const d = new Date(coupon.createdAt);
-                                      return isNaN(d.getTime()) ? "Unknown" : d.toLocaleString();
+                                      return isNaN(d.getTime())
+                                        ? "Unknown"
+                                        : d.toLocaleString();
                                     } catch (e) {
                                       return "Unknown";
                                     }
@@ -1331,39 +1945,82 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {!analytics?.recentBuyCoinOrders || analytics.recentBuyCoinOrders.length === 0 ? (
+                        {!analytics?.recentBuyCoinOrders ||
+                        analytics.recentBuyCoinOrders.length === 0 ? (
                           <tr>
-                            <td colSpan="4" style={emptyTdStyle}>No BuyCoin activity recorded.</td>
+                            <td colSpan="4" style={emptyTdStyle}>
+                              No BuyCoin activity recorded.
+                            </td>
                           </tr>
                         ) : (
                           analytics.recentBuyCoinOrders.map((order) => {
                             const isRedemption = order.buyCoinsRedeemed > 0;
-                            const coinAmt = isRedemption ? order.buyCoinsRedeemed : Math.floor(order.totalAmount / 100);
+                            const coinAmt = isRedemption
+                              ? order.buyCoinsRedeemed
+                              : Math.floor(order.totalAmount / 100);
                             return (
                               <tr key={order._id} style={trStyle}>
                                 <td style={tdCustomerStyle}>
-                                  <div style={{ display: "flex", flexDirection: "column" }}>
-                                    <span style={{ fontWeight: "800", color: "#111827" }}>{order.user?.name || "Guest"}</span>
-                                    <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{order.user?.phone || ""}</span>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontWeight: "800",
+                                        color: "#111827",
+                                      }}
+                                    >
+                                      {order.user?.name || "Guest"}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: "11px",
+                                        color: "#6B7280",
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {order.user?.phone || ""}
+                                    </span>
                                   </div>
                                 </td>
                                 <td>
-                                  <span style={{
-                                    fontSize: "10px",
-                                    fontWeight: "855",
-                                    padding: "3px 8px",
-                                    borderRadius: "6px",
-                                    color: isRedemption ? "#dc2626" : "#16a34a",
-                                    background: isRedemption ? "#fef2f2" : "#f0fdf4",
-                                    textTransform: "uppercase"
-                                  }}>
+                                  <span
+                                    style={{
+                                      fontSize: "10px",
+                                      fontWeight: "855",
+                                      padding: "3px 8px",
+                                      borderRadius: "6px",
+                                      color: isRedemption
+                                        ? "#dc2626"
+                                        : "#16a34a",
+                                      background: isRedemption
+                                        ? "#fef2f2"
+                                        : "#f0fdf4",
+                                      textTransform: "uppercase",
+                                    }}
+                                  >
                                     {isRedemption ? "Redeemed" : "Earned"}
                                   </span>
                                 </td>
-                                <td style={{ fontWeight: "800", color: isRedemption ? "#dc2626" : "#16a34a" }}>
-                                  {isRedemption ? "-" : "+"}{coinAmt} 🪙
+                                <td
+                                  style={{
+                                    fontWeight: "800",
+                                    color: isRedemption ? "#dc2626" : "#16a34a",
+                                  }}
+                                >
+                                  {isRedemption ? "-" : "+"}
+                                  {coinAmt} 🪙
                                 </td>
-                                <td style={{ fontSize: "12px", color: "#6B7280", fontWeight: "700" }}>
+                                <td
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#6B7280",
+                                    fontWeight: "700",
+                                  }}
+                                >
                                   ₹{order.totalAmount}
                                 </td>
                               </tr>
@@ -1379,8 +2036,19 @@ export default function AdminDashboard() {
           )}
 
           {activeView === "buycoins" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-              <h2 style={{ fontSize: "22px", fontWeight: "850", color: "#0f172a", margin: 0 }}>💰 BuyCoins Loyalty Management</h2>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+            >
+              <h2
+                style={{
+                  fontSize: "22px",
+                  fontWeight: "850",
+                  color: "#0f172a",
+                  margin: 0,
+                }}
+              >
+                💰 BuyCoins Loyalty Management
+              </h2>
 
               {/* BuyCoins Analytics Metrics */}
               <div style={statsGrid}>
@@ -1389,7 +2057,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("🪙", "#fffbeb", "#d97706")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Total Coins Issued</span>
-                    <span style={statValStyle}>{buyCoinsAnalytics?.totalIssued || 0}</span>
+                    <span style={statValStyle}>
+                      {buyCoinsAnalytics?.totalIssued || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -1398,7 +2068,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("🛒", "#fef2f2", "#dc2626")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Total Coins Redeemed</span>
-                    <span style={statValStyle}>{buyCoinsAnalytics?.totalRedeemed || 0}</span>
+                    <span style={statValStyle}>
+                      {buyCoinsAnalytics?.totalRedeemed || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -1407,7 +2079,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("💼", "#ecfdf5", "#10b981")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Active Wallets</span>
-                    <span style={statValStyle}>{buyCoinsAnalytics?.activeWallets || 0}</span>
+                    <span style={statValStyle}>
+                      {buyCoinsAnalytics?.activeWallets || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -1416,7 +2090,9 @@ export default function AdminDashboard() {
                   <div style={statIconStyle("⏳", "#fef3c7", "#d97706")} />
                   <div style={statContentStyle}>
                     <span style={statLabelStyle}>Expiring (30 days)</span>
-                    <span style={statValStyle}>{buyCoinsAnalytics?.coinsExpiringSoon || 0}</span>
+                    <span style={statValStyle}>
+                      {buyCoinsAnalytics?.coinsExpiringSoon || 0}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1426,12 +2102,41 @@ export default function AdminDashboard() {
                 {/* Adjust Coins Form */}
                 <div style={cardLayoutStyle}>
                   <h3 style={cardTitleStyle}>Adjust Customer Coins</h3>
-                  <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
+                  <p
+                    style={{
+                      color: "#6B7280",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                      fontWeight: "600",
+                    }}
+                  >
                     Add or deduct loyalty coins for any registered customer.
                   </p>
-                  <form onSubmit={handleAdjustCoins} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "20px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Customer Email</label>
+                  <form
+                    onSubmit={handleAdjustCoins}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "16px",
+                      marginTop: "20px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                      }}
+                    >
+                      <label
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: "755",
+                          color: "#4b5563",
+                        }}
+                      >
+                        Customer Email
+                      </label>
                       <input
                         type="email"
                         required
@@ -1443,14 +2148,34 @@ export default function AdminDashboard() {
                           borderRadius: "10px",
                           border: "1.5px solid #cbd5e1",
                           fontSize: "14px",
-                          fontWeight: "600"
+                          fontWeight: "600",
                         }}
                       />
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "14px" }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Coins Amount</label>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                        gap: "14px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                        }}
+                      >
+                        <label
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: "755",
+                            color: "#4b5563",
+                          }}
+                        >
+                          Coins Amount
+                        </label>
                         <input
                           type="number"
                           required
@@ -1463,13 +2188,27 @@ export default function AdminDashboard() {
                             borderRadius: "10px",
                             border: "1.5px solid #cbd5e1",
                             fontSize: "14px",
-                            fontWeight: "600"
+                            fontWeight: "600",
                           }}
                         />
                       </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Adjustment Type</label>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                        }}
+                      >
+                        <label
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: "755",
+                            color: "#4b5563",
+                          }}
+                        >
+                          Adjustment Type
+                        </label>
                         <select
                           value={adjustType}
                           onChange={(e) => setAdjustType(e.target.value)}
@@ -1479,7 +2218,7 @@ export default function AdminDashboard() {
                             border: "1.5px solid #cbd5e1",
                             fontSize: "14px",
                             fontWeight: "650",
-                            background: "white"
+                            background: "white",
                           }}
                         >
                           <option value="earn">Add Coins (Earn)</option>
@@ -1489,8 +2228,22 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <label style={{ fontSize: "12px", fontWeight: "755", color: "#4b5563" }}>Reason / Note</label>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                      }}
+                    >
+                      <label
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: "755",
+                          color: "#4b5563",
+                        }}
+                      >
+                        Reason / Note
+                      </label>
                       <input
                         type="text"
                         required
@@ -1502,7 +2255,7 @@ export default function AdminDashboard() {
                           borderRadius: "10px",
                           border: "1.5px solid #cbd5e1",
                           fontSize: "14px",
-                          fontWeight: "600"
+                          fontWeight: "600",
                         }}
                       />
                     </div>
@@ -1511,7 +2264,8 @@ export default function AdminDashboard() {
                       type="submit"
                       disabled={isAdjusting}
                       style={{
-                        background: "linear-gradient(135deg, #318616 0%, #286f12 100%)",
+                        background:
+                          "linear-gradient(135deg, #318616 0%, #286f12 100%)",
                         color: "white",
                         border: "none",
                         padding: "12px",
@@ -1520,7 +2274,7 @@ export default function AdminDashboard() {
                         fontSize: "14px",
                         cursor: isAdjusting ? "not-allowed" : "pointer",
                         boxShadow: "0 4px 12px rgba(49, 134, 22, 0.15)",
-                        marginTop: "10px"
+                        marginTop: "10px",
                       }}
                     >
                       {isAdjusting ? "Processing..." : "Apply Adjustment ⚡"}
@@ -1542,17 +2296,39 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {!buyCoinsAnalytics?.topWallets || buyCoinsAnalytics.topWallets.length === 0 ? (
+                        {!buyCoinsAnalytics?.topWallets ||
+                        buyCoinsAnalytics.topWallets.length === 0 ? (
                           <tr>
-                            <td colSpan="4" style={emptyTdStyle}>No active wallets recorded.</td>
+                            <td colSpan="4" style={emptyTdStyle}>
+                              No active wallets recorded.
+                            </td>
                           </tr>
                         ) : (
                           buyCoinsAnalytics.topWallets.map((w) => (
                             <tr key={w._id} style={trStyle}>
-                              <td style={{ ...tdCustomerStyle, fontWeight: "700" }}>{w.email}</td>
-                              <td style={{ fontWeight: "800", color: "#318616" }}>{w.availableCoins} 🪙</td>
-                              <td style={{ fontWeight: "600", color: "#6b7280" }}>{w.lifetimeEarned}</td>
-                              <td style={{ fontWeight: "600", color: "#ef4444" }}>{w.lifetimeRedeemed}</td>
+                              <td
+                                style={{
+                                  ...tdCustomerStyle,
+                                  fontWeight: "700",
+                                }}
+                              >
+                                {w.email}
+                              </td>
+                              <td
+                                style={{ fontWeight: "800", color: "#318616" }}
+                              >
+                                {w.availableCoins} 🪙
+                              </td>
+                              <td
+                                style={{ fontWeight: "600", color: "#6b7280" }}
+                              >
+                                {w.lifetimeEarned}
+                              </td>
+                              <td
+                                style={{ fontWeight: "600", color: "#ef4444" }}
+                              >
+                                {w.lifetimeRedeemed}
+                              </td>
                             </tr>
                           ))
                         )}
@@ -1565,7 +2341,15 @@ export default function AdminDashboard() {
               {/* User Search Section */}
               <div style={cardLayoutStyle}>
                 <h3 style={cardTitleStyle}>🔍 Search Customer Wallets</h3>
-                <form onSubmit={handleSearchUsers} style={{ display: "flex", gap: "10px", marginTop: "12px", marginBottom: "16px" }}>
+                <form
+                  onSubmit={handleSearchUsers}
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginTop: "12px",
+                    marginBottom: "16px",
+                  }}
+                >
                   <input
                     type="text"
                     placeholder="Search by name, email, phone, or User ID..."
@@ -1577,7 +2361,7 @@ export default function AdminDashboard() {
                       borderRadius: "10px",
                       border: "1.5px solid #cbd5e1",
                       fontSize: "14px",
-                      fontWeight: "600"
+                      fontWeight: "600",
                     }}
                   />
                   <button
@@ -1590,7 +2374,7 @@ export default function AdminDashboard() {
                       padding: "10px 20px",
                       borderRadius: "10px",
                       fontWeight: "750",
-                      cursor: bcIsSearching ? "not-allowed" : "pointer"
+                      cursor: bcIsSearching ? "not-allowed" : "pointer",
                     }}
                   >
                     {bcIsSearching ? "Searching..." : "Search"}
@@ -1613,10 +2397,16 @@ export default function AdminDashboard() {
                           <tr key={u._id} style={trStyle}>
                             <td style={{ fontWeight: "700" }}>
                               {u.name}
-                              <div style={{ fontSize: "11px", color: "#6b7280" }}>{u.email}</div>
+                              <div
+                                style={{ fontSize: "11px", color: "#6b7280" }}
+                              >
+                                {u.email}
+                              </div>
                             </td>
                             <td style={{ fontWeight: "600" }}>{u.phone}</td>
-                            <td style={{ fontWeight: "800", color: "#318616" }}>{u.buyCoins} 🪙</td>
+                            <td style={{ fontWeight: "800", color: "#318616" }}>
+                              {u.buyCoins} 🪙
+                            </td>
                             <td>
                               <button
                                 onClick={() => {
@@ -1630,7 +2420,7 @@ export default function AdminDashboard() {
                                   borderRadius: "6px",
                                   fontSize: "11px",
                                   fontWeight: "700",
-                                  cursor: "pointer"
+                                  cursor: "pointer",
                                 }}
                               >
                                 Select for Adjustment
@@ -1647,12 +2437,36 @@ export default function AdminDashboard() {
               {/* Reconciliation Panel */}
               <div style={cardLayoutStyle}>
                 <h3 style={cardTitleStyle}>🛠️ Wallet Cache Reconciliation</h3>
-                <p style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
-                  Audits and repairs cached wallet balances by comparing them to the ledger source of truth.
+                <p
+                  style={{
+                    color: "#6B7280",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                    fontWeight: "600",
+                  }}
+                >
+                  Audits and repairs cached wallet balances by comparing them to
+                  the ledger source of truth.
                 </p>
-                <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "16px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "14px",
+                    marginTop: "16px",
+                  }}
+                >
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <label style={{ fontSize: "13px", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+                    <label
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        cursor: "pointer",
+                      }}
+                    >
                       <input
                         type="radio"
                         name="reconcileMode"
@@ -1662,7 +2476,17 @@ export default function AdminDashboard() {
                       />
                       Dry Run (Audit Only)
                     </label>
-                    <label style={{ fontSize: "13px", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#ef4444" }}>
+                    <label
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        cursor: "pointer",
+                        color: "#ef4444",
+                      }}
+                    >
                       <input
                         type="radio"
                         name="reconcileMode"
@@ -1677,13 +2501,14 @@ export default function AdminDashboard() {
                     onClick={handleReconcile}
                     disabled={isReconciling}
                     style={{
-                      background: "linear-gradient(135deg, #1f2937 0%, #111827 100%)",
+                      background:
+                        "linear-gradient(135deg, #1f2937 0%, #111827 100%)",
                       color: "white",
                       border: "none",
                       padding: "8px 16px",
                       borderRadius: "10px",
                       fontWeight: "750",
-                      cursor: isReconciling ? "not-allowed" : "pointer"
+                      cursor: isReconciling ? "not-allowed" : "pointer",
                     }}
                   >
                     {isReconciling ? "Reconciling..." : "Run Reconciliation"}
@@ -1691,27 +2516,106 @@ export default function AdminDashboard() {
                 </div>
 
                 {reconcileResult && (
-                  <div style={{ marginTop: "16px", background: "#f8fafc", padding: "14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                    <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", fontWeight: "800", color: "#1e293b" }}>Reconciliation Report Outcome</h4>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      background: "#f8fafc",
+                      padding: "14px",
+                      borderRadius: "12px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <h4
+                      style={{
+                        margin: "0 0 10px 0",
+                        fontSize: "14px",
+                        fontWeight: "800",
+                        color: "#1e293b",
+                      }}
+                    >
+                      Reconciliation Report Outcome
+                    </h4>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr",
+                        gap: "10px",
+                        marginBottom: "12px",
+                      }}
+                    >
                       <div>
-                        <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Checked</div>
-                        <div style={{ fontSize: "16px", fontWeight: "800" }}>{reconcileResult.totalChecked}</div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#64748b",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Checked
+                        </div>
+                        <div style={{ fontSize: "16px", fontWeight: "800" }}>
+                          {reconcileResult.totalChecked}
+                        </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: "11px", color: "#ef4444", fontWeight: "600" }}>Mismatches</div>
-                        <div style={{ fontSize: "16px", fontWeight: "800", color: reconcileResult.mismatchesCount > 0 ? "#ef4444" : "#1e293b" }}>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#ef4444",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Mismatches
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "16px",
+                            fontWeight: "800",
+                            color:
+                              reconcileResult.mismatchesCount > 0
+                                ? "#ef4444"
+                                : "#1e293b",
+                          }}
+                        >
                           {reconcileResult.mismatchesCount}
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: "11px", color: "#10b981", fontWeight: "600" }}>Repaired</div>
-                        <div style={{ fontSize: "16px", fontWeight: "800", color: "#10b981" }}>{reconcileResult.repairedCount}</div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#10b981",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Repaired
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "16px",
+                            fontWeight: "800",
+                            color: "#10b981",
+                          }}
+                        >
+                          {reconcileResult.repairedCount}
+                        </div>
                       </div>
                     </div>
                     {reconcileResult.mismatches.length > 0 && (
-                      <div style={{ overflowX: "auto", borderTop: "1px dashed #cbd5e1", paddingTop: "10px" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                      <div
+                        style={{
+                          overflowX: "auto",
+                          borderTop: "1px dashed #cbd5e1",
+                          paddingTop: "10px",
+                        }}
+                      >
+                        <table
+                          style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                            fontSize: "12px",
+                          }}
+                        >
                           <thead>
                             <tr style={{ textAlign: "left", color: "#64748b" }}>
                               <th style={{ padding: "6px" }}>User ID</th>
@@ -1722,11 +2626,41 @@ export default function AdminDashboard() {
                           </thead>
                           <tbody>
                             {reconcileResult.mismatches.map((m, idx) => (
-                              <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                <td style={{ padding: "6px", fontFamily: "monospace" }}>{m.userId}</td>
-                                <td style={{ padding: "6px", fontWeight: "600" }}>{m.email}</td>
-                                <td style={{ padding: "6px", color: "#ef4444", fontWeight: "700" }}>{m.cachedBalance}</td>
-                                <td style={{ padding: "6px", color: "#10b981", fontWeight: "700" }}>{m.calculatedBalance}</td>
+                              <tr
+                                key={idx}
+                                style={{ borderBottom: "1px solid #f1f5f9" }}
+                              >
+                                <td
+                                  style={{
+                                    padding: "6px",
+                                    fontFamily: "monospace",
+                                  }}
+                                >
+                                  {m.userId}
+                                </td>
+                                <td
+                                  style={{ padding: "6px", fontWeight: "600" }}
+                                >
+                                  {m.email}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "6px",
+                                    color: "#ef4444",
+                                    fontWeight: "700",
+                                  }}
+                                >
+                                  {m.cachedBalance}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "6px",
+                                    color: "#10b981",
+                                    fontWeight: "700",
+                                  }}
+                                >
+                                  {m.calculatedBalance}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -1754,44 +2688,90 @@ export default function AdminDashboard() {
                     <tbody>
                       {buyCoinsTransactions.length === 0 ? (
                         <tr>
-                          <td colSpan="5" style={emptyTdStyle}>No loyalty transactions recorded yet.</td>
+                          <td colSpan="5" style={emptyTdStyle}>
+                            No loyalty transactions recorded yet.
+                          </td>
                         </tr>
                       ) : (
                         buyCoinsTransactions.map((tx) => {
-                          const isPositive = ["earn", "bonus"].includes(tx.type);
+                          const isPositive = ["earn", "bonus"].includes(
+                            tx.type,
+                          );
                           return (
                             <tr key={tx._id} style={trStyle}>
-                              <td style={{ fontSize: "12px", color: "#6b7280", fontWeight: "600" }}>
+                              <td
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#6b7280",
+                                  fontWeight: "600",
+                                }}
+                              >
                                 {(() => {
                                   try {
                                     const d = new Date(tx.createdAt);
-                                    return isNaN(d.getTime()) ? "Unknown" : d.toLocaleString();
+                                    return isNaN(d.getTime())
+                                      ? "Unknown"
+                                      : d.toLocaleString();
                                   } catch (e) {
                                     return "Unknown";
                                   }
                                 })()}
                               </td>
-                              <td style={{ fontWeight: "700", color: "#1f2937" }}>
+                              <td
+                                style={{ fontWeight: "700", color: "#1f2937" }}
+                              >
                                 {tx.userId?.name || "Guest User"}
-                                <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "500" }}>{tx.email}</div>
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#94a3b8",
+                                    fontWeight: "500",
+                                  }}
+                                >
+                                  {tx.email}
+                                </div>
                               </td>
                               <td>
-                                <span style={{
-                                  fontSize: "10px",
-                                  fontWeight: "850",
-                                  padding: "3px 8px",
-                                  borderRadius: "6px",
-                                  color: tx.type === "redeem" ? "#dc2626" : tx.type === "expire" ? "#64748b" : "#16a34a",
-                                  background: tx.type === "redeem" ? "#fef2f2" : tx.type === "expire" ? "#e2e8f0" : "#f0fdf4",
-                                  textTransform: "uppercase"
-                                }}>
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: "850",
+                                    padding: "3px 8px",
+                                    borderRadius: "6px",
+                                    color:
+                                      tx.type === "redeem"
+                                        ? "#dc2626"
+                                        : tx.type === "expire"
+                                        ? "#64748b"
+                                        : "#16a34a",
+                                    background:
+                                      tx.type === "redeem"
+                                        ? "#fef2f2"
+                                        : tx.type === "expire"
+                                        ? "#e2e8f0"
+                                        : "#f0fdf4",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
                                   {tx.type}
                                 </span>
                               </td>
-                              <td style={{ fontWeight: "800", color: isPositive ? "#16a34a" : "#dc2626" }}>
-                                {isPositive ? "+" : "-"}{tx.coins}
+                              <td
+                                style={{
+                                  fontWeight: "800",
+                                  color: isPositive ? "#16a34a" : "#dc2626",
+                                }}
+                              >
+                                {isPositive ? "+" : "-"}
+                                {tx.coins}
                               </td>
-                              <td style={{ fontSize: "12px", color: "#4b5563", fontWeight: "500" }}>
+                              <td
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#4b5563",
+                                  fontWeight: "500",
+                                }}
+                              >
                                 {tx.source}
                               </td>
                             </tr>
@@ -1805,9 +2785,17 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeView === "delivery" && <DeliveryServicesPanel isMobile={isMobile} />}
-          {activeView === "pricingRules" && <PricingRulesAdminPanel isMobile={isMobile} />}
-          {activeView === "categories" && <CategoriesPanel isMobile={isMobile} />}
+          {activeView === "users" && <UserManagement isMobile={isMobile} />}
+
+          {activeView === "delivery" && (
+            <DeliveryServicesPanel isMobile={isMobile} />
+          )}
+          {activeView === "pricingRules" && (
+            <PricingRulesAdminPanel isMobile={isMobile} />
+          )}
+          {activeView === "categories" && (
+            <CategoriesPanel isMobile={isMobile} />
+          )}
           {activeView === "notifications" && renderNotificationsView()}
           {activeView === "notificationQueue" && <AdminNotificationQueue />}
           {activeView === "coupons" && <CouponsPanel isMobile={isMobile} />}
@@ -1817,17 +2805,14 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
-
-
 }
-
 
 // Leaflet Map helper components
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
     click(e) {
       onMapClick([e.latlng.lat, e.latlng.lng]);
-    }
+    },
   });
   return null;
 }
@@ -1899,7 +2884,7 @@ function DeliveryServicesPanel({ isMobile }) {
     fontSize: "14px",
     fontWeight: "500",
     outline: "none",
-    boxSizing: "border-box"
+    boxSizing: "border-box",
   };
 
   const quickBtnStyle = {
@@ -1921,7 +2906,7 @@ function DeliveryServicesPanel({ isMobile }) {
     activeZonesCount: 0,
     totalRadiusCoverage: 0,
     notifyRequestsCount: 0,
-    serviceableOrdersToday: 0
+    serviceableOrdersToday: 0,
   });
   const [waitlist, setWaitlist] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1944,14 +2929,14 @@ function DeliveryServicesPanel({ isMobile }) {
       setLoading(true);
       const [zonesRes, statsRes, waitlistRes] = await Promise.all([
         fetch(window.API_BASE_URL + "/api/admin/delivery-zones", {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(window.API_BASE_URL + "/api/admin/delivery-summary-stats", {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(window.API_BASE_URL + "/api/admin/unserviceable-requests", {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       if (zonesRes.ok) {
@@ -1984,7 +2969,9 @@ function DeliveryServicesPanel({ isMobile }) {
     setFormLat(coords[0]);
     setFormLng(coords[1]);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}`);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}`,
+      );
       if (res.ok) {
         const data = await res.json();
         setFormAddress(data.display_name || `${coords[0]}, ${coords[1]}`);
@@ -1996,7 +2983,12 @@ function DeliveryServicesPanel({ isMobile }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formName || !formAddress || formLat === undefined || formLng === undefined) {
+    if (
+      !formName ||
+      !formAddress ||
+      formLat === undefined ||
+      formLng === undefined
+    ) {
       alert("Please enter all required fields");
       return;
     }
@@ -2007,7 +2999,7 @@ function DeliveryServicesPanel({ isMobile }) {
       latitude: Number(formLat),
       longitude: Number(formLng),
       radiusKm: Number(formRadius),
-      active: formActive
+      active: formActive,
     };
 
     try {
@@ -2020,9 +3012,9 @@ function DeliveryServicesPanel({ isMobile }) {
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
@@ -2054,10 +3046,13 @@ function DeliveryServicesPanel({ isMobile }) {
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this zone?")) return;
     try {
-      const res = await fetch(`${window.API_BASE_URL}/api/admin/delivery-zones/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(
+        `${window.API_BASE_URL}/api/admin/delivery-zones/${id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (res.ok) {
         loadData();
       } else {
@@ -2070,14 +3065,17 @@ function DeliveryServicesPanel({ isMobile }) {
 
   const handleToggleActive = async (zone) => {
     try {
-      const res = await fetch(`${window.API_BASE_URL}/api/admin/delivery-zones/${zone._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        `${window.API_BASE_URL}/api/admin/delivery-zones/${zone._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ active: !zone.active }),
         },
-        body: JSON.stringify({ active: !zone.active })
-      });
+      );
       if (res.ok) {
         loadData();
       } else {
@@ -2133,69 +3131,246 @@ function DeliveryServicesPanel({ isMobile }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "28px", alignItems: "start" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: "28px",
+          alignItems: "start",
+        }}
+      >
         {/* Left Side: Map and Form */}
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {/* Map Container */}
           <div style={cardLayoutStyle}>
             <h3 style={cardTitleStyle}>📍 Zone Area Visualizer</h3>
-            <p style={{ color: "#6b7280", fontSize: "12px", margin: "4px 0 12px 0" }}>
-              Click on the map to drop a marker and define a service center location.
+            <p
+              style={{
+                color: "#6b7280",
+                fontSize: "12px",
+                margin: "4px 0 12px 0",
+              }}
+            >
+              Click on the map to drop a marker and define a service center
+              location.
             </p>
-            <div style={{ height: "320px", borderRadius: "16px", overflow: "hidden", border: "1px solid #E5E7EB", position: "relative", zIndex: 1 }}>
-              <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
+            <div
+              style={{
+                height: "320px",
+                borderRadius: "16px",
+                overflow: "hidden",
+                border: "1px solid #E5E7EB",
+                position: "relative",
+                zIndex: 1,
+              }}
+            >
+              <MapContainer
+                center={mapCenter}
+                zoom={13}
+                style={{ height: "100%", width: "100%" }}
+              >
                 <MapViewChange center={mapCenter} />
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution="&copy; OpenStreetMap"
+                />
                 <MapClickHandler onMapClick={handleMapClick} />
-                <Marker position={[formLat, formLng]} draggable={true} eventHandlers={{
-                  dragend: async (e) => {
-                    const pos = e.target.getLatLng();
-                    handleMapClick([pos.lat, pos.lng]);
-                  }
-                }} />
+                <Marker
+                  position={[formLat, formLng]}
+                  draggable={true}
+                  eventHandlers={{
+                    dragend: async (e) => {
+                      const pos = e.target.getLatLng();
+                      handleMapClick([pos.lat, pos.lng]);
+                    },
+                  }}
+                />
                 {/* Real-time Radius Circle visualization */}
-                <Circle center={[formLat, formLng]} radius={formRadius * 1000} pathOptions={{ color: "#FF4D4F", fillColor: "#FF4D4F", fillOpacity: 0.2 }} />
+                <Circle
+                  center={[formLat, formLng]}
+                  radius={formRadius * 1000}
+                  pathOptions={{
+                    color: "#FF4D4F",
+                    fillColor: "#FF4D4F",
+                    fillOpacity: 0.2,
+                  }}
+                />
                 {/* Circles for other active zones */}
-                {zones.filter(z => z.active && z._id !== editingZoneId).map(zone => (
-                  <Circle key={zone._id} center={[zone.latitude, zone.longitude]} radius={zone.radiusKm * 1000} pathOptions={{ color: "#10B981", fillColor: "#10B981", fillOpacity: 0.1 }} />
-                ))}
+                {zones
+                  .filter((z) => z.active && z._id !== editingZoneId)
+                  .map((zone) => (
+                    <Circle
+                      key={zone._id}
+                      center={[zone.latitude, zone.longitude]}
+                      radius={zone.radiusKm * 1000}
+                      pathOptions={{
+                        color: "#10B981",
+                        fillColor: "#10B981",
+                        fillOpacity: 0.1,
+                      }}
+                    />
+                  ))}
               </MapContainer>
             </div>
           </div>
 
           {/* Form */}
           <div style={cardLayoutStyle}>
-            <h3 style={cardTitleStyle}>{editingZoneId ? "✏️ Edit Delivery Location" : "➕ Add Delivery Location"}</h3>
-            <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
+            <h3 style={cardTitleStyle}>
+              {editingZoneId
+                ? "✏️ Edit Delivery Location"
+                : "➕ Add Delivery Location"}
+            </h3>
+            <form
+              onSubmit={handleSave}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                marginTop: "16px",
+              }}
+            >
               <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Location Name *</label>
-                <input type="text" placeholder="e.g. Kundapura Central Hub" value={formName} onChange={(e) => setFormName(e.target.value)} style={inputStyle} required />
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    marginBottom: "6px",
+                    color: "#374151",
+                  }}
+                >
+                  Location Name *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Kundapura Central Hub"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  style={inputStyle}
+                  required
+                />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Address *</label>
-                <input type="text" placeholder="Coordinates resolved address" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} style={inputStyle} required />
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    marginBottom: "6px",
+                    color: "#374151",
+                  }}
+                >
+                  Address *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Coordinates resolved address"
+                  value={formAddress}
+                  onChange={(e) => setFormAddress(e.target.value)}
+                  style={inputStyle}
+                  required
+                />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gap: "12px",
+                }}
+              >
                 <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Latitude</label>
-                  <input type="number" step="any" value={formLat} onChange={(e) => setFormLat(Number(e.target.value))} style={inputStyle} required />
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      marginBottom: "6px",
+                      color: "#374151",
+                    }}
+                  >
+                    Latitude
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formLat}
+                    onChange={(e) => setFormLat(Number(e.target.value))}
+                    style={inputStyle}
+                    required
+                  />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Longitude</label>
-                  <input type="number" step="any" value={formLng} onChange={(e) => setFormLng(Number(e.target.value))} style={inputStyle} required />
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      marginBottom: "6px",
+                      color: "#374151",
+                    }}
+                  >
+                    Longitude
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formLng}
+                    onChange={(e) => setFormLng(Number(e.target.value))}
+                    style={inputStyle}
+                    required
+                  />
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gap: "12px",
+                }}
+              >
                 <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Radius (KM) *</label>
-                  <input type="number" step="any" min="0.1" value={formRadius} onChange={(e) => setFormRadius(Number(e.target.value))} style={inputStyle} required />
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      marginBottom: "6px",
+                      color: "#374151",
+                    }}
+                  >
+                    Radius (KM) *
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.1"
+                    value={formRadius}
+                    onChange={(e) => setFormRadius(Number(e.target.value))}
+                    style={inputStyle}
+                    required
+                  />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Status</label>
-                  <select value={formActive ? "true" : "false"} onChange={(e) => setFormActive(e.target.value === "true")} style={inputStyle}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      marginBottom: "6px",
+                      color: "#374151",
+                    }}
+                  >
+                    Status
+                  </label>
+                  <select
+                    value={formActive ? "true" : "false"}
+                    onChange={(e) => setFormActive(e.target.value === "true")}
+                    style={inputStyle}
+                  >
                     <option value="true">Active</option>
                     <option value="false">Inactive</option>
                   </select>
@@ -2203,15 +3378,39 @@ function DeliveryServicesPanel({ isMobile }) {
               </div>
 
               <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
-                <button type="submit" style={{ ...quickBtnStyle, background: "#318616", color: "white", flex: 1, padding: "12px", border: "none", borderRadius: "10px", fontWeight: "700", cursor: "pointer" }}>
+                <button
+                  type="submit"
+                  style={{
+                    ...quickBtnStyle,
+                    background: "#318616",
+                    color: "white",
+                    flex: 1,
+                    padding: "12px",
+                    border: "none",
+                    borderRadius: "10px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                  }}
+                >
                   {editingZoneId ? "Update Zone" : "Create Zone"}
                 </button>
                 {editingZoneId && (
-                  <button type="button" onClick={() => {
-                    setEditingZoneId(null);
-                    setFormName("");
-                    setFormAddress("");
-                  }} style={{ ...quickBtnStyle, flex: 1, padding: "12px", borderRadius: "10px", fontWeight: "700", cursor: "pointer" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingZoneId(null);
+                      setFormName("");
+                      setFormAddress("");
+                    }}
+                    style={{
+                      ...quickBtnStyle,
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: "10px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                    }}
+                  >
                     Cancel
                   </button>
                 )}
@@ -2238,31 +3437,64 @@ function DeliveryServicesPanel({ isMobile }) {
                 <tbody>
                   {zones.length === 0 ? (
                     <tr>
-                      <td colSpan="4" style={emptyTdStyle}>No delivery zones created.</td>
+                      <td colSpan="4" style={emptyTdStyle}>
+                        No delivery zones created.
+                      </td>
                     </tr>
                   ) : (
-                    zones.map(zone => (
+                    zones.map((zone) => (
                       <tr key={zone._id} style={trStyle}>
-                        <td style={{ fontWeight: "700", fontSize: "13px" }}>{zone.name}</td>
+                        <td style={{ fontWeight: "700", fontSize: "13px" }}>
+                          {zone.name}
+                        </td>
                         <td style={{ fontSize: "13px" }}>{zone.radiusKm} KM</td>
                         <td>
-                          <button onClick={() => handleToggleActive(zone)} style={{
-                            border: "none",
-                            padding: "4px 8px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            fontWeight: "800",
-                            cursor: "pointer",
-                            background: zone.active ? "rgba(16, 185, 129, 0.1)" : "rgba(107, 114, 128, 0.1)",
-                            color: zone.active ? "#10B981" : "#6B7280"
-                          }}>
+                          <button
+                            onClick={() => handleToggleActive(zone)}
+                            style={{
+                              border: "none",
+                              padding: "4px 8px",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: "800",
+                              cursor: "pointer",
+                              background: zone.active
+                                ? "rgba(16, 185, 129, 0.1)"
+                                : "rgba(107, 114, 128, 0.1)",
+                              color: zone.active ? "#10B981" : "#6B7280",
+                            }}
+                          >
                             {zone.active ? "Active" : "Inactive"}
                           </button>
                         </td>
                         <td>
                           <div style={{ display: "flex", gap: "8px" }}>
-                            <button onClick={() => handleEdit(zone)} style={{ border: "none", background: "transparent", color: "#3b82f6", fontWeight: "700", cursor: "pointer", fontSize: "12px" }}>Edit</button>
-                            <button onClick={() => handleDelete(zone._id)} style={{ border: "none", background: "transparent", color: "#ef4444", fontWeight: "700", cursor: "pointer", fontSize: "12px" }}>Delete</button>
+                            <button
+                              onClick={() => handleEdit(zone)}
+                              style={{
+                                border: "none",
+                                background: "transparent",
+                                color: "#3b82f6",
+                                fontWeight: "700",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(zone._id)}
+                              style={{
+                                border: "none",
+                                background: "transparent",
+                                color: "#ef4444",
+                                fontWeight: "700",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                              }}
+                            >
+                              Delete
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -2288,19 +3520,46 @@ function DeliveryServicesPanel({ isMobile }) {
                 <tbody>
                   {waitlist.length === 0 ? (
                     <tr>
-                      <td colSpan="3" style={emptyTdStyle}>No waitlist entries yet.</td>
+                      <td colSpan="3" style={emptyTdStyle}>
+                        No waitlist entries yet.
+                      </td>
                     </tr>
                   ) : (
-                    waitlist.map(req => (
+                    waitlist.map((req) => (
                       <tr key={req._id} style={trStyle}>
                         <td>
-                          <div style={{ display: "flex", flexDirection: "column" }}>
-                            <span style={{ fontWeight: "800", color: "#111827", fontSize: "13px" }}>{req.name}</span>
-                            <span style={{ fontSize: "11px", color: "#6B7280" }}>{req.email}</span>
+                          <div
+                            style={{ display: "flex", flexDirection: "column" }}
+                          >
+                            <span
+                              style={{
+                                fontWeight: "800",
+                                color: "#111827",
+                                fontSize: "13px",
+                              }}
+                            >
+                              {req.name}
+                            </span>
+                            <span
+                              style={{ fontSize: "11px", color: "#6B7280" }}
+                            >
+                              {req.email}
+                            </span>
                           </div>
                         </td>
                         <td style={{ fontSize: "12px" }}>{req.phone}</td>
-                        <td style={{ fontSize: "12px", maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={req.address}>{req.address}</td>
+                        <td
+                          style={{
+                            fontSize: "12px",
+                            maxWidth: "180px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={req.address}
+                        >
+                          {req.address}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -2332,7 +3591,7 @@ function CategoriesPanel({ isMobile }) {
     try {
       setLoading(true);
       const res = await fetch(window.API_BASE_URL + "/api/admin/categories", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -2361,7 +3620,7 @@ function CategoriesPanel({ isMobile }) {
       priority: Number(priority),
       image,
       icon,
-      showInHeader
+      showInHeader,
     };
 
     try {
@@ -2374,13 +3633,17 @@ function CategoriesPanel({ isMobile }) {
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
-        alert(editingCategoryId ? "Category updated successfully" : "Category created successfully");
+        alert(
+          editingCategoryId
+            ? "Category updated successfully"
+            : "Category created successfully",
+        );
         resetForm();
         loadCategories();
       } else {
@@ -2399,7 +3662,9 @@ function CategoriesPanel({ isMobile }) {
     setPriority(category.priority || 0);
     setImage(category.image || "");
     setIcon(category.icon || "");
-    setShowInHeader(category.showInHeader !== undefined ? category.showInHeader : true);
+    setShowInHeader(
+      category.showInHeader !== undefined ? category.showInHeader : true,
+    );
   };
 
   const handleDelete = async (id) => {
@@ -2408,10 +3673,13 @@ function CategoriesPanel({ isMobile }) {
     }
 
     try {
-      const res = await fetch(`${window.API_BASE_URL}/api/admin/categories/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(
+        `${window.API_BASE_URL}/api/admin/categories/${id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (res.ok) {
         alert("Category deleted successfully");
         loadCategories();
@@ -2426,14 +3694,17 @@ function CategoriesPanel({ isMobile }) {
 
   const handleToggleShow = async (category) => {
     try {
-      const res = await fetch(`${window.API_BASE_URL}/api/admin/categories/${category._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        `${window.API_BASE_URL}/api/admin/categories/${category._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ showInHeader: !category.showInHeader }),
         },
-        body: JSON.stringify({ showInHeader: !category.showInHeader })
-      });
+      );
       if (res.ok) {
         loadCategories();
       } else {
@@ -2462,32 +3733,123 @@ function CategoriesPanel({ isMobile }) {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1.8fr", gap: "28px", alignItems: "start" }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1.8fr",
+        gap: "28px",
+        alignItems: "start",
+      }}
+    >
       {/* Left side: Form */}
       <div style={cardLayoutStyle}>
-        <h3 style={cardTitleStyle}>{editingCategoryId ? "✏️ Edit Navigation Category" : "➕ Add Navigation Category"}</h3>
-        <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
+        <h3 style={cardTitleStyle}>
+          {editingCategoryId
+            ? "✏️ Edit Navigation Category"
+            : "➕ Add Navigation Category"}
+        </h3>
+        <form
+          onSubmit={handleSave}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            marginTop: "16px",
+          }}
+        >
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Category Name *</label>
-            <input type="text" placeholder="e.g. Fresh Items" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} required />
+            <label
+              style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: "700",
+                marginBottom: "6px",
+                color: "#374151",
+              }}
+            >
+              Category Name *
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Fresh Items"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={inputStyle}
+              required
+            />
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Icon / Emoji (Optional)</label>
-            <input type="text" placeholder="e.g. 🥬" value={icon} onChange={(e) => setIcon(e.target.value)} style={inputStyle} />
+            <label
+              style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: "700",
+                marginBottom: "6px",
+                color: "#374151",
+              }}
+            >
+              Icon / Emoji (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 🥬"
+              value={icon}
+              onChange={(e) => setIcon(e.target.value)}
+              style={inputStyle}
+            />
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Image URL (Optional)</label>
-            <input type="text" placeholder="e.g. https://example.com/fresh.png" value={image} onChange={(e) => setImage(e.target.value)} style={inputStyle} />
+            <label
+              style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: "700",
+                marginBottom: "6px",
+                color: "#374151",
+              }}
+            >
+              Image URL (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. https://example.com/fresh.png"
+              value={image}
+              onChange={(e) => setImage(e.target.value)}
+              style={inputStyle}
+            />
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "6px", color: "#374151" }}>Priority Order (Higher = first)</label>
-            <input type="number" placeholder="e.g. 100" value={priority} onChange={(e) => setPriority(e.target.value)} style={inputStyle} />
+            <label
+              style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: "700",
+                marginBottom: "6px",
+                color: "#374151",
+              }}
+            >
+              Priority Order (Higher = first)
+            </label>
+            <input
+              type="number"
+              placeholder="e.g. 100"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              style={inputStyle}
+            />
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginTop: "4px",
+            }}
+          >
             <input
               type="checkbox"
               id="showInHeader"
@@ -2495,7 +3857,15 @@ function CategoriesPanel({ isMobile }) {
               onChange={(e) => setShowInHeader(e.target.checked)}
               style={{ width: "16px", height: "16px", accentColor: "#318616" }}
             />
-            <label htmlFor="showInHeader" style={{ fontSize: "13px", fontWeight: "700", color: "#374151", cursor: "pointer" }}>
+            <label
+              htmlFor="showInHeader"
+              style={{
+                fontSize: "13px",
+                fontWeight: "700",
+                color: "#374151",
+                cursor: "pointer",
+              }}
+            >
               Show in Header Navigation Bar
             </label>
           </div>
@@ -2512,7 +3882,7 @@ function CategoriesPanel({ isMobile }) {
                 borderRadius: "8px",
                 fontWeight: "750",
                 fontSize: "13px",
-                cursor: "pointer"
+                cursor: "pointer",
               }}
             >
               {editingCategoryId ? "Update Category" : "Create Category"}
@@ -2529,7 +3899,7 @@ function CategoriesPanel({ isMobile }) {
                   borderRadius: "8px",
                   fontWeight: "750",
                   fontSize: "13px",
-                  cursor: "pointer"
+                  cursor: "pointer",
                 }}
               >
                 Cancel
@@ -2542,8 +3912,11 @@ function CategoriesPanel({ isMobile }) {
       {/* Right side: List */}
       <div style={cardLayoutStyle}>
         <h3 style={cardTitleStyle}>🗂️ Navigation Categories</h3>
-        <p style={{ color: "#6b7280", fontSize: "12px", margin: "4px 0 16px 0" }}>
-          Active and core categories displayed in the storefront's navigation bar.
+        <p
+          style={{ color: "#6b7280", fontSize: "12px", margin: "4px 0 16px 0" }}
+        >
+          Active and core categories displayed in the storefront's navigation
+          bar.
         </p>
 
         <div style={{ overflowX: "auto" }}>
@@ -2559,17 +3932,44 @@ function CategoriesPanel({ isMobile }) {
             <tbody>
               {categories.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={emptyTdStyle}>No categories found.</td>
+                  <td colSpan="4" style={emptyTdStyle}>
+                    No categories found.
+                  </td>
                 </tr>
               ) : (
-                categories.map(cat => (
+                categories.map((cat) => (
                   <tr key={cat._id} style={trStyle}>
                     <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "20px" }}>{cat.icon || "📦"}</span>
-                        <div style={{ display: "flex", flexDirection: "column" }}>
-                          <span style={{ fontWeight: "800", color: "#111827" }}>{cat.name}</span>
-                          {cat.image && <span style={{ fontSize: "10px", color: "#6B7280", textOverflow: "ellipsis", overflow: "hidden", maxWidth: "150px", whiteSpace: "nowrap" }}>{cat.image}</span>}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <span style={{ fontSize: "20px" }}>
+                          {cat.icon || "📦"}
+                        </span>
+                        <div
+                          style={{ display: "flex", flexDirection: "column" }}
+                        >
+                          <span style={{ fontWeight: "800", color: "#111827" }}>
+                            {cat.name}
+                          </span>
+                          {cat.image && (
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                color: "#6B7280",
+                                textOverflow: "ellipsis",
+                                overflow: "hidden",
+                                maxWidth: "150px",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {cat.image}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -2585,7 +3985,7 @@ function CategoriesPanel({ isMobile }) {
                           borderRadius: "12px",
                           fontSize: "11px",
                           fontWeight: "800",
-                          cursor: "pointer"
+                          cursor: "pointer",
                         }}
                       >
                         {cat.showInHeader ? "Visible" : "Hidden"}
@@ -2601,7 +4001,7 @@ function CategoriesPanel({ isMobile }) {
                             color: "#3b82f6",
                             fontSize: "12px",
                             fontWeight: "800",
-                            cursor: "pointer"
+                            cursor: "pointer",
                           }}
                         >
                           Edit
@@ -2614,7 +4014,7 @@ function CategoriesPanel({ isMobile }) {
                             color: "#dc2626",
                             fontSize: "12px",
                             fontWeight: "800",
-                            cursor: "pointer"
+                            cursor: "pointer",
                           }}
                         >
                           Delete
@@ -2640,7 +4040,7 @@ const inputStyle = {
   fontSize: "14px",
   fontWeight: "500",
   outline: "none",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
 };
 
 // STYLES
@@ -2944,20 +4344,21 @@ const payBadgeStyle = (status) => ({
     status === "Paid"
       ? "#F0FDF4"
       : status === "Pending"
-        ? "#FEF3C7"
-        : "#FEF2F2",
+      ? "#FEF3C7"
+      : "#FEF2F2",
   color:
     status === "Paid"
       ? "#10B981"
       : status === "Pending"
-        ? "#F59E0B"
-        : "#EF4444",
-  border: `1.5px solid ${status === "Paid"
+      ? "#F59E0B"
+      : "#EF4444",
+  border: `1.5px solid ${
+    status === "Paid"
       ? "rgba(16, 185, 129, 0.15)"
       : status === "Pending"
-        ? "rgba(245, 158, 11, 0.15)"
-        : "rgba(239, 68, 68, 0.15)"
-    }`,
+      ? "rgba(245, 158, 11, 0.15)"
+      : "rgba(239, 68, 68, 0.15)"
+  }`,
 });
 
 const statusBadgeStyle = (status) => ({
@@ -2971,20 +4372,21 @@ const statusBadgeStyle = (status) => ({
     status === "Delivered"
       ? "#F0FDF4"
       : status === "Cancelled"
-        ? "#FEF2F2"
-        : "#EFF6FF",
+      ? "#FEF2F2"
+      : "#EFF6FF",
   color:
     status === "Delivered"
       ? "#10B981"
       : status === "Cancelled"
-        ? "#EF4444"
-        : "#3B82F6",
-  border: `1.5px solid ${status === "Delivered"
+      ? "#EF4444"
+      : "#3B82F6",
+  border: `1.5px solid ${
+    status === "Delivered"
       ? "rgba(16, 185, 129, 0.15)"
       : status === "Cancelled"
-        ? "rgba(239, 68, 68, 0.15)"
-        : "rgba(59, 130, 246, 0.15)"
-    }`,
+      ? "rgba(239, 68, 68, 0.15)"
+      : "rgba(59, 130, 246, 0.15)"
+  }`,
 });
 
 const tdDateStyle = {
@@ -3021,7 +4423,6 @@ const quickBtnStyle = {
   boxShadow: "0 2px 4px rgba(0, 0, 0, 0.02)",
 };
 
-
 const couponStatCardStyle = {
   background: "#FFFFFF",
   border: "1.5px solid #E5E7EB",
@@ -3030,19 +4431,19 @@ const couponStatCardStyle = {
   display: "flex",
   flexDirection: "column",
   gap: "4px",
-  boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
+  boxShadow: "0 2px 4px rgba(0,0,0,0.01)",
 };
 
 const couponStatLabelStyle = {
   fontSize: "13px",
   fontWeight: "700",
-  color: "#6B7280"
+  color: "#6B7280",
 };
 
 const couponStatValStyle = {
   fontSize: "24px",
   fontWeight: "800",
-  color: "#111827"
+  color: "#111827",
 };
 
 const couponInputStyle = {
@@ -3052,7 +4453,7 @@ const couponInputStyle = {
   fontSize: "14px",
   fontWeight: "600",
   minWidth: "220px",
-  outline: "none"
+  outline: "none",
 };
 
 const couponSelectStyle = {
@@ -3062,7 +4463,7 @@ const couponSelectStyle = {
   fontSize: "14px",
   fontWeight: "600",
   background: "#FFFFFF",
-  outline: "none"
+  outline: "none",
 };
 
 const couponPrimaryBtnStyle = {
@@ -3074,7 +4475,7 @@ const couponPrimaryBtnStyle = {
   fontSize: "14px",
   fontWeight: "700",
   cursor: "pointer",
-  boxShadow: "0 2px 4px rgba(16,185,129,0.2)"
+  boxShadow: "0 2px 4px rgba(16,185,129,0.2)",
 };
 
 const couponSecondaryBtnStyle = {
@@ -3085,14 +4486,14 @@ const couponSecondaryBtnStyle = {
   padding: "8px 16px",
   fontSize: "14px",
   fontWeight: "700",
-  cursor: "pointer"
+  cursor: "pointer",
 };
 
 const couponTableContainerStyle = {
   background: "#FFFFFF",
   border: "1.5px solid #E5E7EB",
   borderRadius: "16px",
-  overflow: "hidden"
+  overflow: "hidden",
 };
 
 const couponThStyle = {
@@ -3100,13 +4501,13 @@ const couponThStyle = {
   fontSize: "12px",
   fontWeight: "800",
   color: "#4B5563",
-  textTransform: "uppercase"
+  textTransform: "uppercase",
 };
 
 const couponTdStyle = {
   padding: "14px 16px",
   fontSize: "14px",
-  verticalAlign: "middle"
+  verticalAlign: "middle",
 };
 
 const couponTypePercentageBadge = {
@@ -3115,7 +4516,7 @@ const couponTypePercentageBadge = {
   padding: "4px 8px",
   borderRadius: "6px",
   fontWeight: "700",
-  fontSize: "12px"
+  fontSize: "12px",
 };
 
 const couponTypeFlatBadge = {
@@ -3124,7 +4525,7 @@ const couponTypeFlatBadge = {
   padding: "4px 8px",
   borderRadius: "6px",
   fontWeight: "700",
-  fontSize: "12px"
+  fontSize: "12px",
 };
 
 const couponActiveBadge = {
@@ -3134,7 +4535,7 @@ const couponActiveBadge = {
   borderRadius: "6px",
   fontWeight: "800",
   fontSize: "11px",
-  textTransform: "uppercase"
+  textTransform: "uppercase",
 };
 
 const couponScheduledBadge = {
@@ -3144,7 +4545,7 @@ const couponScheduledBadge = {
   borderRadius: "6px",
   fontWeight: "800",
   fontSize: "11px",
-  textTransform: "uppercase"
+  textTransform: "uppercase",
 };
 
 const couponInactiveBadge = {
@@ -3154,7 +4555,7 @@ const couponInactiveBadge = {
   borderRadius: "6px",
   fontWeight: "800",
   fontSize: "11px",
-  textTransform: "uppercase"
+  textTransform: "uppercase",
 };
 
 const couponActionBtnStyle = {
@@ -3166,7 +4567,7 @@ const couponActionBtnStyle = {
   fontSize: "14px",
   display: "flex",
   alignItems: "center",
-  justifyContent: "center"
+  justifyContent: "center",
 };
 
 const couponDeleteBtnStyle = {
@@ -3178,7 +4579,7 @@ const couponDeleteBtnStyle = {
   fontSize: "14px",
   display: "flex",
   alignItems: "center",
-  justifyContent: "center"
+  justifyContent: "center",
 };
 
 const couponModalOverlayStyle = {
@@ -3192,7 +4593,7 @@ const couponModalOverlayStyle = {
   alignItems: "center",
   justifyContent: "center",
   zIndex: 10000,
-  backdropFilter: "blur(4px)"
+  backdropFilter: "blur(4px)",
 };
 
 const couponModalContentStyle = {
@@ -3200,12 +4601,12 @@ const couponModalContentStyle = {
   borderRadius: "20px",
   padding: "24px",
   boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-  maxHeight: "90vh"
+  maxHeight: "90vh",
 };
 
 const couponFormRowStyle = {
   display: "flex",
-  gap: "12px"
+  gap: "12px",
 };
 
 const couponLabelStyle = {
@@ -3213,7 +4614,7 @@ const couponLabelStyle = {
   fontWeight: "800",
   color: "#4B5563",
   display: "block",
-  marginBottom: "4px"
+  marginBottom: "4px",
 };
 
 const couponFormInputStyle = {
@@ -3224,7 +4625,7 @@ const couponFormInputStyle = {
   fontSize: "14px",
   fontWeight: "600",
   boxSizing: "border-box",
-  outline: "none"
+  outline: "none",
 };
 
 const couponFormSelectStyle = {
@@ -3236,7 +4637,7 @@ const couponFormSelectStyle = {
   fontWeight: "600",
   background: "#FFFFFF",
   boxSizing: "border-box",
-  outline: "none"
+  outline: "none",
 };
 
 const couponCloseBtnStyle = {
@@ -3245,7 +4646,7 @@ const couponCloseBtnStyle = {
   fontSize: "18px",
   fontWeight: "700",
   color: "#6B7280",
-  cursor: "pointer"
+  cursor: "pointer",
 };
 
 const couponPreviewCardContainer = {
@@ -3257,20 +4658,20 @@ const couponPreviewCardContainer = {
   display: "flex",
   flexDirection: "column",
   position: "relative",
-  overflow: "hidden"
+  overflow: "hidden",
 };
 
 const couponPreviewCardHeader = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center"
+  alignItems: "center",
 };
 
 const couponPreviewCardCode = {
   fontSize: "16px",
   fontWeight: "900",
   color: "#111827",
-  letterSpacing: "0.5px"
+  letterSpacing: "0.5px",
 };
 
 const couponPreviewCardTag = {
@@ -3279,21 +4680,21 @@ const couponPreviewCardTag = {
   fontSize: "11px",
   fontWeight: "850",
   padding: "4px 8px",
-  borderRadius: "8px"
+  borderRadius: "8px",
 };
 
 const couponPreviewCardTitle = {
   fontSize: "14px",
   fontWeight: "800",
   color: "#111827",
-  marginTop: "4px"
+  marginTop: "4px",
 };
 
 const couponPreviewCardDesc = {
   fontSize: "11px",
   color: "#6B7280",
   fontWeight: "600",
-  marginTop: "2px"
+  marginTop: "2px",
 };
 
 const couponPreviewDetailRow = {
@@ -3301,7 +4702,7 @@ const couponPreviewDetailRow = {
   justifyContent: "space-between",
   fontSize: "11px",
   color: "#6B7280",
-  fontWeight: "600"
+  fontWeight: "600",
 };
 
 const couponPreviewCardFooter = {
@@ -3310,14 +4711,14 @@ const couponPreviewCardFooter = {
   borderTop: "1px solid #F3F4F6",
   fontSize: "10px",
   fontWeight: "850",
-  color: "#374151"
+  color: "#374151",
 };
 
 const couponLogCardStyle = {
   background: "#F9FAFB",
   border: "1.5px solid #E5E7EB",
   borderRadius: "12px",
-  padding: "12px"
+  padding: "12px",
 };
 
 const couponLogDetailsStyle = {
@@ -3329,9 +4730,8 @@ const couponLogDetailsStyle = {
   fontSize: "11px",
   overflowX: "auto",
   maxHeight: "150px",
-  fontFamily: "monospace"
+  fontFamily: "monospace",
 };
-
 
 export function CouponsPanel({ isMobile }) {
   const [coupons, setCoupons] = useState([]);
@@ -3359,9 +4759,11 @@ export function CouponsPanel({ isMobile }) {
     usageLimit: 0,
     usagePerUser: 1,
     validFrom: new Date().toISOString().substring(0, 16),
-    validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().substring(0, 16),
+    validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .substring(0, 16),
     priority: 0,
-    isActive: true
+    isActive: true,
   };
 
   const [formValues, setFormValues] = useState(initialFormValues);
@@ -3369,11 +4771,14 @@ export function CouponsPanel({ isMobile }) {
   const fetchCoupons = async () => {
     try {
       setLoading(true);
-      const res = await fetch((window.API_BASE_URL || "") + "/api/admin/coupons", {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
-        }
-      });
+      const res = await fetch(
+        (window.API_BASE_URL || "") + "/api/admin/coupons",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("buyto_token")}`,
+          },
+        },
+      );
       const data = await res.json();
       if (data.success) {
         setCoupons(data.coupons || []);
@@ -3391,14 +4796,17 @@ export function CouponsPanel({ isMobile }) {
 
   const handleStatusToggle = async (coupon) => {
     try {
-      const res = await fetch((window.API_BASE_URL || "") + `/api/admin/coupons/${coupon._id}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
+      const res = await fetch(
+        (window.API_BASE_URL || "") + `/api/admin/coupons/${coupon._id}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("buyto_token")}`,
+          },
+          body: JSON.stringify({ isActive: !coupon.isActive }),
         },
-        body: JSON.stringify({ isActive: !coupon.isActive })
-      });
+      );
       if (res.ok) {
         fetchCoupons();
       }
@@ -3408,14 +4816,22 @@ export function CouponsPanel({ isMobile }) {
   };
 
   const handleArchive = async (id) => {
-    if (!window.confirm("Are you sure you want to archive this coupon? Ancient orders will retain their discount records but this coupon cannot be applied anymore.")) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to archive this coupon? Ancient orders will retain their discount records but this coupon cannot be applied anymore.",
+      )
+    )
+      return;
     try {
-      const res = await fetch((window.API_BASE_URL || "") + `/api/admin/coupons/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
-        }
-      });
+      const res = await fetch(
+        (window.API_BASE_URL || "") + `/api/admin/coupons/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("buyto_token")}`,
+          },
+        },
+      );
       if (res.ok) {
         fetchCoupons();
       }
@@ -3434,7 +4850,7 @@ export function CouponsPanel({ isMobile }) {
     setFormValues({
       ...coupon,
       validFrom: new Date(coupon.validFrom).toISOString().substring(0, 16),
-      validUntil: new Date(coupon.validUntil).toISOString().substring(0, 16)
+      validUntil: new Date(coupon.validUntil).toISOString().substring(0, 16),
     });
     setIsEdit(true);
     setShowFormModal(true);
@@ -3446,7 +4862,7 @@ export function CouponsPanel({ isMobile }) {
       _id: undefined,
       code: `${coupon.code}_COPY`,
       validFrom: new Date().toISOString().substring(0, 16),
-      validUntil: new Date(coupon.validUntil).toISOString().substring(0, 16)
+      validUntil: new Date(coupon.validUntil).toISOString().substring(0, 16),
     });
     setIsEdit(false);
     setShowFormModal(true);
@@ -3455,11 +4871,15 @@ export function CouponsPanel({ isMobile }) {
   const handleShowLogs = async (coupon) => {
     setSelectedCoupon(coupon);
     try {
-      const res = await fetch((window.API_BASE_URL || "") + `/api/admin/coupons/audit-logs/${coupon._id}`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
-        }
-      });
+      const res = await fetch(
+        (window.API_BASE_URL || "") +
+          `/api/admin/coupons/audit-logs/${coupon._id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("buyto_token")}`,
+          },
+        },
+      );
       const data = await res.json();
       if (data.success) {
         setAuditLogs(data.logs || []);
@@ -3475,21 +4895,27 @@ export function CouponsPanel({ isMobile }) {
     if (isSaving) return;
     setIsSaving(true);
     console.log("Admin: Creating/updating coupon... Payload:", formValues);
-    const url = (window.API_BASE_URL || "") + (isEdit ? `/api/admin/coupons/${formValues._id}` : "/api/admin/coupons");
+    const url =
+      (window.API_BASE_URL || "") +
+      (isEdit ? `/api/admin/coupons/${formValues._id}` : "/api/admin/coupons");
     const method = isEdit ? "PUT" : "POST";
     try {
       const res = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("buyto_token")}`
+          Authorization: `Bearer ${localStorage.getItem("buyto_token")}`,
         },
-        body: JSON.stringify(formValues)
+        body: JSON.stringify(formValues),
       });
       const data = await res.json();
       console.log("Admin: Coupon response:", data);
       if (data.success) {
-        alert(isEdit ? "Coupon updated successfully." : "Coupon created successfully.");
+        alert(
+          isEdit
+            ? "Coupon updated successfully."
+            : "Coupon created successfully.",
+        );
         setShowFormModal(false);
         fetchCoupons();
       } else {
@@ -3504,13 +4930,17 @@ export function CouponsPanel({ isMobile }) {
   };
 
   const now = new Date();
-  const filteredCoupons = coupons.filter(c => {
-    const matchesSearch = (c.code || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (c.title || "").toLowerCase().includes(searchQuery.toLowerCase());
-    
+  const filteredCoupons = coupons.filter((c) => {
+    const matchesSearch =
+      (c.code || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.title || "").toLowerCase().includes(searchQuery.toLowerCase());
+
     let matchesStatus = true;
     if (filterStatus === "active") {
-      matchesStatus = c.isActive && new Date(c.validFrom) <= now && new Date(c.validUntil) > now;
+      matchesStatus =
+        c.isActive &&
+        new Date(c.validFrom) <= now &&
+        new Date(c.validUntil) > now;
     } else if (filterStatus === "expired") {
       matchesStatus = new Date(c.validUntil) <= now;
     } else if (filterStatus === "scheduled") {
@@ -3528,12 +4958,25 @@ export function CouponsPanel({ isMobile }) {
   });
 
   const totalUses = coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0);
-  const totalDiscount = coupons.reduce((sum, c) => sum + (c.totalDiscountGiven || 0), 0);
-  const totalRevenue = coupons.reduce((sum, c) => sum + (c.revenueGenerated || 0), 0);
+  const totalDiscount = coupons.reduce(
+    (sum, c) => sum + (c.totalDiscountGiven || 0),
+    0,
+  );
+  const totalRevenue = coupons.reduce(
+    (sum, c) => sum + (c.revenueGenerated || 0),
+    0,
+  );
 
   return (
     <div style={{ fontFamily: "'Outfit', sans-serif", padding: "16px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+          gap: "16px",
+          marginBottom: "24px",
+        }}
+      >
         <div style={couponStatCardStyle}>
           <span style={couponStatLabelStyle}>Total Coupons</span>
           <span style={couponStatValStyle}>{coupons.length}</span>
@@ -3552,7 +4995,16 @@ export function CouponsPanel({ isMobile }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "12px",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}
+      >
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", flex: 1 }}>
           <input
             type="text"
@@ -3561,14 +5013,22 @@ export function CouponsPanel({ isMobile }) {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={couponInputStyle}
           />
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={couponSelectStyle}>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={couponSelectStyle}
+          >
             <option value="all">All Statuses</option>
             <option value="active">Active Now</option>
             <option value="expired">Expired</option>
             <option value="scheduled">Scheduled</option>
             <option value="disabled">Disabled</option>
           </select>
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={couponSelectStyle}>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            style={couponSelectStyle}
+          >
             <option value="all">All Types</option>
             <option value="flat">Flat Discount</option>
             <option value="percentage">Percentage Discount</option>
@@ -3582,13 +5042,32 @@ export function CouponsPanel({ isMobile }) {
 
       <div style={couponTableContainerStyle}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "#6B7280" }}>Loading coupons...</div>
+          <div
+            style={{ textAlign: "center", padding: "40px", color: "#6B7280" }}
+          >
+            Loading coupons...
+          </div>
         ) : filteredCoupons.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "#6B7280" }}>No coupons found.</div>
+          <div
+            style={{ textAlign: "center", padding: "40px", color: "#6B7280" }}
+          >
+            No coupons found.
+          </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              textAlign: "left",
+            }}
+          >
             <thead>
-              <tr style={{ background: "#F9FAFB", borderBottom: "1.5px solid #E5E7EB" }}>
+              <tr
+                style={{
+                  background: "#F9FAFB",
+                  borderBottom: "1.5px solid #E5E7EB",
+                }}
+              >
                 <th style={couponThStyle}>Code / Title</th>
                 <th style={couponThStyle}>Discount Type/Value</th>
                 <th style={couponThStyle}>Min Order</th>
@@ -3601,39 +5080,125 @@ export function CouponsPanel({ isMobile }) {
             <tbody>
               {filteredCoupons.map((c) => {
                 const isExpired = new Date(c.validUntil) <= now;
-                const statusText = isExpired ? "Expired" : !c.isActive ? "Disabled" : new Date(c.validFrom) > now ? "Scheduled" : "Active";
-                
+                const statusText = isExpired
+                  ? "Expired"
+                  : !c.isActive
+                  ? "Disabled"
+                  : new Date(c.validFrom) > now
+                  ? "Scheduled"
+                  : "Active";
+
                 return (
-                  <tr key={c._id} style={{ borderBottom: "1.5px solid #F3F4F6", transition: "all 0.1s ease" }}>
+                  <tr
+                    key={c._id}
+                    style={{
+                      borderBottom: "1.5px solid #F3F4F6",
+                      transition: "all 0.1s ease",
+                    }}
+                  >
                     <td style={couponTdStyle}>
-                      <div style={{ fontWeight: "700", color: "#111827" }}>{c.code}</div>
-                      <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "2px" }}>{c.title}</div>
+                      <div style={{ fontWeight: "700", color: "#111827" }}>
+                        {c.code}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#6B7280",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {c.title}
+                      </div>
                     </td>
                     <td style={couponTdStyle}>
-                      <span style={c.couponType === "percentage" ? couponTypePercentageBadge : couponTypeFlatBadge}>
-                        {c.couponType === "percentage" ? `${c.discountValue}%` : `₹${c.discountValue}`} {c.couponType === "free_delivery" ? "Free Delivery" : ""}
+                      <span
+                        style={
+                          c.couponType === "percentage"
+                            ? couponTypePercentageBadge
+                            : couponTypeFlatBadge
+                        }
+                      >
+                        {c.couponType === "percentage"
+                          ? `${c.discountValue}%`
+                          : `₹${c.discountValue}`}{" "}
+                        {c.couponType === "free_delivery"
+                          ? "Free Delivery"
+                          : ""}
                       </span>
                     </td>
                     <td style={couponTdStyle}>₹{c.minimumOrderValue || 0}</td>
-                    <td style={couponTdStyle}>{new Date(c.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
                     <td style={couponTdStyle}>
-                      <span style={statusText === "Active" ? couponActiveBadge : statusText === "Expired" || statusText === "Disabled" ? couponInactiveBadge : couponScheduledBadge}>
+                      {new Date(c.validUntil).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </td>
+                    <td style={couponTdStyle}>
+                      <span
+                        style={
+                          statusText === "Active"
+                            ? couponActiveBadge
+                            : statusText === "Expired" ||
+                              statusText === "Disabled"
+                            ? couponInactiveBadge
+                            : couponScheduledBadge
+                        }
+                      >
                         {statusText}
                       </span>
                     </td>
                     <td style={couponTdStyle}>
-                      <div style={{ fontSize: "13px", fontWeight: "700" }}>{c.usedCount || 0} Uses</div>
-                      <div style={{ fontSize: "11px", color: "#10B981", fontWeight: "600", marginTop: "2px" }}>₹{Math.round(c.totalDiscountGiven || 0)} Given</div>
+                      <div style={{ fontSize: "13px", fontWeight: "700" }}>
+                        {c.usedCount || 0} Uses
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#10B981",
+                          fontWeight: "600",
+                          marginTop: "2px",
+                        }}
+                      >
+                        ₹{Math.round(c.totalDiscountGiven || 0)} Given
+                      </div>
                     </td>
                     <td style={couponTdStyle}>
                       <div style={{ display: "flex", gap: "6px" }}>
-                        <button onClick={() => handleOpenEdit(c)} style={couponActionBtnStyle} title="Edit Coupon">✏️</button>
-                        <button onClick={() => handleStatusToggle(c)} style={couponActionBtnStyle} title={c.isActive ? "Deactivate" : "Activate"}>
+                        <button
+                          onClick={() => handleOpenEdit(c)}
+                          style={couponActionBtnStyle}
+                          title="Edit Coupon"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => handleStatusToggle(c)}
+                          style={couponActionBtnStyle}
+                          title={c.isActive ? "Deactivate" : "Activate"}
+                        >
                           {c.isActive ? "⏸️" : "▶️"}
                         </button>
-                        <button onClick={() => handleDuplicate(c)} style={couponActionBtnStyle} title="Duplicate Coupon">📋</button>
-                        <button onClick={() => handleShowLogs(c)} style={couponActionBtnStyle} title="Audit Logs">📜</button>
-                        <button onClick={() => handleArchive(c._id)} style={couponDeleteBtnStyle} title="Archive Coupon">🗑️</button>
+                        <button
+                          onClick={() => handleDuplicate(c)}
+                          style={couponActionBtnStyle}
+                          title="Duplicate Coupon"
+                        >
+                          📋
+                        </button>
+                        <button
+                          onClick={() => handleShowLogs(c)}
+                          style={couponActionBtnStyle}
+                          title="Audit Logs"
+                        >
+                          📜
+                        </button>
+                        <button
+                          onClick={() => handleArchive(c._id)}
+                          style={couponDeleteBtnStyle}
+                          title="Archive Coupon"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -3646,14 +5211,42 @@ export function CouponsPanel({ isMobile }) {
 
       {showFormModal && (
         <div style={couponModalOverlayStyle}>
-          <div style={{ ...couponModalContentStyle, width: "850px", display: "flex", flexDirection: "row", gap: "24px" }}>
-            
-            <div style={{ flex: 1, maxHeight: "80vh", overflowY: "auto", paddingRight: "8px" }}>
-              <h3 style={{ margin: "0 0 16px 0", fontSize: "18px", color: "#111827", fontWeight: "800" }}>
+          <div
+            style={{
+              ...couponModalContentStyle,
+              width: "850px",
+              display: "flex",
+              flexDirection: "row",
+              gap: "24px",
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                maxHeight: "80vh",
+                overflowY: "auto",
+                paddingRight: "8px",
+              }}
+            >
+              <h3
+                style={{
+                  margin: "0 0 16px 0",
+                  fontSize: "18px",
+                  color: "#111827",
+                  fontWeight: "800",
+                }}
+              >
                 {isEdit ? "✏️ Edit Coupon" : "➕ Add New Coupon"}
               </h3>
-              
-              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+              <form
+                onSubmit={handleSubmit}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
                 <div style={couponFormRowStyle}>
                   <div style={{ flex: 1 }}>
                     <label style={couponLabelStyle}>Coupon Code *</label>
@@ -3661,7 +5254,12 @@ export function CouponsPanel({ isMobile }) {
                       type="text"
                       required
                       value={formValues.code}
-                      onChange={(e) => setFormValues({ ...formValues, code: e.target.value.toUpperCase() })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          code: e.target.value.toUpperCase(),
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
@@ -3671,7 +5269,9 @@ export function CouponsPanel({ isMobile }) {
                       type="text"
                       required
                       value={formValues.title}
-                      onChange={(e) => setFormValues({ ...formValues, title: e.target.value })}
+                      onChange={(e) =>
+                        setFormValues({ ...formValues, title: e.target.value })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
@@ -3682,7 +5282,12 @@ export function CouponsPanel({ isMobile }) {
                   <textarea
                     rows={2}
                     value={formValues.description}
-                    onChange={(e) => setFormValues({ ...formValues, description: e.target.value })}
+                    onChange={(e) =>
+                      setFormValues({
+                        ...formValues,
+                        description: e.target.value,
+                      })
+                    }
                     style={couponFormInputStyle}
                   />
                 </div>
@@ -3692,7 +5297,12 @@ export function CouponsPanel({ isMobile }) {
                     <label style={couponLabelStyle}>Discount Type</label>
                     <select
                       value={formValues.couponType}
-                      onChange={(e) => setFormValues({ ...formValues, couponType: e.target.value })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          couponType: e.target.value,
+                        })
+                      }
                       style={couponFormSelectStyle}
                     >
                       <option value="flat">Flat Amount</option>
@@ -3706,7 +5316,12 @@ export function CouponsPanel({ isMobile }) {
                       type="number"
                       required
                       value={formValues.discountValue}
-                      onChange={(e) => setFormValues({ ...formValues, discountValue: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          discountValue: Number(e.target.value),
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
@@ -3718,17 +5333,29 @@ export function CouponsPanel({ isMobile }) {
                     <input
                       type="number"
                       value={formValues.minimumOrderValue}
-                      onChange={(e) => setFormValues({ ...formValues, minimumOrderValue: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          minimumOrderValue: Number(e.target.value),
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label style={couponLabelStyle}>Maximum Discount Cap (₹)</label>
+                    <label style={couponLabelStyle}>
+                      Maximum Discount Cap (₹)
+                    </label>
                     <input
                       type="number"
                       placeholder="0 for unlimited"
                       value={formValues.maximumDiscount}
-                      onChange={(e) => setFormValues({ ...formValues, maximumDiscount: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          maximumDiscount: Number(e.target.value),
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
@@ -3741,7 +5368,12 @@ export function CouponsPanel({ isMobile }) {
                       type="number"
                       placeholder="0 for unlimited"
                       value={formValues.usageLimit}
-                      onChange={(e) => setFormValues({ ...formValues, usageLimit: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          usageLimit: Number(e.target.value),
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
@@ -3750,7 +5382,12 @@ export function CouponsPanel({ isMobile }) {
                     <input
                       type="number"
                       value={formValues.usagePerUser}
-                      onChange={(e) => setFormValues({ ...formValues, usagePerUser: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          usagePerUser: Number(e.target.value),
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
@@ -3762,7 +5399,12 @@ export function CouponsPanel({ isMobile }) {
                     <input
                       type="datetime-local"
                       value={formValues.validFrom}
-                      onChange={(e) => setFormValues({ ...formValues, validFrom: e.target.value })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          validFrom: e.target.value,
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
@@ -3771,7 +5413,12 @@ export function CouponsPanel({ isMobile }) {
                     <input
                       type="datetime-local"
                       value={formValues.validUntil}
-                      onChange={(e) => setFormValues({ ...formValues, validUntil: e.target.value })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          validUntil: e.target.value,
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
@@ -3783,114 +5430,284 @@ export function CouponsPanel({ isMobile }) {
                     <input
                       type="number"
                       value={formValues.priority}
-                      onChange={(e) => setFormValues({ ...formValues, priority: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          priority: Number(e.target.value),
+                        })
+                      }
                       style={couponFormInputStyle}
                     />
                   </div>
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px", marginTop: "20px" }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginTop: "20px",
+                    }}
+                  >
                     <input
                       type="checkbox"
                       id="isActiveCheck"
                       checked={formValues.isActive}
-                      onChange={(e) => setFormValues({ ...formValues, isActive: e.target.checked })}
-                      style={{ cursor: "pointer", width: "18px", height: "18px" }}
+                      onChange={(e) =>
+                        setFormValues({
+                          ...formValues,
+                          isActive: e.target.checked,
+                        })
+                      }
+                      style={{
+                        cursor: "pointer",
+                        width: "18px",
+                        height: "18px",
+                      }}
                     />
-                    <label htmlFor="isActiveCheck" style={{ fontWeight: "700", cursor: "pointer", color: "#374151" }}>Is Active</label>
+                    <label
+                      htmlFor="isActiveCheck"
+                      style={{
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        color: "#374151",
+                      }}
+                    >
+                      Is Active
+                    </label>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", marginTop: "16px", justifyContent: "flex-end" }}>
-                  <button type="button" disabled={isSaving} onClick={() => setShowFormModal(false)} style={couponSecondaryBtnStyle}>Cancel</button>
-                  <button type="submit" disabled={isSaving} style={{ ...couponPrimaryBtnStyle, opacity: isSaving ? 0.7 : 1 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginTop: "16px",
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => setShowFormModal(false)}
+                    style={couponSecondaryBtnStyle}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    style={{
+                      ...couponPrimaryBtnStyle,
+                      opacity: isSaving ? 0.7 : 1,
+                    }}
+                  >
                     {isSaving ? "Saving..." : "Save Coupon"}
                   </button>
                 </div>
               </form>
             </div>
 
-            <div style={{ width: "260px", borderLeft: "1px solid #E5E7EB", paddingLeft: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-              <h4 style={{ margin: "0", fontSize: "12px", fontWeight: "800", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div
+              style={{
+                width: "260px",
+                borderLeft: "1px solid #E5E7EB",
+                paddingLeft: "24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <h4
+                style={{
+                  margin: "0",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                  color: "#6B7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
                 🎟️ Visual Live Preview
               </h4>
-              
+
               <div style={couponPreviewCardContainer}>
                 <div style={couponPreviewCardHeader}>
-                  <span style={couponPreviewCardCode}>{formValues.code || "WELCOME50"}</span>
+                  <span style={couponPreviewCardCode}>
+                    {formValues.code || "WELCOME50"}
+                  </span>
                   <span style={couponPreviewCardTag}>
-                    {formValues.couponType === "percentage" ? `${formValues.discountValue || 50}% OFF` : `₹${formValues.discountValue || 50} OFF`}
+                    {formValues.couponType === "percentage"
+                      ? `${formValues.discountValue || 50}% OFF`
+                      : `₹${formValues.discountValue || 50} OFF`}
                   </span>
                 </div>
-                
-                <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <div style={couponPreviewCardTitle}>{formValues.title || "Welcome Discount Offer"}</div>
-                  {formValues.description && <div style={couponPreviewCardDesc}>{formValues.description}</div>}
-                  
-                  <div style={{ borderTop: "1.5px dashed #E5E7EB", margin: "8px 0" }}></div>
 
-                  <div style={couponPreviewDetailRow}>
-                    <span>Min Order Value</span>
-                    <span style={{ fontWeight: "800", color: "#111827" }}>₹{formValues.minimumOrderValue || 0}</span>
+                <div
+                  style={{
+                    marginTop: "12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
+                  <div style={couponPreviewCardTitle}>
+                    {formValues.title || "Welcome Discount Offer"}
                   </div>
-
-                  {formValues.couponType === "percentage" && formValues.maximumDiscount > 0 && (
-                    <div style={couponPreviewDetailRow}>
-                      <span>Max Discount Cap</span>
-                      <span style={{ fontWeight: "800", color: "#111827" }}>₹{formValues.maximumDiscount}</span>
+                  {formValues.description && (
+                    <div style={couponPreviewCardDesc}>
+                      {formValues.description}
                     </div>
                   )}
 
+                  <div
+                    style={{
+                      borderTop: "1.5px dashed #E5E7EB",
+                      margin: "8px 0",
+                    }}
+                  ></div>
+
+                  <div style={couponPreviewDetailRow}>
+                    <span>Min Order Value</span>
+                    <span style={{ fontWeight: "800", color: "#111827" }}>
+                      ₹{formValues.minimumOrderValue || 0}
+                    </span>
+                  </div>
+
+                  {formValues.couponType === "percentage" &&
+                    formValues.maximumDiscount > 0 && (
+                      <div style={couponPreviewDetailRow}>
+                        <span>Max Discount Cap</span>
+                        <span style={{ fontWeight: "800", color: "#111827" }}>
+                          ₹{formValues.maximumDiscount}
+                        </span>
+                      </div>
+                    )}
+
                   <div style={couponPreviewDetailRow}>
                     <span>Per User Limit</span>
-                    <span style={{ fontWeight: "800", color: "#111827" }}>{formValues.usagePerUser} time(s)</span>
+                    <span style={{ fontWeight: "800", color: "#111827" }}>
+                      {formValues.usagePerUser} time(s)
+                    </span>
                   </div>
 
                   <div style={couponPreviewDetailRow}>
                     <span>Expires On</span>
                     <span style={{ fontWeight: "800", color: "#10B981" }}>
-                      {new Date(formValues.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      {new Date(formValues.validUntil).toLocaleDateString(
+                        "en-IN",
+                        { day: "numeric", month: "short" },
+                      )}
                     </span>
                   </div>
                 </div>
 
                 <div style={couponPreviewCardFooter}>
-                  <span>STATUS: {formValues.isActive ? "🟢 ACTIVE" : "🔴 INACTIVE"}</span>
+                  <span>
+                    STATUS: {formValues.isActive ? "🟢 ACTIVE" : "🔴 INACTIVE"}
+                  </span>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       )}
 
       {showLogsModal && selectedCoupon && (
         <div style={couponModalOverlayStyle}>
-          <div style={{ ...couponModalContentStyle, width: "600px", maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ margin: "0", fontSize: "17px", color: "#111827", fontWeight: "800" }}>
+          <div
+            style={{
+              ...couponModalContentStyle,
+              width: "600px",
+              maxHeight: "80vh",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
+              <h3
+                style={{
+                  margin: "0",
+                  fontSize: "17px",
+                  color: "#111827",
+                  fontWeight: "800",
+                }}
+              >
                 📜 Audit History: {selectedCoupon.code}
               </h3>
-              <button onClick={() => setShowLogsModal(false)} style={couponCloseBtnStyle}>✕</button>
+              <button
+                onClick={() => setShowLogsModal(false)}
+                style={couponCloseBtnStyle}
+              >
+                ✕
+              </button>
             </div>
 
             <div style={{ flex: 1, overflowY: "auto", paddingRight: "8px" }}>
               {auditLogs.length === 0 ? (
-                <div style={{ color: "#6B7280", textAlign: "center", padding: "20px" }}>No audit entries recorded for this coupon.</div>
+                <div
+                  style={{
+                    color: "#6B7280",
+                    textAlign: "center",
+                    padding: "20px",
+                  }}
+                >
+                  No audit entries recorded for this coupon.
+                </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                  }}
+                >
                   {auditLogs.map((log) => (
                     <div key={log._id} style={couponLogCardStyle}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "700", fontSize: "13px" }}>
-                        <span style={{ color: log.action === "CREATE" ? "#10B981" : log.action === "ARCHIVE" ? "#EF4444" : "#3B82F6" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontWeight: "700",
+                          fontSize: "13px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            color:
+                              log.action === "CREATE"
+                                ? "#10B981"
+                                : log.action === "ARCHIVE"
+                                ? "#EF4444"
+                                : "#3B82F6",
+                          }}
+                        >
                           {log.action}
                         </span>
-                        <span style={{ color: "#6B7280" }}>{new Date(log.timestamp).toLocaleString("en-IN")}</span>
+                        <span style={{ color: "#6B7280" }}>
+                          {new Date(log.timestamp).toLocaleString("en-IN")}
+                        </span>
                       </div>
-                      <div style={{ fontSize: "12px", color: "#374151", marginTop: "4px" }}>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#374151",
+                          marginTop: "4px",
+                        }}
+                      >
                         <strong>Admin:</strong> {log.adminName}
                       </div>
                       {log.details && (
                         <pre style={couponLogDetailsStyle}>
-                          {log.details.startsWith("{") ? JSON.stringify(JSON.parse(log.details), null, 2) : log.details}
+                          {log.details.startsWith("{")
+                            ? JSON.stringify(JSON.parse(log.details), null, 2)
+                            : log.details}
                         </pre>
                       )}
                     </div>

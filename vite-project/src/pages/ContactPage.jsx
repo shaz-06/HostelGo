@@ -94,9 +94,9 @@ export default function ContactPage() {
               </div>
               <h3 style={cardTitleStyle}>Email Support</h3>
             </div>
-            <p style={cardContentStyle}>support@buyto.co.in</p>
+            <p style={cardContentStyle}>supportbuyto@gmail.com</p>
             <button
-              onClick={() => window.open("mailto:support@buyto.co.in")}
+              onClick={() => window.open("mailto:supportbuyto@gmail.com")}
               className="premium-btn-yellow"
               style={ctaBtnYellowStyle}
             >

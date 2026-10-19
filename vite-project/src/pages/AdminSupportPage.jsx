@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { initSocket } from "../utils/socket";
 import { AuthContext } from "../context/AuthContext";
-import { io } from "socket.io-client";
 
 export default function AdminSupportPage() {
   const navigate = useNavigate();
@@ -137,12 +137,19 @@ export default function AdminSupportPage() {
     }
 
     fetchChatLists();
-    initializeSocket();
+
+    let cancelled = false;
+    let cleanupListeners = null;
+
+    const setup = async () => {
+      const cleanup = await initializeSocket(cancelled);
+      cleanupListeners = cleanup;
+    };
+    setup();
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
+      cancelled = true;
+      if (cleanupListeners) cleanupListeners();
     };
   }, [token]);
 
@@ -167,13 +174,14 @@ export default function AdminSupportPage() {
   };
 
   // Initialize Admin Socket Room Listening
-  const initializeSocket = () => {
+  const initializeSocket = async (cancelled) => {
     if (socketRef.current) return;
 
-    const socket = io(window.API_BASE_URL);
+    const socket = await initSocket();
+    if (cancelled) return;
     socketRef.current = socket;
 
-    socket.on("connect", () => {
+    const handleConnect = () => {
       console.log("🔌 Admin support Socket connected. Listening for queue alerts.");
       socket.emit("adminSupportPresence", {
         adminId: user?._id,
@@ -181,35 +189,31 @@ export default function AdminSupportPage() {
         inSupportPanel: true,
         state: associateState
       });
-    });
+    };
 
-    socket.on("incomingSupportRequest", (newChat) => {
+    const handleIncoming = (newChat) => {
       setIncomingChats((prev) => [...prev.filter(c => c._id !== newChat._id), newChat]);
-    });
+    };
 
-    socket.on("newWaitingSupportChat", (newChat) => {
+    const handleNewWaiting = (newChat) => {
       console.log("🔌 Socket: New customer joined waitlist:", newChat);
       setWaitingChats((prev) => [...prev.filter(c => c._id !== newChat._id), newChat]);
-    });
+    };
 
-    socket.on("adminChatStatusUpdated", (updatedChat) => {
+    const handleAdminChatStatus = (updatedChat) => {
       console.log("🔌 Socket: Chat status updated globally:", updatedChat);
       fetchChatLists(); // Reload lists
       
       // Update currently open active chat details
       setSelectedChat((prev) => {
-        if (prev && String(prev._id) === String(updatedChat._id)) {
-          return updatedChat;
+        if (prev?._id === updatedChat._id) {
+          return { ...prev, status: updatedChat.status };
         }
         return prev;
       });
-    });
+    };
 
-    socket.on("associateAvailabilityChanged", (data) => {
-      setAvailability(data);
-    });
-
-    socket.on("newSupportMessage", (msg) => {
+    const handleNewMessage = (msg) => {
       // If message is for currently open chat console
       setSelectedChat((current) => {
         if (current && String(msg.senderId) !== String(user._id)) {
@@ -220,9 +224,9 @@ export default function AdminSupportPage() {
         }
         return current;
       });
-    });
+    };
 
-    socket.on("supportTypingUpdated", (data) => {
+    const handleSupportTyping = (data) => {
       setSelectedChat((current) => {
         if (current && data.role === "user") {
           setCustomerTyping(data.isTyping);
@@ -232,20 +236,42 @@ export default function AdminSupportPage() {
         }
         return current;
       });
-    });
+    };
 
-    socket.on("supportTypingPreviewUpdated", (data) => {
+    const handleTypingPreview = (data) => {
       setSelectedChat((current) => {
         if (current) {
           setCustomerDraft(data.text);
         }
         return current;
       });
-    });
+    };
 
-    socket.on("disconnect", () => {
+    const handleDisconnect = () => {
       console.log("🔌 Admin Socket disconnected.");
-    });
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("incomingSupportRequest", handleIncoming);
+    socket.on("newWaitingSupportChat", handleNewWaiting);
+    socket.on("adminChatStatusUpdated", handleAdminChatStatus);
+    socket.on("newSupportMessage", handleNewMessage);
+    socket.on("supportTypingUpdated", handleSupportTyping);
+    socket.on("supportTypingPreviewUpdated", handleTypingPreview);
+    socket.on("disconnect", handleDisconnect);
+
+    if (socket.connected) handleConnect();
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("incomingSupportRequest", handleIncoming);
+      socket.off("newWaitingSupportChat", handleNewWaiting);
+      socket.off("adminChatStatusUpdated", handleAdminChatStatus);
+      socket.off("newSupportMessage", handleNewMessage);
+      socket.off("supportTypingUpdated", handleSupportTyping);
+      socket.off("supportTypingPreviewUpdated", handleTypingPreview);
+      socket.off("disconnect", handleDisconnect);
+    };
   };
 
   useEffect(() => {

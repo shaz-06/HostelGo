@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { UIContext } from '../../context/UIContext';
 
 export default function WelcomeRewardModal() {
-  const { showWelcomeModal, setShowWelcomeModal, welcomeBonus, user, appConfig } = useContext(AuthContext);
+  const { welcomeBonus, user, appConfig } = useContext(AuthContext);
+  const { showWelcomeModal, setShowWelcomeModal } = useContext(UIContext);
   const [confetti, setConfetti] = useState([]);
 
   const minOrder = appConfig?.buyCoins?.minBuyCoinsOrder ?? 99;

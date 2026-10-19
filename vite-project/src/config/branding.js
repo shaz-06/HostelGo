@@ -1,4 +1,4 @@
-import logo from "../assets/branding/buyto-logo.png";
+import logo from "../assets/branding/buyto-logo.webp";
 
 export const appName = "Buyto";
 export const logoPath = logo;

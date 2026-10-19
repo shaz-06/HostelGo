@@ -372,29 +372,16 @@ function extractCoordinates(obj) {
 
 async function assignFulfillmentStore(latitude, longitude) {
   console.log("=== ASSIGN FULFILLMENT STORE CHECK ===");
-  console.log("Customer Coordinates Input:", { latitude, longitude });
+  console.log("Customer location recieved for store assignment");
 
   const customerCoords = extractCoordinates({ latitude, longitude });
   if (!customerCoords) {
-    console.warn("⚠️ Invalid/missing customer coordinates. Checking default zone...");
-    const defaultZone = await DeliveryServiceZone.findOne({ active: true }).lean();
-    if (!defaultZone) {
-      console.error("❌ No active delivery zones available for default fallback.");
-      return null;
-    }
-    const defaultCoords = extractCoordinates(defaultZone) || { latitude: defaultZone.latitude, longitude: defaultZone.longitude };
-    return {
-      storeId: String(defaultZone._id),
-      storeName: defaultZone.name,
-      latitude: defaultCoords.latitude,
-      longitude: defaultCoords.longitude,
-      radiusKm: Number(defaultZone.radiusKm)
-    };
+    console.warn("⚠️ Invalid/missing customer coordinates. Returning null.");
+    return null;
   }
 
   const { latitude: custLat, longitude: custLng } = customerCoords;
-  console.log("Customer Latitude:", custLat);
-  console.log("Customer Longitude:", custLng);
+  console.log("Customer coordinates validated");
 
   if (isNaN(custLat) || isNaN(custLng) || custLat === null || custLng === null || custLat === 0 || custLng === 0) {
     console.error("❌ Invalid Customer Coordinates (null, NaN, 0, or empty string) in assignFulfillmentStore.");
@@ -402,7 +389,7 @@ async function assignFulfillmentStore(latitude, longitude) {
   }
 
   const activeZones = await DeliveryServiceZone.find({ active: true }).lean();
-  console.log("Delivery Zones", activeZones);
+  console.log(`Active delivery zones found: ${activeZones.length}`);
 
   if (activeZones.length === 0) {
     console.log("Checkout Decision -> 0 Active Zones -> Store Assignment Null");
@@ -420,7 +407,7 @@ async function assignFulfillmentStore(latitude, longitude) {
 
     const { latitude: storeLat, longitude: storeLng } = zoneCoords;
     if (isNaN(storeLat) || isNaN(storeLng) || storeLat === null || storeLng === null || storeLat === 0 || storeLng === 0) {
-      console.warn(`⚠️ Skipping zone "${zone.name}" due to invalid coordinate values:`, { storeLat, storeLng });
+      console.warn(`⚠️ Skipping zone "${zone.name}" due to invalid coordinate values`);
       continue;
     }
 
@@ -431,7 +418,7 @@ async function assignFulfillmentStore(latitude, longitude) {
     }
     const radiusKm = Number(zone.radiusKm);
     if (isNaN(radiusKm) || radiusKm <= 0) {
-      console.warn(`⚠️ Skipping zone "${zone.name}" due to invalid radiusKm:`, zone.radiusKm);
+      console.warn(`⚠️ Skipping zone "${zone.name}" due to invalid radiusKm:`);
       continue;
     }
 
@@ -439,30 +426,21 @@ async function assignFulfillmentStore(latitude, longitude) {
     const distanceKm = getDistance(custLat, custLng, storeLat, storeLng);
     const inside = distanceKm <= radiusKm;
 
-    console.log("-------------------");
-    console.log(`Store: ${zone.name}`);
-    console.log(`Customer:\n${custLat}, ${custLng}`);
-    console.log(`Store:\n${storeLat}, ${storeLng}`);
-    console.log(`Distance:\n${distanceKm.toFixed(4)} km`);
-    console.log(`Radius:\n${radiusKm} km`);
-    console.log(`Radius Type:\n${typeof zone.radiusKm}`);
-    console.log(`Eligible:\n${inside ? "YES" : "NO"}`);
+    console.log(`Store "${zone.name}" eligibility checked: ${inside ? "eligible" : "not eligible"}`);
 
     if (inside) {
       eligibleStores.push({
         storeId: String(zone._id),
         storeName: zone.name,
-        latitude: storeLat,
-        longitude: storeLng,
-        radiusKm: radiusKm,
-        distanceKm: distanceKm
+        distanceKm: distanceKm,
+
       });
     } else {
       console.log(`Store "${zone.name}" failed because distance ${distanceKm.toFixed(2)} km is greater than radius ${radiusKm} km`);
     }
   }
 
-  console.log("Eligible Stores:", eligibleStores);
+  console.log(`Eligible Stores: ${eligibleStores.length}`);
 
   if (eligibleStores.length === 0) {
     console.log("Checkout Decision -> 0 Eligible Stores -> Store Assignment Null");
@@ -482,10 +460,8 @@ async function assignFulfillmentStore(latitude, longitude) {
 
   return {
     storeId: selectedStore.storeId,
-    storeName: selectedStore.storeName,
-    latitude: selectedStore.latitude,
-    longitude: selectedStore.longitude,
-    radiusKm: selectedStore.radiusKm
+    storeName: selectedStore.storeName
+
   };
 }
 const { createBorzoOrder } = require("../utils/borzo");
@@ -555,8 +531,8 @@ const getRazorpayInstance = () => {
     console.error("❌ Razorpay Key configuration missing in environment variables!");
   }
   return new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || "mock_key_id",
-    key_secret: process.env.RAZORPAY_KEY_SECRET || "mock_key_secret"
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
   });
 };
 
@@ -564,11 +540,9 @@ const getRazorpayInstance = () => {
 router.post("/payment/create-order", authMiddleware, async (req, res) => {
   console.log("=== CREATE ORDER HIT ===");
   console.log("=== [BACKEND] POST /api/payment/create-order ===");
-  console.log("Request Body:", JSON.stringify(req.body, null, 2));
-  console.log("=== ORDER USER DATA ===");
-  console.log(req.body.user);
-  console.log("RAZORPAY_KEY_ID in env:", process.env.RAZORPAY_KEY_ID);
-  console.log("MongoDB connection state (readyState):", mongoose.connection.readyState);
+  console.log("Checkout request received");
+  console.log("Checkout user data received");
+  console.log("Razorpay configuration loaded");
 
   try {
     const { amount, user, products, deliveryAddress, couponId, couponCode, buyCoinsRedeemed, noBagPledge, addressId } = req.body;
@@ -605,7 +579,7 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
         invalidProductIds,
         submittedProducts: products.map(p => ({ productId: p.productId || p._id, quantity: p.quantity })),
         cartSize: products.length,
-        errorMessage: err.message
+        errorMessage: "Order validation failed"
       });
       return res.status(400).json({ success: false, requiresRefresh: true, message: err.message });
     }
@@ -632,17 +606,17 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
       receipt: `receipt_${Date.now()}`,
     };
 
-    console.log("Creating order in Razorpay with options:", options);
+    console.log("Creating Razorpay order");
     const razorpayOrder = await razorpay.orders.create(options);
     console.log("=== RAZORPAY ORDER CREATED ===");
-    console.log("Razorpay Order Created Successfully:", razorpayOrder);
+    console.log("Razorpay Order Created Successfully");
 
     const deliveryLatitude = req.body.deliveryLatitude || null;
     const deliveryLongitude = req.body.deliveryLongitude || null;
 
     const storeAssignment = await assignFulfillmentStore(deliveryLatitude, deliveryLongitude);
     if (!storeAssignment) {
-      console.warn(`[payment/create-order] Location outside all service zones: lat=${deliveryLatitude}, lng=${deliveryLongitude}`);
+      console.warn("[payment/create-order] Location outside all service zones");
       return res.status(400).json({
         success: false,
         serviceable: false,
@@ -692,17 +666,17 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
         address: deliveryAddress
       };
       await req.user.save();
-      console.log(`=== CUSTOMER GPS ===\nUser ID: ${req.user._id}, Lat: ${deliveryLatitude}, Lng: ${deliveryLongitude}`);
+      console.log("Customer location received for store assignment");
     }
 
     console.log("=== [BACKEND DB SAVE] Attempting to save Pending Order to MongoDB ===");
-    console.log("Order Data to be saved:", JSON.stringify(order, null, 2));
+    console.log("Pending order prepared for database save");
 
     try {
       const savedOrder = await order.save();
       if (req.body.addressId) {
         const Address = require("../models/Address");
-        await Address.updateOne({ _id: req.body.addressId }, { lastUsedAt: new Date() }).catch(err => console.error(err));
+        await Address.updateOne({ _id: req.body.addressId }, { lastUsedAt: new Date() }).catch(() => console.error("Failed to update order address"));
       }
       console.log("=== ORDER SAVED ===");
       console.log("=== [BACKEND DB SAVE SUCCESS] Pending Order Saved Successfully ===");
@@ -716,30 +690,23 @@ router.post("/payment/create-order", authMiddleware, async (req, res) => {
       });
     } catch (dbError) {
       console.error("❌ === [BACKEND DB SAVE ERROR] Failed to save Pending Order to MongoDB ===");
-      console.error("Error Message:", dbError.message);
-      console.error("Error Stack:", dbError.stack);
+      console.error("Database save failed for pending order");
       return res.status(500).json({
-        message: "Failed to persist pending order in database",
-        error: dbError.message,
-        stack: dbError.stack
+        message: "Failed to persist pending order in database"
       });
     }
   } catch (error) {
-    console.error("❌ Create Razorpay Order Exception Failed!", error);
+    console.error("❌ Create Razorpay Order Exception Failed!");
     return res.status(500).json({
-      message: "Razorpay order creation failed",
-      error: error.message,
-      stack: error.stack,
-      keyIdConfigured: !!process.env.RAZORPAY_KEY_ID,
-      secretConfigured: !!process.env.RAZORPAY_KEY_SECRET
+      message: "Razorpay order creation failed"
     });
   }
 });
 
 // POST /api/payment/verify
-router.post("/payment/verify", async (req, res) => {
+router.post("/payment/verify",authMiddleware, async (req, res) => {
   console.log("=== [BACKEND] POST /api/payment/verify ===");
-  console.log("Request Body:", JSON.stringify(req.body, null, 2));
+  console.log("Payment verification request received");
 
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
@@ -751,32 +718,40 @@ router.post("/payment/verify", async (req, res) => {
 
     // Cryptographic signature verification
     console.log("Performing signature verification...");
-    const secret = process.env.RAZORPAY_KEY_SECRET || "mock_key_secret";
+    const secret = process.env.RAZORPAY_KEY_SECRET;
     const generatedSignature = createHmacSha256(`${razorpay_order_id}|${razorpay_payment_id}`, secret);
 
     const isValidSignature = timingSafeCompare(generatedSignature, razorpay_signature);
-    console.log("Is signature valid?", isValidSignature);
+    console.log("Payment signature verification completed");
 
     if (!isValidSignature) {
       console.error("❌ Signature verification failed!");
-      try {
-        console.log("Attempting to locate pending order to mark as Failed...");
-        const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
-        if (order) {
-          order.paymentStatus = "Failed";
-          await order.save();
-          console.log("Order paymentStatus updated to Failed in DB for document ID:", order._id);
-        }
-      } catch (dbErr) {
-        console.error("❌ Failed to update failed order status in database:", dbErr.message);
-      }
+      
       return res.status(400).json({ success: false, message: "Invalid payment signature verification failed" });
     }
 
-    console.log("Signature is valid! Retrieving pending order from DB...");
-    const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
+    const razorpay = getRazorpayInstance();
 
-    if (!order) {
+    const payment = await razorpay.payments.fetch(razorpay_payment_id);
+
+    if (
+      payment.order_id !== razorpay_order_id ||
+      payment.currency !== "INR"
+    ) {
+      console.error("❌ Razorpay payment details mismatch");
+      return res.status(400).json({
+        success: false,
+        message: "Payment details mismatch"
+      });
+    }
+
+    console.log("Signature is valid! Retrieving pending order from DB...");
+    const orderCurrentState = await Order.findOne({
+      razorpayOrderId: razorpay_order_id,
+      userId: req.user._id
+    });
+
+    if (!orderCurrentState) {
       console.error(`❌ Database Error: Pending order not found in database for razorpayOrderId: ${razorpay_order_id}`);
       return res.status(404).json({
         message: "Pending order not found in database. Persistent order required to verify payment.",
@@ -784,23 +759,102 @@ router.post("/payment/verify", async (req, res) => {
       });
     }
 
-    console.log("Retrieved Pending Order from DB:", JSON.stringify(order, null, 2));
+    const expectedAmount = Math.round(orderCurrentState.totalAmount * 100);
 
-    // 1. Update Payment Status to Paid
-    order.paymentStatus = "Paid";
-    order.razorpayPaymentId = razorpay_payment_id;
-    order.razorpaySignature = razorpay_signature;
+    if (payment.amount !== expectedAmount) {
+      console.error("❌ Razorpay payment amount mismatch");
+      return res.status(400).json({
+        success: false,
+        message: "Payment amount mismatch"
+      });
+    }
 
-    console.log("=== [BACKEND DB UPDATE] Saving Paid Order to DB ===");
+    if (orderCurrentState.paymentStatus === "Paid") {
+      return res.status(200).json({ success: true, message: "Payment already verified", orderId: orderCurrentState.orderId, order: orderCurrentState, trackingReady: true });
+    }
+    
+    if (orderCurrentState.paymentStatus === "Processing") {
+      return res.status(409).json({ success: false, message: "Payment verification already in progress. Please check your order history." });
+    }
+
+    // Atomic Lock
+    const lockedOrder = await Order.findOneAndUpdate(
+      { razorpayOrderId: razorpay_order_id, paymentStatus: "Pending" },
+      { $set: { paymentStatus: "Processing" } },
+      { new: true }
+    );
+
+    if (!lockedOrder) {
+      return res.status(409).json({ success: false, message: "Payment verification already in progress or processed." });
+    }
+
+    console.log("Order locked for payment processing");
+
+    let savedOrder;
+    const session = await mongoose.startSession();
     try {
-      let savedOrder = await order.save();
-      console.log("=== PAYMENT VERIFIED ===");
-      console.log("=== [BACKEND DB UPDATE SUCCESS] Paid Order Saved to MongoDB Successfully ===");
-      console.log("Saved Document ID:", savedOrder._id);
+      await session.withTransaction(async () => {
+        // Reduce stock within transaction
+        for (const item of lockedOrder.products) {
+          const hasVariants = item.weight;
+          let result;
+          if (hasVariants) {
+            result = await Product.updateOne(
+              { _id: item.productId, "variants.weight": item.weight, "variants.stock": { $gte: item.quantity } },
+              { $inc: { "variants.$.stock": -item.quantity } },
+              { session }
+            );
+          } else {
+            result = await Product.updateOne(
+              { _id: item.productId, stock: { $gte: item.quantity } },
+              { $inc: { stock: -item.quantity } },
+              { session }
+            );
+          }
+          if (result.modifiedCount === 0) {
+            throw new Error(`Insufficient stock for product ${item.productId}`);
+          }
+        }
+        
+        // Mark order Paid inside transaction
+        lockedOrder.paymentStatus = "Paid";
+        lockedOrder.razorpayPaymentId = razorpay_payment_id;
+        lockedOrder.razorpaySignature = razorpay_signature;
+        lockedOrder.inventoryDeducted = true;
+        savedOrder = await lockedOrder.save({ session });
+      });
+    } catch (txnError) {
+      console.error("Transaction aborted due to stock failure");
+      // Call Razorpay Refund
+      try {
+        const razorpay = getRazorpayInstance();
+        const refundRes = await razorpay.payments.refund(razorpay_payment_id, { speed: "optimum" });
+        console.log("Razorpay refund initiated successfully");
+      } catch (refundErr) {
+        console.error("Razorpay refund API failed");
+      }
+      await Order.updateOne({ _id: lockedOrder._id }, { $set: { paymentStatus: "Refunded", orderStatus: "Cancelled" } });
+      return res.status(400).json({ success: false, message: "Payment verification failed: One or more products became out of stock during checkout. A full refund has been initiated." });
+    } finally {
+      session.endSession();
+    }
 
+    console.log("=== PAYMENT VERIFIED ===");
+    console.log("=== [BACKEND DB UPDATE SUCCESS] Paid Order Saved to MongoDB Successfully ===");
+    console.log("Saved Document ID:", savedOrder._id);
+
+    try {
       const { consumeOrderDiscounts, handleOrderCheckoutRewards } = require("../utils/rewards");
       await consumeOrderDiscounts(savedOrder);
       await handleOrderCheckoutRewards(savedOrder);
+
+      // Targeted Cart Cleanup
+      try {
+        const { clearPurchasedItemsFromCart } = require("../services/cartCleanupService");
+        await clearPurchasedItemsFromCart(savedOrder.userId, savedOrder.products);
+      } catch (cartErr) {
+        console.error("Cart cleanup failed");
+      }
 
       // Auto-remove purchased products from Save For Later if configured
       try {
@@ -817,10 +871,10 @@ router.post("/payment/verify", async (req, res) => {
           }
         }
       } catch (err) {
-        console.error("Auto-remove saved products failed:", err.message);
+        console.error("Auto-remove saved products failed:");
       }
 
-      // Create Borzo delivery order automatically
+      // Create Borzo delivery order - Outbox Pattern
       try {
         const borzoResult = await createBorzoOrder(savedOrder);
         if (borzoResult && borzoResult.borzoOrderId) {
@@ -828,132 +882,43 @@ router.post("/payment/verify", async (req, res) => {
           savedOrder.borzoTrackingUrl = borzoResult.trackingUrl;
           savedOrder.borzoDeliveryCost = borzoResult.deliveryCost;
           savedOrder.borzoDeliveryStatus = "new";
-          savedOrder.orderStatus = "Order Placed";
-          savedOrder.statusTimestamps.orderPlaced = new Date();
-          await savedOrder.save();
           console.log(`Borzo order created successfully: ${borzoResult.borzoOrderId}`);
+        } else {
+          console.warn("Borzo order dispatch delayed, marking pending_dispatch");
+          savedOrder.borzoDeliveryStatus = "pending_dispatch";
         }
       } catch (borzoError) {
-        console.error("❌ Borzo Order Dispatch failed on payment verification:", borzoError.message);
+        console.error("Borzo Order Dispatch failed during payment verification");
+        savedOrder.borzoDeliveryStatus = "pending_dispatch";
       }
+
+      savedOrder.orderStatus = "Order Placed";
+      savedOrder.statusTimestamps.orderPlaced = new Date();
+      await savedOrder.save();
 
       // Send push notification for successful order placement
       sendOrderStatusNotification(savedOrder, "Order Placed").catch(err => {
-        console.error("Failed to send order placed notification:", err);
+        console.error("Failed to send order placed notification");
       });
 
       // Send admin notifications
       try {
         const { sendAdminNotification } = require("../services/fcmService");
         sendAdminNotification(savedOrder).catch(err => {
-          console.error("Failed to send FCM admin notification:", err);
+          console.error("Failed to send FCM admin notification");
         });
         const { sendNewOrderNotification } = require("../services/adminNotificationService");
         sendNewOrderNotification(savedOrder).catch(err => {
-          console.error("Failed to send new order notification to admin:", err);
+          console.error("Failed to send new order notification to admin");
         });
       } catch (err) {
-        console.error("Failed to require/call sendAdminNotification:", err);
+        console.error("Failed to require/call sendAdminNotification");
       }
 
       // Emit socket event for admin dashboard
       if (req.io) {
         req.io.emit("newOrderArrived", savedOrder);
         console.log("=== Socket.IO emitted newOrderArrived (Razorpay) ===");
-      }
-
-
-      // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
-      console.log("Reducing inventory stock...");
-      if (!savedOrder.inventoryDeducted) {
-        let allSuccess = true;
-        const rollbacks = [];
-        for (const item of savedOrder.products) {
-          try {
-            const hasVariants = item.weight;
-            let result;
-            if (hasVariants) {
-              result = await Product.updateOne(
-                {
-                  _id: item.productId,
-                  variants: {
-                    $elemMatch: {
-                      weight: item.weight,
-                      stock: { $gte: item.quantity }
-                    }
-                  }
-                },
-                {
-                  $inc: { "variants.$.stock": -item.quantity }
-                }
-              );
-            } else {
-              result = await Product.updateOne(
-                {
-                  _id: item.productId,
-                  stock: { $gte: item.quantity }
-                },
-                {
-                  $inc: { stock: -item.quantity }
-                }
-              );
-            }
-
-            if (result.modifiedCount === 0) {
-              console.error(`❌ Atomic stock reduction failed for product ${item.productId}: Insufficient stock.`);
-              allSuccess = false;
-              break;
-            } else {
-              rollbacks.push({
-                productId: item.productId,
-                weight: item.weight,
-                quantity: item.quantity,
-                hasVariants: !!hasVariants
-              });
-            }
-          } catch (dbError) {
-            console.error(`❌ Failed to update stock for product ${item.productId}:`, dbError.message);
-            allSuccess = false;
-            break;
-          }
-        }
-
-        if (!allSuccess) {
-          console.log("Rolling back successfully decremented items due to partial stock failure...");
-          for (const rb of rollbacks) {
-            try {
-              if (rb.hasVariants) {
-                await Product.updateOne(
-                  { _id: rb.productId, "variants.weight": rb.weight },
-                  { $inc: { "variants.$.stock": rb.quantity } }
-                );
-              } else {
-                await Product.updateOne(
-                  { _id: rb.productId },
-                  { $inc: { stock: rb.quantity } }
-                );
-              }
-            } catch (rbErr) {
-              console.error(`❌ Failed to rollback stock for product ${rb.productId}:`, rbErr.message);
-            }
-          }
-          await Order.updateOne({ _id: savedOrder._id }, { $set: { paymentStatus: "Refunded", orderStatus: "Cancelled" } });
-          return res.status(400).json({ success: false, message: "Payment verification failed: One or more products became out of stock during checkout. A refund will be initiated." });
-        } else {
-          await Order.updateOne({ _id: savedOrder._id }, { $set: { inventoryDeducted: true } });
-          savedOrder.inventoryDeducted = true;
-          console.log("Inventory stock successfully reduced and marked on order.");
-        }
-      }
-
-      // Do not start tracking session on payment verification. Just reload order.
-      try {
-        const updatedOrder = await Order.findById(savedOrder._id).lean();
-        if (updatedOrder) {
-          savedOrder = updatedOrder;
-        }
-      } catch (trackErr) {
-        console.error("❌ Failed to reload order on payment verification:", trackErr.message);
       }
 
       return res.status(200).json({
@@ -964,20 +929,16 @@ router.post("/payment/verify", async (req, res) => {
         trackingReady: true
       });
     } catch (saveError) {
-      console.error("❌ === [BACKEND DB UPDATE ERROR] Failed to save Paid Order ===");
-      console.error("Error Message:", saveError.message);
+      console.error("❌ === [BACKEND SIDE EFFECTS ERROR] ===");
+      console.error("Payment side effects failed");
       return res.status(500).json({
-        message: "Failed to persist Paid order in database",
-        error: saveError.message,
-        stack: saveError.stack
+        message: "Order Paid, but side effects failed"
       });
     }
   } catch (error) {
-    console.error("❌ Payment Signature Verification Exception:", error);
+    console.error("Payment Signature Verification failed");
     return res.status(500).json({
-      message: "Error verifying payment signature",
-      error: error.message,
-      stack: error.stack
+      message: "Error verifying payment signature"
     });
   }
 });
@@ -986,9 +947,9 @@ router.post("/payment/verify", async (req, res) => {
 router.post("/orders", authMiddleware, async (req, res) => {
   console.log("=== CREATE ORDER HIT ===");
   console.log("=== [BACKEND] POST /api/orders (COD) ===");
-  console.log("Request Body:", JSON.stringify(req.body, null, 2));
+  console.log("COD checkout request recieved");
   console.log("=== ORDER USER DATA ===");
-  console.log(req.body.user);
+  console.log("Checkout user data received");
 
   try {
     const { user, products, amount, deliveryAddress, couponId, couponCode, buyCoinsRedeemed, noBagPledge, addressId } = req.body;
@@ -1025,9 +986,9 @@ router.post("/orders", authMiddleware, async (req, res) => {
         invalidProductIds,
         submittedProducts: products.map(p => ({ productId: p.productId || p._id, quantity: p.quantity })),
         cartSize: products.length,
-        errorMessage: err.message
+        errorMessage: "Order validation failed"
       });
-      return res.status(400).json({ success: false, requiresRefresh: true, message: err.message });
+      return res.status(400).json({ success: false, requiresRefresh: true, message: "Order validation failed" });
     }
 
     // Verify if client-sent amount matches server recalculated total. If they differ, log mismatch and reject.
@@ -1048,7 +1009,7 @@ router.post("/orders", authMiddleware, async (req, res) => {
 
     const storeAssignment = await assignFulfillmentStore(deliveryLatitude, deliveryLongitude);
     if (!storeAssignment) {
-      console.warn(`[payment/cod] Location outside all service zones: lat=${deliveryLatitude}, lng=${deliveryLongitude}`);
+      console.warn("[payment/cod] Location outside all service zones");
       return res.status(400).json({
         success: false,
         serviceable: false,
@@ -1097,15 +1058,50 @@ router.post("/orders", authMiddleware, async (req, res) => {
         address: deliveryAddress
       };
       await req.user.save();
-      console.log(`=== CUSTOMER GPS ===\nUser ID: ${req.user._id}, Lat: ${deliveryLatitude}, Lng: ${deliveryLongitude}`);
+      console.log("Customer location received for store assignment");
     }
 
     console.log("=== [BACKEND DB SAVE] Saving COD Order to DB ===");
     try {
-      let savedOrder = await order.save();
+      let savedOrder;
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(async () => {
+          savedOrder = await order.save({ session });
+          
+          for (const item of products) {
+            const hasVariants = item.selectedWeight || item.weight;
+            let result;
+            if (hasVariants) {
+              result = await Product.updateOne(
+                { _id: item.productId, "variants.weight": hasVariants, "variants.stock": { $gte: item.quantity } },
+                { $inc: { "variants.$.stock": -item.quantity } },
+                { session }
+              );
+            } else {
+              result = await Product.updateOne(
+                { _id: item.productId, stock: { $gte: item.quantity } },
+                { $inc: { stock: -item.quantity } },
+                { session }
+              );
+            }
+            if (result.modifiedCount === 0) {
+              throw new Error(`Insufficient stock for product ${item.productId}`);
+            }
+          }
+          savedOrder.inventoryDeducted = true;
+          await savedOrder.save({ session });
+        });
+      } catch (txnError) {
+        console.error("COD Transaction aborted due to stock failure");
+        return res.status(400).json({ success: false, message: "Checkout failed: Some items became out of stock. Please try again." });
+      } finally {
+        session.endSession();
+      }
+
       if (req.body.addressId) {
         const Address = require("../models/Address");
-        await Address.updateOne({ _id: req.body.addressId }, { lastUsedAt: new Date() }).catch(err => console.error(err));
+        await Address.updateOne({ _id: req.body.addressId }, { lastUsedAt: new Date() }).catch(() => console.error("Failed to update order address"));
       }
       console.log("=== ORDER SAVED ===");
       console.log("=== [BACKEND DB SAVE SUCCESS] COD Order Saved Successfully ===");
@@ -1115,13 +1111,21 @@ router.post("/orders", authMiddleware, async (req, res) => {
       await consumeOrderDiscounts(savedOrder);
       await handleOrderCheckoutRewards(savedOrder);
 
+      // Targeted Cart Cleanup
+      try {
+        const { clearPurchasedItemsFromCart } = require("../services/cartCleanupService");
+        await clearPurchasedItemsFromCart(savedOrder.userId, products);
+      } catch (cartErr) {
+        console.error("Cart cleanup failed");
+      }
+
       // Auto-remove purchased products from Save For Later if configured
       try {
         const { AUTO_REMOVE_SAVED_PRODUCT_AFTER_PURCHASE } = require("../config/savedProductsConfig");
         if (AUTO_REMOVE_SAVED_PRODUCT_AFTER_PURCHASE) {
           const userObj = await User.findById(savedOrder.userId);
           if (userObj && userObj.savedProducts && userObj.savedProducts.length > 0) {
-            const purchasedProductIds = savedOrder.products.map(p => p.productId ? p.productId.toString() : "");
+            const purchasedProductIds = products.map(p => p.productId ? p.productId.toString() : "");
             userObj.savedProducts = userObj.savedProducts.filter(item =>
               item.productId && !purchasedProductIds.includes(item.productId.toString())
             );
@@ -1130,10 +1134,10 @@ router.post("/orders", authMiddleware, async (req, res) => {
           }
         }
       } catch (err) {
-        console.error("Auto-remove saved products failed:", err.message);
+        console.error("Auto-remove saved products failed");
       }
 
-      // Create Borzo delivery order automatically
+      // Create Borzo delivery order automatically - Outbox
       try {
         const borzoResult = await createBorzoOrder(savedOrder);
         if (borzoResult && borzoResult.borzoOrderId) {
@@ -1141,132 +1145,42 @@ router.post("/orders", authMiddleware, async (req, res) => {
           savedOrder.borzoTrackingUrl = borzoResult.trackingUrl;
           savedOrder.borzoDeliveryCost = borzoResult.deliveryCost;
           savedOrder.borzoDeliveryStatus = "new";
-          savedOrder.orderStatus = "Order Placed";
-          savedOrder.statusTimestamps.orderPlaced = new Date();
-          await savedOrder.save();
           console.log(`Borzo order created successfully: ${borzoResult.borzoOrderId}`);
+        } else {
+          savedOrder.borzoDeliveryStatus = "pending_dispatch";
         }
       } catch (borzoError) {
-        console.error("❌ Borzo Order Dispatch failed on COD placement:", borzoError.message);
+        console.error("Borzo Order Dispatch failed on COD placement");
+        savedOrder.borzoDeliveryStatus = "pending_dispatch";
       }
+
+      savedOrder.orderStatus = "Order Placed";
+      savedOrder.statusTimestamps.orderPlaced = new Date();
+      await savedOrder.save();
 
       // Send push notification for successful COD order placement
       sendOrderStatusNotification(savedOrder, "Order Placed").catch(err => {
-        console.error("Failed to send COD order placed notification:", err);
+        console.error("Failed to send COD order placed notification");
       });
 
       // Send admin notifications
       try {
         const { sendAdminNotification } = require("../services/fcmService");
         sendAdminNotification(savedOrder).catch(err => {
-          console.error("Failed to send FCM admin notification:", err);
+          console.error("Failed to send FCM admin notification");
         });
         const { sendNewOrderNotification } = require("../services/adminNotificationService");
         sendNewOrderNotification(savedOrder).catch(err => {
-          console.error("Failed to send new order notification to admin:", err);
+          console.error("Failed to send new order notification to admin");
         });
       } catch (err) {
-        console.error("Failed to require/call sendAdminNotification:", err);
+        console.error("Failed to require/call sendAdminNotification");
       }
 
       // Emit socket event for admin dashboard
       if (req.io) {
         req.io.emit("newOrderArrived", savedOrder);
         console.log("=== Socket.IO emitted newOrderArrived (COD) ===");
-      }
-
-
-      // 2. Reduce Stock Levels in MongoDB (executed ONLY after successful DB save)
-      console.log("Reducing inventory stock for COD order...");
-      if (!savedOrder.inventoryDeducted) {
-        let allSuccess = true;
-        const rollbacks = [];
-        for (const item of products) {
-          try {
-            const hasVariants = item.selectedWeight || item.weight;
-            let result;
-            if (hasVariants) {
-              result = await Product.updateOne(
-                {
-                  _id: item.productId,
-                  variants: {
-                    $elemMatch: {
-                      weight: item.selectedWeight || item.weight,
-                      stock: { $gte: item.quantity }
-                    }
-                  }
-                },
-                {
-                  $inc: { "variants.$.stock": -item.quantity }
-                }
-              );
-            } else {
-              result = await Product.updateOne(
-                {
-                  _id: item.productId,
-                  stock: { $gte: item.quantity }
-                },
-                {
-                  $inc: { stock: -item.quantity }
-                }
-              );
-            }
-
-            if (result.modifiedCount === 0) {
-              console.error(`❌ Atomic stock reduction failed for product ${item.productId}: Insufficient stock.`);
-              allSuccess = false;
-              break;
-            } else {
-              rollbacks.push({
-                productId: item.productId,
-                weight: item.selectedWeight || item.weight,
-                quantity: item.quantity,
-                hasVariants: !!hasVariants
-              });
-            }
-          } catch (dbError) {
-            console.error(`❌ Failed to update stock for product ${item.productId}:`, dbError.message);
-            allSuccess = false;
-            break;
-          }
-        }
-
-        if (!allSuccess) {
-          console.log("Rolling back successfully decremented items due to partial stock failure...");
-          for (const rb of rollbacks) {
-            try {
-              if (rb.hasVariants) {
-                await Product.updateOne(
-                  { _id: rb.productId, "variants.weight": rb.weight },
-                  { $inc: { "variants.$.stock": rb.quantity } }
-                );
-              } else {
-                await Product.updateOne(
-                  { _id: rb.productId },
-                  { $inc: { stock: rb.quantity } }
-                );
-              }
-            } catch (rbErr) {
-              console.error(`❌ Failed to rollback stock for product ${rb.productId}:`, rbErr.message);
-            }
-          }
-          await Order.deleteOne({ _id: savedOrder._id });
-          return res.status(400).json({ success: false, message: "Checkout failed: Some items became out of stock. Please try again." });
-        } else {
-          await Order.updateOne({ _id: savedOrder._id }, { $set: { inventoryDeducted: true } });
-          savedOrder.inventoryDeducted = true;
-          console.log("Inventory stock successfully reduced and marked on order.");
-        }
-      }
-
-      // Do not start tracking session on COD placement. Just reload order.
-      try {
-        const updatedOrder = await Order.findById(savedOrder._id).lean();
-        if (updatedOrder) {
-          savedOrder = updatedOrder;
-        }
-      } catch (trackErr) {
-        console.error("❌ Failed to reload order on COD placement:", trackErr.message);
       }
 
       return res.status(201).json({
@@ -1277,20 +1191,16 @@ router.post("/orders", authMiddleware, async (req, res) => {
         trackingReady: true
       });
     } catch (saveError) {
-      console.error("❌ === [BACKEND DB SAVE ERROR] Failed to save COD Order ===");
-      console.error("Error Message:", saveError.message);
+      console.error("COD order database save failed");
+      console.error("Payment side effects failed");
       return res.status(500).json({
-        message: "Failed to persist COD order in database",
-        error: saveError.message,
-        stack: saveError.stack
+        message: "Failed to persist COD order in database"
       });
     }
   } catch (error) {
-    console.error("❌ COD Order Placement Exception:", error);
+    console.error("COD Order Placement failed");
     return res.status(500).json({
-      message: "Failed to place COD order",
-      error: error.message,
-      stack: error.stack
+      message: "Failed to place COD order"
     });
   }
 });
@@ -1422,9 +1332,9 @@ const generateInvoicePDFHandler = async (req, res) => {
     doc.end();
     console.log(`[INVOICE FINISHED] PDF stream sent for Order #${shortId}`);
   } catch (error) {
-    console.error("❌ PDF Generation Error:", error);
+    console.error("PDF invoice generation failed");
     if (!res.headersSent) {
-      return res.status(500).json({ success: false, message: "Failed to generate PDF invoice", error: error.message });
+      return res.status(500).json({ success: false, message: "Failed to generate PDF invoice"});
     }
   }
 };
@@ -1436,7 +1346,7 @@ router.get("/invoice/:orderId", authMiddleware, generateInvoicePDFHandler);
 // Returns order history for the logged-in customer (matched by their unique phone number)
 router.get("/orders/my-orders", authMiddleware, async (req, res) => {
   console.log("=== [BACKEND] GET /api/orders/my-orders ===");
-  console.log("Loading history for User Phone:", req.user.phone);
+  console.log("Loading order history for authenticated user");
 
   try {
     const rawOrders = await Order.find({
@@ -1473,7 +1383,7 @@ router.get("/orders/my-orders", authMiddleware, async (req, res) => {
           if (p.id) imageMap[String(p.id)] = img;
         });
       } catch (dbErr) {
-        console.warn("Product image batch lookup warning:", dbErr.message);
+        console.warn("Product image batch lookup warning");
       }
     }
 
@@ -1551,8 +1461,8 @@ router.get("/orders/my-orders", authMiddleware, async (req, res) => {
       walletBalance: Number(req.user?.buyCoins || 0)
     });
   } catch (error) {
-    console.error("❌ Get My Orders Exception:", error);
-    return res.status(500).json({ message: "Failed to load order history", error: error.message });
+    console.error("Get My Orders Exception");
+    return res.status(500).json({ message: "Failed to load order history"});
   }
 });
 
@@ -1595,8 +1505,8 @@ router.get("/orders/track/:orderId", authMiddleware, async (req, res) => {
     const payload = await trackingService.getTrackingState(order.orderId);
     return res.json(payload);
   } catch (error) {
-    console.error("❌ Track Order Error:", error);
-    return res.status(500).json({ message: "Failed to load tracking details", error: error.message });
+    console.error("Track Order Error");
+    return res.status(500).json({ message: "Failed to load tracking details"});
   }
 });
 
@@ -1730,20 +1640,15 @@ router.post("/borzo/webhook", async (req, res) => {
 
       if (nextStatus === "Delivered") {
         order.deliveredAt = new Date();
-        order.paymentStatus = "Paid";
+        if (order.paymentMethod === "cod") {
+          order.paymentStatus = "Paid";
+        }
       }
     }
 
     await order.save();
 
-    if (nextStatus === "Delivered") {
-      try {
-        const { clearCustomerCart } = require("../services/cartCleanupService");
-        await clearCustomerCart(order.userId);
-      } catch (cartErr) {
-        console.error("Failed to clear customer cart on Borzo Delivered webhook:", cartErr);
-      }
-    }
+
 
     if (nextStatus) {
       try {
@@ -1776,8 +1681,8 @@ router.post("/borzo/webhook", async (req, res) => {
 
     return res.status(200).json({ success: true, message: "Webhook processed" });
   } catch (error) {
-    console.error("❌ Webhook Processing Failure:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
+    console.error("Webhook Processing Failure");
+    return res.status(500).json({ success: false, error: "Webhook processing failed" });
   }
 });
 
@@ -1826,10 +1731,10 @@ router.get("/borzo/test", async (req, res) => {
       borzoResponse: result
     });
   } catch (error) {
-    console.error("Test auth route error:", error);
+    console.error("Test auth route error");
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: "Test authentication failed"
     });
   }
 });
@@ -1870,10 +1775,10 @@ router.post("/borzo/test-order", async (req, res) => {
       borzoResponse: borzoResult.rawResponse
     });
   } catch (error) {
-    console.error("Test order route error:", error);
+    console.error("Test order route error");
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: "Test order creation failed"
     });
   }
 });
@@ -1900,7 +1805,7 @@ router.get("/config/fees", async (req, res) => {
     }
     return res.json(feeConfig);
   } catch (error) {
-    console.error("Failed to fetch fee configuration:", error);
+    console.error("Failed to fetch fee configuration");
     return res.json({
       handlingFee: 4,
       smallCartThreshold: 150,
@@ -1930,7 +1835,7 @@ router.get("/delivery-settings", async (req, res) => {
     }
     return res.json(settings);
   } catch (error) {
-    console.error("Failed to fetch delivery settings:", error);
+    console.error("Failed to fetch delivery settings");
     return res.json({
       lateNightDeliveryEnabled: false,
       rainyDeliveryEnabled: false
@@ -1967,8 +1872,8 @@ router.put("/orders/:id/instructions", authMiddleware, async (req, res) => {
     await order.save();
     return res.json({ success: true, deliveryInstructions: order.deliveryInstructions });
   } catch (error) {
-    console.error("❌ Update Instructions Error:", error);
-    return res.status(500).json({ message: "Failed to update instructions", error: error.message });
+    console.error("Update delivery instructions failed");
+    return res.status(500).json({ message: "Failed to update instructions"}); 
   }
 });
 

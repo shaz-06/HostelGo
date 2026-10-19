@@ -1,5 +1,5 @@
 import React from "react";
-const riderIllustration = "/images/courier.png";
+const riderIllustration = "/images/courier.webp";
 
 export default function BuytoRiderAvatar({ isWaiting = false, size = 64, className = "" }) {
   const containerStyle = {

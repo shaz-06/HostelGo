@@ -82,7 +82,7 @@ export default function AdminNotificationsPage() {
       title: "Flash Sale 🚀",
       message: "Get up to 50% OFF on Snacks today. Limited time offer.",
       type: "Offer",
-      image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d",
+      image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60",
       ctaText: "Shop Now",
       ctaLink: "/category/Snacks"
     },

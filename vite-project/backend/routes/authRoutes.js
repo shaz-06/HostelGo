@@ -1117,7 +1117,7 @@ router.post("/admin-verify", authMiddleware, async (req, res) => {
       // Successfully set, now proceed to generate the token
       const token = jwt.sign(
         { id: user._id, email: user.email || "", role: "admin", isAdminVerified: true },
-        process.env.JWT_SECRET || "buyto_super_secret_key",
+        process.env.JWT_SECRET,
         { expiresIn: "12h" }
       );
       return res.status(200).json({ success: true, message: "Admin PIN created and session initialized", token });
@@ -1154,7 +1154,7 @@ router.post("/admin-verify", authMiddleware, async (req, res) => {
     // Generate short-lived token expiring in 12h
     const token = jwt.sign(
       { id: user._id, email: user.email || "", role: "admin", isAdminVerified: true },
-      process.env.JWT_SECRET || "buyto_super_secret_key",
+      process.env.JWT_SECRET,
       { expiresIn: "12h" }
     );
 

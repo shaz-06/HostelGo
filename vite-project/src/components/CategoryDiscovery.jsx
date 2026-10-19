@@ -1,6 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { classifyProduct, canonicalCategory } from "../utils/productClassifier";
+import { getOptimizedImageUrl } from "../utils/imageOptimizer";
+import BackToTop from "./common/BackToTop";
 
 const generateSlug = (name) => {
   if (!name) return "";
@@ -304,7 +306,7 @@ const discoverySections = [
 
 const leftBanners = [
   {
-    image: "/images/buyto_banner.png",
+    image: "/images/buyto_banner.webp",
     alt: "Buyto Special",
     link: "/category/"
   }
@@ -312,7 +314,7 @@ const leftBanners = [
 
 const rightBanners = [
   {
-    image: "/images/buy.png",
+    image: "/images/buy.webp",
     alt: "Monsoon Deals",
     link: "/category/electronics-appliances"
   }
@@ -371,7 +373,7 @@ function CategoryDiscovery({ products = [] }) {
         marginBottom: "24px"
       }}
     >
-      {dynamicSections.map((section) => {
+      {dynamicSections.map((section, sectionIdx) => {
         const isPremium = section.title === "Grocery & Kitchen" || section.title === "Snacks & Drinks" || section.title === "Beauty & Wellness" || section.title === "Household & Lifestyle" || section.title === "Electronics & Appliances";
         return (
           <div key={section.title} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -386,7 +388,7 @@ function CategoryDiscovery({ products = [] }) {
             >
               {section.title}
             </h2>
-            <div className="category-discovery-grid">
+            <div className={`category-discovery-grid ${section.isStore ? 'store-grid' : ''}`}>
               {section.items.map((item) => (
                 <div
                   key={item.name}
@@ -406,10 +408,10 @@ function CategoryDiscovery({ products = [] }) {
                       style={section.isStore ? { width: "100%", height: "100%", transform: "scale(1.25)", transformOrigin: "center center" } : {}}
                     >
                       <img
-                        src={item.image}
+                        src={getOptimizedImageUrl(item.image, "thumbnail")}
                         alt={item.name}
                         className="category-discovery-img"
-                        loading="lazy"
+                        loading={sectionIdx === 0 ? "eager" : "lazy"}
                         style={section.isStore ? { width: "100%", height: "100%", objectFit: "contain" } : {}}
                       />
                     </div>
@@ -498,6 +500,10 @@ function CategoryDiscovery({ products = [] }) {
           row-gap: 22px;
         }
 
+        .category-discovery-grid.store-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
         .category-discovery-item {
           display: flex;
           flex-direction: column;
@@ -509,7 +515,8 @@ function CategoryDiscovery({ products = [] }) {
 
         .category-discovery-card {
           width: 100%;
-          aspect-ratio: 1 / 1;
+          height: 0;
+          padding-bottom: 100%;
           border-radius: 18px;
           background-color: transparent;
           display: flex;
@@ -532,11 +539,14 @@ function CategoryDiscovery({ products = [] }) {
         }
 
         .category-discovery-image-wrapper {
+          position: absolute;
+          inset: 5%;
           width: 90%;
           height: 90%;
           display: flex;
           align-items: center;
           justify-content: center;
+          overflow: hidden;
           transition: transform 300ms ease;
         }
 
@@ -545,9 +555,10 @@ function CategoryDiscovery({ products = [] }) {
         }
 
         .category-discovery-img {
-          max-width: 100%;
-          max-height: 100%;
-          object-fit: contain;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
           mix-blend-mode: multiply;
         }
 

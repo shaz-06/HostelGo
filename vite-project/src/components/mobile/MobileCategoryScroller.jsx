@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { getOptimizedImageUrl } from "../../utils/imageOptimizer";
 
 const categories = [
   {
@@ -24,7 +25,7 @@ const categories = [
   },
   {
     name: "Snacks",
-    image: "https://images.unsplash.com/photo-1599490659223-e1b97f530b6d?w=150&auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=150&auto=format&fit=crop&q=80",
     route: "/section/snacks"
   },
   {
@@ -109,8 +110,9 @@ function MobileCategoryScroller({ setSelectedCategory }) {
               }}
             >
               <img
-                src={cat.image}
+                src={getOptimizedImageUrl(cat.image, "thumbnail")}
                 alt={cat.name}
+                loading={idx < 4 ? "eager" : "lazy"}
                 style={{
                   width: "100%",
                   height: "100%",

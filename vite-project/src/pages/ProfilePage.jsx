@@ -18,10 +18,12 @@ import VersionFooter from "../components/profile/VersionFooter";
 
 // Additional Lucide icons used directly in page elements
 import { Smartphone, Sun, EyeOff, ChevronDown } from "lucide-react";
+import { UIContext } from '../context/UIContext';
 
 export default function ProfilePage({ defaultTab = "" }) {
   const navigate = useNavigate();
-  const { user, isLoggedIn, token, logout, openLogin, refreshUser, hideSensitive, toggleHideSensitive } = useContext(AuthContext);
+  const { user, isLoggedIn, token, logout, refreshUser } = useContext(AuthContext);
+  const { openLogin, hideSensitive, toggleHideSensitive } = useContext(UIContext);
   const { theme: globalTheme, setTheme: setGlobalTheme } = useTheme();
 
   // States
@@ -299,7 +301,7 @@ export default function ProfilePage({ defaultTab = "" }) {
 
   // Menu action router
   const handleMenuRowClick = useCallback((item) => {
-    if (!isLoggedIn && item.id !== "about-buyto" && item.id !== "privacy-policy" && item.id !== "terms-conditions" && item.id !== "refund-policy" && item.id !== "faq" && item.id !== "contact-us" && item.id !== "help-center") {
+    if (!isLoggedIn && item.id !== "about-buyto" && item.id !== "privacy-policy" && item.id !== "terms-conditions" && item.id !== "refund-policy" && item.id !== "cookies-policy" && item.id !== "faq" && item.id !== "contact-us" && item.id !== "help-center") {
       openLogin();
       return;
     }
@@ -421,7 +423,7 @@ export default function ProfilePage({ defaultTab = "" }) {
                     <button
                       ref={lightOptionRef}
                       onClick={handleSelectLight}
-                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:bg-gray-50 dark:focus:bg-gray-800/60"
                       role="menuitem"
                     >
                       <span>Light</span>
@@ -430,7 +432,7 @@ export default function ProfilePage({ defaultTab = "" }) {
                     <button
                       ref={darkOptionRef}
                       onClick={handleSelectDark}
-                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:bg-gray-50 dark:focus:bg-gray-800/60"
                       role="menuitem"
                     >
                       <span>Dark</span>
@@ -439,7 +441,7 @@ export default function ProfilePage({ defaultTab = "" }) {
                     <button
                       ref={systemOptionRef}
                       onClick={handleSelectSystem}
-                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800/60"
+                      className="w-full h-11 px-4 flex items-center justify-between text-[14px] font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl transition-colors focus:bg-gray-50 dark:focus:bg-gray-800/60"
                       role="menuitem"
                     >
                       <span>System</span>
@@ -472,7 +474,7 @@ export default function ProfilePage({ defaultTab = "" }) {
             {/* Custom iOS-like Toggle Switch */}
             <button
               onClick={handleToggleSensitive}
-              className={`w-[46px] h-6 rounded-full transition-colors duration-200 focus:outline-none relative flex-shrink-0 ${hideSensitive ? "bg-[#318616]" : "bg-gray-200"
+              className={`w-[46px] h-6 rounded-full transition-colors duration-200 relative flex-shrink-0 ${hideSensitive ? "bg-[#318616]" : "bg-gray-200"
                 }`}
               role="switch"
               aria-checked={hideSensitive}
@@ -564,14 +566,14 @@ export default function ProfilePage({ defaultTab = "" }) {
                 <button
                   ref={cancelBtnRef}
                   onClick={handleCancelLogout}
-                  className="flex-1 py-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-200/50 rounded-2xl text-[14px] font-black text-gray-800 transition-colors focus:ring-2 focus:ring-gray-300 focus:outline-none"
+                  className="flex-1 py-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-200/50 rounded-2xl text-[14px] font-black text-gray-800 transition-colors focus:ring-2 focus:ring-gray-300"
                 >
                   Cancel
                 </button>
                 <button
                   ref={logoutBtnRef}
                   onClick={confirmLogout}
-                  className="flex-1 py-3.5 bg-[#EF4444] hover:bg-[#DC2626] rounded-2xl text-[14px] font-black text-white transition-colors focus:ring-2 focus:ring-red-400 focus:outline-none"
+                  className="flex-1 py-3.5 bg-[#EF4444] hover:bg-[#DC2626] rounded-2xl text-[14px] font-black text-white transition-colors focus:ring-2 focus:ring-red-400"
                 >
                   Logout
                 </button>

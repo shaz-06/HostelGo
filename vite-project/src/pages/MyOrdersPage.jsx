@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import SEO from "../components/common/SEO";
 import { apiFetch } from "../utils/apiClient";
+import BackToTop from "../components/common/BackToTop";
 
 export default function MyOrdersPage() {
   const navigate = useNavigate();
@@ -874,6 +875,7 @@ export default function MyOrdersPage() {
         </div>
 
       </div>
+      <BackToTop />
     </div>
   );
 }

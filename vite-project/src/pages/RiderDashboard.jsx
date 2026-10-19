@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import RiderOrders from "./RiderOrders";
-import { io } from "socket.io-client";
+import { initSocket } from "../utils/socket";
 
 const api = window.API_BASE_URL + "/api/rider";
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
@@ -54,52 +54,82 @@ export default function RiderDashboard() {
     if (!activeOrderId || !rider.isOnline) return;
 
     console.log("=== RIDER LIVE GEOLOCATION START ===");
-    const socket = io(window.API_BASE_URL);
+    let cancelled = false;
+    let cleanupSocket = null;
+    let watchId = null;
 
-    socket.on("connect", () => {
-      console.log("🔌 Rider connected to Socket.IO. Joining order room:", activeOrderId);
-      socket.emit("joinOrderRoom", activeOrderId);
+    const setupSocket = async () => {
+      const socket = await initSocket();
+      if (cancelled) return;
+
+      const handleConnect = () => {
+        console.log("🔌 Rider connected to Socket.IO. Joining order room:", activeOrderId);
+        socket.emit("joinOrderRoom", activeOrderId);
+      };
+
+      socket.on("connect", handleConnect);
+      if (socket.connected) handleConnect();
+
+      let lastEmitTime = 0;
+
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const now = Date.now();
+          
+          if (now - lastEmitTime < 3000) {
+            // Throttle network emissions to max once per 3 seconds
+            return;
+          }
+          
+          lastEmitTime = now;
+          
+          console.log("=== RIDER GPS UPDATE ===");
+          console.log({ orderId: activeOrderId, latitude, longitude });
+
+          // Emit update to server
+          socket.emit("updateRiderLocation", {
+            orderId: activeOrderId,
+            latitude,
+            longitude
+          });
+        },
+        (error) => {
+          console.error("Rider geolocation watch failed:", error.message);
+          // Fallback safely to geocoded fallback: slightly shifting positions around the default user coords
+          const uCoords = activeOrder.deliveryLatitude && activeOrder.deliveryLongitude 
+            ? [activeOrder.deliveryLatitude, activeOrder.deliveryLongitude] 
+            : [13.628, 74.693];
+          const fallbackLat = uCoords[0] + (Math.random() - 0.5) * 0.005;
+          const fallbackLng = uCoords[1] + (Math.random() - 0.5) * 0.005;
+          console.log("Using rider fallback simulated coordinates:", fallbackLat, fallbackLng);
+          socket.emit("updateRiderLocation", {
+            orderId: activeOrderId,
+            latitude: fallbackLat,
+            longitude: fallbackLng
+          });
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+
+      return () => {
+        socket.off("connect", handleConnect);
+      };
+    };
+
+    setupSocket().then(cleanup => {
+      cleanupSocket = cleanup;
     });
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        console.log("=== RIDER GPS UPDATE ===");
-        console.log({ orderId: activeOrderId, latitude, longitude });
-
-        // Emit update to server
-        socket.emit("updateRiderLocation", {
-          orderId: activeOrderId,
-          latitude,
-          longitude
-        });
-      },
-      (error) => {
-        console.error("Rider geolocation watch failed:", error.message);
-        // Fallback safely to geocoded fallback: slightly shifting positions around the default user coords
-        const uCoords = activeOrder.deliveryLatitude && activeOrder.deliveryLongitude 
-          ? [activeOrder.deliveryLatitude, activeOrder.deliveryLongitude] 
-          : [13.628, 74.693];
-        const fallbackLat = uCoords[0] + (Math.random() - 0.5) * 0.005;
-        const fallbackLng = uCoords[1] + (Math.random() - 0.5) * 0.005;
-        console.log("Using rider fallback simulated coordinates:", fallbackLat, fallbackLng);
-        socket.emit("updateRiderLocation", {
-          orderId: activeOrderId,
-          latitude: fallbackLat,
-          longitude: fallbackLng
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
 
     return () => {
       console.log("=== RIDER LIVE GEOLOCATION STOP ===");
-      navigator.geolocation.clearWatch(watchId);
-      socket.disconnect();
+      cancelled = true;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (cleanupSocket) cleanupSocket();
     };
   }, [activeOrderId, rider.isOnline, activeOrder]);
 

@@ -201,7 +201,8 @@ function MobileBannerCarousel() {
                   <img
                     src={img}
                     alt={`banner-${slideIdx * 2 + imgIdx + 1}`}
-                    loading="lazy"
+                    loading={slideIdx === 0 ? "eager" : "lazy"}
+                    {...(slideIdx === 0 ? { fetchPriority: "high" } : {})}
                   />
                 </div>
               ))}

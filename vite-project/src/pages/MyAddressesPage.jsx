@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronRight, MapPin, Plus, Share2, MoreHorizontal, X, Pin, AlertTriangle } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
 import AddressSelectorModal from "../components/common/AddressSelectorModal";
+import BackToTop from "../components/common/BackToTop";
 
 const WhatsAppIcon = () => (
   <img
@@ -135,11 +136,19 @@ export default function MyAddressesPage() {
   }, [loadAddresses]);
 
   useEffect(() => {
+    let rafId = null;
     const handleScroll = () => {
-      setScrolled(window.scrollY > 5);
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        setScrolled(window.scrollY > 5);
+      });
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const handleBack = () => {
@@ -707,6 +716,7 @@ export default function MyAddressesPage() {
         <AddressSelectorModal onClose={handleModalClose} hideUseCurrentLocation={true} />
       )}
 
+      <BackToTop />
     </div>
   );
 }

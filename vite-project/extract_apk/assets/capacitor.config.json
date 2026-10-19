@@ -1,0 +1,24 @@
+{
+	"appId": "com.buyto.app",
+	"appName": "Buyto",
+	"webDir": "dist",
+	"backgroundColor": "#ffffff",
+	"server": {
+		"allowNavigation": [
+			"checkout.razorpay.com",
+			"*.razorpay.com",
+			"api.razorpay.com"
+		]
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchAutoHide": false,
+			"launchShowDuration": 3000,
+			"backgroundColor": "#F7C600",
+			"androidSplashResourceName": "splash",
+			"showSpinner": false,
+			"splashFullScreen": true,
+			"splashImmersive": true
+		}
+	}
+}

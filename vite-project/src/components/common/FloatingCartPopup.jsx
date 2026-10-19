@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, ArrowRight } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
+import { useAppStore, selectCartItemsCount, selectCartTotalPrice } from "../../store/appStore";
+import { UIContext } from '../../context/UIContext';
 
 const ScooterSVG = ({ isUnlocking }) => (
   <svg
@@ -80,15 +81,21 @@ const ScooterSVG = ({ isUnlocking }) => (
 );
 
 export default function FloatingCartPopup({
-  totalItems = 0,
-  totalPrice = 0,
+  totalItems: providedTotalItems,
+  totalPrice: providedTotalPrice,
   freeDeliveryThreshold = 149,
   mobileOffset = 80,
   bottomNavVisible = true,
 }) {
+  // AppRouter owns the active cart state and passes its live totals here.
+  // Fall back to Zustand only when this component is mounted independently.
+  const storedTotalItems = useAppStore(selectCartItemsCount);
+  const storedTotalPrice = useAppStore(selectCartTotalPrice);
+  const totalItems = providedTotalItems ?? storedTotalItems;
+  const totalPrice = providedTotalPrice ?? storedTotalPrice;
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoginOpen, isOnboardingOpen } = useContext(AuthContext);
+  const { isLoginOpen, isOnboardingOpen } = useContext(UIContext);
   const isAuthModalOpen = isLoginOpen || isOnboardingOpen;
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [justUnlocked, setJustUnlocked] = useState(false);

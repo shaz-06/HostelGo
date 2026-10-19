@@ -35,30 +35,42 @@ export const initializeAnalytics = () => {
     return;
   }
 
-  try {
-    // 1. Inject script tag asynchronously
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-    document.head.appendChild(script);
+  const init = () => {
+    try {
+      // 1. Inject script tag asynchronously
+      const script = document.createElement("script");
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+      document.head.appendChild(script);
 
-    // 2. Initialize dataLayer and gtag function
-    window.dataLayer = window.dataLayer || [];
-    window.gtag = function () {
-      window.dataLayer.push(arguments);
-    };
+      // 2. Initialize dataLayer and gtag function
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () {
+        window.dataLayer.push(arguments);
+      };
 
-    // 3. Configure defaults (disable default pageview to handle manually in SPA)
-    safeGtag("js", new Date());
-    safeGtag("config", measurementId, {
-      send_page_view: false,
-      cookie_flags: "SameSite=None;Secure"
+      // 3. Configure defaults (disable default pageview to handle manually in SPA)
+      safeGtag("js", new Date());
+      safeGtag("config", measurementId, {
+        send_page_view: false,
+        cookie_flags: "SameSite=None;Secure"
+      });
+
+      isInitialized = true;
+      console.log(`[Analytics] Google Analytics 4 initialized successfully with ID: ${measurementId}`);
+    } catch (err) {
+      console.error("[Analytics] Failed to initialize Google Analytics:", err);
+    }
+  };
+
+  if (typeof window !== 'undefined' && document.readyState === 'complete') {
+    if (window.requestIdleCallback) window.requestIdleCallback(init);
+    else setTimeout(init, 500);
+  } else if (typeof window !== 'undefined') {
+    window.addEventListener('load', () => {
+      if (window.requestIdleCallback) window.requestIdleCallback(init);
+      else setTimeout(init, 500);
     });
-
-    isInitialized = true;
-    console.log(`[Analytics] Google Analytics 4 initialized successfully with ID: ${measurementId}`);
-  } catch (err) {
-    console.error("[Analytics] Failed to initialize Google Analytics:", err);
   }
 };
 

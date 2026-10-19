@@ -280,7 +280,7 @@ export default function FAQPage() {
     {
       category: "Support",
       question: "How can I contact Buyto support?",
-      answer: "You can reach our support team 24/7 through several channels. The fastest way to get help is through the in-app support chat on our [Contact Page](/contact). You can also email us at support@buyto.co.in or call our helpline number listed on your invoice. Our support staff is always ready to assist you with active orders, refunds, or technical issues."
+      answer: "You can reach our support team 24/7 through several channels. The fastest way to get help is through the in-app support chat on our [Contact Page](/contact). You can also email us at supportbuyto@gmail.com or call our helpline number listed on your invoice. Our support staff is always ready to assist you with active orders, refunds, or technical issues."
     },
     {
       category: "Support",
@@ -290,7 +290,7 @@ export default function FAQPage() {
     {
       category: "Support",
       question: "How quickly does customer support respond?",
-      answer: "We aim for rapid response times. Live chat requests are usually connected to a support executive in under 60 seconds. Emails sent to support@buyto.co.in are resolved within 2 hours. Our dedicated quick commerce support team is equipped to issue instant refunds, update delivery instructions, and handle merchant concerns in real time."
+      answer: "We aim for rapid response times. Live chat requests are usually connected to a support executive in under 60 seconds. Emails sent to supportbuyto@gmail.com are resolved within 2 hours. Our dedicated quick commerce support team is equipped to issue instant refunds, update delivery instructions, and handle merchant concerns in real time."
     },
     {
       category: "SEO",
@@ -928,7 +928,7 @@ export default function FAQPage() {
           </p>
 
           <a
-            href="mailto:support@buyto.co.in"
+            href="mailto:supportbuyto@gmail.com"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -953,7 +953,7 @@ export default function FAQPage() {
               e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.02)";
             }}
           >
-            <Mail size={18} /> support@buyto.co.in
+            <Mail size={18} /> supportbuyto@gmail.com
           </a>
         </div>
       </div>

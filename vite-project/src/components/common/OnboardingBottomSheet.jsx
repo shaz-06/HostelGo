@@ -1,9 +1,11 @@
 import React, { useState, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { UIContext } from '../../context/UIContext';
 
 export default function OnboardingBottomSheet() {
-  const { isOnboardingOpen, closeOnboarding, token, updateUserInSession } = useContext(AuthContext);
+  const { token, updateUserInSession } = useContext(AuthContext);
+  const { isOnboardingOpen, closeOnboarding } = useContext(UIContext);
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1); // 1: Profile, 2: Address, 3: Success

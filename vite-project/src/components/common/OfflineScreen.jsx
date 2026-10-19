@@ -53,7 +53,7 @@ export default function OfflineScreen({ onRetry }) {
           border: "4px solid white"
         }}>
           <img 
-            src="/no_internet_mascot.png" 
+            src="/no_internet_mascot.webp" 
             alt="No Internet Mascot" 
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />

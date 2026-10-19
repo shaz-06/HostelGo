@@ -19,24 +19,20 @@
     "@capacitor/push-notifications": "^8.1.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
-    "@tailwindcss/vite": "^4.3.0",
-    "axios": "^1.16.1",
-    "cloudinary": "^1.41.3",
+    "cors": "^2.8.6",
     "firebase": "^12.15.0",
     "framer-motion": "^12.40.0",
     "leaflet": "^1.9.4",
-    "lottie-react": "^2.4.1",
     "lucide-react": "^1.20.0",
-    "multer": "^2.2.0",
-    "multer-storage-cloudinary": "^4.0.0",
-    "pdfkit": "^0.19.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-helmet-async": "^3.0.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.15.1",
-    "socket.io-client": "^4.8.3"
+    "sanitize-html": "^2.17.5",
+    "socket.io-client": "^4.8.3",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
@@ -51,6 +47,8 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "postcss": "^8.5.15",
+    "rollup-plugin-visualizer": "^6.0.11",
+    "source-map-explorer": "^2.5.3",
     "tailwindcss": "^4.3.0",
     "vite": "^8.0.12"
   }

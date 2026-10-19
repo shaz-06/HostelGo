@@ -3,22 +3,22 @@ import { useNavigate } from "react-router-dom";
 
 const promoSlides = [
   {
-    image: "/images/furbaby_feasts_banner.png",
+    image: "/images/furbaby_feasts_banner.webp",
     alt: "Fur-baby Feasts - Up to 50% Off",
     link: "/category/pet-supplies"
   },
   {
-    image: "/images/tea_time_bakes_banner.png",
+    image: "/images/tea_time_bakes_banner.webp",
     alt: "Tea Time Bakes - Up to 50% Off",
     link: "/category/bakery"
   },
   {
-    image: "/images/protein_powerup_banner.png",
+    image: "/images/protein_powerup_banner.webp",
     alt: "Protein Power-up - Up to 50% Off",
     link: "/category/protein-and-supplements"
   },
   {
-    image: "/images/gentle_baby_must_haves_banner.png",
+    image: "/images/gentle_baby_must_haves_banner.webp",
     alt: "Gentle Baby Must-Haves - Up to 40% Off",
     link: "/category/baby-care"
   }

@@ -1,27 +1,30 @@
 import { useState, useEffect, useRef } from "react";
 
 export function useCollapsingHeader() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const initialScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    return initialScrollY > 100;
+  });
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
   useEffect(() => {
-    lastScrollY.current = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-    ticking.current = false;
-
-    // Set initial state based on current scroll position
     const initialScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-    setIsCollapsed(initialScrollY > 10);
+    lastScrollY.current = initialScrollY;
+    setIsCollapsed(initialScrollY > 100);
 
     const handleScroll = () => {
       const currentScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
 
-      // Collapse when scrollY > 10, expand only when scrollY <= 10
-      const shouldCollapse = currentScrollY > 10;
-
+      // Hysteresis logic: collapse only after scrolling past 100px, expand only when returning near top (< 20px).
+      // This gap prevents layout shift height changes from crossing the threshold back and forth.
       setIsCollapsed((prev) => {
-        if (shouldCollapse !== prev) {
-          return shouldCollapse;
+        if (!prev && currentScrollY > 100) {
+          return true;
+        }
+        if (prev && currentScrollY < 20) {
+          return false;
         }
         return prev;
       });

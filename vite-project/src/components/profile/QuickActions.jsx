@@ -7,8 +7,7 @@ const QuickActions = React.memo(({ onOrders, onWallet, onHelp }) => {
       {/* Orders Card */}
       <button
         onClick={onOrders}
-        className="bg-white rounded-[15px] py-3 px-2 flex flex-col items-center justify-center border border-gray-100/60 shadow-[0_2px_5px_rgba(0,0,0,0.015)] transition-all duration-200 active:scale-95 focus:outline-none"
-      >
+className="bg-white rounded-[15px] py-3 px-2 flex flex-col items-center justify-center border border-gray-100/60 shadow-[0_2px_5px_rgba(0,0,0,0.015)] transition-all duration-200 active:scale-95"      >
         <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 flex items-center justify-center mb-1.5">
           <img
             src="https://img.icons8.com/?size=100&id=TGsUUNBPyMx1&format=png&color=000000"
@@ -24,8 +23,7 @@ const QuickActions = React.memo(({ onOrders, onWallet, onHelp }) => {
       {/* Wallet Card */}
       <button
         onClick={onWallet}
-        className="bg-white rounded-[15px] py-3 px-2 flex flex-col items-center justify-center border border-gray-100/60 shadow-[0_2px_5px_rgba(0,0,0,0.015)] transition-all duration-200 active:scale-95 focus:outline-none"
-      >
+className="bg-white rounded-[15px] py-3 px-2 flex flex-col items-center justify-center border border-gray-100/60 shadow-[0_2px_5px_rgba(0,0,0,0.015)] transition-all duration-200 active:scale-95"      >
         <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 flex items-center justify-center mb-1.5">
           <img
             src="https://img.icons8.com/?size=100&id=MjAYkOMsbYOO&format=png&color=000000"
@@ -41,8 +39,7 @@ const QuickActions = React.memo(({ onOrders, onWallet, onHelp }) => {
       {/* Need Help Card */}
       <button
         onClick={onHelp}
-        className="bg-white rounded-[15px] py-3 px-2 flex flex-col items-center justify-center border border-gray-100/60 shadow-[0_2px_5px_rgba(0,0,0,0.015)] transition-all duration-200 active:scale-95 focus:outline-none"
-      >
+className="bg-white rounded-[15px] py-3 px-2 flex flex-col items-center justify-center border border-gray-100/60 shadow-[0_2px_5px_rgba(0,0,0,0.015)] transition-all duration-200 active:scale-95"      >
         <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 flex items-center justify-center mb-1.5">
           <img
             src="https://img.icons8.com/?size=100&id=SKPXwfsncJbF&format=png&color=000000"

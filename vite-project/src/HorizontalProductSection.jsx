@@ -40,6 +40,7 @@ function HorizontalProductSection({
       _id: item.product?._id || item.product?.id,
       name: item.product?.name,
       weight: item.product?.selectedWeight || item.product?.weight,
+      selectedWeight: item.product?.selectedWeight || "",
       price: item.product?.price,
       image: item.product?.image,
       quantity: item.quantity,
@@ -241,7 +242,7 @@ function HorizontalProductSection({
         }}
         className="hide-scrollbar"
       >
-        {(products || []).map((product) => (
+        {(products || []).map((product, index) => (
           <div
             key={product._id || product.id}
             style={{
@@ -259,6 +260,7 @@ function HorizontalProductSection({
               cartItems={resolvedCartItems}
               windowWidth={windowWidth}
               getCartKey={getCartKey}
+              priority={index < 2}
             />
           </div>
         ))}

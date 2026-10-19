@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import ProductCard from "../ProductCard";
 import SEO from "../components/common/SEO";
+import BackToTop from "../components/common/BackToTop";
+import { useAppStore, selectSaveForLaterIds } from '../store/appStore';
 
 export default function SaveForLaterPage({
   products = [],
@@ -15,7 +17,8 @@ export default function SaveForLaterPage({
   setSelectedProduct
 }) {
   const navigate = useNavigate();
-  const { token, isLoggedIn, saveForLaterIds } = useContext(AuthContext);
+  const { token, isLoggedIn } = useContext(AuthContext);
+  const saveForLaterIds = useAppStore(selectSaveForLaterIds);
 
   const [savedItems, setSavedItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -191,6 +194,7 @@ export default function SaveForLaterPage({
           </>
         )}
       </main>
+      <BackToTop />
     </div>
   );
 }

@@ -3,27 +3,27 @@ import { useNavigate } from "react-router-dom";
 
 const promoSlides = [
   {
-    image: "/images/dabur_red_toothpaste_banner.png",
+    image: "/images/dabur_red_toothpaste_banner.webp",
     alt: "Dabur Red Toothpaste",
     link: "/category/oral-care"
   },
   {
-    image: "/images/school_breaks_banner.png",
+    image: "/images/school_breaks_banner.webp",
     alt: "School Breaks Must-Haves",
     link: "/category/books-and-stationery"
   },
   {
-    image: "/images/dabur_hair_care_banner.png",
+    image: "/images/dabur_hair_care_banner.webp",
     alt: "Dabur Hair Care",
     link: "/category/hair-care"
   },
   {
-    image: "/images/appliances_banner.png",
+    image: "/images/appliances_banner.webp",
     alt: "Home Appliances",
     link: "/category/appliances"
   },
   {
-    image: "/images/monsoon_home_essentials_banner.png",
+    image: "/images/monsoon_home_essentials_banner.webp",
     alt: "Monsoon Home Essentials",
     link: "/category/cleaning-essentials"
   }
