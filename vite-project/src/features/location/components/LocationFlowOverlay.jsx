@@ -10,6 +10,7 @@ export function LocationFlowOverlay({
   locationError,
   bypassLocationFlow,
   retryLocationFlow,
+  enableDeviceLocation,
   onSelectManually
 }) {
   const handleSelectManually = () => {
@@ -23,6 +24,7 @@ export function LocationFlowOverlay({
     <>
       <LocationDisabledModal
         isOpen={showGpsModal}
+        onEnable={enableDeviceLocation}
         onSelectManually={handleSelectManually}
       />
 

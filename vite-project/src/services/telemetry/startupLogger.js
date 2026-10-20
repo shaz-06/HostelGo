@@ -8,7 +8,7 @@ export const startupLogger = {
     console.log("[Telemetry] Startup sequence initiated.");
   },
   savedAddressFound(address) {
-    console.log("[Telemetry] Saved address found, skipping startup location flow.", address);
+    console.log("[Telemetry] Saved address found after device-location check.", address);
   },
   gpsDisabled() {
     console.warn("[Telemetry] Device location services (GPS) are turned off.");

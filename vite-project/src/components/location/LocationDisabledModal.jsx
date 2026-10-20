@@ -1,8 +1,7 @@
 import React, { useEffect } from "react";
 import { App as CapApp } from "@capacitor/app";
-import { openLocationSettings } from "../../services/location/locationService";
 
-export default function LocationDisabledModal({ isOpen, onSelectManually }) {
+export default function LocationDisabledModal({ isOpen, onEnable, onSelectManually }) {
   // Prevent Capacitor hardware back button when modal is open
   useEffect(() => {
     if (!isOpen) return;
@@ -58,7 +57,7 @@ export default function LocationDisabledModal({ isOpen, onSelectManually }) {
 
         <div style={btnContainerStyle}>
           <button
-            onClick={openLocationSettings}
+            onClick={onEnable}
             style={primaryBtnStyle}
           >
             Enable device location

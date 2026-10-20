@@ -62,9 +62,9 @@ export default function OtpLoginBottomSheet() {
 
     // Define success verification handler
     window.configuration = {
-      widgetId: "3666766e344c303637363735",
+      widgetId: "366676677233393137373632",
       tokenAuth: "543604TezJRg0EB6a38de05P1",
-      exposeMethods: true,
+      exposeMethods: false,
       success: async (data) => {
         console.log("OTP SUCCESS CALLBACK", Date.now());
 
@@ -264,6 +264,9 @@ export default function OtpLoginBottomSheet() {
             getWidgetData: typeof window.getWidgetData,
             isCaptchaVerified: typeof window.isCaptchaVerified,
           });
+
+          window.initSendOTP(window.configuration);
+          console.log("[DEBUG-SHEET] MSG91 widget initialization requested");
         } else {
           setError("MSG91 OTP widget could not initialize. Please retry.");
         }

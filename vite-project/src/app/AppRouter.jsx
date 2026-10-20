@@ -20,7 +20,6 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider, AuthContext } from "../context/AuthContext";
-import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { UIProvider } from "../context/UIContext";
 import { useAppStore } from "../store/appStore";
 
@@ -33,10 +32,8 @@ import ProductDetailsSkeleton from "../components/common/ProductDetailsSkeleton"
 import BuytoLogo from "../components/common/BuytoLogo";
 import { Geolocation } from "@capacitor/geolocation";
 import LocationPermissionModal from "../components/location/LocationPermissionModal";
-import LocationDisabledModal from "../components/location/LocationDisabledModal";
 import { useStartupLocationFlow } from "../hooks/useStartupLocationFlow";
 import { LocationFlowOverlay } from "../features/location/components/LocationFlowOverlay";
-import { STARTUP_STATUS } from "../startup/startupConstants";
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
@@ -944,13 +941,13 @@ function AppContent({
   const location = useLocation();
 
   const {
-    startupComplete,
     startupStatus,
     showGpsModal,
     showPermissionModal,
     locationError,
     bypassLocationFlow,
     retryLocationFlow,
+    enableDeviceLocation,
   } = useStartupLocationFlow();
 
   const [bottomNavVisible, setBottomNavVisible] = useState(true);
@@ -965,17 +962,22 @@ function AppContent({
     loading: authLoading,
   } = useContext(AuthContext) || { user: null };
 
-  const { indicatorRef } = usePullToRefresh();
-
   const [activeNotification, setActiveNotification] = useState(null);
   const [showRespondModal, setShowRespondModal] = useState(false);
   const [myAddresses, setMyAddresses] = useState([]);
   const [selectedAddressToShare, setSelectedAddressToShare] = useState("");
 
   useEffect(() => {
-    if (isLoggedIn && user && user._id) {
-      let socket;
-      import("socket.io-client").then(({ io }) => {
+    if (!isLoggedIn || !user?._id) return;
+
+    let socket;
+    let cancelled = false;
+
+    import("socket.io-client")
+      .then(({ io }) => {
+        // The effect may have been cleaned up while importing.
+        if (cancelled) return;
+
         socket = io(window.API_BASE_URL);
 
         socket.emit("registerUser", user._id);
@@ -1015,12 +1017,21 @@ function AppContent({
           });
           window.dispatchEvent(new CustomEvent("addressChanged"));
         });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Socket.IO initialization failed:", error);
+        }
       });
 
-      return () => {
-        if (socket) socket.disconnect();
-      };
-    }
+    return () => {
+      cancelled = true;
+
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+      }
+    };
   }, [isLoggedIn, user]);
 
   const handleOpenShareOptions = async () => {
@@ -4734,6 +4745,17 @@ function AppContent({
         }}
       />
 
+      <LocationFlowOverlay
+        startupStatus={startupStatus}
+        showGpsModal={showGpsModal}
+        showPermissionModal={showPermissionModal}
+        locationError={locationError}
+        bypassLocationFlow={bypassLocationFlow}
+        retryLocationFlow={retryLocationFlow}
+        enableDeviceLocation={enableDeviceLocation}
+        onSelectManually={() => setShowAddressModal(true)}
+      />
+
       <Suspense fallback={null}>
         {(activeNotification || showRespondModal) && (
           <AddressShareOverlay
@@ -4781,75 +4803,6 @@ function AppContent({
 
   return (
     <>
-      <style>{`
-        @keyframes spin-refresh {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
-      <div
-        ref={indicatorRef}
-        style={{
-          position: "fixed",
-          top: "16px",
-          left: "50%",
-          transform: "translate3d(-50%, -80px, 0) scale(0.7)",
-          opacity: 0,
-          zIndex: 9999,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "8px",
-          pointerEvents: "none",
-        }}
-      >
-        <div
-          className="pull-circle"
-          style={{
-            backgroundColor: "#ffffff",
-            width: "46px",
-            height: "46px",
-            borderRadius: "50%",
-            boxShadow: "0 4px 14px rgba(0,0,0,0.12)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "2px solid rgba(49, 134, 22, 0.1)",
-            boxSizing: "border-box",
-            transition: "transform 0.15s ease, border-color 0.15s ease",
-          }}
-        >
-          <div
-            className="pull-spinner"
-            style={{
-              width: "20px",
-              height: "20px",
-              border: "3px solid #e2e8f0",
-              borderTopColor: "#318616",
-              borderRadius: "50%",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
-
-        <div
-          className="pull-text-badge"
-          style={{
-            backgroundColor: "rgba(30, 41, 59, 0.85)",
-            backdropFilter: "blur(4px)",
-            color: "#ffffff",
-            padding: "4px 10px",
-            borderRadius: "9999px",
-            fontSize: "10px",
-            fontWeight: "800",
-            letterSpacing: "0.5px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <span className="pull-label">Pull to refresh</span>
-        </div>
-      </div>
       {wrapCustomerLayout(
         <>
           {desktopEl}

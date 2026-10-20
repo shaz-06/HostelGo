@@ -128,6 +128,20 @@ export function useStartupLocationFlow() {
     runStartupSequence();
   }, [runStartupSequence]);
 
+  const enableDeviceLocation = useCallback(async () => {
+    const permission = await locationService.requestLocationPermission();
+    const servicesEnabled = await locationService.hasLocationServicesEnabled();
+
+    // Native platforms can open the relevant system settings. This is needed
+    // when either the app permission or device-wide location services remains off.
+    if (permission !== "granted" || !servicesEnabled) {
+      await locationService.openLocationSettings();
+      return;
+    }
+
+    runStartupSequence();
+  }, [runStartupSequence]);
+
   return {
     startupComplete: startupStatus === STARTUP_STATUS.READY && !locationError,
     startupStatus,
@@ -135,6 +149,7 @@ export function useStartupLocationFlow() {
     showPermissionModal,
     locationError,
     bypassLocationFlow,
-    retryLocationFlow
+    retryLocationFlow,
+    enableDeviceLocation
   };
 }

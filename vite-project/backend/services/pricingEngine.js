@@ -1,4 +1,19 @@
 const PricingRule = require("../models/PricingRule");
+const cacheService = require("../utils/cacheService");
+
+const PRICING_RULES_CACHE_KEY = "pricing:enabled-rules";
+const PRICING_RULES_CACHE_TTL_SECONDS = 60;
+
+async function getEnabledPricingRules() {
+  return cacheService.fetchWithCache(
+    PRICING_RULES_CACHE_KEY,
+    PRICING_RULES_CACHE_TTL_SECONDS,
+    () =>
+      PricingRule.find({ status: "Enabled" })
+        .sort({ priority: -1, createdAt: -1 })
+        .lean(),
+  );
+}
 
 /**
  * Service to calculate selling price for a product based on active pricing rules.
@@ -9,22 +24,21 @@ const PricingRule = require("../models/PricingRule");
  * @param {Date} now - Reference timestamp.
  * @returns {Object} { finalPrice, originalBasePrice, activeRule, isFestivalPrice, badgeText, adjustmentAmount }
  */
-async function calculateSellingPrice(product, activeRules = null, now = new Date()) {
+async function calculateSellingPrice(
+  product,
+  activeRules = null,
+  now = new Date(),
+) {
   if (!product) return null;
 
   // Base price is immutable source of truth
   const basePrice = Number(product.originalPrice || product.price || 0);
 
   // If rules aren't passed in, fetch currently active rules from DB
+  // Reuse cached enabled rules instead of querying MongoDB per product.
   if (!activeRules) {
     try {
-      activeRules = await PricingRule.find({
-        status: "Enabled",
-        startDate: { $lte: now },
-        endDate: { $gte: now }
-      })
-      .sort({ priority: -1, createdAt: -1 })
-      .lean();
+      activeRules = await getEnabledPricingRules();
     } catch (err) {
       console.error("Error fetching pricing rules in pricingEngine:", err);
       activeRules = [];
@@ -38,13 +52,15 @@ async function calculateSellingPrice(product, activeRules = null, now = new Date
       activeRule: null,
       isFestivalPrice: false,
       badgeText: null,
-      adjustmentAmount: 0
+      adjustmentAmount: 0,
     };
   }
 
   const prodId = String(product._id || product.id || "");
   const category = (product.category || "").trim().toLowerCase();
-  const subCategory = (product.subCategory || product.subcategory || "").trim().toLowerCase();
+  const subCategory = (product.subCategory || product.subcategory || "")
+    .trim()
+    .toLowerCase();
   const brand = (product.brand || "").trim().toLowerCase();
 
   // Find highest priority matching rule
@@ -56,7 +72,9 @@ async function calculateSellingPrice(product, activeRules = null, now = new Date
     const ruleEnd = new Date(rule.endDate);
     if (now < ruleStart || now > ruleEnd) continue;
 
-    const targets = (rule.targetValues || []).map(t => String(t).trim().toLowerCase());
+    const targets = (rule.targetValues || []).map((t) =>
+      String(t).trim().toLowerCase(),
+    );
 
     let isMatch = false;
     switch (rule.appliesTo) {
@@ -73,7 +91,7 @@ async function calculateSellingPrice(product, activeRules = null, now = new Date
         isMatch = targets.includes(brand);
         break;
       case "Product":
-        isMatch = targets.some(t => t === prodId || t === String(product.id));
+        isMatch = targets.some((t) => t === prodId || t === String(product.id));
         break;
       default:
         isMatch = false;
@@ -92,7 +110,7 @@ async function calculateSellingPrice(product, activeRules = null, now = new Date
       activeRule: null,
       isFestivalPrice: false,
       badgeText: null,
-      adjustmentAmount: 0
+      adjustmentAmount: 0,
     };
   }
 
@@ -128,11 +146,11 @@ async function calculateSellingPrice(product, activeRules = null, now = new Date
       appliesTo: matchedRule.appliesTo,
       adjustmentType: matchedRule.adjustmentType,
       adjustmentValue: matchedRule.adjustmentValue,
-      badgeText: matchedRule.badgeText
+      badgeText: matchedRule.badgeText,
     },
     isFestivalPrice: true,
     badgeText: matchedRule.badgeText || "🎉 Festival Price",
-    adjustmentAmount
+    adjustmentAmount,
   };
 }
 
@@ -144,21 +162,16 @@ async function applyPricingRulesToProducts(products) {
 
   const now = new Date();
   let activeRules = [];
+
   try {
-    activeRules = await PricingRule.find({
-      status: "Enabled",
-      startDate: { $lte: now },
-      endDate: { $gte: now }
-    })
-    .sort({ priority: -1, createdAt: -1 })
-    .lean();
+    activeRules = await getEnabledPricingRules();
   } catch (err) {
     console.error("Failed to load active pricing rules:", err);
   }
 
   if (activeRules.length === 0) return products;
 
-  return products.map(product => {
+  return products.map((product) => {
     // Standardize product object reference
     const calculated = calculateSellingPriceSync(product, activeRules, now);
     if (calculated.isFestivalPrice) {
@@ -168,7 +181,7 @@ async function applyPricingRulesToProducts(products) {
         price: calculated.finalPrice,
         isFestivalPrice: true,
         pricingBadge: calculated.badgeText,
-        pricingRule: calculated.activeRule
+        pricingRule: calculated.activeRule,
       };
     }
     return product;
@@ -178,11 +191,17 @@ async function applyPricingRulesToProducts(products) {
 /**
  * Synchronous variant helper when rules are pre-loaded
  */
-function calculateSellingPriceSync(product, activeRules = [], now = new Date()) {
+function calculateSellingPriceSync(
+  product,
+  activeRules = [],
+  now = new Date(),
+) {
   const basePrice = Number(product.originalPrice || product.price || 0);
   const prodId = String(product._id || product.id || "");
   const category = (product.category || "").trim().toLowerCase();
-  const subCategory = (product.subCategory || product.subcategory || "").trim().toLowerCase();
+  const subCategory = (product.subCategory || product.subcategory || "")
+    .trim()
+    .toLowerCase();
   const brand = (product.brand || "").trim().toLowerCase();
 
   let matchedRule = null;
@@ -193,7 +212,9 @@ function calculateSellingPriceSync(product, activeRules = [], now = new Date()) 
     const ruleEnd = new Date(rule.endDate);
     if (now < ruleStart || now > ruleEnd) continue;
 
-    const targets = (rule.targetValues || []).map(t => String(t).trim().toLowerCase());
+    const targets = (rule.targetValues || []).map((t) =>
+      String(t).trim().toLowerCase(),
+    );
 
     let isMatch = false;
     switch (rule.appliesTo) {
@@ -210,7 +231,7 @@ function calculateSellingPriceSync(product, activeRules = [], now = new Date()) 
         isMatch = targets.includes(brand);
         break;
       case "Product":
-        isMatch = targets.some(t => t === prodId || t === String(product.id));
+        isMatch = targets.some((t) => t === prodId || t === String(product.id));
         break;
       default:
         isMatch = false;
@@ -229,7 +250,7 @@ function calculateSellingPriceSync(product, activeRules = [], now = new Date()) 
       activeRule: null,
       isFestivalPrice: false,
       badgeText: null,
-      adjustmentAmount: 0
+      adjustmentAmount: 0,
     };
   }
 
@@ -264,16 +285,16 @@ function calculateSellingPriceSync(product, activeRules = [], now = new Date()) 
       appliesTo: matchedRule.appliesTo,
       adjustmentType: matchedRule.adjustmentType,
       adjustmentValue: matchedRule.adjustmentValue,
-      badgeText: matchedRule.badgeText
+      badgeText: matchedRule.badgeText,
     },
     isFestivalPrice: true,
     badgeText: matchedRule.badgeText || "🎉 Festival Price",
-    adjustmentAmount
+    adjustmentAmount,
   };
 }
 
 module.exports = {
   calculateSellingPrice,
   applyPricingRulesToProducts,
-  calculateSellingPriceSync
+  calculateSellingPriceSync,
 };

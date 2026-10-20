@@ -4,15 +4,20 @@ const PricingRule = require("../models/PricingRule");
 const Product = require("../models/Product");
 const Order = require("../models/Order");
 const adminMiddleware = require("../middleware/adminMiddleware");
+const cacheService = require("../utils/cacheService");
 
 // GET /api/pricing-rules - Get all pricing rules (Admin)
 router.get("/", adminMiddleware, async (req, res) => {
   try {
-    const rules = await PricingRule.find({}).sort({ priority: -1, createdAt: -1 }).lean();
+    const rules = await PricingRule.find({})
+      .sort({ priority: -1, createdAt: -1 })
+      .lean();
     return res.json({ success: true, rules });
   } catch (err) {
     console.error("Error fetching pricing rules:", err);
-    return res.status(500).json({ success: false, message: "Failed to load pricing rules" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to load pricing rules" });
   }
 });
 
@@ -31,11 +36,20 @@ router.post("/", adminMiddleware, async (req, res) => {
       adjustmentType,
       adjustmentValue,
       priority,
-      badgeText
+      badgeText,
     } = req.body;
 
-    if (!name || !startDate || !endDate || !appliesTo || !adjustmentType || adjustmentValue === undefined) {
-      return res.status(400).json({ success: false, message: "Required fields missing" });
+    if (
+      !name ||
+      !startDate ||
+      !endDate ||
+      !appliesTo ||
+      !adjustmentType ||
+      adjustmentValue === undefined
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Required fields missing" });
     }
 
     const newRule = new PricingRule({
@@ -46,19 +60,30 @@ router.post("/", adminMiddleware, async (req, res) => {
       endDate: new Date(endDate),
       timezone: timezone || "Asia/Kolkata",
       appliesTo,
-      targetValues: Array.isArray(targetValues) ? targetValues : [targetValues].filter(Boolean),
+      targetValues: Array.isArray(targetValues)
+        ? targetValues
+        : [targetValues].filter(Boolean),
       adjustmentType,
       adjustmentValue: Number(adjustmentValue),
       priority: Number(priority || 0),
       badgeText: badgeText || "🎉 Festival Price",
-      createdBy: req.user?.name || "Admin"
+      createdBy: req.user?.name || "Admin",
     });
 
     await newRule.save();
-    return res.status(201).json({ success: true, message: "Pricing rule created successfully", rule: newRule });
+    cacheService.invalidate("pricing:enabled-rules");
+    return res.status(201).json({
+      success: true,
+      message: "Pricing rule created successfully",
+      rule: newRule,
+    });
   } catch (err) {
     console.error("Error creating pricing rule:", err);
-    return res.status(500).json({ success: false, message: "Failed to create pricing rule", error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create pricing rule",
+      error: err.message,
+    });
   }
 });
 
@@ -67,7 +92,9 @@ router.put("/:id", adminMiddleware, async (req, res) => {
   try {
     const rule = await PricingRule.findById(req.params.id);
     if (!rule) {
-      return res.status(404).json({ success: false, message: "Pricing rule not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Pricing rule not found" });
     }
 
     const {
@@ -82,7 +109,7 @@ router.put("/:id", adminMiddleware, async (req, res) => {
       adjustmentType,
       adjustmentValue,
       priority,
-      badgeText
+      badgeText,
     } = req.body;
 
     if (name) rule.name = name;
@@ -92,17 +119,28 @@ router.put("/:id", adminMiddleware, async (req, res) => {
     if (endDate) rule.endDate = new Date(endDate);
     if (timezone) rule.timezone = timezone;
     if (appliesTo) rule.appliesTo = appliesTo;
-    if (targetValues !== undefined) rule.targetValues = Array.isArray(targetValues) ? targetValues : [targetValues].filter(Boolean);
+    if (targetValues !== undefined)
+      rule.targetValues = Array.isArray(targetValues)
+        ? targetValues
+        : [targetValues].filter(Boolean);
     if (adjustmentType) rule.adjustmentType = adjustmentType;
-    if (adjustmentValue !== undefined) rule.adjustmentValue = Number(adjustmentValue);
+    if (adjustmentValue !== undefined)
+      rule.adjustmentValue = Number(adjustmentValue);
     if (priority !== undefined) rule.priority = Number(priority);
     if (badgeText !== undefined) rule.badgeText = badgeText;
 
     await rule.save();
-    return res.json({ success: true, message: "Pricing rule updated successfully", rule });
+    cacheService.invalidate("pricing:enabled-rules");
+    return res.json({
+      success: true,
+      message: "Pricing rule updated successfully",
+      rule,
+    });
   } catch (err) {
     console.error("Error updating pricing rule:", err);
-    return res.status(500).json({ success: false, message: "Failed to update pricing rule" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to update pricing rule" });
   }
 });
 
@@ -111,12 +149,17 @@ router.delete("/:id", adminMiddleware, async (req, res) => {
   try {
     const deleted = await PricingRule.findByIdAndDelete(req.params.id);
     if (!deleted) {
-      return res.status(404).json({ success: false, message: "Pricing rule not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Pricing rule not found" });
     }
+    cacheService.invalidate("pricing:enabled-rules");
     return res.json({ success: true, message: "Pricing rule deleted" });
   } catch (err) {
     console.error("Error deleting pricing rule:", err);
-    return res.status(500).json({ success: false, message: "Failed to delete pricing rule" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to delete pricing rule" });
   }
 });
 
@@ -124,19 +167,23 @@ router.delete("/:id", adminMiddleware, async (req, res) => {
 router.get("/analytics", adminMiddleware, async (req, res) => {
   try {
     const rules = await PricingRule.find({}).lean();
-    
-    // Calculate live analytics per rule from historic orders
-    const orders = await Order.find({ "products.pricingRuleId": { $exists: true, $ne: null } }).lean();
 
-    const analyticsSummary = rules.map(rule => {
-      const ruleOrders = orders.filter(o => o.products.some(p => String(p.pricingRuleId) === String(rule._id)));
+    // Calculate live analytics per rule from historic orders
+    const orders = await Order.find({
+      "products.pricingRuleId": { $exists: true, $ne: null },
+    }).lean();
+
+    const analyticsSummary = rules.map((rule) => {
+      const ruleOrders = orders.filter((o) =>
+        o.products.some((p) => String(p.pricingRuleId) === String(rule._id)),
+      );
       let affectedItems = 0;
       let extraRevenue = 0;
 
-      ruleOrders.forEach(o => {
-        o.products.forEach(p => {
+      ruleOrders.forEach((o) => {
+        o.products.forEach((p) => {
           if (String(p.pricingRuleId) === String(rule._id)) {
-            affectedItems += (p.quantity || 1);
+            affectedItems += p.quantity || 1;
             extraRevenue += (p.pricingAdjustment || 0) * (p.quantity || 1);
           }
         });
@@ -148,14 +195,16 @@ router.get("/analytics", adminMiddleware, async (req, res) => {
         status: rule.status,
         affectedOrders: ruleOrders.length,
         affectedItems,
-        additionalRevenue: extraRevenue
+        additionalRevenue: extraRevenue,
       };
     });
 
     return res.json({ success: true, analytics: analyticsSummary });
   } catch (err) {
     console.error("Error generating rule analytics:", err);
-    return res.status(500).json({ success: false, message: "Failed to generate analytics" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to generate analytics" });
   }
 });
 

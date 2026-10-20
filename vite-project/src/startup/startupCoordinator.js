@@ -23,20 +23,21 @@ export async function startupCoordinator(context) {
 
   telemetry.startupStarted();
 
-  // 1. Check saved address
-  checkSignal();
-  const savedAddress = await addressService.loadSavedAddress();
-  if (savedAddress && savedAddress.addressLine) {
-    telemetry.savedAddressFound(savedAddress.addressLine);
-    return { status: STARTUP_STATUS.READY };
-  }
-
-  // 2. Check device location services
+  // 1. Check device location services first. A saved delivery address must not
+  // suppress the device-location-disabled prompt on a fresh launch.
   checkSignal();
   const gpsEnabled = await locationService.hasLocationServicesEnabled();
   if (!gpsEnabled) {
     telemetry.gpsDisabled();
     return { status: "gps_disabled" };
+  }
+
+  // 2. A saved address is still sufficient once device location services are on.
+  checkSignal();
+  const savedAddress = await addressService.loadSavedAddress();
+  if (savedAddress && savedAddress.addressLine) {
+    telemetry.savedAddressFound(savedAddress.addressLine);
+    return { status: STARTUP_STATUS.READY };
   }
 
   // 3. Request/Check app-level location permission
