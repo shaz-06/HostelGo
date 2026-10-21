@@ -1,4 +1,5 @@
 import { cartDebug } from "../utils/cartDebug";
+import ChangeContact from "../pages/ChangeContact";
 
 import React, {
   useEffect,
@@ -322,6 +323,7 @@ const isKnownAppPathname = (pathname) =>
   pathname === "/my-orders" ||
   pathname === "/order-again" ||
   pathname === "/address" ||
+  pathname === "/change-contact" ||
   pathname.startsWith("/address/request/") ||
   pathname === "/wishlist" ||
   pathname === "/buycoins" ||
@@ -370,11 +372,8 @@ function GlobalLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  if (!isKnownAppPathname(location.pathname)) {
-    return children;
-  }
   const [hideTrackingCard, setHideTrackingCard] = useState(
-    !!localStorage.getItem("hideTrackingCard"),
+    () => !!localStorage.getItem("hideTrackingCard"),
   );
 
   useEffect(() => {
@@ -385,6 +384,7 @@ function GlobalLayout({ children }) {
 
   const handleAppBack = () => {
     const currentPath = window.location.pathname;
+
     if (
       currentPath.startsWith("/payment") ||
       currentPath.startsWith("/checkout")
@@ -403,8 +403,9 @@ function GlobalLayout({ children }) {
 
   // Capacitor native hardware back button handler
   useEffect(() => {
-    const listenerPromise = CapApp.addListener("backButton", (event) => {
+    const listenerPromise = CapApp.addListener("backButton", () => {
       const currentPath = window.location.pathname;
+
       if (currentPath === "/" || currentPath === "/home") {
         CapApp.exitApp();
       } else {
@@ -413,13 +414,18 @@ function GlobalLayout({ children }) {
     });
 
     return () => {
-      listenerPromise.then((l) => l.remove());
+      listenerPromise.then((listener) => listener.remove());
     };
   }, [navigate]);
 
   useEffect(() => {
     setHideTrackingCard(!!localStorage.getItem("hideTrackingCard"));
   }, [location.pathname]);
+
+  // Keep this check AFTER all hooks.
+  if (!isKnownAppPathname(location.pathname)) {
+    return children;
+  }
 
   return (
     <>
@@ -3779,6 +3785,8 @@ function AppContent({
         }}
       >
         <Routes>
+          <Route path="/change-contact" element={<ChangeContact />} />
+
           <Route
             path="/category/:slug"
             element={

@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useContext,
+  useMemo,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import AddressSelectorModal from "../components/common/AddressSelectorModal";
@@ -18,12 +24,14 @@ import VersionFooter from "../components/profile/VersionFooter";
 
 // Additional Lucide icons used directly in page elements
 import { Smartphone, Sun, EyeOff, ChevronDown } from "lucide-react";
-import { UIContext } from '../context/UIContext';
+import { UIContext } from "../context/UIContext";
 
 export default function ProfilePage({ defaultTab = "" }) {
   const navigate = useNavigate();
-  const { user, isLoggedIn, token, logout, refreshUser } = useContext(AuthContext);
-  const { openLogin, hideSensitive, toggleHideSensitive } = useContext(UIContext);
+  const { user, isLoggedIn, token, logout, refreshUser } =
+    useContext(AuthContext);
+  const { openLogin, hideSensitive, toggleHideSensitive } =
+    useContext(UIContext);
   const { theme: globalTheme, setTheme: setGlobalTheme } = useTheme();
 
   // States
@@ -72,11 +80,11 @@ export default function ProfilePage({ defaultTab = "" }) {
   useEffect(() => {
     if (!token) return;
     fetch(window.API_BASE_URL + "/api/orders/my-orders", {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     })
-      .then(res => res.json())
-      .then(data => setOrders(Array.isArray(data) ? data : []))
-      .catch(err => console.error("Error loading orders:", err));
+      .then((res) => res.json())
+      .then((data) => setOrders(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Error loading orders:", err));
   }, [token]);
 
   // Load active address preview
@@ -188,7 +196,9 @@ export default function ProfilePage({ defaultTab = "" }) {
       }, 50);
 
       return () => {
-        window.dispatchEvent(new CustomEvent("hideBottomNav", { detail: false }));
+        window.dispatchEvent(
+          new CustomEvent("hideBottomNav", { detail: false }),
+        );
         window.removeEventListener("popstate", handlePopState);
         window.removeEventListener("keydown", handleGlobalKeyDown);
       };
@@ -197,11 +207,13 @@ export default function ProfilePage({ defaultTab = "" }) {
 
   const handleShare = useCallback(() => {
     if (navigator.share) {
-      navigator.share({
-        title: "Buyto App",
-        text: "Check out Buyto for 15-minute hostel deliveries!",
-        url: window.location.origin
-      }).catch(err => console.log(err));
+      navigator
+        .share({
+          title: "Buyto App",
+          text: "Check out Buyto for 15-minute hostel deliveries!",
+          url: window.location.origin,
+        })
+        .catch((err) => console.log(err));
     } else {
       // Fallback
       navigator.clipboard.writeText(window.location.origin);
@@ -222,10 +234,13 @@ export default function ProfilePage({ defaultTab = "" }) {
     toggleHideSensitive();
   }, [toggleHideSensitive]);
 
-  const handleSelectTheme = useCallback((selectedTheme) => {
-    setGlobalTheme(selectedTheme.toUpperCase());
-    setShowAppearanceDropdown(false);
-  }, [setGlobalTheme]);
+  const handleSelectTheme = useCallback(
+    (selectedTheme) => {
+      setGlobalTheme(selectedTheme.toUpperCase());
+      setShowAppearanceDropdown(false);
+    },
+    [setGlobalTheme],
+  );
 
   useEffect(() => {
     if (showAppearanceDropdown) {
@@ -234,10 +249,14 @@ export default function ProfilePage({ defaultTab = "" }) {
           setShowAppearanceDropdown(false);
         } else if (e.key === "ArrowDown") {
           e.preventDefault();
-          setActiveDropdownIndex(prev => (prev === -1 || prev === 2) ? 0 : prev + 1);
+          setActiveDropdownIndex((prev) =>
+            prev === -1 || prev === 2 ? 0 : prev + 1,
+          );
         } else if (e.key === "ArrowUp") {
           e.preventDefault();
-          setActiveDropdownIndex(prev => (prev === -1 || prev === 0) ? 2 : prev - 1);
+          setActiveDropdownIndex((prev) =>
+            prev === -1 || prev === 0 ? 2 : prev - 1,
+          );
         } else if (e.key === "Enter") {
           e.preventDefault();
           if (activeDropdownIndex === 0) {
@@ -269,7 +288,7 @@ export default function ProfilePage({ defaultTab = "" }) {
   }, [activeDropdownIndex, showAppearanceDropdown]);
 
   const handleToggleAppearanceDropdown = useCallback(() => {
-    setShowAppearanceDropdown(prev => !prev);
+    setShowAppearanceDropdown((prev) => !prev);
   }, []);
 
   const handleCloseAppearanceDropdown = useCallback(() => {
@@ -292,7 +311,7 @@ export default function ProfilePage({ defaultTab = "" }) {
     setShowAddressModal(false);
   }, []);
 
-  const handleSelectAddressDummy = useCallback(() => { }, []);
+  const handleSelectAddressDummy = useCallback(() => {}, []);
 
   const handleAppUpdateDismiss = useCallback(() => {
     setIsAppUpdated(true);
@@ -300,43 +319,68 @@ export default function ProfilePage({ defaultTab = "" }) {
   }, []);
 
   // Menu action router
-  const handleMenuRowClick = useCallback((item) => {
-    if (!isLoggedIn && item.id !== "about-buyto" && item.id !== "privacy-policy" && item.id !== "terms-conditions" && item.id !== "refund-policy" && item.id !== "cookies-policy" && item.id !== "faq" && item.id !== "contact-us" && item.id !== "help-center") {
-      openLogin();
-      return;
-    }
-
-    if (item.actionType === "navigate") {
-      navigate(item.path);
-    } else if (item.actionType === "callback") {
-      if (item.actionKey === "onOpenAddress") {
-        handleOpenAddress();
-      } else if (item.actionKey === "onShare") {
-        handleShare();
-      } else if (item.actionKey === "onLogout") {
-        handleLogout();
+  const handleMenuRowClick = useCallback(
+    (item) => {
+      if (
+        !isLoggedIn &&
+        item.id !== "about-buyto" &&
+        item.id !== "privacy-policy" &&
+        item.id !== "terms-conditions" &&
+        item.id !== "refund-policy" &&
+        item.id !== "cookies-policy" &&
+        item.id !== "faq" &&
+        item.id !== "contact-us" &&
+        item.id !== "help-center"
+      ) {
+        openLogin();
+        return;
       }
-    }
-  }, [isLoggedIn, navigate, openLogin, handleOpenAddress, handleShare, handleLogout]);
+
+      if (item.actionType === "navigate") {
+        navigate(item.path);
+      } else if (item.actionType === "callback") {
+        if (item.actionKey === "onOpenAddress") {
+          handleOpenAddress();
+        } else if (item.actionKey === "onShare") {
+          handleShare();
+        } else if (item.actionKey === "onLogout") {
+          handleLogout();
+        }
+      }
+    },
+    [
+      isLoggedIn,
+      navigate,
+      openLogin,
+      handleOpenAddress,
+      handleShare,
+      handleLogout,
+    ],
+  );
 
   // Memoized Config with Dynamic Subtitles
   const memoizedMenuConfig = useMemo(() => {
-    return profileMenuConfig.map(section => {
+    return profileMenuConfig.map((section) => {
       // Map and inject dynamic subtitles if needed (e.g. show active address name under Address Book)
       const updatedItems = section.items
-        .map(item => {
+        .map((item) => {
           if (item.id === "address-book" && activeAddress) {
             const addressDesc = activeAddress.houseNumber
-              ? `${activeAddress.houseNumber}, ${activeAddress.buildingName || activeAddress.landmark}`
+              ? `${activeAddress.houseNumber}, ${
+                  activeAddress.buildingName || activeAddress.landmark
+                }`
               : activeAddress.addressLine1;
             return { ...item, subtitle: addressDesc };
           }
           if (item.id === "buycoins" && isLoggedIn) {
-            return { ...item, subtitle: `${liveUser?.buyCoins ?? 0} Coins available` };
+            return {
+              ...item,
+              subtitle: `${liveUser?.buyCoins ?? 0} Coins available`,
+            };
           }
           return item;
         })
-        .filter(item => {
+        .filter((item) => {
           if (item.id === "logout" && !isLoggedIn) {
             return false;
           }
@@ -348,11 +392,15 @@ export default function ProfilePage({ defaultTab = "" }) {
 
   return (
     <div className="page-with-bottom-nav min-h-screen bg-[#F6F7FB] pb-[100px] overflow-x-hidden font-sans">
-      <SEO title={isLoggedIn ? "My Profile" : "Login"} description="Manage your account profile, addresses, and settings on Buyto." />
+      <SEO
+        title={isLoggedIn ? "My Profile" : "Login"}
+        description="Manage your account profile, addresses, and settings on Buyto."
+      />
 
       {/* Dynamic inline styles for micro-animations and custom styling */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(6px); }
           to { opacity: 1; transform: translateY(0); }
@@ -360,8 +408,9 @@ export default function ProfilePage({ defaultTab = "" }) {
         .animate-fade-in {
           animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        `
-      }} />
+        `,
+        }}
+      />
 
       {/* 1. Header */}
       <ProfileHeader
@@ -386,8 +435,6 @@ export default function ProfilePage({ defaultTab = "" }) {
       />
 
       <div className="mt-5 space-y-5">
-
-
         {/* 5. Appearance Card */}
         <div className="mx-4">
           <div className="bg-white rounded-[18px] border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] overflow-hidden">
@@ -400,8 +447,9 @@ export default function ProfilePage({ defaultTab = "" }) {
                     {globalTheme}
                   </span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${showAppearanceDropdown ? "rotate-180" : "rotate-0"
-                      }`}
+                    className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
+                      showAppearanceDropdown ? "rotate-180" : "rotate-0"
+                    }`}
                   />
                 </div>
               }
@@ -427,7 +475,11 @@ export default function ProfilePage({ defaultTab = "" }) {
                       role="menuitem"
                     >
                       <span>Light</span>
-                      {globalTheme.toLowerCase() === "light" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                      {globalTheme.toLowerCase() === "light" && (
+                        <span className="text-[#318616] text-[15px] font-bold">
+                          ✓
+                        </span>
+                      )}
                     </button>
                     <button
                       ref={darkOptionRef}
@@ -436,7 +488,11 @@ export default function ProfilePage({ defaultTab = "" }) {
                       role="menuitem"
                     >
                       <span>Dark</span>
-                      {globalTheme.toLowerCase() === "dark" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                      {globalTheme.toLowerCase() === "dark" && (
+                        <span className="text-[#318616] text-[15px] font-bold">
+                          ✓
+                        </span>
+                      )}
                     </button>
                     <button
                       ref={systemOptionRef}
@@ -445,7 +501,11 @@ export default function ProfilePage({ defaultTab = "" }) {
                       role="menuitem"
                     >
                       <span>System</span>
-                      {globalTheme.toLowerCase() === "system" && <span className="text-[#318616] text-[15px] font-bold">✓</span>}
+                      {globalTheme.toLowerCase() === "system" && (
+                        <span className="text-[#318616] text-[15px] font-bold">
+                          ✓
+                        </span>
+                      )}
                     </button>
                   </div>
                 </motion.div>
@@ -466,7 +526,8 @@ export default function ProfilePage({ defaultTab = "" }) {
                   Hide sensitive products
                 </span>
                 <span className="text-[11px] font-medium text-gray-400 block mt-0.5 leading-tight">
-                  Wellness, intimate hygiene and other sensitive items will be hidden
+                  Wellness, intimate hygiene and other sensitive items will be
+                  hidden
                 </span>
               </div>
             </div>
@@ -474,20 +535,27 @@ export default function ProfilePage({ defaultTab = "" }) {
             {/* Custom iOS-like Toggle Switch */}
             <button
               onClick={handleToggleSensitive}
-              className={`w-[46px] h-6 rounded-full transition-colors duration-200 relative flex-shrink-0 ${hideSensitive ? "bg-[#318616]" : "bg-gray-200"
-                }`}
+              className={`w-[46px] h-6 rounded-full transition-colors duration-200 relative flex-shrink-0 ${
+                hideSensitive ? "bg-[#318616]" : "bg-gray-200"
+              }`}
               role="switch"
               aria-checked={hideSensitive}
             >
-              <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-200 ${hideSensitive ? "translate-x-[24px]" : "translate-x-0.5"
-                }`} />
+              <div
+                className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-200 ${
+                  hideSensitive ? "translate-x-[24px]" : "translate-x-0.5"
+                }`}
+              />
             </button>
           </div>
         </div>
 
         {/* 7. Grouped Sections */}
         {memoizedMenuConfig.map((section, sectionIdx) => (
-          <ProfileSection key={section.title || sectionIdx} title={section.title}>
+          <ProfileSection
+            key={section.title || sectionIdx}
+            title={section.title}
+          >
             {section.items.map((item, itemIdx) => (
               <ProfileRow
                 key={item.id}
@@ -503,7 +571,7 @@ export default function ProfilePage({ defaultTab = "" }) {
         ))}
 
         {/* 8. Footer */}
-        <VersionFooter version="v18.13.0" />
+        <VersionFooter version="v18.13.1" />
       </div>
 
       {/* Address Selector Modal */}
@@ -551,13 +619,20 @@ export default function ProfilePage({ defaultTab = "" }) {
               </div>
 
               {/* Title */}
-              <h3 id="logout-dialog-title" className="text-[20px] font-black text-gray-900 leading-tight">
+              <h3
+                id="logout-dialog-title"
+                className="text-[20px] font-black text-gray-900 leading-tight"
+              >
                 Logout?
               </h3>
 
               {/* Message */}
-              <p id="logout-dialog-desc" className="text-[13px] font-bold text-gray-400 leading-relaxed max-w-[280px]">
-                Are you sure you want to logout from your Buyto account?<br />
+              <p
+                id="logout-dialog-desc"
+                className="text-[13px] font-bold text-gray-400 leading-relaxed max-w-[280px]"
+              >
+                Are you sure you want to logout from your Buyto account?
+                <br />
                 You'll need to sign in again to access your account.
               </p>
 

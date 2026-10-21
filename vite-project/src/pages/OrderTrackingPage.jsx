@@ -1,4 +1,11 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState, useRef } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
@@ -6,7 +13,13 @@ import SEO from "../components/common/SEO";
 import { apiFetch } from "../utils/apiClient";
 import { initSocket } from "../utils/socket";
 import BuytoRiderAvatar from "../components/common/BuytoRiderAvatar";
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Polyline,
+  useMap,
+} from "react-leaflet";
 import L from "leaflet";
 
 // Leaflet style fix
@@ -19,7 +32,7 @@ function MapController({ route, scooterPos, followRider }) {
 
   useEffect(() => {
     if (route && route.length > 0 && lastCentering.current === 0) {
-      const bounds = L.latLngBounds(route.map(pt => [pt.lat, pt.lng]));
+      const bounds = L.latLngBounds(route.map((pt) => [pt.lat, pt.lng]));
       map.fitBounds(bounds, { padding: [40, 40] });
       lastCentering.current = Date.now();
     }
@@ -30,9 +43,14 @@ function MapController({ route, scooterPos, followRider }) {
     const now = Date.now();
 
     // Auto-center if follow rider is true OR if the marker leaves the visible bounds
-    const isWithinBounds = map.getBounds().contains([scooterPos.lat, scooterPos.lng]);
+    const isWithinBounds = map
+      .getBounds()
+      .contains([scooterPos.lat, scooterPos.lng]);
     if (followRider || !isWithinBounds) {
-      map.setView([scooterPos.lat, scooterPos.lng], map.getZoom(), { animate: true, duration: 1.5 });
+      map.setView([scooterPos.lat, scooterPos.lng], map.getZoom(), {
+        animate: true,
+        duration: 1.5,
+      });
     }
   }, [scooterPos, followRider, map]);
 
@@ -41,19 +59,23 @@ function MapController({ route, scooterPos, followRider }) {
 
 const timelineStages = [
   { name: "Order Placed", statusVal: "ORDER_PLACED", key: "orderPlaced" },
-  { name: "Payment Received", statusVal: "PAYMENT_RECEIVED", key: "orderPlaced" },
+  {
+    name: "Payment Received",
+    statusVal: "PAYMENT_RECEIVED",
+    key: "orderPlaced",
+  },
   { name: "Store Accepted", statusVal: "STORE_ACCEPTED", key: "preparing" },
   { name: "Packing", statusVal: "PACKING", key: "packed" },
   { name: "Rider Assigned", statusVal: "RIDER_ASSIGNED", key: "riderAssigned" },
   { name: "On The Way", statusVal: "ON_THE_WAY", key: "outForDelivery" },
-  { name: "Delivered", statusVal: "DELIVERED", key: "delivered" }
+  { name: "Delivered", statusVal: "DELIVERED", key: "delivered" },
 ];
 
 const PRESET_INSTRUCTIONS = [
   "Leave at Security",
   "Call on Arrival",
   "Don't Ring Bell",
-  "Text Instead"
+  "Text Instead",
 ];
 
 const formatMoney = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
@@ -62,359 +84,963 @@ const storeMarkerIcon = L.divIcon({
   html: `<div style="font-size: 26px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">🏬</div>`,
   iconSize: [30, 30],
   iconAnchor: [15, 15],
-  className: "custom-store-icon"
+  className: "custom-store-icon",
 });
 
 const customerMarkerIcon = L.divIcon({
   html: `<div style="font-size: 26px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">📍</div>`,
   iconSize: [30, 30],
   iconAnchor: [15, 15],
-  className: "custom-customer-icon"
+  className: "custom-customer-icon",
 });
 
 // Component Skeletons and Memoized Subcomponents
-const OrderDetailsLeftColumn = React.memo(({ order, subtotal, deliveryFee, platformFee, totalDiscount, coinsRedeemed, coinsDiscount, totalPaid, cleanAddress, addressLines, instructionsText, isUpdatingInstructions, togglePresetInstruction, handleUpdateInstructions, setInstructionsText }) => {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Confirmed Banner */}
-      <div style={confirmedBannerStyle}>
-        <div style={{ fontSize: 32 }}>🎉</div>
-        <div style={{ flex: 1 }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#065f46" }}>Order Confirmed!</h3>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#047857", fontWeight: 700 }}>
-            Thank you for shopping with Buyto. Your order is confirmed and is being processed.
+const OrderDetailsLeftColumn = React.memo(
+  ({
+    order,
+    subtotal,
+    deliveryFee,
+    platformFee,
+    totalDiscount,
+    coinsRedeemed,
+    coinsDiscount,
+    totalPaid,
+    cleanAddress,
+    addressLines,
+    instructionsText,
+    isUpdatingInstructions,
+    togglePresetInstruction,
+    handleUpdateInstructions,
+    setInstructionsText,
+  }) => {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Confirmed Banner */}
+        <div style={confirmedBannerStyle}>
+          <div style={{ fontSize: 32 }}>🎉</div>
+          <div style={{ flex: 1 }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 18,
+                fontWeight: 900,
+                color: "#065f46",
+              }}
+            >
+              Order Confirmed!
+            </h3>
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontSize: 13,
+                color: "#047857",
+                fontWeight: 700,
+              }}
+            >
+              Thank you for shopping with Buyto. Your order is confirmed and is
+              being processed.
+            </p>
+          </div>
+        </div>
+
+        {/* Ordered Items */}
+        <div style={panelStyle}>
+          <h3
+            style={{
+              ...panelTitleStyle,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <img
+              src="https://img.icons8.com/?size=100&id=TquBfvAjccPc&format=png&color=000000"
+              alt="Items Ordered"
+              style={{ width: "18px", height: "18px", objectFit: "contain" }}
+            />
+            Items Ordered
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {order?.products?.map((item) => (
+              <div key={`${item.productId}-${item.name}`} style={itemRowStyle}>
+                <img
+                  src={
+                    item.image ||
+                    "https://images.unsplash.com/photo-1542838132-92c53300491e"
+                  }
+                  alt={item.name}
+                  style={itemImageStyle}
+                />
+                <div style={{ flex: 1 }}>
+                  <h4 style={itemNameStyle}>{item.name}</h4>
+                  <span style={itemWeightStyle}>{item.weight || "1 unit"}</span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span
+                    style={{ fontSize: 13, fontWeight: 800, color: "#64748b" }}
+                  >
+                    {formatMoney(item.price)} × {item.quantity}
+                  </span>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 900,
+                      color: "#0f172a",
+                      marginTop: 2,
+                    }}
+                  >
+                    {formatMoney(item.price * item.quantity)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Payment Details */}
+        <div style={panelStyle}>
+          <h3 style={panelTitleStyle}>💳 Payment Details</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={breakdownRow}>
+              <span>Subtotal</span>
+              <strong>{formatMoney(subtotal)}</strong>
+            </div>
+            <div style={breakdownRow}>
+              <span>Delivery Fee</span>
+              <span>{deliveryFee > 0 ? formatMoney(deliveryFee) : "FREE"}</span>
+            </div>
+            <div style={breakdownRow}>
+              <span>Platform Fee</span>
+              <span>{formatMoney(platformFee)}</span>
+            </div>
+            {totalDiscount > 0 && (
+              <div style={{ ...breakdownRow, color: "#10b981" }}>
+                <span>Discounts Unlocked</span>
+                <strong>-{formatMoney(totalDiscount)}</strong>
+              </div>
+            )}
+            {coinsRedeemed > 0 && (
+              <div style={{ ...breakdownRow, color: "#b45309" }}>
+                <span>BuyCoins Redeemed ({coinsRedeemed} coins)</span>
+                <strong>-{formatMoney(coinsDiscount)}</strong>
+              </div>
+            )}
+            <hr
+              style={{
+                border: "none",
+                borderTop: "1px solid #f1f5f9",
+                margin: "6px 0",
+              }}
+            />
+            <div style={{ ...breakdownRow, fontSize: 16, color: "#0f172a" }}>
+              <span>Total Paid</span>
+              <strong>{formatMoney(totalPaid)}</strong>
+            </div>
+          </div>
+          <div style={paymentMethodCard}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#475569" }}>
+              Payment Method:{" "}
+              <strong style={{ color: "#0f172a" }}>
+                {order?.paymentMethod?.toUpperCase()}
+              </strong>
+            </span>
+            <span style={paidSuccessBadge}>✓ Paid Successfully</span>
+          </div>
+          {order?.totalAmount && (
+            <div style={buycoinsEarnedBox}>
+              <span style={{ fontSize: 18 }}>🪙</span>
+              <span style={{ color: "#78350f", fontWeight: 800, fontSize: 13 }}>
+                You earned {Math.floor(order.totalAmount / 100)} BuyCoins with
+                this order
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Delivery Address */}
+        <div style={panelStyle}>
+          <h3 style={panelTitleStyle}>📍 Delivery Address</h3>
+          <div style={{ marginTop: 12 }}>
+            <strong
+              style={{
+                color: "#0f172a",
+                fontSize: 15,
+                fontWeight: 900,
+                display: "block",
+              }}
+            >
+              {order?.user?.name || "Customer"}
+            </strong>
+            {addressLines.map((line, idx) => (
+              <span
+                key={idx}
+                style={{
+                  color: "#475569",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: "block",
+                  marginTop: 4,
+                }}
+              >
+                {line}
+              </span>
+            ))}
+            {order?.user?.room && (
+              <span
+                style={{
+                  color: "#475569",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  display: "block",
+                  marginTop: 4,
+                }}
+              >
+                Room: {order.user.room}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Delivery Instructions */}
+        <div style={panelStyle}>
+          <h3
+            style={{
+              ...panelTitleStyle,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <img
+              src="https://img.icons8.com/?size=100&id=uTI4SjCIkNJp&format=png&color=000000"
+              alt="Delivery Instructions"
+              style={{ width: "20px", height: "20px", objectFit: "contain" }}
+            />
+            Delivery Instructions
+          </h3>
+          <p
+            style={{
+              margin: "4px 0 12px",
+              fontSize: 12,
+              color: "#64748b",
+              fontWeight: 700,
+            }}
+          >
+            Let the rider know where or how to drop off your order.
           </p>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 10,
+              marginBottom: 14,
+            }}
+          >
+            {PRESET_INSTRUCTIONS.map((preset) => {
+              const isActive = instructionsText.includes(preset);
+              return (
+                <button
+                  key={preset}
+                  onClick={() => togglePresetInstruction(preset)}
+                  style={presetBadgeStyle(isActive)}
+                >
+                  {preset}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <input
+              type="text"
+              value={instructionsText}
+              onChange={(e) => setInstructionsText(e.target.value)}
+              placeholder="Write custom instructions or note..."
+              style={customInstructionsInput}
+            />
+            <button
+              disabled={isUpdatingInstructions}
+              onClick={() => handleUpdateInstructions(instructionsText)}
+              style={saveInstructionsBtn}
+            >
+              {isUpdatingInstructions ? "Saving..." : "Save"}
+            </button>
+          </div>
         </div>
       </div>
+    );
+  },
+);
 
-      {/* Ordered Items */}
-      <div style={panelStyle}>
-        <h3 style={{ ...panelTitleStyle, display: "flex", alignItems: "center", gap: "6px" }}>
-          <img
-            src="https://img.icons8.com/?size=100&id=TquBfvAjccPc&format=png&color=000000"
-            alt="Items Ordered"
-            style={{ width: "18px", height: "18px", objectFit: "contain" }}
-          />
-          Items Ordered
-        </h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {order?.products?.map((item) => (
-            <div key={`${item.productId}-${item.name}`} style={itemRowStyle}>
-              <img
-                src={item.image || "https://images.unsplash.com/photo-1542838132-92c53300491e"}
-                alt={item.name}
-                style={itemImageStyle}
-              />
-              <div style={{ flex: 1 }}>
-                <h4 style={itemNameStyle}>{item.name}</h4>
-                <span style={itemWeightStyle}>{item.weight || "1 unit"}</span>
+const MobileDeliveryDetails = React.memo(
+  ({ order, addressLines, navigate }) => {
+    let savedContact = null;
+    try {
+      savedContact = JSON.parse(
+        localStorage.getItem("buytoAlternateContact") || "null",
+      );
+    } catch (error) {
+      console.error("Unable to read saved alternate contact:", error);
+    }
+
+    const contactName = savedContact?.name || order?.user?.name || "Customer";
+    const contactPhone = String(
+      savedContact?.alternateNumber || order?.user?.phone || order?.phone || "",
+    );
+    const maskedPhone =
+      contactPhone.length > 5
+        ? `${contactPhone.slice(0, -5)}XXXXX`
+        : contactPhone;
+
+    return (
+      <div
+        style={{
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 16,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              background: "#f3f4f6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 27,
+              flexShrink: 0,
+            }}
+          >
+            🛵
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 800,
+                color: "#1f2937",
+              }}
+            >
+              Your delivery details
+            </h3>
+            <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>
+              Details of your current order
+            </div>
+          </div>
+        </div>
+
+        <div style={{ borderTop: "1px solid #f3f4f6", padding: 16 }}>
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ fontSize: 22 }}>📍</div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1f2937" }}>
+                Delivery at {order?.addressType || "Home"}
               </div>
-              <div style={{ textAlign: "right" }}>
-                <span style={{ fontSize: 13, fontWeight: 800, color: "#64748b" }}>
-                  {formatMoney(item.price)} × {item.quantity}
-                </span>
-                <div style={{ fontSize: 14, fontWeight: 900, color: "#0f172a", marginTop: 2 }}>
-                  {formatMoney(item.price * item.quantity)}
+
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  color: "#6b7280",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  width: "100%",
+                }}
+                title={addressLines.join(", ")}
+              >
+                {addressLines.join(", ")}
+              </div>
+
+              {order?.user?.room && (
+                <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>
+                  Room: {order.user.room}
+                </div>
+              )}
+
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#318616",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = "/addresses";
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    marginTop: 12,
+                    padding: 0,
+                    border: "none",
+                    background: "transparent",
+                    color: "#318616",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Change address ›
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              marginTop: 20,
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                border: "1px solid #e5e7eb",
+                borderRadius: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 22,
+                flexShrink: 0,
+              }}
+            >
+              📞
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1f2937" }}>
+                {contactName}
+              </div>
+
+              <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>
+                {maskedPhone}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#318616",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("/change-contact", {
+                      state: {
+                        currentNumber: String(
+                          order?.user?.phone || order?.phone || "",
+                        ),
+                        currentName: order?.user?.name || "Customer",
+                        returnTo: window.location.pathname,
+                      },
+                    });
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    marginTop: 6,
+                    padding: 0,
+                    border: "none",
+                    background: "transparent",
+                    color: "#318616",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Add alternate contact ›
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  },
+);
+
+MobileDeliveryDetails.displayName = "MobileDeliveryDetails";
+
+const MobileOrderItems = React.memo(({ order }) => {
+  const [showSummary, setShowSummary] = React.useState(false);
+
+  const orderId = order?.publicId || order?.orderId || order?._id || "";
+
+  const copyOrderId = async () => {
+    try {
+      await navigator.clipboard.writeText(String(orderId));
+    } catch (error) {
+      console.error("Unable to copy order ID:", error);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: "#ffffff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 20,
+        overflow: "hidden",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+      }}
+    >
+      {/* Header */}
+      <div style={{ padding: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 60,
+              height: 60,
+              borderRadius: "50%",
+              background: "#f3f4f8",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 28,
+              flexShrink: 0,
+            }}
+          >
+            🛍️
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#252525" }}>
+              Order summary
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginTop: 5,
+                fontSize: 13,
+                color: "#6b7280",
+              }}
+            >
+              <span>Order id - #{orderId}</span>
+              <button
+                type="button"
+                onClick={copyOrderId}
+                aria-label="Copy order ID"
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  padding: 2,
+                }}
+              >
+                ▢
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Compact product grid */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
+            marginTop: 18,
+          }}
+        >
+          {(order?.products || []).map((item, index) => (
+            <div
+              key={`${item.productId || item.name}-${index}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                minWidth: 0,
+                padding: 10,
+                borderRadius: 12,
+                background: "#f6f7fa",
+              }}
+            >
+              <img
+                src={
+                  item.image ||
+                  "https://images.unsplash.com/photo-1542838132-92c53300491e"
+                }
+                alt={item.name}
+                style={{
+                  width: 54,
+                  height: 54,
+                  objectFit: "contain",
+                  borderRadius: 8,
+                  flexShrink: 0,
+                }}
+              />
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "#374151",
+                    lineHeight: 1.4,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {item.name}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "#6b7280",
+                    marginTop: 4,
+                  }}
+                >
+                  {item.weight || "1 unit"} x {item.quantity}
                 </div>
               </div>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Payment Details */}
-      <div style={panelStyle}>
-        <h3 style={panelTitleStyle}>💳 Payment Details</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={breakdownRow}>
-            <span>Subtotal</span>
-            <strong>{formatMoney(subtotal)}</strong>
-          </div>
-          <div style={breakdownRow}>
-            <span>Delivery Fee</span>
-            <span>{deliveryFee > 0 ? formatMoney(deliveryFee) : "FREE"}</span>
-          </div>
-          <div style={breakdownRow}>
-            <span>Platform Fee</span>
-            <span>{formatMoney(platformFee)}</span>
-          </div>
-          {totalDiscount > 0 && (
-            <div style={{ ...breakdownRow, color: "#10b981" }}>
-              <span>Discounts Unlocked</span>
-              <strong>-{formatMoney(totalDiscount)}</strong>
-            </div>
-          )}
-          {coinsRedeemed > 0 && (
-            <div style={{ ...breakdownRow, color: "#b45309" }}>
-              <span>BuyCoins Redeemed ({coinsRedeemed} coins)</span>
-              <strong>-{formatMoney(coinsDiscount)}</strong>
-            </div>
-          )}
-          <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: "6px 0" }} />
-          <div style={{ ...breakdownRow, fontSize: 16, color: "#0f172a" }}>
-            <span>Total Paid</span>
-            <strong>{formatMoney(totalPaid)}</strong>
-          </div>
-        </div>
-        <div style={paymentMethodCard}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: "#475569" }}>
-            Payment Method: <strong style={{ color: "#0f172a" }}>{order?.paymentMethod?.toUpperCase()}</strong>
-          </span>
-          <span style={paidSuccessBadge}>✓ Paid Successfully</span>
-        </div>
-        {order?.totalAmount && (
-          <div style={buycoinsEarnedBox}>
-            <span style={{ fontSize: 18 }}>🪙</span>
-            <span style={{ color: "#78350f", fontWeight: 800, fontSize: 13 }}>
-              You earned {Math.floor(order.totalAmount / 100)} BuyCoins with this order
-            </span>
+        {showSummary && (
+          <div style={{ marginTop: 16 }}>
+            {(order?.products || []).map((item, index) => (
+              <div
+                key={`${item.productId || item.name}-detail-${index}`}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "8px 0",
+                  borderBottom: "1px solid #f1f5f9",
+                  fontSize: 13,
+                  color: "#374151",
+                }}
+              >
+                <span>
+                  {item.name} × {item.quantity}
+                </span>
+                <strong>{formatMoney(item.price * item.quantity)}</strong>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Delivery Address */}
-      <div style={panelStyle}>
-        <h3 style={panelTitleStyle}>📍 Delivery Address</h3>
-        <div style={{ marginTop: 12 }}>
-          <strong style={{ color: "#0f172a", fontSize: 15, fontWeight: 900, display: "block" }}>
-            {order?.user?.name || "Customer"}
-          </strong>
-          {addressLines.map((line, idx) => (
-            <span key={idx} style={{ color: "#475569", fontSize: 13, fontWeight: 600, display: "block", marginTop: 4 }}>
-              {line}
-            </span>
-          ))}
-          {order?.user?.room && (
-            <span style={{ color: "#475569", fontSize: 13, fontWeight: 700, display: "block", marginTop: 4 }}>
-              Room: {order.user.room}
+      {/* Footer */}
+      <button
+        type="button"
+        onClick={() => setShowSummary((previous) => !previous)}
+        style={{
+          width: "100%",
+          padding: "16px 12px",
+          border: 0,
+          borderTop: "1px solid #f1f5f9",
+          background: "#ffffff",
+          color: "#438537",
+          fontSize: 15,
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        {showSummary ? "Hide order summary" : "View order summary"}
+      </button>
+    </div>
+  );
+});
+
+MobileOrderItems.displayName = "MobileOrderItems";
+
+// ETA section supporting smooth digit transition
+const ETASection = React.memo(
+  ({ etaMinutesVal, orderStatus, estimatedDeliveryTime }) => {
+    const formattedEtaTime = useMemo(() => {
+      if (!estimatedDeliveryTime) return "";
+      return new Date(estimatedDeliveryTime).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }, [estimatedDeliveryTime]);
+
+    const etaLabel = useMemo(() => {
+      if (orderStatus === "Delivered") return "Delivered";
+      if (orderStatus === "Cancelled") return "Cancelled";
+      if (orderStatus === "Delivery Failed") return "Failed";
+      return etaMinutesVal > 0 ? `${etaMinutesVal} mins` : "Calculating...";
+    }, [orderStatus, etaMinutesVal]);
+
+    return (
+      <div style={etaCardStyle}>
+        <img
+          src="https://img.icons8.com/?size=100&id=5CgxfgEq7mBc&format=png&color=000000"
+          alt="Estimated Arrival"
+          style={{ width: "32px", height: "32px", objectFit: "contain" }}
+        />
+        <div style={{ flex: 1 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: "950",
+              color: "#1e40af",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            Estimated Arrival
+          </span>
+          <div
+            style={{
+              fontSize: 26,
+              fontWeight: 900,
+              color: "#1e40af",
+              marginTop: 2,
+            }}
+          >
+            {etaLabel}
+          </div>
+          {estimatedDeliveryTime && orderStatus !== "Delivered" && (
+            <span
+              style={{
+                fontSize: 12,
+                color: "#3b82f6",
+                fontWeight: 700,
+                display: "block",
+                marginTop: 4,
+              }}
+            >
+              Expected by {formattedEtaTime}
             </span>
           )}
         </div>
       </div>
+    );
+  },
+);
 
-      {/* Delivery Instructions */}
+// Real-time timeline rendering with status history timestamps
+const TimelineSection = React.memo(
+  ({ orderStatus, statusTimestamps, assignedRiderId, rider }) => {
+    const activeTimelineIndex = useMemo(() => {
+      const STATUS_MAP = {
+        "Order Placed": "ORDER_PLACED",
+        Preparing: "STORE_ACCEPTED",
+        Packed: "PACKING",
+        "Rider Assigned": "RIDER_ASSIGNED",
+        "Picked Up": "ON_THE_WAY",
+        "Out for Delivery": "ON_THE_WAY",
+        "Near You": "ON_THE_WAY",
+        Delivered: "DELIVERED",
+        Cancelled: "CANCELLED",
+        Pending: "ORDER_PLACED",
+      };
+
+      let currentNormalized =
+        STATUS_MAP[orderStatus] || orderStatus || "ORDER_PLACED";
+
+      // Fallback: If rider status is Rider Assigned but rider details are missing, demote to Packing stage
+      const isAssigned = Boolean(assignedRiderId || rider);
+      if (currentNormalized === "RIDER_ASSIGNED" && !isAssigned) {
+        currentNormalized = "PACKING";
+      }
+
+      const timelineOrder = [
+        "ORDER_PLACED",
+        "PAYMENT_RECEIVED",
+        "STORE_ACCEPTED",
+        "PACKING",
+        "RIDER_ASSIGNED",
+        "ON_THE_WAY",
+        "DELIVERED",
+      ];
+
+      const idx = timelineOrder.indexOf(currentNormalized);
+      if (idx !== -1) return idx;
+      return 0;
+    }, [orderStatus, assignedRiderId, rider]);
+
+    return (
       <div style={panelStyle}>
-        <h3 style={{ ...panelTitleStyle, display: "flex", alignItems: "center", gap: "6px" }}>
-          <img 
-            src="https://img.icons8.com/?size=100&id=uTI4SjCIkNJp&format=png&color=000000" 
-            alt="Delivery Instructions" 
-            style={{ width: "20px", height: "20px", objectFit: "contain" }} 
-          /> 
-          Delivery Instructions
+        <h3
+          style={{
+            ...panelTitleStyle,
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <img
+            src="https://img.icons8.com/?size=100&id=AefXIkx4A693&format=png&color=000000"
+            alt="Order Status"
+            style={{ width: "18px", height: "18px", objectFit: "contain" }}
+          />
+          Order Status
         </h3>
-        <p style={{ margin: "4px 0 12px", fontSize: 12, color: "#64748b", fontWeight: 700 }}>
-          Let the rider know where or how to drop off your order.
-        </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-          {PRESET_INSTRUCTIONS.map((preset) => {
-            const isActive = instructionsText.includes(preset);
+        <div style={timelineList}>
+          <div style={timelineTrackLine} />
+          {timelineStages.map((stage, idx) => {
+            const isCompleted = idx < activeTimelineIndex;
+            const isCurrent = idx === activeTimelineIndex;
+
+            // Timestamp matching
+            const tsRaw = statusTimestamps?.[stage.key];
+            const formattedTime = tsRaw
+              ? new Date(tsRaw).toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
+              : "";
+
             return (
-              <button
-                key={preset}
-                onClick={() => togglePresetInstruction(preset)}
-                style={presetBadgeStyle(isActive)}
-              >
-                {preset}
-              </button>
+              <div key={stage.name} style={timelineRowStyle}>
+                <div style={timelineDotStyle(isCompleted, isCurrent)}>
+                  {isCompleted ? "✓" : isCurrent ? "●" : "○"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong
+                    style={{
+                      color: isCompleted || isCurrent ? "#0f172a" : "#94a3b8",
+                      fontSize: 14,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {stage.name}
+                  </strong>
+                  {formattedTime && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: 11,
+                        color: "#64748b",
+                        fontWeight: 600,
+                        marginTop: 2,
+                      }}
+                    >
+                      {formattedTime}
+                    </span>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <input
-            type="text"
-            value={instructionsText}
-            onChange={(e) => setInstructionsText(e.target.value)}
-            placeholder="Write custom instructions or note..."
-            style={customInstructionsInput}
-          />
-          <button
-            disabled={isUpdatingInstructions}
-            onClick={() => handleUpdateInstructions(instructionsText)}
-            style={saveInstructionsBtn}
-          >
-            {isUpdatingInstructions ? "Saving..." : "Save"}
-          </button>
-        </div>
       </div>
-    </div>
-  );
-});
-
-// ETA section supporting smooth digit transition
-const ETASection = React.memo(({ etaMinutesVal, orderStatus, estimatedDeliveryTime }) => {
-  const formattedEtaTime = useMemo(() => {
-    if (!estimatedDeliveryTime) return "";
-    return new Date(estimatedDeliveryTime).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit"
-    });
-  }, [estimatedDeliveryTime]);
-
-  const etaLabel = useMemo(() => {
-    if (orderStatus === "Delivered") return "Delivered";
-    if (orderStatus === "Cancelled") return "Cancelled";
-    if (orderStatus === "Delivery Failed") return "Failed";
-    return etaMinutesVal > 0 ? `${etaMinutesVal} mins` : "Calculating...";
-  }, [orderStatus, etaMinutesVal]);
-
-  return (
-    <div style={etaCardStyle}>
-      <img
-        src="https://img.icons8.com/?size=100&id=5CgxfgEq7mBc&format=png&color=000000"
-        alt="Estimated Arrival"
-        style={{ width: "32px", height: "32px", objectFit: "contain" }}
-      />
-      <div style={{ flex: 1 }}>
-        <span style={{ fontSize: 11, fontWeight: "950", color: "#1e40af", textTransform: "uppercase", letterSpacing: 0.5 }}>
-          Estimated Arrival
-        </span>
-        <div style={{ fontSize: 26, fontWeight: 900, color: "#1e40af", marginTop: 2 }}>
-          {etaLabel}
-        </div>
-        {estimatedDeliveryTime && orderStatus !== "Delivered" && (
-          <span style={{ fontSize: 12, color: "#3b82f6", fontWeight: 700, display: "block", marginTop: 4 }}>
-            Expected by {formattedEtaTime}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-});
-
-// Real-time timeline rendering with status history timestamps
-const TimelineSection = React.memo(({ orderStatus, statusTimestamps, assignedRiderId, rider }) => {
-  const activeTimelineIndex = useMemo(() => {
-    const STATUS_MAP = {
-      "Order Placed": "ORDER_PLACED",
-      "Preparing": "STORE_ACCEPTED",
-      "Packed": "PACKING",
-      "Rider Assigned": "RIDER_ASSIGNED",
-      "Picked Up": "ON_THE_WAY",
-      "Out for Delivery": "ON_THE_WAY",
-      "Near You": "ON_THE_WAY",
-      "Delivered": "DELIVERED",
-      "Cancelled": "CANCELLED",
-      "Pending": "ORDER_PLACED"
-    };
-
-    let currentNormalized = STATUS_MAP[orderStatus] || orderStatus || "ORDER_PLACED";
-
-    // Fallback: If rider status is Rider Assigned but rider details are missing, demote to Packing stage
-    const isAssigned = Boolean(assignedRiderId || rider);
-    if (currentNormalized === "RIDER_ASSIGNED" && !isAssigned) {
-      currentNormalized = "PACKING";
-    }
-
-    const timelineOrder = [
-      "ORDER_PLACED",
-      "PAYMENT_RECEIVED",
-      "STORE_ACCEPTED",
-      "PACKING",
-      "RIDER_ASSIGNED",
-      "ON_THE_WAY",
-      "DELIVERED"
-    ];
-
-    const idx = timelineOrder.indexOf(currentNormalized);
-    if (idx !== -1) return idx;
-    return 0;
-  }, [orderStatus, assignedRiderId, rider]);
-
-  return (
-    <div style={panelStyle}>
-      <h3 style={{ ...panelTitleStyle, display: "flex", alignItems: "center", gap: "6px" }}>
-        <img
-          src="https://img.icons8.com/?size=100&id=AefXIkx4A693&format=png&color=000000"
-          alt="Order Status"
-          style={{ width: "18px", height: "18px", objectFit: "contain" }}
-        />
-        Order Status
-      </h3>
-      <div style={timelineList}>
-        <div style={timelineTrackLine} />
-        {timelineStages.map((stage, idx) => {
-          const isCompleted = idx < activeTimelineIndex;
-          const isCurrent = idx === activeTimelineIndex;
-
-          // Timestamp matching
-          const tsRaw = statusTimestamps?.[stage.key];
-          const formattedTime = tsRaw ? new Date(tsRaw).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : "";
-
-          return (
-            <div key={stage.name} style={timelineRowStyle}>
-              <div style={timelineDotStyle(isCompleted, isCurrent)}>
-                {isCompleted ? "✓" : isCurrent ? "●" : "○"}
-              </div>
-              <div style={{ flex: 1 }}>
-                <strong style={{ color: isCompleted || isCurrent ? "#0f172a" : "#94a3b8", fontSize: 14, fontWeight: 800 }}>
-                  {stage.name}
-                </strong>
-                {formattedTime && (
-                  <span style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 600, marginTop: 2 }}>
-                    {formattedTime}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
+    );
+  },
+);
 
 // Premium Waiting Card
 const RiderWaitingCard = () => {
   return (
-    <div style={{
-      display: "flex",
-      gap: 14,
-      alignItems: "center",
-      background: "#f0fdf4", // soft green background
-      border: "1.5px solid #bbf7d0", // soft green border
-      padding: "16px",
-      borderRadius: "20px",
-      fontFamily: "'Outfit', 'Inter', sans-serif"
-    }}>
+    <div
+      style={{
+        display: "flex",
+        gap: 14,
+        alignItems: "center",
+        background: "#f0fdf4", // soft green background
+        border: "1.5px solid #bbf7d0", // soft green border
+        padding: "16px",
+        borderRadius: "20px",
+        fontFamily: "'Outfit', 'Inter', sans-serif",
+      }}
+    >
       <BuytoRiderAvatar isWaiting={true} size={50} />
       <div style={{ flex: 1 }}>
         <strong style={{ fontSize: 15, fontWeight: 900, color: "#166534" }}>
           <img
             src="https://img.icons8.com/?size=100&id=mMHLa0MxLXb2&format=png&color=000000"
             alt="Searching for rider"
-            style={{ width: "18px", height: "18px", objectFit: "contain", verticalAlign: "middle", marginRight: "4px" }}
-          /> Searching for rider...
+            style={{
+              width: "18px",
+              height: "18px",
+              objectFit: "contain",
+              verticalAlign: "middle",
+              marginRight: "4px",
+            }}
+          />{" "}
+          Searching for rider...
         </strong>
-        <p style={{ margin: "2px 0 0", fontSize: 12, color: "#15803d", fontWeight: 700, lineHeight: "1.4" }}>
-          We're assigning the best available rider. We'll notify you as soon as your rider is assigned.
+        <p
+          style={{
+            margin: "2px 0 0",
+            fontSize: 12,
+            color: "#15803d",
+            fontWeight: 700,
+            lineHeight: "1.4",
+          }}
+        >
+          We're assigning the best available rider. We'll notify you as soon as
+          your rider is assigned.
         </p>
-        <span style={{ display: "inline-block", fontSize: 11, color: "#166534", fontWeight: 800, marginTop: 6, background: "#dcfce7", padding: "3px 8px", borderRadius: "10px" }}>
+        <span
+          style={{
+            display: "inline-block",
+            fontSize: 11,
+            color: "#166534",
+            fontWeight: 800,
+            marginTop: 6,
+            background: "#dcfce7",
+            padding: "3px 8px",
+            borderRadius: "10px",
+          }}
+        >
           ⏳ Waiting for Rider Assignment
         </span>
       </div>
       <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
-        <button disabled style={{
-          padding: "8px 12px",
-          borderRadius: "10px",
-          border: "1px dashed #cbd5e1",
-          background: "#f8fafc",
-          color: "#94a3b8",
-          fontSize: "12px",
-          fontWeight: "800",
-          cursor: "not-allowed"
-        }}>
+        <button
+          disabled
+          style={{
+            padding: "8px 12px",
+            borderRadius: "10px",
+            border: "1px dashed #cbd5e1",
+            background: "#f8fafc",
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "800",
+            cursor: "not-allowed",
+          }}
+        >
           Call
         </button>
-        <button disabled style={{
-          padding: "8px 12px",
-          borderRadius: "10px",
-          border: "1px dashed #cbd5e1",
-          background: "#f8fafc",
-          color: "#94a3b8",
-          fontSize: "12px",
-          fontWeight: "800",
-          cursor: "not-allowed"
-        }}>
+        <button
+          disabled
+          style={{
+            padding: "8px 12px",
+            borderRadius: "10px",
+            border: "1px dashed #cbd5e1",
+            background: "#f8fafc",
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "800",
+            cursor: "not-allowed",
+          }}
+        >
           Chat
         </button>
       </div>
@@ -423,48 +1049,82 @@ const RiderWaitingCard = () => {
 };
 
 // Rider details details card
-const RiderSection = React.memo(({ rider, orderStatus, progress, assignedRiderId }) => {
-  const isAssigned = Boolean(assignedRiderId || rider);
+const RiderSection = React.memo(
+  ({ rider, orderStatus, progress, assignedRiderId }) => {
+    const isAssigned = Boolean(assignedRiderId || rider);
 
-  if (!isAssigned) {
-    return <RiderWaitingCard />;
-  }
+    if (!isAssigned) {
+      return <RiderWaitingCard />;
+    }
 
-  // Realistic rider updates message
-  const riderMessage = useMemo(() => {
-    if (orderStatus === "Delivered") return "Delivered";
-    if (progress >= 90) return "Arriving in 2 mins";
-    if (progress >= 80) return "Almost there";
-    if (progress >= 60) return "Rider is on the way";
-    return "Waiting at store";
-  }, [orderStatus, progress]);
+    // Realistic rider updates message
+    const riderMessage = useMemo(() => {
+      if (orderStatus === "Delivered") return "Delivered";
+      if (progress >= 90) return "Arriving in 2 mins";
+      if (progress >= 80) return "Almost there";
+      if (progress >= 60) return "Rider is on the way";
+      return "Waiting at store";
+    }, [orderStatus, progress]);
 
-  return (
-    <div style={driverCardStyle}>
-      <BuytoRiderAvatar isWaiting={false} size={50} />
-      <div style={{ flex: 1 }}>
-        <strong style={{ fontSize: 15, fontWeight: 900, color: "#0f172a" }}>{rider?.name || "Delivery Partner"}</strong>
-        <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748b", fontWeight: 700 }}>
-          ⭐ {rider?.rating || "5.0"} • {rider?.vehicleType || "TVS Jupiter"}
-        </p>
-        <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", marginTop: 4, display: "block" }}>
-          {rider?.plateNumber || "KA 03 JM 1234"}
-        </span>
-        <span style={{ display: "block", fontSize: 12, color: "#10b981", fontWeight: 800, marginTop: 4 }}>
-          {riderMessage}
-        </span>
+    return (
+      <div style={driverCardStyle}>
+        <BuytoRiderAvatar isWaiting={false} size={50} />
+        <div style={{ flex: 1 }}>
+          <strong style={{ fontSize: 15, fontWeight: 900, color: "#0f172a" }}>
+            {rider?.name || "Delivery Partner"}
+          </strong>
+          <p
+            style={{
+              margin: "2px 0 0",
+              fontSize: 12,
+              color: "#64748b",
+              fontWeight: 700,
+            }}
+          >
+            ⭐ {rider?.rating || "5.0"} • {rider?.vehicleType || "TVS Jupiter"}
+          </p>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              color: "#94a3b8",
+              marginTop: 4,
+              display: "block",
+            }}
+          >
+            {rider?.plateNumber || "KA 03 JM 1234"}
+          </span>
+          <span
+            style={{
+              display: "block",
+              fontSize: 12,
+              color: "#10b981",
+              fontWeight: 800,
+              marginTop: 4,
+            }}
+          >
+            {riderMessage}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {rider?.phone ? (
+            <a href={`tel:${rider.phone}`} style={driverActionBtn}>
+              Call
+            </a>
+          ) : (
+            <button
+              disabled
+              style={{ ...driverGhostBtn, cursor: "not-allowed", opacity: 0.5 }}
+            >
+              Call
+            </button>
+          )}
+          <button style={driverGhostBtn}>Chat</button>
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        {rider?.phone ? (
-          <a href={`tel:${rider.phone}`} style={driverActionBtn}>Call</a>
-        ) : (
-          <button disabled style={{ ...driverGhostBtn, cursor: "not-allowed", opacity: 0.5 }}>Call</button>
-        )}
-        <button style={driverGhostBtn}>Chat</button>
-      </div>
-    </div>
-  );
-});
+    );
+  },
+);
 
 export default function OrderTrackingPage({ orderId }) {
   const navigate = useNavigate();
@@ -509,11 +1169,18 @@ export default function OrderTrackingPage({ orderId }) {
 
     while (retries < maxRetries) {
       try {
-        console.log(`[Tracking Load] Fetching order track data. Attempt ${retries + 1}/${maxRetries}`);
-        const res = await apiFetch(window.API_BASE_URL + `/api/orders/track/${orderId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          blocking: true
-        });
+        console.log(
+          `[Tracking Load] Fetching order track data. Attempt ${
+            retries + 1
+          }/${maxRetries}`,
+        );
+        const res = await apiFetch(
+          window.API_BASE_URL + `/api/orders/track/${orderId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            blocking: true,
+          },
+        );
         const data = await res.json();
 
         if (!res.ok) {
@@ -535,10 +1202,12 @@ export default function OrderTrackingPage({ orderId }) {
         return true;
       } catch (err) {
         retries++;
-        console.warn(`[Tracking Load] Attempt ${retries} failed: ${err.message}`);
+        console.warn(
+          `[Tracking Load] Attempt ${retries} failed: ${err.message}`,
+        );
         if (retries < maxRetries) {
           setLoadingStep(retries);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           setError(err.message || "Something Went Wrong. Please try again.");
           setLoading(false);
@@ -574,7 +1243,7 @@ export default function OrderTrackingPage({ orderId }) {
 
     console.log({
       currentVersion: currentVersion.current,
-      incomingVersion: eventVersion
+      incomingVersion: eventVersion,
     });
 
     if (eventVersion < currentVersion.current) {
@@ -587,16 +1256,16 @@ export default function OrderTrackingPage({ orderId }) {
 
     const STATUS_TIMESTAMP_KEYS = {
       "Order Placed": "orderPlaced",
-      "Preparing": "preparing",
-      "Packed": "packed",
+      Preparing: "preparing",
+      Packed: "packed",
       "Rider Assigned": "riderAssigned",
       "Out for Delivery": "outForDelivery",
-      "Delivered": "delivered",
-      "Cancelled": "cancelled"
+      Delivered: "delivered",
+      Cancelled: "cancelled",
     };
 
     if (event.type === "status") {
-      setOrder(prev => {
+      setOrder((prev) => {
         if (!prev) return prev;
         const mappedKey = STATUS_TIMESTAMP_KEYS[event.status] || event.status;
         return {
@@ -606,8 +1275,8 @@ export default function OrderTrackingPage({ orderId }) {
           trackingVersion: eventVersion,
           statusTimestamps: {
             ...prev.statusTimestamps,
-            [mappedKey]: event.updatedAt
-          }
+            [mappedKey]: event.updatedAt,
+          },
         };
       });
       if (event.rider) {
@@ -617,18 +1286,20 @@ export default function OrderTrackingPage({ orderId }) {
           vehicleType: event.rider.vehicle || event.rider.vehicleType,
           plateNumber: event.rider.vehicleNumber || event.rider.plateNumber,
           phone: event.rider.phone,
-          profileImage: event.rider.riderPhoto || event.rider.profilePhoto || event.rider.profileImage
+          profileImage:
+            event.rider.riderPhoto ||
+            event.rider.profilePhoto ||
+            event.rider.profileImage,
         });
       }
       if (event.tracking) {
-        setTrackingInfo(prev => ({
+        setTrackingInfo((prev) => ({
           ...prev,
-          ...event.tracking
+          ...event.tracking,
         }));
       }
       triggerToast(`📦 Status Update: ${event.status}`);
-    }
-    else if (event.type === "rider") {
+    } else if (event.type === "rider") {
       const riderObj = event.rider || event;
       const assignedRiderId = riderObj.riderId || "assigned-placeholder";
 
@@ -638,12 +1309,14 @@ export default function OrderTrackingPage({ orderId }) {
         vehicleType: riderObj.vehicle || riderObj.vehicleType,
         plateNumber: riderObj.vehicleNumber || riderObj.plateNumber,
         phone: riderObj.phone,
-        profileImage: riderObj.riderPhoto || riderObj.profilePhoto || riderObj.profileImage
+        profileImage:
+          riderObj.riderPhoto || riderObj.profilePhoto || riderObj.profileImage,
       });
 
-      setOrder(prev => {
+      setOrder((prev) => {
         if (!prev) return prev;
-        const mappedKey = STATUS_TIMESTAMP_KEYS["Rider Assigned"] || "riderAssigned";
+        const mappedKey =
+          STATUS_TIMESTAMP_KEYS["Rider Assigned"] || "riderAssigned";
         return {
           ...prev,
           orderStatus: "Rider Assigned",
@@ -651,22 +1324,21 @@ export default function OrderTrackingPage({ orderId }) {
           riderAssigned: true,
           statusTimestamps: {
             ...prev.statusTimestamps,
-            [mappedKey]: event.updatedAt || new Date().toISOString()
-          }
+            [mappedKey]: event.updatedAt || new Date().toISOString(),
+          },
         };
       });
 
       if (riderObj.tracking) {
-        setTrackingInfo(prev => ({
+        setTrackingInfo((prev) => ({
           ...prev,
-          ...riderObj.tracking
+          ...riderObj.tracking,
         }));
       }
 
       triggerToast(`🛵 Rider assigned to your order!`);
-    }
-    else if (event.type === "location") {
-      setTrackingInfo(prev => {
+    } else if (event.type === "location") {
+      setTrackingInfo((prev) => {
         const route = prev?.route || [];
         return {
           ...prev,
@@ -676,23 +1348,26 @@ export default function OrderTrackingPage({ orderId }) {
           currentLocation: {
             lat: event.latitude,
             lng: event.longitude,
-            bearing: event.bearing || 0
+            bearing: event.bearing || 0,
           },
           lastUpdated: event.updatedAt,
-          version: eventVersion
+          version: eventVersion,
         };
       });
-    }
-    else if (event.type === "delivered") {
-      setOrder(prev => prev ? {
-        ...prev,
-        orderStatus: "Delivered",
-        statusTimestamps: {
-          ...prev.statusTimestamps,
-          delivered: event.updatedAt
-        }
-      } : prev);
-      setTrackingInfo(prev => prev ? { ...prev, progress: 100 } : prev);
+    } else if (event.type === "delivered") {
+      setOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              orderStatus: "Delivered",
+              statusTimestamps: {
+                ...prev.statusTimestamps,
+                delivered: event.updatedAt,
+              },
+            }
+          : prev,
+      );
+      setTrackingInfo((prev) => (prev ? { ...prev, progress: 100 } : prev));
       triggerToast("🎉 Your order has been delivered!");
     }
   }, []);
@@ -718,7 +1393,9 @@ export default function OrderTrackingPage({ orderId }) {
 
         const handleConnect = () => {
           console.log("🔌 Connected to Socket.IO room order_" + orderId);
-          setConnectionStatus(connectionStatus === "reconnecting" ? "online" : "connected");
+          setConnectionStatus(
+            connectionStatus === "reconnecting" ? "online" : "connected",
+          );
           stopFallbackPolling();
           socket.emit("joinOrderRoom", { orderId, token });
         };
@@ -762,7 +1439,7 @@ export default function OrderTrackingPage({ orderId }) {
               eta: data.tracking.etaMinutes,
               tracking: data.tracking,
               version: data.tracking.version,
-              updatedAt: data.tracking.lastUpdated
+              updatedAt: data.tracking.lastUpdated,
             };
             processLiveEvent(legacyPayload);
           }
@@ -779,7 +1456,7 @@ export default function OrderTrackingPage({ orderId }) {
 
         // If it was already connected, join the room immediately
         if (socket.connected) {
-           handleConnect();
+          handleConnect();
         }
 
         return () => {
@@ -794,7 +1471,7 @@ export default function OrderTrackingPage({ orderId }) {
         };
       };
 
-      setupSocket().then(cleanup => {
+      setupSocket().then((cleanup) => {
         cleanupListeners = cleanup;
       });
     });
@@ -810,21 +1487,39 @@ export default function OrderTrackingPage({ orderId }) {
         // We do NOT disconnect the singleton here.
       }
     };
-  }, [orderId, loadInitialTracking, startFallbackPolling, stopFallbackPolling, processLiveEvent]);
+  }, [
+    orderId,
+    loadInitialTracking,
+    startFallbackPolling,
+    stopFallbackPolling,
+    processLiveEvent,
+  ]);
 
   // Handle instructions updates
   const handleUpdateInstructions = async (newText) => {
     setIsUpdatingInstructions(true);
     try {
-      const res = await fetch(window.API_BASE_URL + `/api/orders/${orderId}/instructions`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        window.API_BASE_URL + `/api/orders/${orderId}/instructions`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ instructions: newText }),
         },
-        body: JSON.stringify({ instructions: newText })
-      });
+      );
       const data = await res.json();
+
+      console.log("[Tracking] Full API response:", data);
+      console.log("[Tracking] Order object:", data.order);
+      console.log("[Tracking] Product fields:", {
+        products: data.order?.products,
+        items: data.order?.items,
+        orderItems: data.order?.orderItems,
+      });
+
       if (res.ok && data.success) {
         setInstructionsText(data.deliveryInstructions);
         setShowSuccessToast(true);
@@ -842,7 +1537,8 @@ export default function OrderTrackingPage({ orderId }) {
     if (current.includes(preset)) {
       current = current.replace(preset, "").replace(/,\s*,/g, ",").trim();
       if (current.startsWith(",")) current = current.substring(1).trim();
-      if (current.endsWith(",")) current = current.substring(0, current.length - 1).trim();
+      if (current.endsWith(","))
+        current = current.substring(0, current.length - 1).trim();
     } else {
       current = current ? `${current}, ${preset}` : preset;
     }
@@ -879,31 +1575,43 @@ export default function OrderTrackingPage({ orderId }) {
       html: `<div class="custom-scooter-marker" style="transform: rotate(${bearing}deg); transition: transform 0.4s ease-out; font-size: 32px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15)); text-align: center;">🛵</div>`,
       iconSize: [36, 36],
       iconAnchor: [18, 18],
-      className: "custom-scooter-icon-node"
+      className: "custom-scooter-icon-node",
     });
   }, [bearing]);
 
   // Billing subtotal values
-  const subtotal = order?.products?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
+  const subtotal =
+    order?.products?.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    ) || 0;
   const deliveryFee = subtotal > 99 ? 0 : 29;
   const platformFee = 4;
-  const coinsRedeemed = order?.buyCoins?.applied || order?.buyCoinsRedeemed || 0;
-  const coinsDiscount = order?.buyCoins?.discount || order?.buyCoinsDiscount || 0;
+  const coinsRedeemed =
+    order?.buyCoins?.applied || order?.buyCoinsRedeemed || 0;
+  const coinsDiscount =
+    order?.buyCoins?.discount || order?.buyCoinsDiscount || 0;
   const couponDiscount = order?.couponDiscount || 0;
   const totalDiscount = coinsDiscount + couponDiscount;
-  const totalPaid = Math.max(0, subtotal + deliveryFee + platformFee - totalDiscount);
+  const totalPaid = Math.max(
+    0,
+    subtotal + deliveryFee + platformFee - totalDiscount,
+  );
 
   // Address parsing
   const rawAddress = order?.deliveryAddress || order?.user?.location || "";
   const cleanAddress = rawAddress.replace(/undefined/gi, "").trim();
-  const addressLines = cleanAddress.split(",").map(line => line.trim()).filter(Boolean);
+  const addressLines = cleanAddress
+    .split(",")
+    .map((line) => line.trim())
+    .filter(Boolean);
 
   const loadingStepsText = [
     "🛒 Preparing your order...",
     "Assigning fulfillment store...",
     "Initializing live tracking...",
     "Almost ready...",
-    "Almost there..."
+    "Almost there...",
   ];
 
   if (loading || !order) {
@@ -913,32 +1621,38 @@ export default function OrderTrackingPage({ orderId }) {
           <div style={errorPanelStyle}>
             <h1 style={titleStyle}>Tracking unavailable</h1>
             <p style={mutedStyle}>{error}</p>
-            <button style={secondaryBtnStyle} onClick={() => navigate("/")}>Back to Shopping</button>
+            <button style={secondaryBtnStyle} onClick={() => navigate("/")}>
+              Back to Shopping
+            </button>
           </div>
         </div>
       );
     }
 
     return (
-      <div style={{
-        ...loadingStyle,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        gap: "16px",
-        minHeight: "100vh",
-        background: "#ffffff",
-        fontFamily: "'Outfit', 'Inter', sans-serif"
-      }}>
-        <div style={{
-          width: "48px",
-          height: "48px",
-          border: "4px solid rgba(49, 134, 22, 0.1)",
-          borderTop: "4px solid #318616",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite"
-        }}></div>
+      <div
+        style={{
+          ...loadingStyle,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: "16px",
+          minHeight: "100vh",
+          background: "#ffffff",
+          fontFamily: "'Outfit', 'Inter', sans-serif",
+        }}
+      >
+        <div
+          style={{
+            width: "48px",
+            height: "48px",
+            border: "4px solid rgba(49, 134, 22, 0.1)",
+            borderTop: "4px solid #318616",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+          }}
+        ></div>
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -964,30 +1678,122 @@ export default function OrderTrackingPage({ orderId }) {
 
   return (
     <div style={pageStyle}>
-      <SEO title={orderId ? `Track Order #${orderId.slice(-6).toUpperCase()}` : "Track Order"} description="Track live delivery status and location for your Buyto order." />
+      <SEO
+        title={
+          orderId
+            ? `Track Order #${orderId.slice(-6).toUpperCase()}`
+            : "Track Order"
+        }
+        description="Track live delivery status and location for your Buyto order."
+      />
       <style>{`
+        
         @media (max-width: 900px) {
           .tracking-desktop-layout {
             display: none !important;
           }
+
           .tracking-mobile-layout {
             display: flex !important;
             flex-direction: column;
-            gap: 20px;
+            gap: 14px !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
           }
+
+          .tracking-mobile-layout > * {
+            margin-top: 0;
+          }
+
+
+          .tracking-mobile-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10000;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            height: 125px;
+            min-height: 125px;
+            box-sizing: border-box;
+            padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 12px;
+
+            background: #318616;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+          }
+
+          .tracking-mobile-back {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+
+            width: 48px;
+            height: 48px;
+            border: none;
+            border-radius: 50%;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: #e9f4e4;
+            color: #243024;
+            font-size: 30px;
+            cursor: pointer;
+          }
+
+          .tracking-mobile-heading {
+            width: 100%;
+            padding: 0 36px;
+            text-align: center;
+          }
+
+          .tracking-mobile-status {
+            margin-bottom: 6px;
+            font-size: 15px;
+            font-weight: 700;
+          }
+
+          .tracking-mobile-eta {
+            font-size: clamp(21px, 5vw, 27px);
+            line-height: 1.15;
+            font-weight: 900;
+            overflow-wrap: anywhere;
+          }
+
+          .tracking-mobile-header-spacer {
+            height:125px !important;
+            min-height: 125px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex-shrink: 0;
+            display: none !important;
+          }
+
+
         }
+
         @media (min-width: 901px) {
           .tracking-desktop-layout {
             display: grid !important;
-            grid-template-columns: 1.55fr 0.45fr 0.65fr !important;
-            gap: 24px;
+            grid-template-columns: minmax(0, 1.3fr) minmax(240px, 0.7fr) !important;
+            align-items: start;
+            gap: 20px;
             max-width: 1240px;
             margin: 0 auto;
           }
+
           .tracking-mobile-layout {
             display: none !important;
           }
         }
+
         .custom-scooter-marker {
           transition: transform 0.3s ease-out;
         }
@@ -1026,7 +1832,7 @@ export default function OrderTrackingPage({ orderId }) {
             fontWeight: "800",
             boxShadow: "0 10px 25px rgba(16, 185, 129, 0.3)",
             zIndex: 999999,
-            fontSize: "14px"
+            fontSize: "14px",
           }}
         >
           ✓ Delivery Instructions Updated
@@ -1053,7 +1859,7 @@ export default function OrderTrackingPage({ orderId }) {
               border: "1px solid rgba(255,255,255,0.1)",
               display: "flex",
               alignItems: "center",
-              gap: 8
+              gap: 8,
             }}
           >
             <span>🔔</span> {toastMessage}
@@ -1064,41 +1870,37 @@ export default function OrderTrackingPage({ orderId }) {
       {/* Top Header Panel */}
       <div style={headerRowStyle}>
         <div>
-          <button style={backBtnStyle} onClick={() => navigate("/profile")}>← Back to Home</button>
-          <h1 style={{ fontSize: 24, fontWeight: 900, color: "#0f172a", margin: "12px 0 4px" }}>
+          <button style={backBtnStyle} onClick={() => navigate("/profile")}>
+            ← Back to Home
+          </button>
+          <h1
+            style={{
+              fontSize: 24,
+              fontWeight: 900,
+              color: "#0f172a",
+              margin: "12px 0 4px",
+            }}
+          >
             Order #{orderId}
           </h1>
-          <p style={mutedStyle}>Buyto Express Delivery</p>
+          <p
+            style={{ ...mutedStyle, margin: "0", padding: "0", lineHeight: 1 }}
+          >
+            Buyto Express Delivery
+          </p>
         </div>
 
         {/* Dynamic connection indicator badge */}
-        <div className="live-pulse-badge" style={headerStatusBadge(order?.orderStatus, connectionStatus)}>
+        <div
+          className="live-pulse-badge"
+          style={headerStatusBadge(order?.orderStatus, connectionStatus)}
+        >
           {connectionLabel()}
         </div>
       </div>
 
       {/* DESKTOP 3-COLUMN LAYOUT */}
       <div className="tracking-desktop-layout">
-
-        {/* LEFT COLUMN: Success Banner, Items, Payment, Address, Delivery Instructions */}
-        <OrderDetailsLeftColumn
-          order={order}
-          subtotal={subtotal}
-          deliveryFee={deliveryFee}
-          platformFee={platformFee}
-          totalDiscount={totalDiscount}
-          coinsRedeemed={coinsRedeemed}
-          coinsDiscount={coinsDiscount}
-          totalPaid={totalPaid}
-          cleanAddress={cleanAddress}
-          addressLines={addressLines}
-          instructionsText={instructionsText}
-          isUpdatingInstructions={isUpdatingInstructions}
-          setInstructionsText={setInstructionsText}
-          togglePresetInstruction={togglePresetInstruction}
-          handleUpdateInstructions={handleUpdateInstructions}
-        />
-
         {/* CENTER COLUMN: Animated vertical timeline */}
         <TimelineSection
           orderStatus={order?.orderStatus}
@@ -1109,16 +1911,25 @@ export default function OrderTrackingPage({ orderId }) {
 
         {/* RIGHT COLUMN: ETA, Live Map, Rider Details, Shopping Actions */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
           <ETASection
-            etaMinutesVal={trackingInfo?.etaMinutes ?? order?.estimatedArrivalMinutes}
+            etaMinutesVal={
+              trackingInfo?.etaMinutes ?? order?.estimatedArrivalMinutes
+            }
             orderStatus={order?.orderStatus}
             estimatedDeliveryTime={order?.estimatedDeliveryTime}
           />
 
           {/* Live Map Box */}
           <div style={mapPanelStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid #f1f5f9" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "10px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
               <span style={{ fontSize: 12, fontWeight: 800, color: "#475569" }}>
                 Live Delivery Route
               </span>
@@ -1133,7 +1944,7 @@ export default function OrderTrackingPage({ orderId }) {
                     borderRadius: "6px",
                     fontSize: "11px",
                     fontWeight: 900,
-                    cursor: "pointer"
+                    cursor: "pointer",
                   }}
                 >
                   {followRider ? "📍 Following Rider" : "🎯 Follow Rider"}
@@ -1148,28 +1959,49 @@ export default function OrderTrackingPage({ orderId }) {
               zoomControl={false}
               style={{ height: "350px", width: "100%" }}
             >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <Marker position={[storeLat, storeLng]} icon={storeMarkerIcon} />
               {order?.deliveryLatitude && order?.deliveryLongitude && (
-                <Marker position={[order.deliveryLatitude, order.deliveryLongitude]} icon={customerMarkerIcon} />
+                <Marker
+                  position={[order.deliveryLatitude, order.deliveryLongitude]}
+                  icon={customerMarkerIcon}
+                />
               )}
               {scooterPos && (
-                <Marker position={[scooterPos.lat, scooterPos.lng]} icon={scooterMarkerIcon} />
+                <Marker
+                  position={[scooterPos.lat, scooterPos.lng]}
+                  icon={scooterMarkerIcon}
+                />
               )}
 
               {/* Colored solid completed route vs gray/dashed remaining route */}
               {completedRoute.length > 0 && (
-                <Polyline positions={completedRoute.map(pt => [pt.lat, pt.lng])} color="#10b981" weight={6} opacity={0.9} />
+                <Polyline
+                  positions={completedRoute.map((pt) => [pt.lat, pt.lng])}
+                  color="#10b981"
+                  weight={6}
+                  opacity={0.9}
+                />
               )}
               {remainingRoute.length > 0 && (
-                <Polyline positions={remainingRoute.map(pt => [pt.lat, pt.lng])} color="#64748b" weight={4} opacity={0.6} dashArray="5, 8" />
+                <Polyline
+                  positions={remainingRoute.map((pt) => [pt.lat, pt.lng])}
+                  color="#64748b"
+                  weight={4}
+                  opacity={0.6}
+                  dashArray="5, 8"
+                />
               )}
 
-              <MapController route={route} scooterPos={scooterPos} followRider={followRider} />
+              <MapController
+                route={route}
+                scooterPos={scooterPos}
+                followRider={followRider}
+              />
             </MapContainer>
           </div>
+
+          {/* Add more items card */}
 
           <RiderSection
             rider={rider}
@@ -1179,24 +2011,72 @@ export default function OrderTrackingPage({ orderId }) {
           />
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <button onClick={() => navigate("/")} style={{ ...primaryActionBtn, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-              <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=ffffff" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
+            <button
+              onClick={() => navigate("/")}
+              style={{
+                ...primaryActionBtn,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+              }}
+            >
+              <img
+                src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=ffffff"
+                alt="Continue Shopping"
+                style={{ width: "18px", height: "18px", objectFit: "contain" }}
+              />{" "}
+              Continue Shopping
             </button>
-            <button onClick={() => navigate("/help")} style={secondaryActionBtn}>
+            <button
+              onClick={() => navigate("/help")}
+              style={secondaryActionBtn}
+            >
               💬 Contact Support
             </button>
           </div>
-
         </div>
       </div>
 
       {/* MOBILE VERTICAL STACK LAYOUT */}
       <div className="tracking-mobile-layout">
-        <ETASection
-          etaMinutesVal={trackingInfo?.etaMinutes ?? order?.estimatedArrivalMinutes}
-          orderStatus={order?.orderStatus}
-          estimatedDeliveryTime={order?.estimatedDeliveryTime}
-        />
+        {/* Blinkit-style mobile tracking header */}
+        <header className="tracking-mobile-header">
+          <button
+            type="button"
+            className="tracking-mobile-back"
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
+          >
+            ←
+          </button>
+
+          <div className="tracking-mobile-heading">
+            <div className="tracking-mobile-status">
+              {order?.orderStatus === "Delivered"
+                ? "Order delivered"
+                : order?.orderStatus === "Cancelled"
+                ? "Order cancelled"
+                : "Order is on the way"}
+            </div>
+
+            <div className="tracking-mobile-eta">
+              {order?.orderStatus === "Delivered"
+                ? "Delivered successfully"
+                : order?.orderStatus === "Cancelled"
+                ? "Order cancelled"
+                : (trackingInfo?.etaMinutes ?? order?.estimatedArrivalMinutes) >
+                  0
+                ? `Arriving in ${
+                    trackingInfo?.etaMinutes ?? order?.estimatedArrivalMinutes
+                  } minutes`
+                : "Calculating arrival time"}
+            </div>
+          </div>
+        </header>
+
+        {/* Keeps page content below the fixed header */}
+        <div className="tracking-mobile-header-spacer" />
 
         {/* Live Map Box */}
         <div style={mapPanelStyle}>
@@ -1207,25 +2087,92 @@ export default function OrderTrackingPage({ orderId }) {
             zoomControl={false}
             style={{ height: "300px", width: "100%" }}
           >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <Marker position={[storeLat, storeLng]} icon={storeMarkerIcon} />
             {order?.deliveryLatitude && order?.deliveryLongitude && (
-              <Marker position={[order.deliveryLatitude, order.deliveryLongitude]} icon={customerMarkerIcon} />
+              <Marker
+                position={[order.deliveryLatitude, order.deliveryLongitude]}
+                icon={customerMarkerIcon}
+              />
             )}
             {scooterPos && (
-              <Marker position={[scooterPos.lat, scooterPos.lng]} icon={scooterMarkerIcon} />
+              <Marker
+                position={[scooterPos.lat, scooterPos.lng]}
+                icon={scooterMarkerIcon}
+              />
             )}
             {completedRoute.length > 0 && (
-              <Polyline positions={completedRoute.map(pt => [pt.lat, pt.lng])} color="#10b981" weight={6} opacity={0.9} />
+              <Polyline
+                positions={completedRoute.map((pt) => [pt.lat, pt.lng])}
+                color="#10b981"
+                weight={6}
+                opacity={0.9}
+              />
             )}
             {remainingRoute.length > 0 && (
-              <Polyline positions={remainingRoute.map(pt => [pt.lat, pt.lng])} color="#64748b" weight={4} opacity={0.6} dashArray="5, 8" />
+              <Polyline
+                positions={remainingRoute.map((pt) => [pt.lat, pt.lng])}
+                color="#64748b"
+                weight={4}
+                opacity={0.6}
+                dashArray="5, 8"
+              />
             )}
-            <MapController route={route} scooterPos={scooterPos} followRider={followRider} />
+            <MapController
+              route={route}
+              scooterPos={scooterPos}
+              followRider={followRider}
+            />
           </MapContainer>
         </div>
+
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            width: "100%",
+            padding: "14px 16px",
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 16,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+            textAlign: "left",
+            cursor: "pointer",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: "#f0f8e9",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 24,
+              flexShrink: 0,
+            }}
+          >
+            🛍️
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#1f2937" }}>
+              Add more items
+            </div>
+            <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+              Forgot something? Continue shopping
+            </div>
+          </div>
+
+          <span aria-hidden="true" style={{ fontSize: 24, color: "#318616" }}>
+            ›
+          </span>
+        </button>
 
         <RiderSection
           rider={rider}
@@ -1234,98 +2181,697 @@ export default function OrderTrackingPage({ orderId }) {
           assignedRiderId={order?.riderId || order?.assignedRider?.riderId}
         />
 
-        <TimelineSection
-          orderStatus={order?.orderStatus}
-          statusTimestamps={order?.statusTimestamps}
-          assignedRiderId={order?.riderId || order?.assignedRider?.riderId}
-          rider={rider}
-        />
+        {/* Delivery Partner Tip */}
+        <div
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 16,
+            padding: 16,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+          }}
+        >
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#1f2937" }}>
+            💚 Thank your delivery partner
+          </div>
 
-        <OrderDetailsLeftColumn
-          order={order}
-          subtotal={subtotal}
-          deliveryFee={deliveryFee}
-          platformFee={platformFee}
-          totalDiscount={totalDiscount}
-          coinsRedeemed={coinsRedeemed}
-          coinsDiscount={coinsDiscount}
-          totalPaid={totalPaid}
-          cleanAddress={cleanAddress}
-          addressLines={addressLines}
-          instructionsText={instructionsText}
-          isUpdatingInstructions={isUpdatingInstructions}
-          setInstructionsText={setInstructionsText}
-          togglePresetInstruction={togglePresetInstruction}
-          handleUpdateInstructions={handleUpdateInstructions}
-        />
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 5 }}>
+            Your tip goes directly to your delivery partner.
+          </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button onClick={() => navigate("/")} style={{ ...primaryActionBtn, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-            <img src="https://img.icons8.com/?size=100&id=2TlXnKX7oZXI&format=png&color=ffffff" alt="Continue Shopping" style={{ width: "18px", height: "18px", objectFit: "contain" }} /> Continue Shopping
-          </button>
-          <button onClick={() => navigate("/help")} style={secondaryActionBtn}>
-            💬 Contact Support
-          </button>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              marginTop: 14,
+            }}
+          >
+            {[10, 20, 30, 50].map((amount) => (
+              <button
+                key={amount}
+                type="button"
+                onClick={() => alert(`₹${amount} tip selected`)}
+                style={{
+                  flex: 1,
+                  padding: "11px 4px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 12,
+                  background: "#f8fafc",
+                  color: "#1f2937",
+                  fontWeight: 800,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                ₹{amount}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Add Delivery Instructions - Separate Dropdown */}
+        <div
+          style={{
+            background: "#ffffff",
+            borderRadius: 20,
+            padding: 18,
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+            cursor: "pointer",
+          }}
+        >
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              background: "#f3f4f8",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 28,
+              flexShrink: 0,
+            }}
+          >
+            🎙️
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#252525" }}>
+              Add delivery instructions
+            </div>
+            <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+              Help your delivery partner reach you faster
+            </div>
+          </div>
+
+          <span style={{ fontSize: 22, color: "#555" }}>⌄</span>
+        </div>
+
+        {/* Your Delivery Details - One Combined Card */}
+        <MobileDeliveryDetails
+          order={order}
+          addressLines={addressLines}
+          navigate={navigate}
+        />
+
+        {/* Separate Need Help Card */}
+
+        <div
+          onClick={() => navigate("/help")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              navigate("/help");
+            }
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "18px 16px",
+            marginTop: 12,
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 18,
+            cursor: "pointer",
+          }}
+        >
+          <div
+            style={{
+              width: 58,
+              height: 58,
+              borderRadius: "50%",
+              background: "#f3f4f8",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 28,
+              flexShrink: 0,
+            }}
+          >
+            💬
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#252525" }}>
+              Need help?
+            </div>
+
+            <div
+              style={{
+                fontSize: 14,
+                color: "#6b7280",
+                marginTop: 4,
+                lineHeight: 1.5,
+              }}
+            >
+              Chat with us about any issue related to your order
+            </div>
+          </div>
+
+          <span
+            aria-hidden="true"
+            style={{ fontSize: 26, color: "#555", flexShrink: 0 }}
+          >
+            ›
+          </span>
+        </div>
+
+        <div
+          style={{
+            fontSize: 13,
+            color: "#6b7280",
+            marginTop: 12,
+          }}
+        >
+          Help your delivery partner deliver your order smoothly.
+        </div>
+
+        <MobileOrderItems order={order} />
+
+        {/* Rate Our Service Card */}
+        <div
+          style={{
+            marginTop: 16,
+            background: "#ffffff",
+            borderRadius: 18,
+            overflow: "hidden",
+            border: "1px solid #f1f1f1",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "20px 18px",
+            }}
+          >
+            <div
+              style={{
+                width: 58,
+                height: 58,
+                borderRadius: "50%",
+                background: "#f3f4f8",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 28,
+                flexShrink: 0,
+              }}
+            >
+              👍
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#252525" }}>
+                Do you like our services?
+              </div>
+
+              <div
+                style={{
+                  fontSize: 14,
+                  color: "#6b7280",
+                  lineHeight: 1.5,
+                  marginTop: 4,
+                }}
+              >
+                Do rate us on the Play Store if you are enjoying our service.
+                You can rate again if you have already rated us.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", borderTop: "1px solid #f1f1f1" }}>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.currentTarget.closest("[data-rate-card]")?.remove();
+              }}
+              style={{
+                flex: 1,
+                padding: "16px 8px",
+                border: 0,
+                borderRight: "1px solid #f1f1f1",
+                background: "#ffffff",
+                color: "#438537",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Maybe later
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.open(
+                  "https://play.google.com/store",
+                  "_blank",
+                  "noopener,noreferrer",
+                );
+              }}
+              style={{
+                flex: 1,
+                padding: "16px 8px",
+                border: 0,
+                background: "#ffffff",
+                color: "#438537",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Rate Buyto
+            </button>
+          </div>
+        </div>
+
+        {/* Buyto Brand Tagline */}
+        <div
+          style={{
+            padding: "48px 20px 60px",
+            textAlign: "left",
+            background: "#f5f7fb",
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "clamp(36px, 8vw, 54px)",
+              fontWeight: 900,
+              lineHeight: 1.08,
+              letterSpacing: "-1.8px",
+              color: "#c9ced8",
+            }}
+          >
+            The Quick Way to
+            <br />
+            Everyday
+            <br />
+            <span style={{ color: "#318616" }}>Buyto.</span>
+          </h2>
+
+          <div
+            style={{
+              marginTop: 38,
+              height: 1,
+              background: "#e5e7eb",
+            }}
+          />
+
+          <div
+            style={{
+              marginTop: 20,
+              fontSize: 18,
+              fontWeight: 900,
+              letterSpacing: "-0.5px",
+              color: "#d1d5db",
+            }}
+          >
+            buyto
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            marginTop: 14,
+          }}
+        ></div>
       </div>
     </div>
   );
 }
 
 // Styling definitions
-const loadingStyle = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit','Inter',sans-serif", fontWeight: 900, color: "#10b981" };
-const pageStyle = { minHeight: "100vh", background: "#f8fafc", padding: "32px 16px", boxSizing: "border-box", fontFamily: "'Outfit','Inter',sans-serif" };
-const headerRowStyle = { maxWidth: 1240, margin: "0 auto 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" };
-const backBtnStyle = { border: "1px solid #e2e8f0", background: "white", color: "#0f172a", borderRadius: 999, padding: "8px 16px", fontWeight: 800, cursor: "pointer", transition: "all 0.2s" };
-const titleStyle = { fontSize: 32, lineHeight: 1.1, margin: "14px 0 6px", color: "#0f172a" };
-const mutedStyle = { color: "#64748b", margin: 0, fontSize: 13, fontWeight: 700 };
+const loadingStyle = {
+  minHeight: "100vh",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontFamily: "'Outfit','Inter',sans-serif",
+  fontWeight: 900,
+  color: "#10b981",
+};
+const pageStyle = {
+  minHeight: "100vh",
+  background: "#f8fafc",
+  padding: "32px 16px",
+  boxSizing: "border-box",
+  fontFamily: "'Outfit','Inter',sans-serif",
+};
+const headerRowStyle = {
+  maxWidth: 1240,
+  margin: "0 auto 8px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+};
+const backBtnStyle = {
+  border: "1px solid #e2e8f0",
+  background: "white",
+  color: "#0f172a",
+  borderRadius: 999,
+  padding: "8px 16px",
+  fontWeight: 800,
+  cursor: "pointer",
+  transition: "all 0.2s",
+};
+const titleStyle = {
+  fontSize: 32,
+  lineHeight: 1.1,
+  margin: "14px 0 6px",
+  color: "#0f172a",
+};
+const mutedStyle = {
+  color: "#64748b",
+  margin: 0,
+  fontSize: 13,
+  fontWeight: 700,
+};
 
 const headerStatusBadge = (status, conn) => {
   const isDelivered = status === "Delivered";
-  const bg = isDelivered ? "#d1fae5" : conn === "connected" || conn === "online" ? "#e6fbf1" : conn === "reconnecting" ? "#fef3c7" : "#fffbeb";
-  const border = isDelivered ? "#10b981" : conn === "connected" || conn === "online" ? "#10b981" : conn === "reconnecting" ? "#f59e0b" : "#d97706";
-  const color = isDelivered ? "#065f46" : conn === "connected" || conn === "online" ? "#047857" : conn === "reconnecting" ? "#b45309" : "#b45309";
-  return { background: bg, border: `1.5px solid ${border}`, color, fontWeight: 900, fontSize: 13, padding: "8px 16px", borderRadius: "12px" };
+  const bg = isDelivered
+    ? "#d1fae5"
+    : conn === "connected" || conn === "online"
+    ? "#e6fbf1"
+    : conn === "reconnecting"
+    ? "#fef3c7"
+    : "#fffbeb";
+  const border = isDelivered
+    ? "#10b981"
+    : conn === "connected" || conn === "online"
+    ? "#10b981"
+    : conn === "reconnecting"
+    ? "#f59e0b"
+    : "#d97706";
+  const color = isDelivered
+    ? "#065f46"
+    : conn === "connected" || conn === "online"
+    ? "#047857"
+    : conn === "reconnecting"
+    ? "#b45309"
+    : "#b45309";
+  return {
+    background: bg,
+    border: `1.5px solid ${border}`,
+    color,
+    fontWeight: 900,
+    fontSize: 13,
+    padding: "8px 16px",
+    borderRadius: "12px",
+  };
 };
 
-const confirmedBannerStyle = { display: "flex", gap: 16, alignItems: "center", background: "#e6fbf1", border: "1px solid #a7f3d0", borderRadius: "20px", padding: "16px 20px" };
-const panelStyle = { background: "white", border: "1px solid #e2e8f0", borderRadius: "20px", padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" };
-const panelTitleStyle = { margin: "0 0 16px 0", color: "#0f172a", fontSize: 16, fontWeight: 900 };
+const confirmedBannerStyle = {
+  display: "flex",
+  gap: 16,
+  alignItems: "center",
+  background: "#e6fbf1",
+  border: "1px solid #a7f3d0",
+  borderRadius: "20px",
+  padding: "16px 20px",
+};
+const panelStyle = {
+  background: "white",
+  border: "1px solid #e2e8f0",
+  borderRadius: "20px",
+  padding: 20,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
+};
+const panelTitleStyle = {
+  margin: "0 0 16px 0",
+  color: "#0f172a",
+  fontSize: 16,
+  fontWeight: 900,
+};
 
-const itemRowStyle = { display: "flex", gap: 14, alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: 14 };
-const itemImageStyle = { width: 54, height: 54, borderRadius: 12, objectFit: "cover", background: "#f8fafc", border: "1px solid #f1f5f9" };
-const itemNameStyle = { margin: 0, fontSize: 14, fontWeight: 800, color: "#0f172a" };
+const itemRowStyle = {
+  display: "flex",
+  gap: 14,
+  alignItems: "center",
+  borderBottom: "1px solid #f1f5f9",
+  paddingBottom: 14,
+};
+const itemImageStyle = {
+  width: 54,
+  height: 54,
+  borderRadius: 12,
+  objectFit: "cover",
+  background: "#f8fafc",
+  border: "1px solid #f1f5f9",
+};
+const itemNameStyle = {
+  margin: 0,
+  fontSize: 14,
+  fontWeight: 800,
+  color: "#0f172a",
+};
 const itemWeightStyle = { fontSize: 12, color: "#64748b", fontWeight: 700 };
 
-const breakdownRow = { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#64748b", fontWeight: 700 };
-const paymentMethodCard = { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", border: "1.5px solid #f1f5f9", padding: "12px 16px", borderRadius: "14px", marginTop: 14 };
-const paidSuccessBadge = { background: "#d1fae5", color: "#065f46", fontSize: 11, fontWeight: 900, padding: "2px 8px", borderRadius: "999px" };
-const buycoinsEarnedBox = { display: "flex", gap: 8, alignItems: "center", background: "#fffbeb", border: "1px solid #fde68a", padding: "12px 16px", borderRadius: "14px", marginTop: 14 };
+const breakdownRow = {
+  display: "flex",
+  justifyContent: "space-between",
+  fontSize: 13,
+  color: "#64748b",
+  fontWeight: 700,
+};
+const paymentMethodCard = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  background: "#f8fafc",
+  border: "1.5px solid #f1f5f9",
+  padding: "12px 16px",
+  borderRadius: "14px",
+  marginTop: 14,
+};
+const paidSuccessBadge = {
+  background: "#d1fae5",
+  color: "#065f46",
+  fontSize: 11,
+  fontWeight: 900,
+  padding: "2px 8px",
+  borderRadius: "999px",
+};
+const buycoinsEarnedBox = {
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+  background: "#fffbeb",
+  border: "1px solid #fde68a",
+  padding: "12px 16px",
+  borderRadius: "14px",
+  marginTop: 14,
+};
 
-const presetBadgeStyle = (active) => ({ border: active ? "2px solid #2563eb" : "1.5px solid #e2e8f0", background: active ? "#eff6ff" : "white", color: active ? "#1d4ed8" : "#475569", padding: "6px 12px", borderRadius: "999px", fontWeight: 800, fontSize: 12, cursor: "pointer", transition: "all 0.15s" });
-const customInstructionsInput = { flex: 1, padding: "12px 16px", borderRadius: "14px", border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: "inherit" };
-const saveInstructionsBtn = { background: "#111827", color: "white", border: "none", borderRadius: "14px", padding: "0 20px", fontWeight: 800, cursor: "pointer" };
+const presetBadgeStyle = (active) => ({
+  border: active ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+  background: active ? "#eff6ff" : "white",
+  color: active ? "#1d4ed8" : "#475569",
+  padding: "6px 12px",
+  borderRadius: "999px",
+  fontWeight: 800,
+  fontSize: 12,
+  cursor: "pointer",
+  transition: "all 0.15s",
+});
+const customInstructionsInput = {
+  flex: 1,
+  padding: "12px 16px",
+  borderRadius: "14px",
+  border: "1.5px solid #e2e8f0",
+  fontSize: 13,
+  fontWeight: 600,
+  fontFamily: "inherit",
+};
+const saveInstructionsBtn = {
+  background: "#111827",
+  color: "white",
+  border: "none",
+  borderRadius: "14px",
+  padding: "0 20px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
 
-const etaCardStyle = { display: "flex", gap: 16, alignItems: "center", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "20px", padding: "20px", boxShadow: "0 4px 20px rgba(37, 99, 235, 0.05)" };
-const mapPanelStyle = { background: "white", border: "1px solid #e2e8f0", borderRadius: "20px", overflow: "hidden", padding: 4, boxShadow: "0 4px 20px rgba(0,0,0,0.02)", zIndex: 1 };
+const etaCardStyle = {
+  display: "flex",
+  gap: 16,
+  alignItems: "center",
+  background: "#eff6ff",
+  border: "1px solid #bfdbfe",
+  borderRadius: "20px",
+  padding: "20px",
+  boxShadow: "0 4px 20px rgba(37, 99, 235, 0.05)",
+};
+const mapPanelStyle = {
+  background: "white",
+  border: "1px solid #e2e8f0",
+  borderRadius: "20px",
+  overflow: "hidden",
+  padding: 4,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
+  zIndex: 1,
+};
 
-const timelineList = { position: "relative", display: "flex", flexDirection: "column", gap: 16 };
-const timelineTrackLine = { position: "absolute", left: 15, top: 10, bottom: 10, width: 2, background: "#e2e8f0" };
-const timelineRowStyle = { display: "flex", gap: 14, alignItems: "start", position: "relative", zIndex: 2 };
-const timelineDotStyle = (completed, current) => ({ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: completed ? 12 : 14, fontWeight: 900, color: completed ? "white" : current ? "white" : "#94a3b8", background: completed ? "#10b981" : current ? "#2563eb" : "#ffffff", border: `2.5px solid ${completed ? "#10b981" : current ? "#2563eb" : "#e2e8f0"}` });
+const timelineList = {
+  position: "relative",
+  display: "flex",
+  flexDirection: "column",
+  gap: 16,
+};
+const timelineTrackLine = {
+  position: "absolute",
+  left: 15,
+  top: 10,
+  bottom: 10,
+  width: 2,
+  background: "#e2e8f0",
+};
+const timelineRowStyle = {
+  display: "flex",
+  gap: 14,
+  alignItems: "start",
+  position: "relative",
+  zIndex: 2,
+};
+const timelineDotStyle = (completed, current) => ({
+  width: 32,
+  height: 32,
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: completed ? 12 : 14,
+  fontWeight: 900,
+  color: completed ? "white" : current ? "white" : "#94a3b8",
+  background: completed ? "#10b981" : current ? "#2563eb" : "#ffffff",
+  border: `2.5px solid ${
+    completed ? "#10b981" : current ? "#2563eb" : "#e2e8f0"
+  }`,
+});
 
-const driverCardStyle = { display: "flex", gap: 14, alignItems: "center", background: "#f8fafc", border: "1.5px solid #e2e8f0", padding: "16px", borderRadius: "20px" };
-const driverAvatarStyle = { width: 50, height: 50, borderRadius: "50%", background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, overflow: "hidden" };
+const driverCardStyle = {
+  display: "flex",
+  gap: 14,
+  alignItems: "center",
+  background: "#f8fafc",
+  border: "1.5px solid #e2e8f0",
+  padding: "16px",
+  borderRadius: "20px",
+};
+const driverAvatarStyle = {
+  width: 50,
+  height: 50,
+  borderRadius: "50%",
+  background: "linear-gradient(135deg,#3b82f6,#8b5cf6)",
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: 900,
+  overflow: "hidden",
+};
 const avatarImgStyle = { width: "100%", height: "100%", objectFit: "cover" };
-const driverActionBtn = { textDecoration: "none", background: "#10b981", color: "white", padding: "8px 14px", borderRadius: "10px", fontWeight: 800, fontSize: 12, boxShadow: "0 4px 10px rgba(16, 185, 129, 0.2)" };
-const driverGhostBtn = { background: "white", color: "#475569", border: "1.5px solid #cbd5e1", padding: "8px 14px", borderRadius: "10px", fontWeight: 800, fontSize: 12, cursor: "pointer" };
+const driverActionBtn = {
+  textDecoration: "none",
+  background: "#10b981",
+  color: "white",
+  padding: "8px 14px",
+  borderRadius: "10px",
+  fontWeight: 800,
+  fontSize: 12,
+  boxShadow: "0 4px 10px rgba(16, 185, 129, 0.2)",
+};
+const driverGhostBtn = {
+  background: "white",
+  color: "#475569",
+  border: "1.5px solid #cbd5e1",
+  padding: "8px 14px",
+  borderRadius: "10px",
+  fontWeight: 800,
+  fontSize: 12,
+  cursor: "pointer",
+};
 
-const riderSkeletonStyle = { display: "flex", gap: 14, alignItems: "center", background: "#f8fafc", border: "1.5px solid #f1f5f9", padding: "16px", borderRadius: "20px", opacity: 0.7 };
-const avatarSkeleton = { width: 50, height: 50, borderRadius: "50%", background: "#e2e8f0" };
-const skeletonLineShort = { width: "110px", height: "14px", background: "#e2e8f0", borderRadius: "4px" };
-const skeletonLineLong = { width: "180px", height: "12px", background: "#e2e8f0", borderRadius: "4px" };
+const riderSkeletonStyle = {
+  display: "flex",
+  gap: 14,
+  alignItems: "center",
+  background: "#f8fafc",
+  border: "1.5px solid #f1f5f9",
+  padding: "16px",
+  borderRadius: "20px",
+  opacity: 0.7,
+};
+const avatarSkeleton = {
+  width: 50,
+  height: 50,
+  borderRadius: "50%",
+  background: "#e2e8f0",
+};
+const skeletonLineShort = {
+  width: "110px",
+  height: "14px",
+  background: "#e2e8f0",
+  borderRadius: "4px",
+};
+const skeletonLineLong = {
+  width: "180px",
+  height: "12px",
+  background: "#e2e8f0",
+  borderRadius: "4px",
+};
 
-const primaryActionBtn = { width: "100%", padding: "14px", borderRadius: "14px", border: "none", background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)", color: "white", fontSize: 14, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 14px rgba(17, 24, 39, 0.2)" };
-const secondaryActionBtn = { width: "100%", padding: "14px", borderRadius: "14px", border: "1.5px solid #cbd5e1", background: "white", color: "#334155", fontSize: 14, fontWeight: 800, cursor: "pointer" };
-const errorPanelStyle = { ...panelStyle, maxWidth: 520, margin: "80px auto", textAlign: "center" };
-const secondaryBtnStyle = { border: "none", background: "linear-gradient(135deg, #10b981, #059669)", color: "white", borderRadius: 12, padding: "11px 14px", fontWeight: 900, cursor: "pointer", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)", marginTop: 14 };
+const primaryActionBtn = {
+  width: "100%",
+  padding: "14px",
+  borderRadius: "14px",
+  border: "none",
+  background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)",
+  color: "white",
+  fontSize: 14,
+  fontWeight: 800,
+  cursor: "pointer",
+  boxShadow: "0 4px 14px rgba(17, 24, 39, 0.2)",
+};
+const secondaryActionBtn = {
+  width: "100%",
+  padding: "14px",
+  borderRadius: "14px",
+  border: "1.5px solid #cbd5e1",
+  background: "white",
+  color: "#334155",
+  fontSize: 14,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+const errorPanelStyle = {
+  ...panelStyle,
+  maxWidth: 520,
+  margin: "80px auto",
+  textAlign: "center",
+};
+const secondaryBtnStyle = {
+  border: "none",
+  background: "linear-gradient(135deg, #10b981, #059669)",
+  color: "white",
+  borderRadius: 12,
+  padding: "11px 14px",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+  marginTop: 14,
+};
